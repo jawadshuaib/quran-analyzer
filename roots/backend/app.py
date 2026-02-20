@@ -81,6 +81,90 @@ def _fetch_word_glosses(conn, surah, ayah):
         return {}
 
 
+# --------------- Buckwalter → SemiticRoots transliteration ---------------
+
+_BW_TO_SR = {
+    "'": "ʔ", ">": "ʔ", "<": "ʔ", "&": "ʔ", "}": "ʔ", "A": "ʔ",
+    "b": "b", "t": "t", "v": "ṯ", "j": "g",
+    "H": "ḥ", "x": "ḫ", "d": "d", "*": "ḏ",
+    "r": "r", "z": "z", "s": "s¹", "$": "s²",
+    "S": "ṣ", "D": "ḍ", "T": "ṭ", "Z": "ẓ",
+    "E": "ʕ", "g": "ġ", "f": "f", "q": "q",
+    "k": "k", "l": "l", "m": "m", "n": "n",
+    "h": "h", "w": "w", "y": "y",
+}
+
+
+def _bw_to_sr(bw_root: str) -> str:
+    """Convert Buckwalter root 'Hmd' to semiticroots format 'ḥ-m-d'."""
+    return "-".join(_BW_TO_SR.get(c, c) for c in bw_root)
+
+
+def _has_semitic_tables(conn) -> bool:
+    """Check if semitic_roots table exists."""
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='semitic_roots'"
+    ).fetchone()
+    return row is not None
+
+
+def _get_cognate(conn, bw_root: str) -> dict | None:
+    """Look up Semitic cognate data for a Buckwalter root."""
+    if not _has_semitic_tables(conn):
+        return None
+
+    sr_trans = _bw_to_sr(bw_root)
+    # Multiple roots may share the same transliteration (homographic roots)
+    root_rows = conn.execute(
+        "SELECT id, transliteration, concept FROM semitic_roots WHERE transliteration = ?",
+        (sr_trans,),
+    ).fetchall()
+
+    if not root_rows:
+        return None
+
+    # Collect concepts and derivatives from all matching roots
+    concepts = []
+    all_derivs = []
+    for root_row in root_rows:
+        concepts.append(root_row["concept"])
+        derivs = conn.execute(
+            "SELECT language, word, displayed_text, concept, meaning "
+            "FROM semitic_derivatives WHERE root_id = ? ORDER BY language",
+            (root_row["id"],),
+        ).fetchall()
+        all_derivs.extend(derivs)
+
+    return {
+        "semitic_root_id": root_rows[0]["id"],
+        "transliteration": root_rows[0]["transliteration"],
+        "concept": " / ".join(concepts),
+        "derivatives": [
+            {
+                "language": d["language"],
+                "word": d["word"],
+                "displayed_text": d["displayed_text"],
+                "concept": d["concept"],
+                "meaning": d["meaning"],
+            }
+            for d in all_derivs
+        ],
+    }
+
+
+@app.route("/api/cognates/<root_bw>")
+def get_cognates(root_bw: str):
+    """Get Semitic cognate data for a Buckwalter root (e.g. 'Hmd')."""
+    conn = get_db()
+    try:
+        cognate = _get_cognate(conn, root_bw)
+        if not cognate:
+            return jsonify({"error": f"No cognate data for root '{root_bw}'"}), 404
+        return jsonify(cognate)
+    finally:
+        conn.close()
+
+
 @app.route("/api/verse/<int:surah>:<int:ayah>")
 def get_verse(surah: int, ayah: int):
     conn = get_db()
@@ -161,13 +245,19 @@ def get_verse(surah: int, ayah: int):
             for pos, segs in words.items()
         ]
 
+        # Enrich roots with cognate data
+        roots_list = list(roots_seen.values())
+        for root_entry in roots_list:
+            cognate = _get_cognate(conn, root_entry["root_buckwalter"])
+            root_entry["cognate"] = cognate
+
         return jsonify({
             "surah": surah,
             "ayah": ayah,
             "text_uthmani": verse["text_uthmani"],
             "translation": trans["text_en"] if trans else "",
             "words": words_list,
-            "roots_summary": list(roots_seen.values()),
+            "roots_summary": roots_list,
         })
     finally:
         conn.close()

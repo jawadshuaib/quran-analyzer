@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import type { VerseData, Word } from '../types';
+import type { VerseData, Word, CognateData, RootSummary } from '../types';
 import WordTooltip from './WordTooltip';
+import CognatePanel from './CognatePanel';
 
 interface Props {
   data: VerseData;
@@ -10,6 +11,7 @@ export default function VerseDisplay({ data }: Props) {
   const [hoveredPos, setHoveredPos] = useState<number | null>(null);
   const [pinnedPos, setPinnedPos] = useState<number | null>(null);
   const [hoveredRoot, setHoveredRoot] = useState<string | null>(null);
+  const [expandedRoot, setExpandedRoot] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
@@ -31,10 +33,25 @@ export default function VerseDisplay({ data }: Props) {
     });
   });
 
+  // Build root_buckwalter -> cognate data lookup
+  const rootCognateMap = new Map<string, CognateData>();
+  data.roots_summary.forEach((r) => {
+    if (r.cognate) {
+      rootCognateMap.set(r.root_buckwalter, r.cognate);
+    }
+  });
+
+  // Get cognate for a word (from its first root-bearing segment)
+  function getCognateForWord(word: Word): CognateData | undefined {
+    const rootBw = word.segments.find((s) => s.root_buckwalter)?.root_buckwalter;
+    return rootBw ? rootCognateMap.get(rootBw) : undefined;
+  }
+
   // Reset state when verse changes
   useEffect(() => {
     setPinnedPos(null);
     setHoveredRoot(null);
+    setExpandedRoot(null);
   }, [data]);
 
   // Click outside the card to dismiss pinned tooltip
@@ -51,6 +68,11 @@ export default function VerseDisplay({ data }: Props) {
 
   const activePos = pinnedPos ?? hoveredPos;
   const highlightedByRoot = hoveredRoot ? rootToPositions.get(hoveredRoot) : null;
+
+  // Find the root summary for the expanded root
+  const expandedRootData: RootSummary | undefined = expandedRoot
+    ? data.roots_summary.find((r) => r.root_buckwalter === expandedRoot)
+    : undefined;
 
   return (
     <div
@@ -95,7 +117,12 @@ export default function VerseDisplay({ data }: Props) {
               }}
             >
               {word}
-              {isActive && wordData && <WordTooltip word={wordData} />}
+              {isActive && wordData && (
+                <WordTooltip
+                  word={wordData}
+                  cognate={getCognateForWord(wordData)}
+                />
+              )}
             </span>
           );
         })}
@@ -112,10 +139,16 @@ export default function VerseDisplay({ data }: Props) {
                          text-sm font-medium border cursor-pointer transition-colors duration-150 ${
                 hoveredRoot === r.root_buckwalter
                   ? 'bg-amber-100 text-amber-800 border-amber-300'
-                  : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                  : expandedRoot === r.root_buckwalter
+                    ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
               }`}
               onMouseEnter={() => setHoveredRoot(r.root_buckwalter)}
               onMouseLeave={() => setHoveredRoot(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setExpandedRoot(expandedRoot === r.root_buckwalter ? null : r.root_buckwalter);
+              }}
             >
               <span dir="rtl" lang="ar" className="font-arabic text-base">
                 {r.root_arabic}
@@ -124,7 +157,9 @@ export default function VerseDisplay({ data }: Props) {
                 className={`text-xs ${
                   hoveredRoot === r.root_buckwalter
                     ? 'text-amber-600'
-                    : 'text-emerald-500'
+                    : expandedRoot === r.root_buckwalter
+                      ? 'text-indigo-500'
+                      : 'text-emerald-500'
                 }`}
               >
                 ({r.root_buckwalter})
@@ -134,15 +169,38 @@ export default function VerseDisplay({ data }: Props) {
                   className={`text-xs ${
                     hoveredRoot === r.root_buckwalter
                       ? 'text-amber-500'
-                      : 'text-emerald-400'
+                      : expandedRoot === r.root_buckwalter
+                        ? 'text-indigo-400'
+                        : 'text-emerald-400'
                   }`}
                 >
                   &times;{r.occurrences}
                 </span>
               )}
+              {r.cognate && (
+                <span
+                  className={`text-xs italic ${
+                    hoveredRoot === r.root_buckwalter
+                      ? 'text-amber-600'
+                      : expandedRoot === r.root_buckwalter
+                        ? 'text-indigo-500'
+                        : 'text-emerald-500'
+                  }`}
+                >
+                  &middot; {r.cognate.concept}
+                </span>
+              )}
             </span>
           ))}
         </div>
+      )}
+
+      {expandedRootData?.cognate && (
+        <CognatePanel
+          rootArabic={expandedRootData.root_arabic}
+          cognate={expandedRootData.cognate}
+          onClose={() => setExpandedRoot(null)}
+        />
       )}
     </div>
   );
