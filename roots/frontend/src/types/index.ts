@@ -120,6 +120,7 @@ export interface WordSearchResult {
   translation: string;
   score: number;
   matched_terms: ResolvedTerm[];
+  matched_positions: number[];
 }
 
 export interface WordSearchResponse {

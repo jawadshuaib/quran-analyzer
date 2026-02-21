@@ -645,6 +645,8 @@ def search_words():
     limit = min(max(1, body.get("limit", 25)), 50)
     query_verse = body.get("query_verse")  # optional {surah, ayah} to exclude
 
+    count_only = body.get("count_only", False)
+
     if not terms:
         return jsonify({"error": "No search terms provided"}), 400
 
@@ -698,6 +700,12 @@ def search_words():
 
     total_found = len(result_set)
 
+    if count_only:
+        return jsonify({
+            "terms_used": resolved,
+            "total_found": total_found,
+        })
+
     if not result_set:
         return jsonify({
             "terms_used": resolved,
@@ -723,6 +731,11 @@ def search_words():
     scored.sort(key=lambda x: -x[0])
     scored = scored[:limit]
 
+    # Build lookup sets for matching word positions in result verses
+    lemma_keys = {r["search_key"] for r in resolved if r["search_type"] == "lemma"}
+    root_keys = {r["search_key"] for r in resolved if r["search_type"] == "root"}
+    form_keys = {r["search_key"] for r in resolved if r["search_type"] == "form"}
+
     # Fetch text + translation for results
     conn = get_db()
     try:
@@ -737,6 +750,20 @@ def search_words():
                 (ch, v),
             ).fetchone()
 
+            # Find word positions that match any of the search terms
+            matched_positions = set()
+            morph_rows = conn.execute(
+                "SELECT word_pos, lemma_buckwalter, root_buckwalter, form_buckwalter "
+                "FROM morphology WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchall()
+            for mr in morph_rows:
+                lbw = mr["lemma_buckwalter"] or ""
+                rbw = mr["root_buckwalter"] or ""
+                fbw = mr["form_buckwalter"] or ""
+                if (lbw in lemma_keys) or (rbw in root_keys) or (fbw in form_keys):
+                    matched_positions.add(mr["word_pos"])
+
             results.append({
                 "surah": ch,
                 "ayah": v,
@@ -744,6 +771,7 @@ def search_words():
                 "translation": trans_row["text_en"] if trans_row else "",
                 "score": round(score, 3),
                 "matched_terms": matched,
+                "matched_positions": sorted(matched_positions),
             })
 
         return jsonify({

@@ -49,3 +49,17 @@ export async function searchWords(
   if (!res.ok) throw new Error('Failed to search words');
   return res.json();
 }
+
+export async function searchWordsCount(
+  terms: SearchTerm[],
+  queryVerse?: { surah: number; ayah: number },
+): Promise<number> {
+  const res = await fetch(`${BASE}/search-words`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ terms, query_verse: queryVerse, count_only: true }),
+  });
+  if (!res.ok) return 0;
+  const data = await res.json();
+  return data.total_found ?? 0;
+}

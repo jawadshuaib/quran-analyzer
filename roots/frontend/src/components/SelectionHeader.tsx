@@ -6,11 +6,20 @@ interface Props {
   onClear: () => void;
   onSearch: () => void;
   loading?: boolean;
+  resultCount: number | null; // null = still counting
 }
 
-export default function SelectionFooter({ selectedWords, onDeselect, onClear, onSearch, loading }: Props) {
+export default function SelectionHeader({ selectedWords, onDeselect, onClear, onSearch, loading, resultCount }: Props) {
+  const hasResults = resultCount !== null && resultCount > 0;
+  const countLabel =
+    resultCount === null
+      ? '...'
+      : resultCount === 0
+        ? 'No results'
+        : `${resultCount} verse${resultCount !== 1 ? 's' : ''}`;
+
   return (
-    <div className="border-t border-stone-200 bg-stone-50 px-4 py-3 rounded-b-xl -mx-6 -mb-6 mt-4">
+    <div className="border-b border-stone-200 bg-stone-50 px-4 py-3 rounded-t-xl -mx-6 -mt-6 mb-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-wrap gap-1.5 min-w-0 flex-1">
           {selectedWords.map(({ position, word, displayText }) => (
@@ -38,6 +47,9 @@ export default function SelectionFooter({ selectedWords, onDeselect, onClear, on
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <span className={`text-xs ${resultCount === 0 ? 'text-stone-400' : 'text-stone-500'}`}>
+            {countLabel}
+          </span>
           <button
             onClick={(e) => { e.stopPropagation(); onClear(); }}
             className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1"
@@ -46,7 +58,7 @@ export default function SelectionFooter({ selectedWords, onDeselect, onClear, on
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onSearch(); }}
-            disabled={loading}
+            disabled={loading || !hasResults}
             className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
           >
             {loading ? (

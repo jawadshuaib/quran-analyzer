@@ -1,4 +1,4 @@
-import type { WordSearchResponse, ResolvedTerm } from '../types';
+import type { WordSearchResponse, WordSearchResult, ResolvedTerm } from '../types';
 
 interface Props {
   data: WordSearchResponse;
@@ -11,6 +11,34 @@ const TYPE_STYLES: Record<string, string> = {
   root: 'bg-amber-50 border-amber-200 text-amber-700',
   form: 'bg-stone-100 border-stone-300 text-stone-600',
 };
+
+function HighlightedArabicText({ verse }: { verse: WordSearchResult }) {
+  const words = verse.text_uthmani.split(/\s+/).filter(Boolean);
+  const matchSet = new Set(verse.matched_positions);
+
+  return (
+    <p
+      dir="rtl"
+      lang="ar"
+      className="font-arabic text-lg text-stone-800 leading-relaxed mb-1"
+    >
+      {words.map((word, idx) => {
+        const pos = idx + 1;
+        const isMatched = matchSet.has(pos);
+        return (
+          <span key={pos}>
+            {idx > 0 && ' '}
+            {isMatched ? (
+              <span className="bg-yellow-200 rounded px-0.5">{word}</span>
+            ) : (
+              word
+            )}
+          </span>
+        );
+      })}
+    </p>
+  );
+}
 
 function TermPill({ term }: { term: ResolvedTerm }) {
   return (
@@ -70,13 +98,7 @@ export default function WordSearchResults({ data, onNavigate, onClose }: Props) 
                 </span>
               </div>
 
-              <p
-                dir="rtl"
-                lang="ar"
-                className="font-arabic text-lg text-stone-800 leading-relaxed line-clamp-2 mb-1"
-              >
-                {v.text_uthmani}
-              </p>
+              <HighlightedArabicText verse={v} />
 
               <p className="text-sm text-stone-500 italic line-clamp-2 mb-2">
                 {v.translation}

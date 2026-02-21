@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { VerseData, Word, CognateData, RootSummary, SearchTerm } from '../types';
+import { searchWordsCount } from '../api/quran';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
-import SelectionFooter from './SelectionFooter';
+import SelectionHeader from './SelectionHeader';
 
 interface Props {
   data: VerseData;
@@ -10,11 +11,28 @@ interface Props {
   wordSearchLoading?: boolean;
 }
 
+/** Return the primary content segment of a word, skipping prefixes/suffixes/pronouns. */
+function getContentSegment(word: Word) {
+  return (
+    word.segments.find(
+      (s) =>
+        (s.lemma_buckwalter || s.root_buckwalter) &&
+        s.pos !== 'Prefix' && s.pos !== 'Suffix' && s.pos !== 'Pronoun'
+    ) ??
+    word.segments.find(
+      (s) =>
+        s.form_buckwalter &&
+        s.pos !== 'Prefix' && s.pos !== 'Suffix' && s.pos !== 'Pronoun'
+    )
+  );
+}
+
 export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: Props) {
   const [hoveredPos, setHoveredPos] = useState<number | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<Set<number>>(new Set());
   const [hoveredRoot, setHoveredRoot] = useState<string | null>(null);
   const [expandedRoot, setExpandedRoot] = useState<string | null>(null);
+  const [resultCount, setResultCount] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
@@ -55,6 +73,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
     setSelectedPositions(new Set());
     setHoveredRoot(null);
     setExpandedRoot(null);
+    setResultCount(null);
   }, [data]);
 
   // Click outside the card to dismiss all selections
@@ -69,22 +88,13 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [selectedPositions.size]);
 
-  const hasSelection = selectedPositions.size > 0;
-  const highlightedByRoot = hoveredRoot ? rootToPositions.get(hoveredRoot) : null;
-
-  // Find the root summary for the expanded root
-  const expandedRootData: RootSummary | undefined = expandedRoot
-    ? data.roots_summary.find((r) => r.root_buckwalter === expandedRoot)
-    : undefined;
-
-  // Build search terms from selected positions
-  const buildSearchTerms = useCallback((): SearchTerm[] => {
+  // Build search terms from selected positions (skip prefix/suffix segments)
+  function buildSearchTerms(positions: Set<number>): SearchTerm[] {
     const terms: SearchTerm[] = [];
-    for (const pos of selectedPositions) {
+    for (const pos of positions) {
       const word = wordMap.get(pos);
       if (!word) continue;
-      // Find primary content segment (first segment with lemma, root, or form)
-      const seg = word.segments.find((s) => s.lemma_buckwalter || s.root_buckwalter || s.form_buckwalter);
+      const seg = getContentSegment(word);
       if (!seg) continue;
       const displayText = uthmaniWords[pos - 1] ?? seg.form_arabic;
       terms.push({
@@ -95,9 +105,43 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
       });
     }
     return terms;
-  }, [selectedPositions, wordMap, uthmaniWords]);
+  }
 
-  // Build selected word info for footer
+  // Stable key for the selected positions — only changes when actual selection changes
+  const selectionKey = Array.from(selectedPositions).sort((a, b) => a - b).join(',');
+
+  // Auto-count results when selection changes
+  useEffect(() => {
+    if (selectedPositions.size === 0) {
+      setResultCount(null);
+      return;
+    }
+    const terms = buildSearchTerms(selectedPositions);
+    if (terms.length === 0) {
+      setResultCount(0);
+      return;
+    }
+    let cancelled = false;
+    setResultCount(null); // loading
+    const timer = setTimeout(() => {
+      searchWordsCount(terms, { surah: data.surah, ayah: data.ayah }).then(
+        (count) => { if (!cancelled) setResultCount(count); },
+        () => { if (!cancelled) setResultCount(0); },
+      );
+    }, 200); // small debounce
+    return () => { cancelled = true; clearTimeout(timer); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectionKey, data.surah, data.ayah]);
+
+  const hasSelection = selectedPositions.size > 0;
+  const highlightedByRoot = hoveredRoot ? rootToPositions.get(hoveredRoot) : null;
+
+  // Find the root summary for the expanded root
+  const expandedRootData: RootSummary | undefined = expandedRoot
+    ? data.roots_summary.find((r) => r.root_buckwalter === expandedRoot)
+    : undefined;
+
+  // Build selected word info for header
   const selectedWords = Array.from(selectedPositions)
     .sort((a, b) => a - b)
     .map((pos) => ({
@@ -109,7 +153,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
 
   function handleSearch() {
     if (!onWordSearch) return;
-    const terms = buildSearchTerms();
+    const terms = buildSearchTerms(selectedPositions);
     if (terms.length === 0) return;
     onWordSearch(terms, { surah: data.surah, ayah: data.ayah });
   }
@@ -120,6 +164,23 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
       className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
       onClick={() => setSelectedPositions(new Set())}
     >
+      {hasSelection && (
+        <SelectionHeader
+          selectedWords={selectedWords}
+          onDeselect={(pos) => {
+            setSelectedPositions((prev) => {
+              const next = new Set(prev);
+              next.delete(pos);
+              return next;
+            });
+          }}
+          onClear={() => setSelectedPositions(new Set())}
+          onSearch={handleSearch}
+          loading={wordSearchLoading}
+          resultCount={resultCount}
+        />
+      )}
+
       <div className="mb-1 text-sm font-medium text-stone-500">
         Surah {data.surah}, Ayah {data.ayah}
       </div>
@@ -253,22 +314,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
           rootBuckwalter={expandedRootData.root_buckwalter}
           cognate={expandedRootData.cognate}
           onClose={() => setExpandedRoot(null)}
-        />
-      )}
-
-      {hasSelection && (
-        <SelectionFooter
-          selectedWords={selectedWords}
-          onDeselect={(pos) => {
-            setSelectedPositions((prev) => {
-              const next = new Set(prev);
-              next.delete(pos);
-              return next;
-            });
-          }}
-          onClear={() => setSelectedPositions(new Set())}
-          onSearch={handleSearch}
-          loading={wordSearchLoading}
         />
       )}
     </div>
