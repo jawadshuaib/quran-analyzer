@@ -208,6 +208,20 @@ def _find_related_verses(surah, ayah, limit=10):
 
 _build_similarity_engine()
 
+# Load exact Bismillah from DB to avoid Unicode diacritics-ordering mismatches
+_conn = get_db()
+_BISMILLAH = _conn.execute(
+    "SELECT text_uthmani FROM verses WHERE chapter=1 AND verse=1"
+).fetchone()["text_uthmani"]
+_conn.close()
+
+
+def _strip_bismillah(text, surah, ayah):
+    """Strip the Bismillah prefix from verse 1 display text (except 1:1 where it IS the verse)."""
+    if ayah == 1 and surah != 1 and text.startswith(_BISMILLAH):
+        return text[len(_BISMILLAH):].strip()
+    return text
+
 
 def _fetch_word_glosses(conn, surah, ayah):
     """Get word-by-word English translations, fetching from Quran.com API v4 if not cached."""
@@ -422,7 +436,7 @@ def get_verse(surah: int, ayah: int):
         return jsonify({
             "surah": surah,
             "ayah": ayah,
-            "text_uthmani": verse["text_uthmani"],
+            "text_uthmani": _strip_bismillah(verse["text_uthmani"], surah, ayah),
             "translation": trans["text_en"] if trans else "",
             "words": words_list,
             "roots_summary": roots_list,
@@ -527,7 +541,7 @@ def get_related_verses(surah: int, ayah: int):
             related.append({
                 "surah": ch,
                 "ayah": v,
-                "text_uthmani": verse_row["text_uthmani"] if verse_row else "",
+                "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], ch, v) if verse_row else "",
                 "translation": trans_row["text_en"] if trans_row else "",
                 "similarity_score": round(containment, 3),
                 "shared_roots": shared_info,
