@@ -198,6 +198,7 @@ export default function VerseDisplay({ data }: Props) {
       {expandedRootData?.cognate && (
         <CognatePanel
           rootArabic={expandedRootData.root_arabic}
+          rootBuckwalter={expandedRootData.root_buckwalter}
           cognate={expandedRootData.cognate}
           onClose={() => setExpandedRoot(null)}
         />

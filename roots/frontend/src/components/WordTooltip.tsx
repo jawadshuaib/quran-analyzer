@@ -8,7 +8,9 @@ interface Props {
 
 export default function WordTooltip({ word, cognate }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const mainRoot = word.segments.find((s) => s.root_arabic)?.root_arabic;
+  const mainRootSeg = word.segments.find((s) => s.root_arabic);
+  const mainRoot = mainRootSeg?.root_arabic;
+  const mainRootBw = mainRootSeg?.root_buckwalter;
   const mainLemma = word.segments.find((s) => s.lemma_arabic)?.lemma_arabic;
   const posLabels = word.segments
     .map((s) => s.pos)
@@ -95,6 +97,26 @@ export default function WordTooltip({ word, cognate }: Props) {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {mainRootBw && (
+        <div className="mt-2 pt-2 border-t border-stone-100">
+          <a
+            href={`https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(mainRootBw)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                       bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700
+                       text-xs font-medium transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            View in Quranic Corpus
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+            </svg>
+          </a>
         </div>
       )}
     </div>

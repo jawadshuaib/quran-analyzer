@@ -199,7 +199,8 @@ def import_to_db(roots: list[dict]):
         CREATE TABLE IF NOT EXISTS semitic_roots (
             id INTEGER PRIMARY KEY,
             transliteration TEXT NOT NULL,
-            concept TEXT
+            concept TEXT,
+            source TEXT DEFAULT 'semiticroots'
         )
     """)
 
@@ -216,38 +217,26 @@ def import_to_db(roots: list[dict]):
         )
     """)
 
+    # Add source column if it doesn't exist (for existing databases)
+    try:
+        c.execute("ALTER TABLE semitic_roots ADD COLUMN source TEXT DEFAULT 'semiticroots'")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
+
     c.execute("CREATE INDEX IF NOT EXISTS idx_sr_trans ON semitic_roots(transliteration)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_sd_root ON semitic_derivatives(root_id)")
 
-    # Drop and recreate to ensure clean schema
-    c.execute("DROP TABLE IF EXISTS semitic_derivatives")
-    c.execute("DROP TABLE IF EXISTS semitic_roots")
-    c.execute("""
-        CREATE TABLE semitic_roots (
-            id INTEGER PRIMARY KEY,
-            transliteration TEXT NOT NULL,
-            concept TEXT
-        )
-    """)
-    c.execute("""
-        CREATE TABLE semitic_derivatives (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            root_id INTEGER NOT NULL,
-            language TEXT,
-            word TEXT,
-            displayed_text TEXT,
-            concept TEXT,
-            meaning TEXT,
-            FOREIGN KEY (root_id) REFERENCES semitic_roots(id)
-        )
-    """)
-    c.execute("CREATE INDEX IF NOT EXISTS idx_sr_trans ON semitic_roots(transliteration)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_sd_root ON semitic_derivatives(root_id)")
+    # Delete existing semiticroots data only (preserves starling data)
+    c.execute(
+        "DELETE FROM semitic_derivatives WHERE root_id IN "
+        "(SELECT id FROM semitic_roots WHERE source = 'semiticroots' OR source IS NULL)"
+    )
+    c.execute("DELETE FROM semitic_roots WHERE source = 'semiticroots' OR source IS NULL")
 
     for root in roots:
         c.execute(
-            "INSERT INTO semitic_roots (id, transliteration, concept) VALUES (?, ?, ?)",
-            (root["id"], root["transliteration"], root["concept"]),
+            "INSERT INTO semitic_roots (id, transliteration, concept, source) VALUES (?, ?, ?, ?)",
+            (root["id"], root["transliteration"], root["concept"], "semiticroots"),
         )
         for d in root.get("derivatives", []):
             c.execute(
