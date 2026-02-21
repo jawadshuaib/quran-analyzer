@@ -557,5 +557,64 @@ def get_related_verses(surah: int, ayah: int):
         conn.close()
 
 
+@app.route("/api/context/<int:surah>:<int:ayah>")
+def get_context(surah: int, ayah: int):
+    """Return surrounding verses for context (up to 6 total, excluding the queried verse)."""
+    conn = get_db()
+    try:
+        # Find total verses in this surah
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM verses WHERE chapter = ?", (surah,)
+        ).fetchone()
+        total = row["cnt"] if row else 0
+
+        if total == 0:
+            return jsonify({"error": f"Surah {surah} not found"}), 404
+
+        # Determine range: 3 before + 3 after, sliding at boundaries
+        context_size = 6
+        before = 3
+        after = 3
+
+        if ayah <= before:
+            # Near the start: take fewer before, more after
+            before = ayah - 1
+            after = context_size - before
+        elif ayah + after > total:
+            # Near the end: take fewer after, more before
+            after = total - ayah
+            before = context_size - after
+
+        start = max(1, ayah - before)
+        end = min(total, ayah + after)
+
+        rows = conn.execute(
+            "SELECT v.chapter, v.verse, v.text_uthmani, t.text_en "
+            "FROM verses v LEFT JOIN translations t "
+            "ON v.chapter = t.chapter AND v.verse = t.verse "
+            "WHERE v.chapter = ? AND v.verse BETWEEN ? AND ? AND v.verse != ? "
+            "ORDER BY v.verse",
+            (surah, start, end, ayah),
+        ).fetchall()
+
+        verses = [
+            {
+                "surah": r["chapter"],
+                "ayah": r["verse"],
+                "text_uthmani": _strip_bismillah(r["text_uthmani"], r["chapter"], r["verse"]),
+                "translation": r["text_en"] or "",
+            }
+            for r in rows
+        ]
+
+        return jsonify({
+            "query": {"surah": surah, "ayah": ayah},
+            "context": verses,
+            "surah_total": total,
+        })
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

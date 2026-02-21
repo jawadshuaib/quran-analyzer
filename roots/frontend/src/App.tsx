@@ -3,6 +3,7 @@ import type { VerseData } from './types';
 import { fetchVerse } from './api/quran';
 import SearchBar from './components/SearchBar';
 import VerseDisplay from './components/VerseDisplay';
+import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
 
 export default function App() {
@@ -54,6 +55,11 @@ export default function App() {
       {data && (
         <div className="space-y-8">
           <VerseDisplay data={data} />
+          <SurroundingContext
+            surah={data.surah}
+            ayah={data.ayah}
+            onNavigate={handleSearch}
+          />
           <RelatedVerses
             surah={data.surah}
             ayah={data.ayah}

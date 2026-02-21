@@ -86,3 +86,16 @@ export interface RelatedVersesResponse {
   related: RelatedVerse[];
   meta: { query_root_count: number };
 }
+
+export interface ContextVerse {
+  surah: number;
+  ayah: number;
+  text_uthmani: string;
+  translation: string;
+}
+
+export interface ContextResponse {
+  query: { surah: number; ayah: number };
+  context: ContextVerse[];
+  surah_total: number;
+}
