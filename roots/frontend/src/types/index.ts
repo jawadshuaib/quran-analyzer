@@ -65,3 +65,24 @@ export interface SurahInfo {
   name: string;
   verse_count: number;
 }
+
+export interface SharedRoot {
+  root_arabic: string;
+  root_buckwalter: string;
+  idf: number;
+}
+
+export interface RelatedVerse {
+  surah: number;
+  ayah: number;
+  text_uthmani: string;
+  translation: string;
+  similarity_score: number;
+  shared_roots: SharedRoot[];
+}
+
+export interface RelatedVersesResponse {
+  query: { surah: number; ayah: number };
+  related: RelatedVerse[];
+  meta: { query_root_count: number };
+}

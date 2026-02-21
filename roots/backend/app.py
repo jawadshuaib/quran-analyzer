@@ -1,11 +1,12 @@
 """Flask API for the Quran Root Word Analyzer."""
 
+import math
 import os
 import sqlite3
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import requests
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -39,6 +40,173 @@ def _ensure_word_glosses_table():
 
 
 _ensure_word_glosses_table()
+
+
+# --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
+
+ROOT_DISCOUNT = 0.5  # Root-only matches get half credit vs lemma matches
+
+_lemma_idf = {}                # lemma_bw -> float
+_root_idf = {}                 # root_bw -> float
+_verse_lemmas = {}             # (ch, v) -> set of lemma_bw
+_verse_roots = {}              # (ch, v) -> set of root_bw
+_lemma_inv = defaultdict(set)  # lemma_bw -> set of (ch, v)
+_root_inv = defaultdict(set)   # root_bw -> set of (ch, v)
+_lemma_roots = defaultdict(set)  # lemma_bw -> set of root_bw
+_root_arabic_map = {}          # root_bw -> root_arabic string
+
+
+def _build_similarity_engine():
+    """Pre-compute lemma/root IDF values and inverted indexes for all verses."""
+    conn = get_db()
+    try:
+        # Query 1: Lemma profiles per verse
+        lemma_rows = conn.execute(
+            "SELECT DISTINCT chapter, verse, lemma_buckwalter "
+            "FROM morphology "
+            "WHERE lemma_buckwalter IS NOT NULL AND lemma_buckwalter != ''"
+        ).fetchall()
+
+        # Query 2: Root profiles per verse + arabic mapping
+        root_rows = conn.execute(
+            "SELECT DISTINCT chapter, verse, root_buckwalter, root_arabic "
+            "FROM morphology "
+            "WHERE root_buckwalter IS NOT NULL AND root_buckwalter != ''"
+        ).fetchall()
+
+        # Query 3: Lemma-to-root mapping
+        lr_rows = conn.execute(
+            "SELECT DISTINCT lemma_buckwalter, root_buckwalter "
+            "FROM morphology "
+            "WHERE lemma_buckwalter IS NOT NULL AND lemma_buckwalter != '' "
+            "AND root_buckwalter IS NOT NULL AND root_buckwalter != ''"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    if not lemma_rows and not root_rows:
+        print("Similarity engine: no morphology data found")
+        return
+
+    # Build lemma profiles and doc frequency
+    lemma_doc_freq = defaultdict(int)  # lemma_bw -> number of verses containing it
+    verse_lemma_sets = defaultdict(set)
+
+    for row in lemma_rows:
+        key = (row["chapter"], row["verse"])
+        lbw = row["lemma_buckwalter"]
+        verse_lemma_sets[key].add(lbw)
+
+    for key, lemmas in verse_lemma_sets.items():
+        _verse_lemmas[key] = lemmas
+        for lbw in lemmas:
+            lemma_doc_freq[lbw] += 1
+            _lemma_inv[lbw].add(key)
+
+    # Build root profiles and doc frequency
+    root_doc_freq = defaultdict(int)
+    verse_root_sets = defaultdict(set)
+
+    for row in root_rows:
+        key = (row["chapter"], row["verse"])
+        rbw = row["root_buckwalter"]
+        verse_root_sets[key].add(rbw)
+        _root_arabic_map[rbw] = row["root_arabic"]
+
+    for key, roots in verse_root_sets.items():
+        _verse_roots[key] = roots
+        for rbw in roots:
+            root_doc_freq[rbw] += 1
+            _root_inv[rbw].add(key)
+
+    # Build lemma-to-root mapping
+    for row in lr_rows:
+        _lemma_roots[row["lemma_buckwalter"]].add(row["root_buckwalter"])
+
+    # Compute IDF values
+    total_verses = len(set(list(_verse_lemmas.keys()) + list(_verse_roots.keys())))
+
+    for lbw, df in lemma_doc_freq.items():
+        _lemma_idf[lbw] = math.log(total_verses / df)
+
+    for rbw, df in root_doc_freq.items():
+        _root_idf[rbw] = math.log(total_verses / df)
+
+    print(
+        f"Similarity engine ready: {len(_lemma_idf)} lemmas, "
+        f"{len(_root_idf)} roots, ~{total_verses} verse profiles"
+    )
+
+
+def _find_related_verses(surah, ayah, limit=10):
+    """Find verses most related to (surah, ayah) using IDF-weighted containment."""
+    query_key = (surah, ayah)
+    query_lemmas = _verse_lemmas.get(query_key)
+    query_roots = _verse_roots.get(query_key, set())
+
+    if not query_lemmas:
+        return []
+
+    # Gather candidates via both lemma and root inverted indexes
+    candidates = set()
+    for lbw in query_lemmas:
+        candidates.update(_lemma_inv.get(lbw, set()))
+    for rbw in query_roots:
+        candidates.update(_root_inv.get(rbw, set()))
+    candidates.discard(query_key)
+
+    # Remove adjacent verses (same surah, ±2 ayahs)
+    adjacent = {(surah, ayah + d) for d in range(-2, 3)}
+    candidates -= adjacent
+
+    # Score each candidate by containment
+    scored = []
+    for cand_key in candidates:
+        cand_lemmas = _verse_lemmas.get(cand_key)
+        if not cand_lemmas:
+            continue
+        cand_roots = _verse_roots.get(cand_key, set())
+
+        # Shared lemmas
+        shared_lemmas = cand_lemmas & query_lemmas
+
+        # Roots already covered by shared lemmas
+        covered_roots = set()
+        for lbw in shared_lemmas:
+            covered_roots.update(_lemma_roots.get(lbw, set()))
+
+        # Extra shared roots (root matches not already covered by lemma matches)
+        extra_shared_roots = (cand_roots & query_roots) - covered_roots
+
+        # Shared weight = full credit for lemmas + discounted credit for root-only
+        shared_weight = sum(_lemma_idf.get(lbw, 0) for lbw in shared_lemmas)
+        shared_weight += ROOT_DISCOUNT * sum(_root_idf.get(rbw, 0) for rbw in extra_shared_roots)
+
+        if shared_weight == 0:
+            continue
+
+        # Candidate total weight = sum of lemma IDF for all candidate lemmas
+        cand_total = sum(_lemma_idf.get(lbw, 0) for lbw in cand_lemmas)
+        if cand_total == 0:
+            continue
+
+        containment = min(shared_weight / cand_total, 1.0)
+
+        # Collect all shared roots for display (from both lemma and root matches)
+        all_shared_roots = set()
+        for lbw in shared_lemmas:
+            all_shared_roots.update(_lemma_roots.get(lbw, set()) & cand_roots)
+        all_shared_roots.update(extra_shared_roots)
+
+        scored.append((containment, shared_weight, cand_key, all_shared_roots))
+
+    # Sort by containment DESC, then shared_weight DESC
+    scored.sort(key=lambda x: (-x[0], -x[1]))
+
+    return scored[:limit]
+
+
+_build_similarity_engine()
 
 
 def _fetch_word_glosses(conn, surah, ayah):
@@ -309,6 +477,68 @@ def get_surahs():
             })
 
         return jsonify(surahs)
+    finally:
+        conn.close()
+
+
+@app.route("/api/related/<int:surah>:<int:ayah>")
+def get_related_verses(surah: int, ayah: int):
+    """Find verses related to the given verse using lemma-based IDF-weighted containment."""
+    limit = request.args.get("limit", 10, type=int)
+    limit = max(1, min(limit, 25))
+
+    results = _find_related_verses(surah, ayah, limit=limit)
+
+    if not results:
+        query_lemmas = _verse_lemmas.get((surah, ayah), set())
+        return jsonify({
+            "query": {"surah": surah, "ayah": ayah},
+            "related": [],
+            "meta": {"query_lemma_count": len(query_lemmas)},
+        })
+
+    # Fetch text/translation for each related verse
+    conn = get_db()
+    try:
+        related = []
+        for containment, shared_weight, (ch, v), shared_roots in results:
+            verse_row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            trans_row = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+
+            # Build shared roots list sorted by IDF (rarest first)
+            shared_info = sorted(
+                [
+                    {
+                        "root_arabic": _root_arabic_map.get(rbw, ""),
+                        "root_buckwalter": rbw,
+                        "idf": round(_root_idf.get(rbw, 0), 2),
+                    }
+                    for rbw in shared_roots
+                ],
+                key=lambda x: -x["idf"],
+            )
+
+            related.append({
+                "surah": ch,
+                "ayah": v,
+                "text_uthmani": verse_row["text_uthmani"] if verse_row else "",
+                "translation": trans_row["text_en"] if trans_row else "",
+                "similarity_score": round(containment, 3),
+                "shared_roots": shared_info,
+            })
+
+        query_lemmas = _verse_lemmas.get((surah, ayah), set())
+        return jsonify({
+            "query": {"surah": surah, "ayah": ayah},
+            "related": related,
+            "meta": {"query_lemma_count": len(query_lemmas)},
+        })
     finally:
         conn.close()
 

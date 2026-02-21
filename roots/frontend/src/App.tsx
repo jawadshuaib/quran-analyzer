@@ -3,6 +3,7 @@ import type { VerseData } from './types';
 import { fetchVerse } from './api/quran';
 import SearchBar from './components/SearchBar';
 import VerseDisplay from './components/VerseDisplay';
+import RelatedVerses from './components/RelatedVerses';
 
 export default function App() {
   const [data, setData] = useState<VerseData | null>(null);
@@ -53,6 +54,11 @@ export default function App() {
       {data && (
         <div className="space-y-8">
           <VerseDisplay data={data} />
+          <RelatedVerses
+            surah={data.surah}
+            ayah={data.ayah}
+            onNavigate={handleSearch}
+          />
         </div>
       )}
 

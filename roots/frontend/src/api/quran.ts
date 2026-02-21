@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo } from '../types';
+import type { VerseData, SurahInfo, RelatedVersesResponse } from '../types';
 
 const BASE = '/api';
 
@@ -14,5 +14,15 @@ export async function fetchVerse(surah: number, ayah: number): Promise<VerseData
 export async function fetchSurahs(): Promise<SurahInfo[]> {
   const res = await fetch(`${BASE}/surahs`);
   if (!res.ok) throw new Error('Failed to load surah list');
+  return res.json();
+}
+
+export async function fetchRelatedVerses(
+  surah: number,
+  ayah: number,
+  limit = 10,
+): Promise<RelatedVersesResponse> {
+  const res = await fetch(`${BASE}/related/${surah}:${ayah}?limit=${limit}`);
+  if (!res.ok) throw new Error('Failed to load related verses');
   return res.json();
 }
