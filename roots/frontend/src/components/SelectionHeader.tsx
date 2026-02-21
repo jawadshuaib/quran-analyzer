@@ -1,15 +1,25 @@
 import type { Word } from '../types';
 
+export interface SelectedRootItem {
+  root_buckwalter: string;
+  root_arabic: string;
+}
+
 interface Props {
   selectedWords: { position: number; word: Word; displayText: string }[];
-  onDeselect: (position: number) => void;
+  selectedRoots: SelectedRootItem[];
+  onDeselectWord: (position: number) => void;
+  onDeselectRoot: (root_buckwalter: string) => void;
   onClear: () => void;
   onSearch: () => void;
   loading?: boolean;
   resultCount: number | null; // null = still counting
 }
 
-export default function SelectionHeader({ selectedWords, onDeselect, onClear, onSearch, loading, resultCount }: Props) {
+export default function SelectionHeader({
+  selectedWords, selectedRoots, onDeselectWord, onDeselectRoot,
+  onClear, onSearch, loading, resultCount,
+}: Props) {
   const hasResults = resultCount !== null && resultCount > 0;
   const countLabel =
     resultCount === null
@@ -24,7 +34,7 @@ export default function SelectionHeader({ selectedWords, onDeselect, onClear, on
         <div className="flex flex-wrap gap-1.5 min-w-0 flex-1">
           {selectedWords.map(({ position, word, displayText }) => (
             <span
-              key={position}
+              key={`w-${position}`}
               className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-1 text-sm"
             >
               <span dir="rtl" lang="ar" className="font-arabic text-emerald-800">
@@ -36,9 +46,27 @@ export default function SelectionHeader({ selectedWords, onDeselect, onClear, on
                 </span>
               )}
               <button
-                onClick={(e) => { e.stopPropagation(); onDeselect(position); }}
+                onClick={(e) => { e.stopPropagation(); onDeselectWord(position); }}
                 className="ml-0.5 text-emerald-400 hover:text-emerald-700 text-xs font-bold"
                 aria-label={`Deselect ${displayText}`}
+              >
+                &times;
+              </button>
+            </span>
+          ))}
+          {selectedRoots.map((r) => (
+            <span
+              key={`r-${r.root_buckwalter}`}
+              className="inline-flex items-center gap-1 rounded-full bg-sky-100 border border-sky-200 px-2.5 py-1 text-sm"
+            >
+              <span className="text-[10px] text-sky-500 font-medium uppercase">root</span>
+              <span dir="rtl" lang="ar" className="font-arabic text-sky-800">
+                {r.root_arabic}
+              </span>
+              <button
+                onClick={(e) => { e.stopPropagation(); onDeselectRoot(r.root_buckwalter); }}
+                className="ml-0.5 text-sky-400 hover:text-sky-700 text-xs font-bold"
+                aria-label={`Deselect root ${r.root_arabic}`}
               >
                 &times;
               </button>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
 import { fetchVerse, searchWords } from './api/quran';
 import SearchBar from './components/SearchBar';
@@ -15,6 +15,7 @@ export default function App() {
   const [wordSearchResults, setWordSearchResults] = useState<WordSearchResponse | null>(null);
   const [wordSearchLoading, setWordSearchLoading] = useState(false);
   const [wordSearchError, setWordSearchError] = useState('');
+  const wordSearchRef = useRef<HTMLDivElement>(null);
 
   async function handleSearch(surah: number, ayah: number) {
     setLoading(true);
@@ -31,6 +32,13 @@ export default function App() {
       setLoading(false);
     }
   }
+
+  // Scroll to word search results when they load
+  useEffect(() => {
+    if (wordSearchResults && wordSearchRef.current) {
+      wordSearchRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [wordSearchResults]);
 
   async function handleWordSearch(terms: SearchTerm[], queryVerse: { surah: number; ayah: number }) {
     setWordSearchLoading(true);
@@ -88,11 +96,13 @@ export default function App() {
           )}
 
           {wordSearchResults && (
-            <WordSearchResults
-              data={wordSearchResults}
-              onNavigate={handleSearch}
-              onClose={() => setWordSearchResults(null)}
-            />
+            <div ref={wordSearchRef}>
+              <WordSearchResults
+                data={wordSearchResults}
+                onNavigate={handleSearch}
+                onClose={() => setWordSearchResults(null)}
+              />
+            </div>
           )}
 
           <SurroundingContext
@@ -104,6 +114,7 @@ export default function App() {
             surah={data.surah}
             ayah={data.ayah}
             onNavigate={handleSearch}
+            forceCollapse={!!wordSearchResults}
           />
         </div>
       )}

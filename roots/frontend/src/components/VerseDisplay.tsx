@@ -30,6 +30,7 @@ function getContentSegment(word: Word) {
 export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: Props) {
   const [hoveredPos, setHoveredPos] = useState<number | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<Set<number>>(new Set());
+  const [selectedRoots, setSelectedRoots] = useState<Set<string>>(new Set());
   const [hoveredRoot, setHoveredRoot] = useState<string | null>(null);
   const [expandedRoot, setExpandedRoot] = useState<string | null>(null);
   const [resultCount, setResultCount] = useState<number | null>(null);
@@ -71,27 +72,33 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
   // Reset state when verse changes
   useEffect(() => {
     setSelectedPositions(new Set());
+    setSelectedRoots(new Set());
     setHoveredRoot(null);
     setExpandedRoot(null);
     setResultCount(null);
   }, [data]);
 
+  const hasSelection = selectedPositions.size > 0 || selectedRoots.size > 0;
+
   // Click outside the card to dismiss all selections
   useEffect(() => {
-    if (selectedPositions.size === 0) return;
+    if (!hasSelection) return;
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setSelectedPositions(new Set());
+        setSelectedRoots(new Set());
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [selectedPositions.size]);
+  }, [hasSelection]);
 
-  // Build search terms from selected positions (skip prefix/suffix segments)
-  function buildSearchTerms(positions: Set<number>): SearchTerm[] {
+  // Build search terms from selected positions AND selected roots
+  function buildAllSearchTerms(): SearchTerm[] {
     const terms: SearchTerm[] = [];
-    for (const pos of positions) {
+
+    // Word-based terms
+    for (const pos of selectedPositions) {
       const word = wordMap.get(pos);
       if (!word) continue;
       const seg = getContentSegment(word);
@@ -104,19 +111,37 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
         display_arabic: displayText,
       });
     }
+
+    // Root-based terms
+    for (const rbw of selectedRoots) {
+      // Skip if a selected word already covers this root
+      const alreadyCovered = terms.some((t) => t.root_bw === rbw);
+      if (alreadyCovered) continue;
+
+      const rootInfo = data.roots_summary.find((r) => r.root_buckwalter === rbw);
+      terms.push({
+        lemma_bw: null,
+        root_bw: rbw,
+        form_bw: null,
+        display_arabic: rootInfo?.root_arabic ?? rbw,
+      });
+    }
+
     return terms;
   }
 
-  // Stable key for the selected positions — only changes when actual selection changes
-  const selectionKey = Array.from(selectedPositions).sort((a, b) => a - b).join(',');
+  // Stable key for combined selection
+  const wordKey = Array.from(selectedPositions).sort((a, b) => a - b).join(',');
+  const rootKey = Array.from(selectedRoots).sort().join(',');
+  const selectionKey = `${wordKey}|${rootKey}`;
 
   // Auto-count results when selection changes
   useEffect(() => {
-    if (selectedPositions.size === 0) {
+    if (!hasSelection) {
       setResultCount(null);
       return;
     }
-    const terms = buildSearchTerms(selectedPositions);
+    const terms = buildAllSearchTerms();
     if (terms.length === 0) {
       setResultCount(0);
       return;
@@ -128,12 +153,11 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
         (count) => { if (!cancelled) setResultCount(count); },
         () => { if (!cancelled) setResultCount(0); },
       );
-    }, 200); // small debounce
+    }, 200);
     return () => { cancelled = true; clearTimeout(timer); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionKey, data.surah, data.ayah]);
 
-  const hasSelection = selectedPositions.size > 0;
   const highlightedByRoot = hoveredRoot ? rootToPositions.get(hoveredRoot) : null;
 
   // Find the root summary for the expanded root
@@ -142,7 +166,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
     : undefined;
 
   // Build selected word info for header
-  const selectedWords = Array.from(selectedPositions)
+  const selectedWordItems = Array.from(selectedPositions)
     .sort((a, b) => a - b)
     .map((pos) => ({
       position: pos,
@@ -151,30 +175,50 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
     }))
     .filter((sw) => sw.word);
 
+  // Build selected root info for header
+  const selectedRootItems = Array.from(selectedRoots)
+    .map((rbw) => {
+      const info = data.roots_summary.find((r) => r.root_buckwalter === rbw);
+      return { root_buckwalter: rbw, root_arabic: info?.root_arabic ?? rbw };
+    });
+
   function handleSearch() {
     if (!onWordSearch) return;
-    const terms = buildSearchTerms(selectedPositions);
+    const terms = buildAllSearchTerms();
     if (terms.length === 0) return;
     onWordSearch(terms, { surah: data.surah, ayah: data.ayah });
+  }
+
+  function clearAll() {
+    setSelectedPositions(new Set());
+    setSelectedRoots(new Set());
   }
 
   return (
     <div
       ref={containerRef}
       className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-      onClick={() => setSelectedPositions(new Set())}
+      onClick={clearAll}
     >
       {hasSelection && (
         <SelectionHeader
-          selectedWords={selectedWords}
-          onDeselect={(pos) => {
+          selectedWords={selectedWordItems}
+          selectedRoots={selectedRootItems}
+          onDeselectWord={(pos) => {
             setSelectedPositions((prev) => {
               const next = new Set(prev);
               next.delete(pos);
               return next;
             });
           }}
-          onClear={() => setSelectedPositions(new Set())}
+          onDeselectRoot={(rbw) => {
+            setSelectedRoots((prev) => {
+              const next = new Set(prev);
+              next.delete(rbw);
+              return next;
+            });
+          }}
+          onClear={clearAll}
           onSearch={handleSearch}
           loading={wordSearchLoading}
           resultCount={resultCount}
@@ -245,66 +289,77 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
 
       {data.roots_summary.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {data.roots_summary.map((r) => (
-            <span
-              key={r.root_buckwalter}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1
-                         text-sm font-medium border cursor-pointer transition-colors duration-150 ${
-                hoveredRoot === r.root_buckwalter
-                  ? 'bg-amber-100 text-amber-800 border-amber-300'
-                  : expandedRoot === r.root_buckwalter
-                    ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-              }`}
-              onMouseEnter={() => setHoveredRoot(r.root_buckwalter)}
-              onMouseLeave={() => setHoveredRoot(null)}
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpandedRoot(expandedRoot === r.root_buckwalter ? null : r.root_buckwalter);
-              }}
-            >
-              <span dir="rtl" lang="ar" className="font-arabic text-base">
-                {r.root_arabic}
-              </span>
+          {data.roots_summary.map((r) => {
+            const isRootSelected = selectedRoots.has(r.root_buckwalter);
+            return (
               <span
-                className={`text-xs ${
-                  hoveredRoot === r.root_buckwalter
-                    ? 'text-amber-600'
-                    : expandedRoot === r.root_buckwalter
-                      ? 'text-indigo-500'
-                      : 'text-emerald-500'
+                key={r.root_buckwalter}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1
+                           text-sm font-medium border cursor-pointer transition-colors duration-150 ${
+                  isRootSelected
+                    ? 'bg-sky-100 text-sky-800 border-sky-300 ring-1 ring-sky-400'
+                    : hoveredRoot === r.root_buckwalter
+                      ? 'bg-amber-100 text-amber-800 border-amber-300'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                 }`}
+                onMouseEnter={() => setHoveredRoot(r.root_buckwalter)}
+                onMouseLeave={() => setHoveredRoot(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedRoots((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(r.root_buckwalter)) {
+                      next.delete(r.root_buckwalter);
+                    } else {
+                      next.add(r.root_buckwalter);
+                    }
+                    return next;
+                  });
+                }}
               >
-                ({r.root_buckwalter})
-              </span>
-              {r.occurrences > 1 && (
+                <span dir="rtl" lang="ar" className="font-arabic text-base">
+                  {r.root_arabic}
+                </span>
                 <span
                   className={`text-xs ${
-                    hoveredRoot === r.root_buckwalter
-                      ? 'text-amber-500'
-                      : expandedRoot === r.root_buckwalter
-                        ? 'text-indigo-400'
-                        : 'text-emerald-400'
-                  }`}
-                >
-                  &times;{r.occurrences}
-                </span>
-              )}
-              {r.cognate && (
-                <span
-                  className={`text-xs italic ${
-                    hoveredRoot === r.root_buckwalter
-                      ? 'text-amber-600'
-                      : expandedRoot === r.root_buckwalter
-                        ? 'text-indigo-500'
+                    isRootSelected
+                      ? 'text-sky-500'
+                      : hoveredRoot === r.root_buckwalter
+                        ? 'text-amber-600'
                         : 'text-emerald-500'
                   }`}
                 >
-                  &middot; {r.cognate.concept}
+                  ({r.root_buckwalter})
                 </span>
-              )}
-            </span>
-          ))}
+                {r.occurrences > 1 && (
+                  <span
+                    className={`text-xs ${
+                      isRootSelected
+                        ? 'text-sky-400'
+                        : hoveredRoot === r.root_buckwalter
+                          ? 'text-amber-500'
+                          : 'text-emerald-400'
+                    }`}
+                  >
+                    &times;{r.occurrences}
+                  </span>
+                )}
+                {r.cognate && (
+                  <span
+                    className={`text-xs italic ${
+                      isRootSelected
+                        ? 'text-sky-500'
+                        : hoveredRoot === r.root_buckwalter
+                          ? 'text-amber-600'
+                          : 'text-emerald-500'
+                    }`}
+                  >
+                    &middot; {r.cognate.concept}
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 

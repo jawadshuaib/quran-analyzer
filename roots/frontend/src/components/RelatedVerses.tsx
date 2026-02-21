@@ -6,9 +6,10 @@ interface Props {
   surah: number;
   ayah: number;
   onNavigate: (surah: number, ayah: number) => void;
+  forceCollapse?: boolean;
 }
 
-export default function RelatedVerses({ surah, ayah, onNavigate }: Props) {
+export default function RelatedVerses({ surah, ayah, onNavigate, forceCollapse }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [verses, setVerses] = useState<RelatedVerse[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,6 +39,11 @@ export default function RelatedVerses({ surah, ayah, onNavigate }: Props) {
     load();
     return () => { cancelled = true; };
   }, [surah, ayah]);
+
+  // Collapse when parent requests it (e.g. word search results are showing)
+  useEffect(() => {
+    if (forceCollapse) setExpanded(false);
+  }, [forceCollapse]);
 
   // Don't render anything if no results and done loading
   if (!loading && !error && verses.length === 0) return null;
