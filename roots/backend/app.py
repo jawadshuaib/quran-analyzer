@@ -48,10 +48,12 @@ ROOT_DISCOUNT = 0.5  # Root-only matches get half credit vs lemma matches
 
 _lemma_idf = {}                # lemma_bw -> float
 _root_idf = {}                 # root_bw -> float
+_form_idf = {}                 # form_bw -> float
 _verse_lemmas = {}             # (ch, v) -> set of lemma_bw
 _verse_roots = {}              # (ch, v) -> set of root_bw
 _lemma_inv = defaultdict(set)  # lemma_bw -> set of (ch, v)
 _root_inv = defaultdict(set)   # root_bw -> set of (ch, v)
+_form_inv = defaultdict(set)   # form_bw -> set of (ch, v)
 _lemma_roots = defaultdict(set)  # lemma_bw -> set of root_bw
 _root_arabic_map = {}          # root_bw -> root_arabic string
 
@@ -80,6 +82,13 @@ def _build_similarity_engine():
             "FROM morphology "
             "WHERE lemma_buckwalter IS NOT NULL AND lemma_buckwalter != '' "
             "AND root_buckwalter IS NOT NULL AND root_buckwalter != ''"
+        ).fetchall()
+
+        # Query 4: Form profiles per verse (for particles with no lemma/root)
+        form_rows = conn.execute(
+            "SELECT DISTINCT chapter, verse, form_buckwalter "
+            "FROM morphology "
+            "WHERE form_buckwalter IS NOT NULL AND form_buckwalter != ''"
         ).fetchall()
     finally:
         conn.close()
@@ -123,6 +132,14 @@ def _build_similarity_engine():
     for row in lr_rows:
         _lemma_roots[row["lemma_buckwalter"]].add(row["root_buckwalter"])
 
+    # Build form inverted index and doc frequency
+    form_doc_freq = defaultdict(int)
+    for row in form_rows:
+        key = (row["chapter"], row["verse"])
+        fbw = row["form_buckwalter"]
+        form_doc_freq[fbw] += 1
+        _form_inv[fbw].add(key)
+
     # Compute IDF values
     total_verses = len(set(list(_verse_lemmas.keys()) + list(_verse_roots.keys())))
 
@@ -132,9 +149,13 @@ def _build_similarity_engine():
     for rbw, df in root_doc_freq.items():
         _root_idf[rbw] = math.log(total_verses / df)
 
+    for fbw, df in form_doc_freq.items():
+        _form_idf[fbw] = math.log(total_verses / df)
+
     print(
         f"Similarity engine ready: {len(_lemma_idf)} lemmas, "
-        f"{len(_root_idf)} roots, ~{total_verses} verse profiles"
+        f"{len(_root_idf)} roots, {len(_form_idf)} forms, "
+        f"~{total_verses} verse profiles"
     )
 
 
@@ -611,6 +632,124 @@ def get_context(surah: int, ayah: int):
             "query": {"surah": surah, "ayah": ayah},
             "context": verses,
             "surah_total": total,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/search-words", methods=["POST"])
+def search_words():
+    """Find verses containing ALL of the given search terms (intersection)."""
+    body = request.get_json(force=True)
+    terms = body.get("terms", [])
+    limit = min(max(1, body.get("limit", 25)), 50)
+    query_verse = body.get("query_verse")  # optional {surah, ayah} to exclude
+
+    if not terms:
+        return jsonify({"error": "No search terms provided"}), 400
+
+    # Resolve each term to a search strategy and candidate verse set
+    resolved = []
+    candidate_sets = []
+
+    for term in terms:
+        lemma_bw = term.get("lemma_bw")
+        root_bw = term.get("root_bw")
+        form_bw = term.get("form_bw")
+        display_arabic = term.get("display_arabic", "")
+
+        if lemma_bw and lemma_bw in _lemma_inv:
+            resolved.append({
+                "display_arabic": display_arabic,
+                "search_type": "lemma",
+                "search_key": lemma_bw,
+            })
+            candidate_sets.append(_lemma_inv[lemma_bw])
+        elif root_bw and root_bw in _root_inv:
+            resolved.append({
+                "display_arabic": display_arabic,
+                "search_type": "root",
+                "search_key": root_bw,
+            })
+            candidate_sets.append(_root_inv[root_bw])
+        elif form_bw and form_bw in _form_inv:
+            resolved.append({
+                "display_arabic": display_arabic,
+                "search_type": "form",
+                "search_key": form_bw,
+            })
+            candidate_sets.append(_form_inv[form_bw])
+        else:
+            # Term not found in any index — intersection will be empty
+            return jsonify({
+                "terms_used": [],
+                "results": [],
+                "total_found": 0,
+            })
+
+    # Intersect all candidate sets
+    result_set = candidate_sets[0]
+    for cs in candidate_sets[1:]:
+        result_set = result_set & cs
+
+    # Remove query verse if provided
+    if query_verse:
+        result_set = result_set - {(query_verse["surah"], query_verse["ayah"])}
+
+    total_found = len(result_set)
+
+    if not result_set:
+        return jsonify({
+            "terms_used": resolved,
+            "results": [],
+            "total_found": 0,
+        })
+
+    # Score each candidate: sum of idf_weight per resolved term
+    scored = []
+    for key in result_set:
+        score = 0.0
+        matched = []
+        for r in resolved:
+            if r["search_type"] == "lemma":
+                score += _lemma_idf.get(r["search_key"], 0)
+            elif r["search_type"] == "root":
+                score += ROOT_DISCOUNT * _root_idf.get(r["search_key"], 0)
+            else:  # form
+                score += ROOT_DISCOUNT * _form_idf.get(r["search_key"], 0)
+            matched.append(r)
+        scored.append((score, key, matched))
+
+    scored.sort(key=lambda x: -x[0])
+    scored = scored[:limit]
+
+    # Fetch text + translation for results
+    conn = get_db()
+    try:
+        results = []
+        for score, (ch, v), matched in scored:
+            verse_row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            trans_row = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+
+            results.append({
+                "surah": ch,
+                "ayah": v,
+                "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], ch, v) if verse_row else "",
+                "translation": trans_row["text_en"] if trans_row else "",
+                "score": round(score, 3),
+                "matched_terms": matched,
+            })
+
+        return jsonify({
+            "terms_used": resolved,
+            "results": results,
+            "total_found": total_found,
         })
     finally:
         conn.close()

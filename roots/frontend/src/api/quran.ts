@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse } from '../types';
+import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse } from '../types';
 
 const BASE = '/api';
 
@@ -33,5 +33,19 @@ export async function fetchContext(
 ): Promise<ContextResponse> {
   const res = await fetch(`${BASE}/context/${surah}:${ayah}`);
   if (!res.ok) throw new Error('Failed to load surrounding context');
+  return res.json();
+}
+
+export async function searchWords(
+  terms: SearchTerm[],
+  queryVerse?: { surah: number; ayah: number },
+  limit = 25,
+): Promise<WordSearchResponse> {
+  const res = await fetch(`${BASE}/search-words`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ terms, query_verse: queryVerse, limit }),
+  });
+  if (!res.ok) throw new Error('Failed to search words');
   return res.json();
 }

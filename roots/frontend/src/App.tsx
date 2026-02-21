@@ -1,20 +1,27 @@
 import { useState } from 'react';
-import type { VerseData } from './types';
-import { fetchVerse } from './api/quran';
+import type { VerseData, SearchTerm, WordSearchResponse } from './types';
+import { fetchVerse, searchWords } from './api/quran';
 import SearchBar from './components/SearchBar';
 import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
+import WordSearchResults from './components/WordSearchResults';
 
 export default function App() {
   const [data, setData] = useState<VerseData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [wordSearchResults, setWordSearchResults] = useState<WordSearchResponse | null>(null);
+  const [wordSearchLoading, setWordSearchLoading] = useState(false);
+  const [wordSearchError, setWordSearchError] = useState('');
+
   async function handleSearch(surah: number, ayah: number) {
     setLoading(true);
     setError('');
     setData(null);
+    setWordSearchResults(null);
+    setWordSearchError('');
     try {
       const result = await fetchVerse(surah, ayah);
       setData(result);
@@ -22,6 +29,20 @@ export default function App() {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleWordSearch(terms: SearchTerm[], queryVerse: { surah: number; ayah: number }) {
+    setWordSearchLoading(true);
+    setWordSearchError('');
+    setWordSearchResults(null);
+    try {
+      const result = await searchWords(terms, queryVerse);
+      setWordSearchResults(result);
+    } catch (err: unknown) {
+      setWordSearchError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setWordSearchLoading(false);
     }
   }
 
@@ -54,7 +75,26 @@ export default function App() {
 
       {data && (
         <div className="space-y-8">
-          <VerseDisplay data={data} />
+          <VerseDisplay
+            data={data}
+            onWordSearch={handleWordSearch}
+            wordSearchLoading={wordSearchLoading}
+          />
+
+          {wordSearchError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700 text-sm">
+              {wordSearchError}
+            </div>
+          )}
+
+          {wordSearchResults && (
+            <WordSearchResults
+              data={wordSearchResults}
+              onNavigate={handleSearch}
+              onClose={() => setWordSearchResults(null)}
+            />
+          )}
+
           <SurroundingContext
             surah={data.surah}
             ayah={data.ayah}

@@ -99,3 +99,31 @@ export interface ContextResponse {
   context: ContextVerse[];
   surah_total: number;
 }
+
+export interface SearchTerm {
+  lemma_bw: string | null;
+  root_bw: string | null;
+  form_bw: string | null;
+  display_arabic: string;
+}
+
+export interface ResolvedTerm {
+  display_arabic: string;
+  search_type: 'lemma' | 'root' | 'form';
+  search_key: string;
+}
+
+export interface WordSearchResult {
+  surah: number;
+  ayah: number;
+  text_uthmani: string;
+  translation: string;
+  score: number;
+  matched_terms: ResolvedTerm[];
+}
+
+export interface WordSearchResponse {
+  terms_used: ResolvedTerm[];
+  results: WordSearchResult[];
+  total_found: number;
+}

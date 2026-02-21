@@ -1,15 +1,18 @@
-import { useState, useRef, useEffect } from 'react';
-import type { VerseData, Word, CognateData, RootSummary } from '../types';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type { VerseData, Word, CognateData, RootSummary, SearchTerm } from '../types';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
+import SelectionFooter from './SelectionFooter';
 
 interface Props {
   data: VerseData;
+  onWordSearch?: (terms: SearchTerm[], queryVerse: { surah: number; ayah: number }) => void;
+  wordSearchLoading?: boolean;
 }
 
-export default function VerseDisplay({ data }: Props) {
+export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: Props) {
   const [hoveredPos, setHoveredPos] = useState<number | null>(null);
-  const [pinnedPos, setPinnedPos] = useState<number | null>(null);
+  const [selectedPositions, setSelectedPositions] = useState<Set<number>>(new Set());
   const [hoveredRoot, setHoveredRoot] = useState<string | null>(null);
   const [expandedRoot, setExpandedRoot] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,24 +52,24 @@ export default function VerseDisplay({ data }: Props) {
 
   // Reset state when verse changes
   useEffect(() => {
-    setPinnedPos(null);
+    setSelectedPositions(new Set());
     setHoveredRoot(null);
     setExpandedRoot(null);
   }, [data]);
 
-  // Click outside the card to dismiss pinned tooltip
+  // Click outside the card to dismiss all selections
   useEffect(() => {
-    if (pinnedPos === null) return;
+    if (selectedPositions.size === 0) return;
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setPinnedPos(null);
+        setSelectedPositions(new Set());
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [pinnedPos]);
+  }, [selectedPositions.size]);
 
-  const activePos = pinnedPos ?? hoveredPos;
+  const hasSelection = selectedPositions.size > 0;
   const highlightedByRoot = hoveredRoot ? rootToPositions.get(hoveredRoot) : null;
 
   // Find the root summary for the expanded root
@@ -74,11 +77,48 @@ export default function VerseDisplay({ data }: Props) {
     ? data.roots_summary.find((r) => r.root_buckwalter === expandedRoot)
     : undefined;
 
+  // Build search terms from selected positions
+  const buildSearchTerms = useCallback((): SearchTerm[] => {
+    const terms: SearchTerm[] = [];
+    for (const pos of selectedPositions) {
+      const word = wordMap.get(pos);
+      if (!word) continue;
+      // Find primary content segment (first segment with lemma, root, or form)
+      const seg = word.segments.find((s) => s.lemma_buckwalter || s.root_buckwalter || s.form_buckwalter);
+      if (!seg) continue;
+      const displayText = uthmaniWords[pos - 1] ?? seg.form_arabic;
+      terms.push({
+        lemma_bw: seg.lemma_buckwalter || null,
+        root_bw: seg.root_buckwalter || null,
+        form_bw: seg.form_buckwalter || null,
+        display_arabic: displayText,
+      });
+    }
+    return terms;
+  }, [selectedPositions, wordMap, uthmaniWords]);
+
+  // Build selected word info for footer
+  const selectedWords = Array.from(selectedPositions)
+    .sort((a, b) => a - b)
+    .map((pos) => ({
+      position: pos,
+      word: wordMap.get(pos)!,
+      displayText: uthmaniWords[pos - 1] ?? '',
+    }))
+    .filter((sw) => sw.word);
+
+  function handleSearch() {
+    if (!onWordSearch) return;
+    const terms = buildSearchTerms();
+    if (terms.length === 0) return;
+    onWordSearch(terms, { surah: data.surah, ayah: data.ayah });
+  }
+
   return (
     <div
       ref={containerRef}
       className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
-      onClick={() => setPinnedPos(null)}
+      onClick={() => setSelectedPositions(new Set())}
     >
       <div className="mb-1 text-sm font-medium text-stone-500">
         Surah {data.surah}, Ayah {data.ayah}
@@ -92,28 +132,40 @@ export default function VerseDisplay({ data }: Props) {
         {uthmaniWords.map((word, idx) => {
           const pos = idx + 1;
           const wordData = wordMap.get(pos);
-          const isActive = activePos === pos;
+          const isSelected = selectedPositions.has(pos);
+          const isHovered = !hasSelection && hoveredPos === pos;
+          const isActive = isSelected || isHovered;
           const isRootHighlighted = highlightedByRoot?.has(pos) ?? false;
 
           return (
             <span
               key={pos}
               className={`relative inline-block cursor-pointer rounded-md px-1 transition-colors duration-150 ${
-                isActive
-                  ? 'bg-emerald-100 text-emerald-900'
-                  : isRootHighlighted
-                    ? 'bg-amber-100 text-amber-900'
-                    : 'hover:bg-stone-100'
+                isSelected
+                  ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-400'
+                  : isHovered
+                    ? 'bg-emerald-100 text-emerald-900'
+                    : isRootHighlighted
+                      ? 'bg-amber-100 text-amber-900'
+                      : 'hover:bg-stone-100'
               }`}
               onMouseEnter={() => {
-                if (pinnedPos === null) setHoveredPos(pos);
+                if (!hasSelection) setHoveredPos(pos);
               }}
               onMouseLeave={() => {
-                if (pinnedPos === null) setHoveredPos(null);
+                if (!hasSelection) setHoveredPos(null);
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                setPinnedPos(pinnedPos === pos ? null : pos);
+                setSelectedPositions((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(pos)) {
+                    next.delete(pos);
+                  } else {
+                    next.add(pos);
+                  }
+                  return next;
+                });
               }}
             >
               {word}
@@ -201,6 +253,22 @@ export default function VerseDisplay({ data }: Props) {
           rootBuckwalter={expandedRootData.root_buckwalter}
           cognate={expandedRootData.cognate}
           onClose={() => setExpandedRoot(null)}
+        />
+      )}
+
+      {hasSelection && (
+        <SelectionFooter
+          selectedWords={selectedWords}
+          onDeselect={(pos) => {
+            setSelectedPositions((prev) => {
+              const next = new Set(prev);
+              next.delete(pos);
+              return next;
+            });
+          }}
+          onClear={() => setSelectedPositions(new Set())}
+          onSearch={handleSearch}
+          loading={wordSearchLoading}
         />
       )}
     </div>
