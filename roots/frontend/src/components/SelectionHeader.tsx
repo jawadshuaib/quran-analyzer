@@ -47,7 +47,7 @@ export default function SelectionHeader({
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); onDeselectWord(position); }}
-                className="ml-0.5 text-emerald-400 hover:text-emerald-700 text-xs font-bold"
+                className="ml-0.5 text-emerald-400 hover:text-emerald-700 text-xs font-bold cursor-pointer"
                 aria-label={`Deselect ${displayText}`}
               >
                 &times;
@@ -65,7 +65,7 @@ export default function SelectionHeader({
               </span>
               <button
                 onClick={(e) => { e.stopPropagation(); onDeselectRoot(r.root_buckwalter); }}
-                className="ml-0.5 text-sky-400 hover:text-sky-700 text-xs font-bold"
+                className="ml-0.5 text-sky-400 hover:text-sky-700 text-xs font-bold cursor-pointer"
                 aria-label={`Deselect root ${r.root_arabic}`}
               >
                 &times;
@@ -80,14 +80,14 @@ export default function SelectionHeader({
           </span>
           <button
             onClick={(e) => { e.stopPropagation(); onClear(); }}
-            className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1"
+            className="text-xs text-stone-500 hover:text-stone-700 px-2 py-1 cursor-pointer"
           >
             Clear
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onSearch(); }}
             disabled={loading || !hasResults}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors cursor-pointer"
           >
             {loading ? (
               <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />

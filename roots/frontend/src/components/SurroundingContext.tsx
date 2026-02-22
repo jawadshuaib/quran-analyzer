@@ -42,7 +42,7 @@ export default function SurroundingContext({ surah, ayah, onNavigate }: Props) {
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
       <button
         onClick={handleToggle}
-        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-stone-50 transition-colors"
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-stone-50 transition-colors cursor-pointer"
       >
         <span className="text-sm font-semibold text-stone-700">
           Surrounding Context
@@ -82,7 +82,7 @@ export default function SurroundingContext({ surah, ayah, onNavigate }: Props) {
                     className={`w-full text-left rounded-lg border p-4 transition-colors ${
                       isCurrent
                         ? 'border-emerald-300 bg-emerald-50/50 cursor-default'
-                        : 'border-stone-100 bg-stone-50 hover:border-emerald-200 hover:bg-emerald-50/30'
+                        : 'border-stone-100 bg-stone-50 hover:border-emerald-200 hover:bg-emerald-50/30 cursor-pointer'
                     }`}
                   >
                     <span className="text-xs font-medium text-stone-500">

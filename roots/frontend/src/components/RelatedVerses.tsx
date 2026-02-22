@@ -64,7 +64,7 @@ export default function RelatedVerses({ surah, ayah, onNavigate, forceCollapse }
         <>
           <button
             onClick={() => setExpanded(!expanded)}
-            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-stone-50 transition-colors"
+            className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-stone-50 transition-colors cursor-pointer"
           >
             <span className="text-sm font-semibold text-stone-700">
               Related Verses
@@ -89,7 +89,7 @@ export default function RelatedVerses({ surah, ayah, onNavigate, forceCollapse }
                 <button
                   key={`${v.surah}:${v.ayah}`}
                   onClick={() => onNavigate(v.surah, v.ayah)}
-                  className="w-full text-left rounded-lg border border-stone-100 bg-stone-50 p-4 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors"
+                  className="w-full text-left rounded-lg border border-stone-100 bg-stone-50 p-4 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <span className="text-xs font-medium text-stone-500">

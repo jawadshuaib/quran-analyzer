@@ -46,7 +46,7 @@ export default function CognatePanel({ rootArabic, rootBuckwalter, cognate, onCl
         </div>
         <button
           onClick={onClose}
-          className="text-indigo-400 hover:text-indigo-600 text-lg leading-none px-1"
+          className="text-indigo-400 hover:text-indigo-600 text-lg leading-none px-1 cursor-pointer"
           aria-label="Close"
         >
           &times;

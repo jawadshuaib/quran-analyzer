@@ -7,7 +7,11 @@ An interactive tool for exploring the morphology and Semitic etymology of every 
 ## Features
 
 - **Interactive Arabic text** — hover or click any word to see its translation, part of speech, root, and lemma
-- **Root word highlighting** — click a root tag to highlight every word in the verse that shares that root
+- **Multi-word selection** — click multiple words to select them (emerald highlight + ring); click again to deselect
+- **Cross-verse word search** — select words and/or root pills, then search the entire Quran for verses containing all of them. Result count updates live as you select. Matched words are highlighted in yellow in the results.
+- **Root-based search** — click root pills at the bottom of a verse to add roots to your search query alongside individual words
+- **Related verses** — IDF-weighted similarity engine automatically finds verses that share the most roots and lemmas with the current verse, ranked by containment score
+- **Surrounding context** — view the verses before and after the current verse for context, with click-to-navigate
 - **Full morphological analysis** — gender, number, person, case, voice, mood, verb form, and state for each word segment
 - **Semitic cognate panel** — expand any root to see its reflexes across Semitic languages with meanings and etymological notes
 - **Word-by-word English glosses** — fetched from the Quran.com API and cached locally
@@ -20,6 +24,8 @@ An interactive tool for exploring the morphology and Semitic etymology of every 
 | Quranic verses | 6,236 |
 | Morphology segments | 128,219 |
 | Unique Arabic roots | 1,642 |
+| Unique lemmas | 4,832 |
+| Unique word forms | 12,204 |
 | Semitic etymology entries | 3,516 |
 | Language attestations | 14,671 across 59 languages |
 | Cognate coverage | 849 / 1,642 roots (51.7%) |
@@ -128,7 +134,7 @@ quran-related/
 │   └── screenshot-frontend.png         # Screenshot for README
 ├── roots/
 │   ├── backend/
-│   │   ├── app.py                      # Flask API server
+│   │   ├── app.py                      # Flask API server + similarity engine
 │   │   ├── seed_db.py                  # Database builder (downloads Quranic data)
 │   │   ├── buckwalter.py               # Buckwalter ↔ Arabic transliteration
 │   │   ├── scrape_semitic_roots.py     # Scraper for semiticroots.net
@@ -137,11 +143,15 @@ quran-related/
 │   │   └── data/                       # SQLite database and cached data files
 │   └── frontend/
 │       ├── src/
-│       │   ├── App.tsx                 # Main React component
+│       │   ├── App.tsx                 # Main React component with state management
 │       │   ├── types/index.ts          # TypeScript type definitions
-│       │   ├── api/quran.ts            # API client
+│       │   ├── api/quran.ts            # API client (verse, related, context, search)
 │       │   └── components/
-│       │       ├── VerseDisplay.tsx     # Interactive verse view with word highlighting
+│       │       ├── VerseDisplay.tsx     # Interactive verse with multi-word selection
+│       │       ├── SelectionHeader.tsx  # Selected words/roots bar with live count
+│       │       ├── WordSearchResults.tsx # Cross-verse search results with highlighting
+│       │       ├── RelatedVerses.tsx    # IDF-ranked related verses
+│       │       ├── SurroundingContext.tsx # Adjacent verses for context
 │       │       ├── WordTooltip.tsx      # Word popup with morphology and corpus link
 │       │       ├── CognatePanel.tsx     # Semitic cognates table
 │       │       ├── SearchBar.tsx        # Verse search input
@@ -156,7 +166,7 @@ quran-related/
 
 ## API Reference
 
-The Flask backend exposes three endpoints:
+The Flask backend exposes six endpoints:
 
 ### `GET /api/verse/<surah>:<ayah>`
 
@@ -207,6 +217,88 @@ Returns comprehensive verse data including Arabic text, English translation, wor
 }
 ```
 
+### `GET /api/related/<surah>:<ayah>`
+
+Finds verses most related to the given verse using IDF-weighted lemma/root containment scoring. Returns up to 25 results ranked by similarity.
+
+**Example:** `/api/related/2:255?limit=10`
+
+```json
+{
+  "query": { "surah": 2, "ayah": 255 },
+  "related": [
+    {
+      "surah": 3, "ayah": 2,
+      "text_uthmani": "...",
+      "translation": "...",
+      "similarity_score": 0.412,
+      "shared_roots": [
+        { "root_arabic": "ا ل ه", "root_buckwalter": "Alh", "idf": 0.55 }
+      ]
+    }
+  ],
+  "meta": { "query_lemma_count": 28 }
+}
+```
+
+### `GET /api/context/<surah>:<ayah>`
+
+Returns up to 6 surrounding verses (3 before + 3 after, adjusted at surah boundaries) for contextual reading.
+
+**Example:** `/api/context/2:255`
+
+```json
+{
+  "query": { "surah": 2, "ayah": 255 },
+  "context": [
+    { "surah": 2, "ayah": 253, "text_uthmani": "...", "translation": "..." },
+    { "surah": 2, "ayah": 254, "text_uthmani": "...", "translation": "..." },
+    { "surah": 2, "ayah": 256, "text_uthmani": "...", "translation": "..." }
+  ],
+  "surah_total": 286
+}
+```
+
+### `POST /api/search-words`
+
+Finds verses containing ALL of the given search terms (intersection). Each term is resolved by priority: lemma > root > form. Returns results scored by IDF weight with matched word positions for highlighting.
+
+**Request:**
+```json
+{
+  "terms": [
+    { "lemma_bw": "$aYo'", "root_bw": "$yA", "form_bw": null, "display_arabic": "شَىْءٍ" },
+    { "lemma_bw": "Eilom", "root_bw": "Elm", "form_bw": null, "display_arabic": "عِلْمِ" }
+  ],
+  "query_verse": { "surah": 2, "ayah": 255 },
+  "count_only": false,
+  "limit": 25
+}
+```
+
+**Response:**
+```json
+{
+  "terms_used": [
+    { "display_arabic": "شَىْءٍ", "search_type": "lemma", "search_key": "$aYo'" },
+    { "display_arabic": "عِلْمِ", "search_type": "lemma", "search_key": "Eilom" }
+  ],
+  "results": [
+    {
+      "surah": 6, "ayah": 148,
+      "text_uthmani": "...",
+      "translation": "...",
+      "score": 5.524,
+      "matched_terms": [ ... ],
+      "matched_positions": [14, 27]
+    }
+  ],
+  "total_found": 10
+}
+```
+
+Set `count_only: true` to get only `total_found` without fetching full results (used for live count preview).
+
 ### `GET /api/cognates/<root_buckwalter>`
 
 Returns Semitic cognate data for a specific root.
@@ -216,6 +308,18 @@ Returns Semitic cognate data for a specific root.
 ### `GET /api/surahs`
 
 Returns the list of all 114 surahs with English names and verse counts.
+
+---
+
+## Similarity Engine
+
+On startup, the backend builds in-memory inverted indexes for lemmas, roots, and word forms from the morphology table. These power two features:
+
+**Related Verses** — For a given verse, the engine gathers all candidate verses sharing at least one lemma or root, then scores each by IDF-weighted containment. Lemma matches get full IDF credit; root-only matches (not already covered by a lemma) get half credit. Results are ranked by containment score (shared weight / candidate total weight).
+
+**Cross-Verse Word Search** — Users select words and/or roots from a verse. Each term is resolved by priority (lemma > root > form) to an inverted index lookup. The candidate sets are intersected to find verses containing ALL terms. Results are scored by the sum of IDF weights and returned with `matched_positions` for frontend highlighting.
+
+The form-based index handles particles and prepositions that have no lemma or root (e.g. بِ, فِى, مِنْ).
 
 ---
 

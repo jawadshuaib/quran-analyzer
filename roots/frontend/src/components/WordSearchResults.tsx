@@ -68,7 +68,7 @@ export default function WordSearchResults({ data, onNavigate, onClose }: Props) 
         </div>
         <button
           onClick={onClose}
-          className="text-stone-400 hover:text-stone-600 p-1"
+          className="text-stone-400 hover:text-stone-600 p-1 cursor-pointer"
           aria-label="Close search results"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -87,7 +87,7 @@ export default function WordSearchResults({ data, onNavigate, onClose }: Props) 
             <button
               key={`${v.surah}:${v.ayah}`}
               onClick={() => onNavigate(v.surah, v.ayah)}
-              className="w-full text-left rounded-lg border border-stone-100 bg-stone-50 p-4 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors"
+              className="w-full text-left rounded-lg border border-stone-100 bg-stone-50 p-4 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors cursor-pointer"
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <span className="text-xs font-medium text-stone-500">

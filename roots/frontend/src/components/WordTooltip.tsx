@@ -89,7 +89,7 @@ export default function WordTooltip({ word, cognate }: Props) {
               ))}
               {cognate.derivatives.length > 4 && (
                 <button
-                  className="text-xs text-indigo-500 hover:text-indigo-700 text-center w-full mt-0.5"
+                  className="text-xs text-indigo-500 hover:text-indigo-700 text-center w-full mt-0.5 cursor-pointer"
                   onClick={() => setExpanded(!expanded)}
                 >
                   {expanded ? 'Show less' : `+${cognate.derivatives.length - 4} more`}
