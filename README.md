@@ -10,12 +10,14 @@ An interactive tool for exploring the morphology and Semitic etymology of every 
 - **Multi-word selection** — click multiple words to select them (emerald highlight + ring); click again to deselect
 - **Cross-verse word search** — select words and/or root pills, then search the entire Quran for verses containing all of them. Result count updates live as you select. Matched words are highlighted in yellow in the results.
 - **Root-based search** — click root pills at the bottom of a verse to add roots to your search query alongside individual words
+- **Root detail page** — select a single root to see "Analyze this Root", which opens a dedicated page (`/root/<buckwalter>`) showing all lemmas derived from that root, the full Semitic cognate table, and sample verses with highlighted occurrences and word-hover tooltips
 - **Related verses** — IDF-weighted similarity engine automatically finds verses that share the most roots and lemmas with the current verse, ranked by containment score
 - **Surrounding context** — view the verses before and after the current verse for context, with click-to-navigate
 - **Full morphological analysis** — gender, number, person, case, voice, mood, verb form, and state for each word segment
 - **Semitic cognate panel** — expand any root to see its reflexes across Semitic languages with meanings and etymological notes
 - **Word-by-word English glosses** — fetched from the Quran.com API and cached locally
 - **Corpus links** — each root links directly to the [Quranic Arabic Corpus](https://corpus.quran.com) dictionary entry
+- **Chrome extension** — content script injects word-hover tooltips directly on quran.com pages, plus a popup showing related verses for the current page
 
 ## Data at a Glance
 
@@ -117,11 +119,34 @@ npm install
 npm run dev
 ```
 
-The Vite dev server will start on `http://localhost:5173` with API requests proxied to the Flask backend.
+The Vite dev server will start on `http://localhost:4000` with API requests proxied to the Flask backend.
 
 ### 6. Open the app
 
-Navigate to **http://localhost:5173** in your browser. Try searching for a verse like `1:1`, `2:255`, or `112:1`.
+Navigate to **http://localhost:4000** in your browser. Try searching for a verse like `1:1`, `2:255`, or `112:1`.
+
+### 7. (Optional) Build and load the Chrome extension
+
+```bash
+cd extensions/quran-research-tool
+
+# Install dependencies
+npm install
+
+# Build the extension
+npm run build
+```
+
+Then load the extension in Chrome:
+1. Open `chrome://extensions`
+2. Enable "Developer mode"
+3. Click "Load unpacked" and select the `extensions/quran-research-tool/dist/` folder
+
+The extension adds two features:
+- **Content script on quran.com** — hover over any Arabic word to see a tooltip with translation, POS, root, lemma, and Semitic cognates. Click a word to pin the tooltip. The "+N more" cognate link opens the root detail page on your local frontend.
+- **Popup** — click the extension icon while on a quran.com verse page to see related verses.
+
+> **Note:** The extension requires the Flask backend running on `localhost:5000` (for API calls) and the frontend on `localhost:4000` (for root detail page links).
 
 ---
 
@@ -143,12 +168,13 @@ quran-related/
 │   │   └── data/                       # SQLite database and cached data files
 │   └── frontend/
 │       ├── src/
-│       │   ├── App.tsx                 # Main React component with state management
+│       │   ├── App.tsx                 # Main React component with path routing
 │       │   ├── types/index.ts          # TypeScript type definitions
-│       │   ├── api/quran.ts            # API client (verse, related, context, search)
+│       │   ├── api/quran.ts            # API client (verse, root, related, context, search)
 │       │   └── components/
 │       │       ├── VerseDisplay.tsx     # Interactive verse with multi-word selection
 │       │       ├── SelectionHeader.tsx  # Selected words/roots bar with live count
+│       │       ├── RootPage.tsx         # Root detail page (/root/<bw>)
 │       │       ├── WordSearchResults.tsx # Cross-verse search results with highlighting
 │       │       ├── RelatedVerses.tsx    # IDF-ranked related verses
 │       │       ├── SurroundingContext.tsx # Adjacent verses for context
@@ -158,7 +184,23 @@ quran-related/
 │       │       ├── WordBreakdown.tsx    # Word-by-word morphology grid
 │       │       └── MorphologyCard.tsx   # Single word morphology card
 │       ├── package.json
-│       └── vite.config.ts              # Vite config with API proxy
+│       └── vite.config.ts              # Vite config with API proxy (port 4000)
+├── extensions/
+│   └── quran-research-tool/
+│       ├── public/
+│       │   ├── manifest.json           # Chrome extension manifest v3
+│       │   └── icons/                  # Extension icons
+│       ├── src/
+│       │   ├── content/
+│       │   │   ├── content.ts          # Content script for quran.com word tooltips
+│       │   │   └── content.css         # Tooltip styles (.qrt- prefixed)
+│       │   ├── popup/                  # Extension popup (related verses)
+│       │   ├── components/             # Shared React components for popup
+│       │   ├── api/                    # API client for popup
+│       │   └── types/                  # TypeScript types for popup
+│       ├── vite.config.ts              # Main Vite config (popup build)
+│       ├── vite.content.config.ts      # Content script build (IIFE output)
+│       └── package.json
 └── README.md
 ```
 
@@ -166,7 +208,7 @@ quran-related/
 
 ## API Reference
 
-The Flask backend exposes six endpoints:
+The Flask backend exposes seven endpoints:
 
 ### `GET /api/verse/<surah>:<ayah>`
 
@@ -299,6 +341,37 @@ Finds verses containing ALL of the given search terms (intersection). Each term 
 
 Set `count_only: true` to get only `total_found` without fetching full results (used for live count preview).
 
+### `GET /api/root/<root_buckwalter>`
+
+Returns comprehensive data for a root: Arabic form, all derived lemmas, Semitic cognate data, total verse count, and up to 10 sample verses with `matched_positions` indicating which words contain the root.
+
+**Example:** `/api/root/Hjj`
+
+```json
+{
+  "root_arabic": "ح ج ج",
+  "root_buckwalter": "Hjj",
+  "total_occurrences": 33,
+  "lemmas": [
+    { "lemma_arabic": "حَآجَّ", "lemma_buckwalter": "Ha~^j~a" },
+    { "lemma_arabic": "حَجّ", "lemma_buckwalter": "Haj~" }
+  ],
+  "cognate": {
+    "transliteration": "ḥ-g-g",
+    "concept": "pilgrimage / feast",
+    "derivatives": [ ... ]
+  },
+  "sample_verses": [
+    {
+      "surah": 2, "ayah": 76,
+      "text_uthmani": "...",
+      "translation": "...",
+      "matched_positions": [7]
+    }
+  ]
+}
+```
+
 ### `GET /api/cognates/<root_buckwalter>`
 
 Returns Semitic cognate data for a specific root.
@@ -364,6 +437,13 @@ The `semitic_roots` table has a `source` column (`'semiticroots'` or `'starling'
 - React 19 with TypeScript
 - Tailwind CSS v4
 - Vite 7 for development and bundling
+- Path-based routing: `/` (verse search), `/root/<buckwalter>` (root detail page)
+
+**Chrome Extension**
+- Manifest V3
+- Content script (vanilla TypeScript, IIFE) with MutationObserver for quran.com SPA
+- Popup (React) for related verses
+- Separate Vite build config for content script
 
 ---
 
