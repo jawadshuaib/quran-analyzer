@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --font-arabic: "Scheherazade New", "Amiri", "Traditional Arabic", serif;
+}
+
+body {
+  @apply bg-stone-50 text-stone-900 antialiased;
+  margin: 0;
+  width: 480px;
+}

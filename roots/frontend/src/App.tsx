@@ -33,6 +33,14 @@ export default function App() {
     }
   }
 
+  // Deep-link: auto-search if ?s= and ?a= query params are present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const s = params.get('s');
+    const a = params.get('a');
+    if (s && a) handleSearch(parseInt(s), parseInt(a));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Scroll to word search results when they load
   useEffect(() => {
     if (wordSearchResults && wordSearchRef.current) {
