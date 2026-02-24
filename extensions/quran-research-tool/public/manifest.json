@@ -4,7 +4,15 @@
   "version": "1.0.0",
   "description": "Shows related Quran verses when browsing quran.com",
   "permissions": ["activeTab", "tabs"],
-  "host_permissions": ["http://localhost:5000/*"],
+  "host_permissions": ["http://localhost:5000/*", "*://*.quran.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.quran.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

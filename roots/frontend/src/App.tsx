@@ -6,8 +6,16 @@ import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
 import WordSearchResults from './components/WordSearchResults';
+import RootPage from './components/RootPage';
+
+function getRootFromPath(): string | null {
+  const match = window.location.pathname.match(/^\/root\/(.+)$/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 export default function App() {
+  const rootBw = getRootFromPath();
+  if (rootBw) return <RootPage rootBw={rootBw} />;
   const [data, setData] = useState<VerseData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

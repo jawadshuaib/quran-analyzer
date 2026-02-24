@@ -128,3 +128,25 @@ export interface WordSearchResponse {
   results: WordSearchResult[];
   total_found: number;
 }
+
+export interface LemmaInfo {
+  lemma_arabic: string;
+  lemma_buckwalter: string;
+}
+
+export interface RootSampleVerse {
+  surah: number;
+  ayah: number;
+  text_uthmani: string;
+  translation: string;
+  matched_positions: number[];
+}
+
+export interface RootDetailData {
+  root_arabic: string;
+  root_buckwalter: string;
+  total_occurrences: number;
+  lemmas: LemmaInfo[];
+  cognate: CognateData | null;
+  sample_verses: RootSampleVerse[];
+}

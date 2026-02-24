@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse } from '../types';
+import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData } from '../types';
 
 const BASE = '/api';
 
@@ -47,6 +47,15 @@ export async function searchWords(
     body: JSON.stringify({ terms, query_verse: queryVerse, limit }),
   });
   if (!res.ok) throw new Error('Failed to search words');
+  return res.json();
+}
+
+export async function fetchRoot(rootBw: string): Promise<RootDetailData> {
+  const res = await fetch(`${BASE}/root/${encodeURIComponent(rootBw)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Root '${rootBw}' not found`);
+  }
   return res.json();
 }
 

@@ -368,6 +368,74 @@ def get_cognates(root_bw: str):
         conn.close()
 
 
+@app.route("/api/root/<root_bw>")
+def get_root(root_bw: str):
+    """Get comprehensive data for a Buckwalter root: Arabic form, lemmas, cognates, sample verses."""
+    conn = get_db()
+    try:
+        root_arabic = _root_arabic_map.get(root_bw)
+        if not root_arabic:
+            return jsonify({"error": f"Root '{root_bw}' not found"}), 404
+
+        # Total occurrences (number of verses containing this root)
+        verse_keys = _root_inv.get(root_bw, set())
+        total_occurrences = len(verse_keys)
+
+        # Distinct lemmas associated with this root
+        lemma_rows = conn.execute(
+            "SELECT DISTINCT lemma_arabic, lemma_buckwalter "
+            "FROM morphology "
+            "WHERE root_buckwalter = ? AND lemma_arabic IS NOT NULL AND lemma_arabic != '' "
+            "ORDER BY lemma_arabic",
+            (root_bw,),
+        ).fetchall()
+        lemmas = [
+            {"lemma_arabic": r["lemma_arabic"], "lemma_buckwalter": r["lemma_buckwalter"]}
+            for r in lemma_rows
+        ]
+
+        # Cognate data
+        cognate = _get_cognate(conn, root_bw)
+
+        # Sample verses (up to 10, sorted by surah:ayah)
+        sample_keys = sorted(verse_keys)[:10]
+        sample_verses = []
+        for ch, v in sample_keys:
+            verse_row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            trans_row = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            # Find word positions that contain this root
+            morph_rows = conn.execute(
+                "SELECT DISTINCT word_pos FROM morphology "
+                "WHERE chapter = ? AND verse = ? AND root_buckwalter = ?",
+                (ch, v, root_bw),
+            ).fetchall()
+            matched_positions = sorted(r["word_pos"] for r in morph_rows)
+            sample_verses.append({
+                "surah": ch,
+                "ayah": v,
+                "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], ch, v) if verse_row else "",
+                "translation": trans_row["text_en"] if trans_row else "",
+                "matched_positions": matched_positions,
+            })
+
+        return jsonify({
+            "root_arabic": root_arabic,
+            "root_buckwalter": root_bw,
+            "total_occurrences": total_occurrences,
+            "lemmas": lemmas,
+            "cognate": cognate,
+            "sample_verses": sample_verses,
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/verse/<int:surah>:<int:ayah>")
 def get_verse(surah: int, ayah: int):
     conn = get_db()
