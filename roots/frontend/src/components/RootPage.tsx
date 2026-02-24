@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import type { RootDetailData } from '../types';
-import { fetchRoot } from '../api/quran';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { RootDetailData, VerseData, Word, CognateData } from '../types';
+import { fetchRoot, fetchVerse } from '../api/quran';
+import WordTooltip from './WordTooltip';
 
 interface Props {
   rootBw: string;
@@ -10,6 +11,14 @@ export default function RootPage({ rootBw }: Props) {
   const [data, setData] = useState<RootDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Verse data cache for tooltips (keyed by "surah:ayah")
+  const verseCache = useRef(new Map<string, VerseData>());
+  // Which word is currently hovered: "surah:ayah:position"
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  // Resolved word + cognate for the hovered word
+  const [hoveredWord, setHoveredWord] = useState<Word | null>(null);
+  const [hoveredCognate, setHoveredCognate] = useState<CognateData | undefined>(undefined);
 
   useEffect(() => {
     setLoading(true);
@@ -21,6 +30,43 @@ export default function RootPage({ rootBw }: Props) {
       })
       .finally(() => setLoading(false));
   }, [rootBw]);
+
+  const handleWordEnter = useCallback(async (surah: number, ayah: number, position: number) => {
+    const key = `${surah}:${ayah}:${position}`;
+    setHoveredKey(key);
+
+    const cacheKey = `${surah}:${ayah}`;
+    let verse = verseCache.current.get(cacheKey);
+    if (!verse) {
+      try {
+        verse = await fetchVerse(surah, ayah);
+        verseCache.current.set(cacheKey, verse);
+      } catch {
+        return;
+      }
+    }
+
+    // Build cognate lookup
+    const rootCognateMap = new Map<string, CognateData>();
+    verse.roots_summary.forEach((r) => {
+      if (r.cognate) rootCognateMap.set(r.root_buckwalter, r.cognate);
+    });
+
+    const word = verse.words.find((w) => w.position === position);
+    if (!word) return;
+
+    const rootBwSeg = word.segments.find((s) => s.root_buckwalter)?.root_buckwalter;
+    const cognate = rootBwSeg ? rootCognateMap.get(rootBwSeg) : undefined;
+
+    setHoveredWord(word);
+    setHoveredCognate(cognate);
+  }, []);
+
+  const handleWordLeave = useCallback(() => {
+    setHoveredKey(null);
+    setHoveredWord(null);
+    setHoveredCognate(undefined);
+  }, []);
 
   if (loading) {
     return (
@@ -179,39 +225,52 @@ export default function RootPage({ rootBw }: Props) {
               const words = v.text_uthmani.split(/\s+/).filter(Boolean);
               const matchedSet = new Set(v.matched_positions);
               return (
-                <a
+                <div
                   key={`${v.surah}:${v.ayah}`}
-                  href={`/?s=${v.surah}&a=${v.ayah}`}
-                  className="block rounded-lg border border-stone-200 bg-white p-4 hover:border-emerald-300
-                             hover:shadow-sm transition-all"
+                  className="rounded-lg border border-stone-200 bg-white p-4"
                 >
-                  <div className="text-xs font-medium text-stone-400 mb-1">
+                  <a
+                    href={`/?s=${v.surah}&a=${v.ayah}`}
+                    className="text-xs font-medium text-stone-400 mb-1 inline-block hover:text-emerald-600 transition-colors"
+                  >
                     {v.surah}:{v.ayah}
-                  </div>
+                  </a>
                   <div
                     dir="rtl"
                     lang="ar"
-                    className="font-arabic text-xl leading-[2.2] text-stone-800 mb-2 flex flex-wrap gap-x-2"
+                    className="font-arabic text-xl leading-[2.8] text-stone-800 mb-2 flex flex-wrap gap-x-2"
                   >
                     {words.map((w, idx) => {
                       const pos = idx + 1;
                       const isHighlighted = matchedSet.has(pos);
+                      const wordKey = `${v.surah}:${v.ayah}:${pos}`;
+                      const isHovered = hoveredKey === wordKey;
                       return (
                         <span
                           key={pos}
-                          className={`inline-block rounded-md px-1 ${
-                            isHighlighted
-                              ? 'bg-amber-100 text-amber-900'
-                              : ''
+                          className={`relative inline-block cursor-pointer rounded-md px-1 transition-colors duration-150 ${
+                            isHovered
+                              ? 'bg-emerald-100 text-emerald-900'
+                              : isHighlighted
+                                ? 'bg-amber-100 text-amber-900'
+                                : 'hover:bg-stone-100'
                           }`}
+                          onMouseEnter={() => handleWordEnter(v.surah, v.ayah, pos)}
+                          onMouseLeave={handleWordLeave}
                         >
                           {w}
+                          {isHovered && hoveredWord && (
+                            <WordTooltip
+                              word={hoveredWord}
+                              cognate={hoveredCognate}
+                            />
+                          )}
                         </span>
                       );
                     })}
                   </div>
                   <p className="text-sm text-stone-500 italic">{v.translation}</p>
-                </a>
+                </div>
               );
             })}
           </div>

@@ -84,20 +84,34 @@ export default function SelectionHeader({
           >
             Clear
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onSearch(); }}
-            disabled={loading || !hasResults}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors cursor-pointer"
-          >
-            {loading ? (
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-            ) : (
+          {selectedWords.length === 0 && selectedRoots.length === 1 ? (
+            <a
+              href={`/root/${encodeURIComponent(selectedRoots[0].root_buckwalter)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 transition-colors no-underline"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                <path d="M9 2a1 1 0 000 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L13 5.414V8a1 1 0 102 0V3a1 1 0 00-1-1H9z" />
+                <path d="M3 5a2 2 0 012-2h4a1 1 0 010 2H5v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H5a2 2 0 01-2-2V5z" />
               </svg>
-            )}
-            Search in Qur'an
-          </button>
+              Analyze this Root
+            </a>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSearch(); }}
+              disabled={loading || !hasResults}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {loading ? (
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                </svg>
+              )}
+              Search in Qur'an
+            </button>
+          )}
         </div>
       </div>
     </div>
