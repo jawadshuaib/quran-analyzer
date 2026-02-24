@@ -34,12 +34,15 @@ export default function RelatedVersesList({ groups, loading, error, onSelect }: 
   const showHeaders = groups.length > 1;
 
   return (
-    <div className="px-5 py-4 space-y-4">
-      {groups.map((group) => (
+    <div className="px-5 py-4">
+      {groups.map((group, i) => (
         <div key={`${group.surah}:${group.ayah}`}>
+          {showHeaders && i > 0 && (
+            <hr className="border-stone-300 my-4" />
+          )}
           {showHeaders && (
-            <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">
-              Ayah {group.surah}:{group.ayah}
+            <h3 className="text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-md px-3 py-1.5 mb-3">
+              Similar to {group.surah}:{group.ayah}
             </h3>
           )}
           <div className="space-y-2">

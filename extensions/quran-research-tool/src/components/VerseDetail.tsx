@@ -33,7 +33,11 @@ export default function VerseDetail({ surah, ayah, textUthmani, translation }: P
           all.splice(insertIdx, 0, target);
         }
 
-        setContextVerses(all);
+        // Trim to 1 verse before + target + 2 verses after
+        const targetIdx = all.findIndex((v) => v.surah === surah && v.ayah === ayah);
+        const start = Math.max(0, targetIdx - 1);
+        const end = Math.min(all.length, targetIdx + 3);
+        setContextVerses(all.slice(start, end));
       })
       .catch(() => {
         if (!cancelled) setError('Failed to load surrounding context');
@@ -86,6 +90,12 @@ export default function VerseDetail({ surah, ayah, textUthmani, translation }: P
           </div>
         );
       })}
+      <button
+        onClick={() => chrome.tabs.create({ url: `https://quran.com/${surah}/${ayah}` })}
+        className="w-full mt-2 rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer text-center"
+      >
+        Open {surah}:{ayah} on quran.com
+      </button>
     </div>
   );
 }
