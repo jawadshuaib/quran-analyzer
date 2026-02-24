@@ -6,17 +6,20 @@ interface Props {
 }
 
 export default function RelatedVerseCard({ verse: v, onSelect }: Props) {
+  // Map similarity (0–1) to emerald background opacity — cubic for steeper falloff
+  const alpha = v.similarity_score ** 3;
+  const bg = `rgba(5, 150, 105, ${alpha * 0.35})`;
+  const border = `rgba(5, 150, 105, ${alpha * 0.6})`;
+
   return (
     <button
       onClick={() => onSelect(v.surah, v.ayah, v.text_uthmani, v.translation)}
-      className="w-full text-left rounded-lg border border-stone-100 bg-stone-50 p-3 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors cursor-pointer"
+      style={{ backgroundColor: bg, borderColor: border }}
+      className="w-full text-left rounded-lg border p-3 hover:brightness-95 transition-all cursor-pointer"
     >
       <div className="flex items-start justify-between gap-2 mb-1.5">
         <span className="text-xs font-medium text-stone-500">
           {v.surah}:{v.ayah}
-        </span>
-        <span className="shrink-0 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-          {Math.round(v.similarity_score * 100)}%
         </span>
       </div>
 
