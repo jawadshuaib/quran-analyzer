@@ -46,6 +46,11 @@ export default function App() {
     try {
       const result = await fetchVerse(surah, ayah);
       setData(result);
+      // Keep URL in sync with the displayed verse
+      const url = new URL(window.location.href);
+      url.searchParams.set('s', String(surah));
+      url.searchParams.set('a', String(ayah));
+      window.history.pushState(null, '', url);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
