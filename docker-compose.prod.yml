@@ -1,0 +1,18 @@
+services:
+  quran-app:
+    image: ghcr.io/jawadshuaib/quran-root-analyzer:latest
+    container_name: quran-root-analyzer
+    restart: unless-stopped
+    ports:
+      - "8070:8000"
+    volumes:
+      - quran-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/surahs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  quran-data:

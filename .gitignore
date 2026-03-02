@@ -18,6 +18,11 @@ roots/backend/data/semitic_roots.json
 roots/backend/data/starling_semitic.json
 *.partial
 
+# Batch API files (large JSONL request/result/error files + state)
+roots/backend/batch_files/
+roots/backend/.word_batch_state.json
+roots/backend/.batch_state.json
+
 # IDE
 .vscode/
 .idea/

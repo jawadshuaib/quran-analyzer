@@ -4,9 +4,11 @@ import type { Word, CognateData } from '../types';
 interface Props {
   word: Word;
   cognate?: CognateData | null;
+  aiMeaning?: string;
+  wordDetailUrl?: string;
 }
 
-export default function WordTooltip({ word, cognate }: Props) {
+export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl }: Props) {
   const [expanded, setExpanded] = useState(false);
   const mainRootSeg = word.segments.find((s) => s.root_arabic);
   const mainRoot = mainRootSeg?.root_arabic;
@@ -31,6 +33,30 @@ export default function WordTooltip({ word, cognate }: Props) {
       {word.translation && (
         <div className="font-semibold text-stone-900 mb-1.5 text-center">
           {word.translation}
+        </div>
+      )}
+
+      {aiMeaning && (
+        <div className="mb-1.5 text-center">
+          {wordDetailUrl ? (
+            <a
+              href={wordDetailUrl}
+              className="inline-flex items-center gap-1 text-violet-700 hover:text-violet-900 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                AI
+              </span>
+              <span className="text-xs font-medium">{aiMeaning}</span>
+            </a>
+          ) : (
+            <div className="inline-flex items-center gap-1">
+              <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                AI
+              </span>
+              <span className="text-xs font-medium text-violet-700">{aiMeaning}</span>
+            </div>
+          )}
         </div>
       )}
 

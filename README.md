@@ -16,6 +16,7 @@ An interactive tool for exploring the morphology and Semitic etymology of every 
 - **Full morphological analysis** — gender, number, person, case, voice, mood, verb form, and state for each word segment
 - **Semitic cognate panel** — expand any root to see its reflexes across Semitic languages with meanings and etymological notes
 - **Word-by-word English glosses** — fetched from the Quran.com API and cached locally
+- **AI-powered translation** — experimental translation engine that derives meaning exclusively from Quranic cross-references, Semitic cognates, and morphological data via a local LLM (Ollama). Translations appear in a violet panel when available.
 - **Corpus links** — each root links directly to the [Quranic Arabic Corpus](https://corpus.quran.com) dictionary entry
 - **Chrome extension** — content script injects word-hover tooltips directly on quran.com pages, plus a popup showing related verses for the current page
 
@@ -164,6 +165,7 @@ quran-related/
 │   │   ├── buckwalter.py               # Buckwalter ↔ Arabic transliteration
 │   │   ├── scrape_semitic_roots.py     # Scraper for semiticroots.net
 │   │   ├── scrape_starling.py          # Scraper for Starling/Tower of Babel DB
+│   │   ├── translate_ai.py            # AI translation pipeline (Ollama)
 │   │   ├── requirements.txt            # Python dependencies
 │   │   └── data/                       # SQLite database and cached data files
 │   └── frontend/
@@ -182,7 +184,8 @@ quran-related/
 │       │       ├── CognatePanel.tsx     # Semitic cognates table
 │       │       ├── SearchBar.tsx        # Verse search input
 │       │       ├── WordBreakdown.tsx    # Word-by-word morphology grid
-│       │       └── MorphologyCard.tsx   # Single word morphology card
+│       │       ├── MorphologyCard.tsx   # Single word morphology card
+│       │       └── AITranslation.tsx   # AI translation display panel
 │       ├── package.json
 │       └── vite.config.ts              # Vite config with API proxy (port 4000)
 ├── extensions/
@@ -208,7 +211,7 @@ quran-related/
 
 ## API Reference
 
-The Flask backend exposes seven endpoints:
+The Flask backend exposes eight endpoints:
 
 ### `GET /api/verse/<surah>:<ayah>`
 
@@ -372,6 +375,24 @@ Returns comprehensive data for a root: Arabic form, all derived lemmas, Semitic 
 }
 ```
 
+### `GET /api/verse/<surah>:<ayah>/ai-translation`
+
+Returns the most recent AI-generated translation for a verse, or 404 if none exists. Translations are generated offline via `translate_ai.py` and stored in the database.
+
+**Example:** `/api/verse/24:41/ai-translation`
+
+```json
+{
+  "surah": 24,
+  "ayah": 41,
+  "translation": "Do you not see that Allah is glorified by whoever is in the heavens and the earth...",
+  "departure_notes": "The key departure here involves the interpretation of يُسَبِّحُ...",
+  "config_name": "quran-only-v1",
+  "model_name": "minimax-m2.5:cloud",
+  "created_at": "2026-03-01 12:00:00"
+}
+```
+
 ### `GET /api/cognates/<root_buckwalter>`
 
 Returns Semitic cognate data for a specific root.
@@ -398,7 +419,7 @@ The form-based index handles particles and prepositions that have no lemma or ro
 
 ## Database Schema
 
-The SQLite database (`quran.db`) contains six tables:
+The SQLite database (`quran.db`) contains eight tables:
 
 | Table | Description |
 |-------|-------------|
@@ -408,8 +429,63 @@ The SQLite database (`quran.db`) contains six tables:
 | `word_glosses` | Cached word-by-word English translations from Quran.com API |
 | `semitic_roots` | Proto-Semitic etymological roots with `source` column (3,516 rows) |
 | `semitic_derivatives` | Language attestations for each root (14,671 rows) |
+| `ai_translation_configs` | Configuration presets for AI translation runs (model, prompts, parameters) |
+| `ai_translations` | AI-generated verse translations with departure notes and full prompts |
 
 The `semitic_roots` table has a `source` column (`'semiticroots'` or `'starling'`) so both data sources coexist without conflicts. Root IDs from Starling start at 10001 to avoid collisions.
+
+---
+
+## AI Translation Engine
+
+An experimental translation pipeline that derives meaning exclusively from the Quran itself — using surrounding context, cross-references, Semitic cognates, and morphological data. No external tafsir or conventional translations are used as source material (though a conventional translation is shown to the model for reference).
+
+### How It Works
+
+For each verse, the pipeline:
+
+1. **Fetches morphology** — root, lemma, POS, verb form, voice, mood, case, and word glosses
+2. **Gathers surrounding context** — 3 verses before and after (configurable)
+3. **Finds cross-references** — up to 7 related verses via the IDF similarity engine, showing which roots are shared
+4. **Looks up Semitic cognates** — for every root in the verse, pulls etymological data across Akkadian, Hebrew, Aramaic, Syriac, Ge'ez, etc.
+5. **Assembles a structured prompt** — all evidence is presented to the LLM with instructions to translate based only on the provided data
+6. **Stores the result** — translation text, departure notes, the full prompt, and raw response are saved for auditability
+
+### Prerequisites
+
+- [Ollama](https://ollama.ai/) installed and running
+- A model pulled (e.g. `ollama pull minimax-m2.5:cloud` or any model available via Ollama)
+
+### Usage
+
+```bash
+cd roots/backend
+
+# Dry run — inspect the assembled prompt without calling the model
+python translate_ai.py --verses "1:1" --dry-run
+
+# Translate specific verses
+python translate_ai.py --verses "1:1-7,24:41,2:255"
+
+# Use a specific model
+python translate_ai.py --verses "1:1" --model "minimax-m2.5:cloud"
+
+# Re-translate verses that already exist
+python translate_ai.py --verses "1:1" --force
+
+# Adjust temperature
+python translate_ai.py --verses "1:1" --temperature 0.5
+```
+
+The `--verses` flag accepts comma-separated verse specs with optional ranges: `1:1-7,24:41,2:255,112:1-4`.
+
+### Configuration
+
+Translation configs are stored in the `ai_translation_configs` table. Each config captures the model name, system prompt, temperature, context window size, and number of cross-references. The default config is `quran-only-v1`.
+
+### Frontend Display
+
+Verses that have an AI translation show a violet "AI Translation" panel (marked "experimental") between the verse display and surrounding context. The panel auto-expands when data is available and hides entirely for untranslated verses.
 
 ---
 

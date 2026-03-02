@@ -6,12 +6,22 @@ import sqlite3
 from collections import OrderedDict, defaultdict
 
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
-app = Flask(__name__)
+# In Docker, static/ sits next to app.py; in local dev it doesn't exist
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+SERVE_STATIC = os.path.isdir(STATIC_DIR)
+
+app = Flask(
+    __name__,
+    static_folder=STATIC_DIR if SERVE_STATIC else None,
+    static_url_path="" if SERVE_STATIC else None,
+)
 CORS(app)
 
+# In Docker the DB lives on a volume at /app/data/quran.db;
+# in local dev it's at roots/backend/data/quran.db — same relative path
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "quran.db")
 
 
@@ -40,6 +50,90 @@ def _ensure_word_glosses_table():
 
 
 _ensure_word_glosses_table()
+
+
+def _ensure_ai_translation_tables():
+    """Create the AI translation tables if they don't exist."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_translation_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_name TEXT NOT NULL UNIQUE,
+                model_name TEXT NOT NULL,
+                system_prompt TEXT NOT NULL,
+                temperature REAL DEFAULT 0.3,
+                context_verses_before INTEGER DEFAULT 3,
+                context_verses_after INTEGER DEFAULT 3,
+                related_verses_limit INTEGER DEFAULT 7,
+                methodology_notes TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_translations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                config_id INTEGER NOT NULL,
+                translation_text TEXT NOT NULL,
+                departure_notes TEXT,
+                full_prompt TEXT,
+                raw_response TEXT,
+                model_response_time_ms INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (config_id) REFERENCES ai_translation_configs(id),
+                UNIQUE (chapter, verse, config_id)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_translations_verse
+            ON ai_translations (chapter, verse)
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_ai_translation_tables()
+
+
+def _ensure_ai_word_meanings_table():
+    """Create the ai_word_meanings table if it doesn't exist."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_word_meanings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                word_pos INTEGER NOT NULL,
+                config_id INTEGER NOT NULL,
+                meaning_short TEXT NOT NULL,
+                meaning_detailed TEXT NOT NULL,
+                semantic_field TEXT,
+                cross_ref_notes TEXT,
+                cognate_notes TEXT,
+                morphology_notes TEXT,
+                departure_notes TEXT,
+                full_prompt TEXT,
+                raw_response TEXT,
+                model_response_time_ms INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (config_id) REFERENCES ai_translation_configs(id),
+                UNIQUE (chapter, verse, word_pos, config_id)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_word_meanings_verse
+            ON ai_word_meanings (chapter, verse)
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_ai_word_meanings_table()
 
 
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
@@ -705,6 +799,37 @@ def get_context(surah: int, ayah: int):
         conn.close()
 
 
+@app.route("/api/verse/<int:surah>:<int:ayah>/ai-translation")
+def get_ai_translation(surah: int, ayah: int):
+    """Return the most recent AI translation for a verse, or 404 if none exists."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT t.translation_text, t.departure_notes, t.created_at, "
+            "       c.config_name, c.model_name "
+            "FROM ai_translations t "
+            "JOIN ai_translation_configs c ON t.config_id = c.id "
+            "WHERE t.chapter = ? AND t.verse = ? "
+            "ORDER BY t.created_at DESC LIMIT 1",
+            (surah, ayah),
+        ).fetchone()
+
+        if not row:
+            return jsonify({"error": "No AI translation available"}), 404
+
+        return jsonify({
+            "surah": surah,
+            "ayah": ayah,
+            "translation": row["translation_text"],
+            "departure_notes": row["departure_notes"],
+            "config_name": row["config_name"],
+            "model_name": row["model_name"],
+            "created_at": row["created_at"],
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/search-words", methods=["POST"])
 def search_words():
     """Find verses containing ALL of the given search terms (intersection)."""
@@ -849,6 +974,228 @@ def search_words():
         })
     finally:
         conn.close()
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/word-meanings")
+def get_word_meanings(surah: int, ayah: int):
+    """Return AI word meanings for all words in a verse (for tooltips)."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT wm.word_pos, wm.meaning_short, wm.meaning_detailed "
+            "FROM ai_word_meanings wm "
+            "INNER JOIN ("
+            "  SELECT word_pos, MAX(created_at) AS max_created "
+            "  FROM ai_word_meanings "
+            "  WHERE chapter = ? AND verse = ? "
+            "  GROUP BY word_pos"
+            ") latest ON wm.word_pos = latest.word_pos AND wm.created_at = latest.max_created "
+            "WHERE wm.chapter = ? AND wm.verse = ?",
+            (surah, ayah, surah, ayah),
+        ).fetchall()
+
+        meanings = {}
+        for row in rows:
+            meanings[str(row["word_pos"])] = {
+                "meaning_short": row["meaning_short"],
+                "has_detail": bool(row["meaning_detailed"]),
+            }
+
+        return jsonify({
+            "surah": surah,
+            "ayah": ayah,
+            "meanings": meanings,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/word/<int:surah>:<int:ayah>/<int:pos>")
+def get_word_detail(surah: int, ayah: int, pos: int):
+    """Return full word analysis data for the dedicated word page."""
+    conn = get_db()
+    try:
+        # Get the AI meaning
+        wm_row = conn.execute(
+            "SELECT wm.*, c.config_name, c.model_name "
+            "FROM ai_word_meanings wm "
+            "JOIN ai_translation_configs c ON wm.config_id = c.id "
+            "WHERE wm.chapter = ? AND wm.verse = ? AND wm.word_pos = ? "
+            "ORDER BY wm.created_at DESC LIMIT 1",
+            (surah, ayah, pos),
+        ).fetchone()
+
+        # Get verse text + translation
+        verse_row = conn.execute(
+            "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+            (surah, ayah),
+        ).fetchone()
+        if not verse_row:
+            return jsonify({"error": f"Verse {surah}:{ayah} not found"}), 404
+
+        trans_row = conn.execute(
+            "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+            (surah, ayah),
+        ).fetchone()
+
+        # Get morphology for this word
+        morph_rows = conn.execute(
+            "SELECT form_arabic, form_buckwalter, tag, pos, "
+            "       root_buckwalter, root_arabic, lemma_buckwalter, lemma_arabic, "
+            "       features_raw, gender, number, person, case_val, voice, mood, "
+            "       verb_form, state "
+            "FROM morphology WHERE chapter = ? AND verse = ? AND word_pos = ? "
+            "ORDER BY segment",
+            (surah, ayah, pos),
+        ).fetchall()
+
+        if not morph_rows:
+            return jsonify({"error": f"Word at position {pos} not found"}), 404
+
+        # Build segments
+        segments = []
+        main_root_bw = None
+        main_lemma_bw = None
+        main_lemma_ar = None
+        main_root_ar = None
+        for row in morph_rows:
+            features = {}
+            for key in ("gender", "number", "person", "case_val", "voice", "mood", "verb_form", "state"):
+                val = row[key]
+                if val:
+                    display_key = "case" if key == "case_val" else key.replace("_", " ")
+                    features[display_key] = val
+
+            segments.append({
+                "form_arabic": row["form_arabic"],
+                "form_buckwalter": row["form_buckwalter"],
+                "tag": row["tag"],
+                "pos": row["pos"],
+                "root_arabic": row["root_arabic"],
+                "root_buckwalter": row["root_buckwalter"],
+                "lemma_arabic": row["lemma_arabic"],
+                "lemma_buckwalter": row["lemma_buckwalter"],
+                "features": features,
+                "features_raw": row["features_raw"],
+            })
+            if row["root_buckwalter"] and not main_root_bw:
+                main_root_bw = row["root_buckwalter"]
+                main_root_ar = row["root_arabic"]
+            if row["lemma_buckwalter"] and not main_lemma_bw:
+                main_lemma_bw = row["lemma_buckwalter"]
+                main_lemma_ar = row["lemma_arabic"]
+
+        # Get conventional gloss
+        glosses = _fetch_word_glosses(conn, surah, ayah)
+        conventional_gloss = glosses.get(pos, "")
+
+        # Get cognate data
+        cognate = _get_cognate(conn, main_root_bw) if main_root_bw else None
+
+        # Find other occurrences of the same lemma (up to 10)
+        other_occurrences = []
+        if main_lemma_bw:
+            lemma_verses = sorted(_lemma_inv.get(main_lemma_bw, set()))
+            count = 0
+            for ch, v in lemma_verses:
+                if ch == surah and v == ayah:
+                    continue
+                if count >= 10:
+                    break
+
+                # Find the word position(s) with this lemma in the other verse
+                occ_morph = conn.execute(
+                    "SELECT DISTINCT word_pos FROM morphology "
+                    "WHERE chapter = ? AND verse = ? AND lemma_buckwalter = ?",
+                    (ch, v, main_lemma_bw),
+                ).fetchall()
+                occ_positions = [r["word_pos"] for r in occ_morph]
+
+                # Get verse text + translation
+                ov_row = conn.execute(
+                    "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                    (ch, v),
+                ).fetchone()
+                ot_row = conn.execute(
+                    "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                    (ch, v),
+                ).fetchone()
+
+                # Get conventional gloss for the word in that verse
+                occ_glosses = _fetch_word_glosses(conn, ch, v)
+                occ_gloss = occ_glosses.get(occ_positions[0], "") if occ_positions else ""
+
+                # Check if AI meaning exists for this occurrence
+                occ_ai = conn.execute(
+                    "SELECT meaning_short FROM ai_word_meanings "
+                    "WHERE chapter = ? AND verse = ? AND word_pos = ? "
+                    "ORDER BY created_at DESC LIMIT 1",
+                    (ch, v, occ_positions[0] if occ_positions else 0),
+                ).fetchone()
+
+                other_occurrences.append({
+                    "surah": ch,
+                    "ayah": v,
+                    "word_positions": occ_positions,
+                    "text_uthmani": _strip_bismillah(ov_row["text_uthmani"], ch, v) if ov_row else "",
+                    "translation": ot_row["text_en"] if ot_row else "",
+                    "conventional_gloss": occ_gloss,
+                    "ai_meaning": occ_ai["meaning_short"] if occ_ai else None,
+                })
+                count += 1
+
+        result = {
+            "surah": surah,
+            "ayah": ayah,
+            "word_pos": pos,
+            "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], surah, ayah),
+            "translation": trans_row["text_en"] if trans_row else "",
+            "segments": segments,
+            "conventional_gloss": conventional_gloss,
+            "root_arabic": main_root_ar,
+            "root_buckwalter": main_root_bw,
+            "lemma_arabic": main_lemma_ar,
+            "lemma_buckwalter": main_lemma_bw,
+            "cognate": cognate,
+            "other_occurrences": other_occurrences,
+            "total_lemma_occurrences": len(_lemma_inv.get(main_lemma_bw, set())) if main_lemma_bw else 0,
+        }
+
+        # Add AI meaning fields if available
+        if wm_row:
+            result["ai_meaning"] = {
+                "meaning_short": wm_row["meaning_short"],
+                "meaning_detailed": wm_row["meaning_detailed"],
+                "semantic_field": wm_row["semantic_field"],
+                "cross_ref_notes": wm_row["cross_ref_notes"],
+                "cognate_notes": wm_row["cognate_notes"],
+                "morphology_notes": wm_row["morphology_notes"],
+                "departure_notes": wm_row["departure_notes"],
+                "config_name": wm_row["config_name"],
+                "model_name": wm_row["model_name"],
+                "created_at": wm_row["created_at"],
+            }
+        else:
+            result["ai_meaning"] = None
+
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+# --------------- SPA catch-all (production only) ---------------
+
+if SERVE_STATIC:
+    @app.route("/", defaults={"path": ""})
+    @app.route("/<path:path>")
+    def serve_spa(path):
+        """Serve static files or fall back to index.html for client-side routes."""
+        # If the file exists in static/, serve it directly
+        file_path = os.path.join(STATIC_DIR, path)
+        if path and os.path.isfile(file_path):
+            return send_from_directory(STATIC_DIR, path)
+        # Otherwise serve index.html (SPA handles routing)
+        return send_from_directory(STATIC_DIR, "index.html")
 
 
 if __name__ == "__main__":

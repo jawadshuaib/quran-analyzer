@@ -6,14 +6,26 @@ import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
 import WordSearchResults from './components/WordSearchResults';
+import AITranslation from './components/AITranslation';
 import RootPage from './components/RootPage';
+import WordAnalysisPage from './components/WordAnalysisPage';
 
 function getRootFromPath(): string | null {
   const match = window.location.pathname.match(/^\/root\/(.+)$/);
   return match ? decodeURIComponent(match[1]) : null;
 }
 
+function getWordFromPath(): { surah: number; ayah: number; pos: number } | null {
+  const match = window.location.pathname.match(/^\/word\/(\d+):(\d+)\/(\d+)$/);
+  return match
+    ? { surah: parseInt(match[1]), ayah: parseInt(match[2]), pos: parseInt(match[3]) }
+    : null;
+}
+
 export default function App() {
+  const wordParams = getWordFromPath();
+  if (wordParams) return <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />;
+
   const rootBw = getRootFromPath();
   if (rootBw) return <RootPage rootBw={rootBw} />;
   const [data, setData] = useState<VerseData | null>(null);
@@ -121,6 +133,10 @@ export default function App() {
             </div>
           )}
 
+          <AITranslation
+            surah={data.surah}
+            ayah={data.ayah}
+          />
           <SurroundingContext
             surah={data.surah}
             ayah={data.ayah}

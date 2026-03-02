@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import type { VerseData, Word, CognateData, RootSummary, SearchTerm } from '../types';
-import { searchWordsCount } from '../api/quran';
+import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief } from '../types';
+import { searchWordsCount, fetchWordMeanings } from '../api/quran';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
 import SelectionHeader from './SelectionHeader';
@@ -34,6 +34,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
   const [hoveredRoot, setHoveredRoot] = useState<string | null>(null);
   const [expandedRoot, setExpandedRoot] = useState<string | null>(null);
   const [resultCount, setResultCount] = useState<number | null>(null);
+  const [wordMeanings, setWordMeanings] = useState<Record<string, WordMeaningBrief>>({});
   const containerRef = useRef<HTMLDivElement>(null);
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
@@ -76,7 +77,17 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
     setHoveredRoot(null);
     setExpandedRoot(null);
     setResultCount(null);
+    setWordMeanings({});
   }, [data]);
+
+  // Fetch AI word meanings for this verse
+  useEffect(() => {
+    let cancelled = false;
+    fetchWordMeanings(data.surah, data.ayah).then((res) => {
+      if (!cancelled && res) setWordMeanings(res.meanings);
+    });
+    return () => { cancelled = true; };
+  }, [data.surah, data.ayah]);
 
   const hasSelection = selectedPositions.size > 0 || selectedRoots.size > 0;
 
@@ -278,6 +289,8 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
                 <WordTooltip
                   word={wordData}
                   cognate={getCognateForWord(wordData)}
+                  aiMeaning={wordMeanings[String(pos)]?.meaning_short}
+                  wordDetailUrl={wordMeanings[String(pos)]?.has_detail ? `/word/${data.surah}:${data.ayah}/${pos}` : undefined}
                 />
               )}
             </span>

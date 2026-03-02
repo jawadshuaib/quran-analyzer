@@ -129,6 +129,16 @@ export interface WordSearchResponse {
   total_found: number;
 }
 
+export interface AITranslationData {
+  surah: number;
+  ayah: number;
+  translation: string;
+  departure_notes: string | null;
+  config_name: string;
+  model_name: string;
+  created_at: string;
+}
+
 export interface LemmaInfo {
   lemma_arabic: string;
   lemma_buckwalter: string;
@@ -149,4 +159,56 @@ export interface RootDetailData {
   lemmas: LemmaInfo[];
   cognate: CognateData | null;
   sample_verses: RootSampleVerse[];
+}
+
+export interface WordMeaningBrief {
+  meaning_short: string;
+  has_detail: boolean;
+}
+
+export interface WordMeaningsResponse {
+  surah: number;
+  ayah: number;
+  meanings: Record<string, WordMeaningBrief>;
+}
+
+export interface WordOccurrence {
+  surah: number;
+  ayah: number;
+  word_positions: number[];
+  text_uthmani: string;
+  translation: string;
+  conventional_gloss: string;
+  ai_meaning: string | null;
+}
+
+export interface WordAIMeaning {
+  meaning_short: string;
+  meaning_detailed: string;
+  semantic_field: string | null;
+  cross_ref_notes: string | null;
+  cognate_notes: string | null;
+  morphology_notes: string | null;
+  departure_notes: string | null;
+  config_name: string;
+  model_name: string;
+  created_at: string;
+}
+
+export interface WordAnalysisData {
+  surah: number;
+  ayah: number;
+  word_pos: number;
+  text_uthmani: string;
+  translation: string;
+  segments: Segment[];
+  conventional_gloss: string;
+  root_arabic: string | null;
+  root_buckwalter: string | null;
+  lemma_arabic: string | null;
+  lemma_buckwalter: string | null;
+  cognate: CognateData | null;
+  other_occurrences: WordOccurrence[];
+  total_lemma_occurrences: number;
+  ai_meaning: WordAIMeaning | null;
 }

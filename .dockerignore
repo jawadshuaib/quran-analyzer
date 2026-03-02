@@ -1,0 +1,17 @@
+.git
+.gitignore
+.claude
+.DS_Store
+__pycache__
+*.pyc
+node_modules
+extensions
+roots/backend/data
+roots/frontend/node_modules
+roots/frontend/dist
+*.md
+!requirements.txt
+docker-compose*.yml
+.github
+.env
+.env.*

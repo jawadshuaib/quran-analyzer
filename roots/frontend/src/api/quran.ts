@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData } from '../types';
+import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData } from '../types';
 
 const BASE = '/api';
 
@@ -55,6 +55,41 @@ export async function fetchRoot(rootBw: string): Promise<RootDetailData> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `Root '${rootBw}' not found`);
+  }
+  return res.json();
+}
+
+export async function fetchAITranslation(
+  surah: number,
+  ayah: number,
+): Promise<AITranslationData | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/ai-translation`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load AI translation');
+  return res.json();
+}
+
+export async function fetchWordMeanings(
+  surah: number,
+  ayah: number,
+): Promise<WordMeaningsResponse | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/word-meanings`);
+  if (!res.ok) return null;
+  const data: WordMeaningsResponse = await res.json();
+  // Return null if no meanings exist
+  if (!data.meanings || Object.keys(data.meanings).length === 0) return null;
+  return data;
+}
+
+export async function fetchWordAnalysis(
+  surah: number,
+  ayah: number,
+  pos: number,
+): Promise<WordAnalysisData> {
+  const res = await fetch(`${BASE}/word/${surah}:${ayah}/${pos}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Word analysis not found`);
   }
   return res.json();
 }
