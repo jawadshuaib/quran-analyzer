@@ -1,0 +1,239 @@
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { fetchVerse } from '../api/quran';
+
+interface Props {
+  text: string;
+  className?: string;
+}
+
+interface CachedVerse {
+  surah: number;
+  ayah: number;
+  text_uthmani: string;
+  translation: string;
+}
+
+// Matches "56:74" or "96:1–4" / "96:1-4" (en-dash or hyphen range)
+const VERSE_REF_RE = /(\d{1,3}:\d{1,3}(?:[–\-]\d{1,3})?)/g;
+
+function parseRef(ref: string): { surah: number; startAyah: number; endAyah: number } {
+  const [surah, rest] = ref.split(':');
+  const parts = rest.split(/[–\-]/);
+  const startAyah = Number(parts[0]);
+  const endAyah = parts.length > 1 ? Number(parts[1]) : startAyah;
+  return { surah: Number(surah), startAyah, endAyah };
+}
+
+// Shared cross-instance cache so repeated hovers don't re-fetch
+const verseCache = new Map<string, CachedVerse>();
+
+function VerseRefLink({ verseRef }: { verseRef: string }) {
+  const { surah, startAyah, endAyah } = parseRef(verseRef);
+  const isRange = endAyah > startAyah;
+
+  const [tooltip, setTooltip] = useState<{
+    loading: boolean;
+    verses: CachedVerse[];
+    error: boolean;
+  } | null>(null);
+
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  }, []);
+
+  const handleMouseEnter = useCallback(async () => {
+    clearHideTimer();
+
+    // Check if all verses in range are already cached
+    const allCached: CachedVerse[] = [];
+    let allHit = true;
+    for (let a = startAyah; a <= endAyah; a++) {
+      const key = `${surah}:${a}`;
+      if (verseCache.has(key)) {
+        allCached.push(verseCache.get(key)!);
+      } else {
+        allHit = false;
+        break;
+      }
+    }
+
+    if (allHit) {
+      setTooltip({ loading: false, verses: allCached, error: false });
+      return;
+    }
+
+    setTooltip({ loading: true, verses: [], error: false });
+    try {
+      const promises: Promise<CachedVerse>[] = [];
+      for (let a = startAyah; a <= endAyah; a++) {
+        const key = `${surah}:${a}`;
+        if (verseCache.has(key)) {
+          promises.push(Promise.resolve(verseCache.get(key)!));
+        } else {
+          promises.push(
+            fetchVerse(surah, a).then((data) => {
+              const cached: CachedVerse = {
+                surah,
+                ayah: a,
+                text_uthmani: data.text_uthmani,
+                translation: data.translation,
+              };
+              verseCache.set(key, cached);
+              return cached;
+            }),
+          );
+        }
+      }
+      const verses = await Promise.all(promises);
+      setTooltip({ loading: false, verses, error: false });
+    } catch {
+      setTooltip({ loading: false, verses: [], error: true });
+    }
+  }, [surah, startAyah, endAyah, clearHideTimer]);
+
+  const handleMouseLeave = useCallback(() => {
+    hideTimer.current = setTimeout(() => setTooltip(null), 200);
+  }, []);
+
+  useEffect(() => {
+    return () => clearHideTimer();
+  }, [clearHideTimer]);
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      window.open(`/?s=${surah}&a=${startAyah}`, '_blank');
+    },
+    [surah, startAyah],
+  );
+
+  return (
+    <span className="relative inline">
+      <span
+        className="text-violet-600 underline decoration-violet-300 underline-offset-2 cursor-pointer hover:text-violet-800 hover:decoration-violet-500 transition-colors"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        role="link"
+        tabIndex={0}
+      >
+        {verseRef}
+      </span>
+
+      {tooltip && (
+        <span
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50
+                     bg-white rounded-lg shadow-lg border border-violet-200 p-3
+                     min-w-[220px] max-w-[360px] text-sm text-stone-700"
+          style={{ width: isRange ? '340px' : undefined }}
+          onMouseEnter={clearHideTimer}
+          onMouseLeave={handleMouseLeave}
+        >
+          {/* Arrow */}
+          <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3
+                          bg-white border-l border-t border-violet-200 rotate-45" />
+
+          {tooltip.loading ? (
+            <span className="flex justify-center py-2">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
+            </span>
+          ) : tooltip.error ? (
+            <span className="text-xs text-red-500 text-center block">
+              Could not load verse
+            </span>
+          ) : tooltip.verses.length > 0 ? (
+            <span className="block space-y-2 max-h-[400px] overflow-y-auto">
+              {tooltip.verses.map((v) => (
+                <span
+                  key={v.ayah}
+                  className="block rounded-md hover:bg-violet-50/50 transition-colors px-1 py-0.5 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(`/?s=${v.surah}&a=${v.ayah}`, '_blank');
+                  }}
+                >
+                  <span className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-violet-600">
+                      {v.surah}:{v.ayah}
+                    </span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-3 w-3 text-violet-400"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                      <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                    </svg>
+                  </span>
+                  <span
+                    dir="rtl"
+                    lang="ar"
+                    className="block font-arabic text-base leading-[2] text-stone-800 text-right"
+                  >
+                    {v.text_uthmani}
+                  </span>
+                  <span className="block text-xs text-stone-500 italic leading-relaxed mt-0.5">
+                    {v.translation}
+                  </span>
+                  {/* Divider between verses in a range (not after last) */}
+                  {isRange && v.ayah !== endAyah && (
+                    <span className="block border-b border-violet-100 mt-2" />
+                  )}
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </span>
+      )}
+    </span>
+  );
+}
+
+export default function VerseRefText({ text, className }: Props) {
+  if (!text) return null;
+
+  // Split text into segments of plain text and verse references
+  const parts: { type: 'text' | 'ref'; value: string }[] = [];
+  let lastIndex = 0;
+
+  // Reset regex state
+  VERSE_REF_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = VERSE_REF_RE.exec(text)) !== null) {
+    // Add preceding plain text
+    if (match.index > lastIndex) {
+      parts.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+    }
+    parts.push({ type: 'ref', value: match[1] });
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Add trailing plain text
+  if (lastIndex < text.length) {
+    parts.push({ type: 'text', value: text.slice(lastIndex) });
+  }
+
+  // If no refs found, just return plain text
+  if (parts.every((p) => p.type === 'text')) {
+    return <span className={className}>{text}</span>;
+  }
+
+  return (
+    <span className={className}>
+      {parts.map((part, i) =>
+        part.type === 'ref' ? (
+          <VerseRefLink key={i} verseRef={part.value} />
+        ) : (
+          <span key={i}>{part.value}</span>
+        ),
+      )}
+    </span>
+  );
+}

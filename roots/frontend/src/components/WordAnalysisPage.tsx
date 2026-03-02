@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import type { WordAnalysisData } from '../types';
 import { fetchWordAnalysis } from '../api/quran';
+import VerseRefText from './VerseRefText';
 
 interface Props {
   surah: number;
@@ -8,7 +9,7 @@ interface Props {
   pos: number;
 }
 
-function CollapsibleSection({ title, content }: { title: string; content: string }) {
+function CollapsibleSection({ title, content }: { title: string; content: ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="border-t border-violet-100 pt-2">
@@ -194,16 +195,16 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
             )}
 
             {data.ai_meaning.cross_ref_notes && (
-              <CollapsibleSection title="Cross-Reference Notes" content={data.ai_meaning.cross_ref_notes} />
+              <CollapsibleSection title="Cross-Reference Notes" content={<VerseRefText text={data.ai_meaning.cross_ref_notes} />} />
             )}
             {data.ai_meaning.cognate_notes && (
-              <CollapsibleSection title="Cognate Notes" content={data.ai_meaning.cognate_notes} />
+              <CollapsibleSection title="Cognate Notes" content={<VerseRefText text={data.ai_meaning.cognate_notes} />} />
             )}
             {data.ai_meaning.morphology_notes && (
-              <CollapsibleSection title="Morphology Notes" content={data.ai_meaning.morphology_notes} />
+              <CollapsibleSection title="Morphology Notes" content={<VerseRefText text={data.ai_meaning.morphology_notes} />} />
             )}
             {data.ai_meaning.departure_notes && (
-              <CollapsibleSection title="Departure from Conventional Gloss" content={data.ai_meaning.departure_notes} />
+              <CollapsibleSection title="Departure from Conventional Gloss" content={<VerseRefText text={data.ai_meaning.departure_notes} />} />
             )}
 
             <div className="text-xs text-violet-400 pt-2 border-t border-violet-100">

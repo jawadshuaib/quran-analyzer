@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { AITranslationData } from '../types';
 import { fetchAITranslation } from '../api/quran';
+import VerseRefText from './VerseRefText';
 
 interface Props {
   surah: number;
@@ -78,7 +79,7 @@ export default function AITranslation({ surah, ayah }: Props) {
                 <div className="rounded-lg bg-violet-50 border border-violet-100 p-3">
                   <p className="text-xs font-medium text-violet-600 mb-1">Departure Notes</p>
                   <p className="text-sm text-violet-800 leading-relaxed">
-                    {data.departure_notes}
+                    <VerseRefText text={data.departure_notes} />
                   </p>
                 </div>
               )}
