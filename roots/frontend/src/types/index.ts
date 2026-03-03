@@ -164,6 +164,8 @@ export interface RootDetailData {
 export interface WordMeaningBrief {
   meaning_short: string;
   has_detail: boolean;
+  preferred_translation?: string;
+  preferred_source?: 'conventional' | 'ai' | 'judge';
 }
 
 export interface WordMeaningsResponse {
@@ -193,6 +195,8 @@ export interface WordAIMeaning {
   config_name: string;
   model_name: string;
   created_at: string;
+  preferred_translation?: string;
+  preferred_source?: 'conventional' | 'ai' | 'judge';
 }
 
 export interface WordAnalysisData {

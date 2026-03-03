@@ -291,6 +291,8 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
                   cognate={getCognateForWord(wordData)}
                   aiMeaning={wordMeanings[String(pos)]?.meaning_short}
                   wordDetailUrl={wordMeanings[String(pos)]?.has_detail ? `/word/${data.surah}:${data.ayah}/${pos}` : undefined}
+                  preferredTranslation={wordMeanings[String(pos)]?.preferred_translation}
+                  preferredSource={wordMeanings[String(pos)]?.preferred_source}
                 />
               )}
             </span>

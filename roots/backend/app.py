@@ -136,6 +136,28 @@ def _ensure_ai_word_meanings_table():
 _ensure_ai_word_meanings_table()
 
 
+def _ensure_judge_columns():
+    """Add preferred_translation and preferred_source columns if missing."""
+    conn = get_db()
+    try:
+        for col, coltype in [
+            ("preferred_translation", "TEXT"),
+            ("preferred_source", "TEXT"),
+        ]:
+            try:
+                conn.execute(
+                    f"ALTER TABLE ai_word_meanings ADD COLUMN {col} {coltype}"
+                )
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # column already exists
+    finally:
+        conn.close()
+
+
+_ensure_judge_columns()
+
+
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
 
 ROOT_DISCOUNT = 0.5  # Root-only matches get half credit vs lemma matches
@@ -982,7 +1004,8 @@ def get_word_meanings(surah: int, ayah: int):
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT wm.word_pos, wm.meaning_short, wm.meaning_detailed "
+            "SELECT wm.word_pos, wm.meaning_short, wm.meaning_detailed, "
+            "       wm.preferred_translation, wm.preferred_source "
             "FROM ai_word_meanings wm "
             "INNER JOIN ("
             "  SELECT word_pos, MAX(created_at) AS max_created "
@@ -996,10 +1019,14 @@ def get_word_meanings(surah: int, ayah: int):
 
         meanings = {}
         for row in rows:
-            meanings[str(row["word_pos"])] = {
+            entry = {
                 "meaning_short": row["meaning_short"],
                 "has_detail": bool(row["meaning_detailed"]),
             }
+            if row["preferred_translation"]:
+                entry["preferred_translation"] = row["preferred_translation"]
+                entry["preferred_source"] = row["preferred_source"]
+            meanings[str(row["word_pos"])] = entry
 
         return jsonify({
             "surah": surah,
@@ -1163,7 +1190,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
 
         # Add AI meaning fields if available
         if wm_row:
-            result["ai_meaning"] = {
+            ai_meaning = {
                 "meaning_short": wm_row["meaning_short"],
                 "meaning_detailed": wm_row["meaning_detailed"],
                 "semantic_field": wm_row["semantic_field"],
@@ -1175,6 +1202,10 @@ def get_word_detail(surah: int, ayah: int, pos: int):
                 "model_name": wm_row["model_name"],
                 "created_at": wm_row["created_at"],
             }
+            if wm_row["preferred_translation"]:
+                ai_meaning["preferred_translation"] = wm_row["preferred_translation"]
+                ai_meaning["preferred_source"] = wm_row["preferred_source"]
+            result["ai_meaning"] = ai_meaning
         else:
             result["ai_meaning"] = None
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
 import { fetchVerse, searchWords } from './api/quran';
 import SearchBar from './components/SearchBar';
@@ -36,6 +36,39 @@ export default function App() {
   const [wordSearchLoading, setWordSearchLoading] = useState(false);
   const [wordSearchError, setWordSearchError] = useState('');
   const wordSearchRef = useRef<HTMLDivElement>(null);
+
+  // 15 famous verses — pick 3 at random on each page load
+  const featuredVerses = useMemo<[number, number][]>(() => {
+    const all: [number, number][] = [
+      [1, 1],    // Al-Fatiha
+      [2, 255],  // Ayat al-Kursi
+      [2, 286],  // Last verse of Al-Baqarah
+      [3, 190],  // First verse on just warfare
+      [24, 35],  // Ayat an-Nur (Light verse)
+      [36, 1],   // Ya-Sin opening
+      [55, 13],  // Ar-Rahman refrain
+      [59, 22],  // Names of Allah
+      [67, 1],   // Al-Mulk opening
+      [96, 1],   // First revelation
+      [112, 1],  // Al-Ikhlas
+      [113, 1],  // Al-Falaq
+      [114, 1],  // An-Nas
+      [2, 152],  // Remember Me
+      [33, 56],  // Salawat verse
+      [13, 28],  // Hearts find rest in remembrance
+      [94, 5],   // With hardship comes ease
+      [49, 13],  // Nations and tribes
+      [21, 107], // Mercy to the worlds
+      [3, 139],  // Do not weaken
+      [18, 10],  // Companions of the Cave
+      [56, 77],  // Noble Quran
+      [39, 53],  // Do not despair of mercy
+      [31, 18],  // Luqman's advice — humility
+      [17, 1],   // Isra (Night Journey)
+    ];
+    const shuffled = [...all].sort(() => Math.random() - 0.5);
+    return shuffled.slice(0, 3);
+  }, []);
 
   async function handleSearch(surah: number, ayah: number) {
     setLoading(true);
@@ -159,9 +192,29 @@ export default function App() {
       {!data && !loading && !error && (
         <div className="text-center text-stone-400 py-16">
           <p className="text-lg">Try searching for a verse</p>
-          <p className="text-sm mt-1">e.g. 1:1, 2:255, 112:1</p>
+          <p className="text-sm mt-1">e.g.{' '}
+            {featuredVerses.map(([s, a], i) => (
+              <span key={i}>
+                {i > 0 && ', '}
+                <button
+                  className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                  onClick={() => handleSearch(s, a)}
+                >
+                  {s}:{a}
+                </button>
+              </span>
+            ))}
+          </p>
         </div>
       )}
+      <footer className="mt-16 py-6 border-t border-stone-200 text-center text-xs text-stone-400">
+        Created by{' '}
+        <a href="https://www.linkedin.com/in/jawadshuaib/" target="_blank" rel="noopener noreferrer"
+           className="text-stone-500 hover:text-stone-700 underline">Jawad Shuaib</a>.
+        {' '}Code repo available on{' '}
+        <a href="https://github.com/jawadshuaib/quran-analyzer" target="_blank" rel="noopener noreferrer"
+           className="text-stone-500 hover:text-stone-700 underline">GitHub</a>.
+      </footer>
     </div>
   );
 }

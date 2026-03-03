@@ -1,0 +1,24 @@
+{
+  "model": "gpt-5.1",
+  "prepared_at": "2026-03-02 16:35:09",
+  "total_prompts": 20,
+  "batches": [
+    {
+      "file_id": "file-8snoxRwL4AUtjgSaHBJxxk",
+      "batch_id": "batch_69a6028dd9bc819092f55748375a7100",
+      "jsonl_path": "/Users/jawadshuaib/Desktop/projects/quran-related/roots/backend/batch_files/batch_judge_1772487308.jsonl",
+      "count": 20,
+      "output_file_id": "file-VTzM2V54vrLa3G4V1D7Hux"
+    }
+  ],
+  "verses": "96:1-5",
+  "status": "downloaded",
+  "submitted_at": "2026-03-02 16:35:10",
+  "stored": 20,
+  "source_counts": {
+    "conventional": 14,
+    "ai": 2,
+    "judge": 4
+  },
+  "downloaded_at": "2026-03-02 16:37:44"
+}

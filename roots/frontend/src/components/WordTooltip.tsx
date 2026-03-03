@@ -6,9 +6,11 @@ interface Props {
   cognate?: CognateData | null;
   aiMeaning?: string;
   wordDetailUrl?: string;
+  preferredTranslation?: string;
+  preferredSource?: 'conventional' | 'ai' | 'judge';
 }
 
-export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl }: Props) {
+export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, preferredTranslation, preferredSource }: Props) {
   const [expanded, setExpanded] = useState(false);
   const mainRootSeg = word.segments.find((s) => s.root_arabic);
   const mainRoot = mainRootSeg?.root_arabic;
@@ -30,34 +32,66 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl }:
       <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3
                       bg-white border-l border-t border-stone-200 rotate-45" />
 
-      {word.translation && (
-        <div className="font-semibold text-stone-900 mb-1.5 text-center">
-          {word.translation}
-        </div>
-      )}
-
-      {aiMeaning && (
+      {preferredTranslation ? (
+        /* Judged: show single preferred translation */
         <div className="mb-1.5 text-center">
           {wordDetailUrl ? (
             <a
               href={wordDetailUrl}
-              className="inline-flex items-center gap-1 text-violet-700 hover:text-violet-900 transition-colors"
+              className="inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
-              <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
-                AI
-              </span>
-              <span className="text-xs font-medium">{aiMeaning}</span>
+              {(preferredSource === 'ai' || preferredSource === 'judge') && (
+                <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                  AI
+                </span>
+              )}
+              <span className="font-semibold text-stone-900">{preferredTranslation}</span>
             </a>
           ) : (
             <div className="inline-flex items-center gap-1">
-              <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
-                AI
-              </span>
-              <span className="text-xs font-medium text-violet-700">{aiMeaning}</span>
+              {(preferredSource === 'ai' || preferredSource === 'judge') && (
+                <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                  AI
+                </span>
+              )}
+              <span className="font-semibold text-stone-900">{preferredTranslation}</span>
             </div>
           )}
         </div>
+      ) : (
+        /* Unjudged: show dual display (conventional + AI) */
+        <>
+          {word.translation && (
+            <div className="font-semibold text-stone-900 mb-1.5 text-center">
+              {word.translation}
+            </div>
+          )}
+
+          {aiMeaning && (
+            <div className="mb-1.5 text-center">
+              {wordDetailUrl ? (
+                <a
+                  href={wordDetailUrl}
+                  className="inline-flex items-center gap-1 text-violet-700 hover:text-violet-900 transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                    AI
+                  </span>
+                  <span className="text-xs font-medium">{aiMeaning}</span>
+                </a>
+              ) : (
+                <div className="inline-flex items-center gap-1">
+                  <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                    AI
+                  </span>
+                  <span className="text-xs font-medium text-violet-700">{aiMeaning}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {posLabels.length > 0 && (
