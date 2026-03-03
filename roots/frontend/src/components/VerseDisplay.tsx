@@ -13,6 +13,12 @@ interface Props {
   wordSearchLoading?: boolean;
 }
 
+/** Split departure notes into separate lines at " - " when preceded by "." within 3 chars. */
+function splitDepartureNotes(text: string): string[] {
+  const processed = text.replace(/(\..{0,2}) - /g, '$1\n- ');
+  return processed.split('\n');
+}
+
 /** Return the primary content segment of a word, skipping prefixes/suffixes/pronouns. */
 function getContentSegment(word: Word) {
   return (
@@ -399,9 +405,13 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
             <span className="text-xs font-medium text-violet-600">Translation Notes</span>
             <MethodologyTooltip />
           </div>
-          <p className="text-sm text-violet-800 leading-relaxed">
-            <VerseRefText text={aiTranslation.departure_notes} />
-          </p>
+          <div className="text-sm text-violet-800 leading-relaxed">
+            {splitDepartureNotes(aiTranslation.departure_notes).map((line, i) => (
+              <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
+                <VerseRefText text={line} />
+              </p>
+            ))}
+          </div>
         </div>
       )}
 

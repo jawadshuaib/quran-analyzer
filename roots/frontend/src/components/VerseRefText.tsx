@@ -22,6 +22,9 @@ const VERSE_REF_RE = /(\d{1,3}:\d{1,3}(?:[–\-]\d{1,3})?)/g;
 // The boundary check in the matching loop ensures these aren't part of full Arabic words.
 const ARABIC_ROOT_RE = /([\u0621-\u064A] [\u0621-\u064A](?: [\u0621-\u064A]){0,3})/g;
 
+// Matches quoted strings: "..." or \u201C...\u201D (curly quotes)
+const QUOTED_RE = /["\u201C][^"\u201D]+["\u201D]/g;
+
 // Arabic base letters (\u0621-\u064A) and diacritics (\u064B-\u0652, \u0670 superscript alef, \u0671 alef wasla)
 const ARABIC_CHAR_RE = /[\u0621-\u0652\u0670\u0671]/;
 
@@ -348,8 +351,8 @@ function RootRefLink({ rootText }: { rootText: string }) {
 export default function VerseRefText({ text, className }: Props) {
   if (!text) return null;
 
-  // Collect all matches (verse refs + root refs) with their types
-  const matches: { index: number; length: number; type: 'ref' | 'root'; value: string }[] = [];
+  // Collect all matches (verse refs, root refs, quoted text) with their types
+  const matches: { index: number; length: number; type: 'ref' | 'root' | 'quoted'; value: string }[] = [];
 
   VERSE_REF_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -377,6 +380,16 @@ export default function VerseRefText({ text, className }: Props) {
     }
   }
 
+  QUOTED_RE.lastIndex = 0;
+  while ((m = QUOTED_RE.exec(text)) !== null) {
+    const overlaps = matches.some(
+      (prev) => m!.index < prev.index + prev.length && m!.index + m![0].length > prev.index,
+    );
+    if (!overlaps) {
+      matches.push({ index: m.index, length: m[0].length, type: 'quoted', value: m[0] });
+    }
+  }
+
   // Sort by position
   matches.sort((a, b) => a.index - b.index);
 
@@ -386,7 +399,7 @@ export default function VerseRefText({ text, className }: Props) {
   }
 
   // Build segments
-  const parts: { type: 'text' | 'ref' | 'root'; value: string }[] = [];
+  const parts: { type: 'text' | 'ref' | 'root' | 'quoted'; value: string }[] = [];
   let lastIndex = 0;
 
   for (const match of matches) {
@@ -408,6 +421,8 @@ export default function VerseRefText({ text, className }: Props) {
           <VerseRefLink key={i} verseRef={part.value} />
         ) : part.type === 'root' ? (
           <RootRefLink key={i} rootText={part.value} />
+        ) : part.type === 'quoted' ? (
+          <span key={i} className="italic">{part.value}</span>
         ) : (
           <span key={i}>{part.value}</span>
         ),
