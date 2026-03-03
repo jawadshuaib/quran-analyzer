@@ -299,17 +299,10 @@ function RootRefLink({ rootText }: { rootText: string }) {
                   </span>
                   <span className="text-xs text-emerald-600 font-medium">({tooltip.data.root_buckwalter})</span>
                 </span>
-                <span className="text-xs text-stone-400">
-                  {tooltip.data.total_occurrences} verse{tooltip.data.total_occurrences !== 1 ? 's' : ''}
-                </span>
               </span>
-
-              {/* Cognate concept */}
-              {tooltip.data.cognate && (
-                <span className="block text-xs text-indigo-600">
-                  Core meaning: <span className="font-semibold">{tooltip.data.cognate.concept}</span>
-                </span>
-              )}
+              <span className="block text-xs text-stone-500">
+                Mentioned in {tooltip.data.total_occurrences} verse{tooltip.data.total_occurrences !== 1 ? 's' : ''}
+              </span>
 
               {/* Lemmas */}
               {tooltip.data.lemmas.length > 0 && (
