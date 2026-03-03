@@ -45,3 +45,25 @@ export function arabicToBuckwalter(arabic: string): string {
     .map((ch) => ARABIC_TO_BUCKWALTER[ch] ?? ch)
     .join('');
 }
+
+/**
+ * Normalize hamza variants to base consonants for root lookup.
+ * Quranic roots are stored with plain forms (A, w, y) not hamza carriers (>, <, |, &, }, ').
+ */
+const ROOT_NORMALIZE: Record<string, string> = {
+  '>': 'A', // alef with hamza above → plain alef
+  '<': 'A', // alef with hamza below → plain alef
+  '|': 'A', // alef with madda → plain alef
+  '{': 'A', // alef wasla → plain alef
+  "'": 'A', // standalone hamza → plain alef
+  '&': 'w', // waw with hamza → plain waw
+  '}': 'y', // ya with hamza → plain ya
+};
+
+/** Convert Arabic root letters to normalized Buckwalter suitable for DB lookup. */
+export function arabicRootToBuckwalter(arabic: string): string {
+  const raw = arabicToBuckwalter(arabic);
+  return Array.from(raw)
+    .map((ch) => ROOT_NORMALIZE[ch] ?? ch)
+    .join('');
+}

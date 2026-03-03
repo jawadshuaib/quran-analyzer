@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { RootDetailData } from '../types';
 import { fetchVerse, fetchRoot } from '../api/quran';
-import { arabicToBuckwalter } from '../utils/buckwalter';
+import { arabicRootToBuckwalter } from '../utils/buckwalter';
 
 interface Props {
   text: string;
@@ -215,9 +215,9 @@ function RootRefLink({ rootText }: { rootText: string }) {
   } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Convert spaced Arabic letters to Buckwalter (strip spaces first)
+  // Convert spaced Arabic letters to normalized Buckwalter for root lookup (strip spaces first)
   const letters = rootText.replace(/ /g, '');
-  const bw = arabicToBuckwalter(letters);
+  const bw = arabicRootToBuckwalter(letters);
   const url = `/root/${encodeURIComponent(bw)}`;
 
   const clearTimer = useCallback(() => {
