@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { fetchVerse } from '../api/quran';
+import type { RootDetailData } from '../types';
+import { fetchVerse, fetchRoot } from '../api/quran';
+import { arabicToBuckwalter } from '../utils/buckwalter';
 
 interface Props {
   text: string;
@@ -15,6 +17,13 @@ interface CachedVerse {
 
 // Matches "56:74" or "96:1–4" / "96:1-4" (en-dash or hyphen range)
 const VERSE_REF_RE = /(\d{1,3}:\d{1,3}(?:[–\-]\d{1,3})?)/g;
+
+// Matches spaced Arabic root letters like "ر ح م" (2–5 base Arabic letters separated by spaces).
+// The boundary check in the matching loop ensures these aren't part of full Arabic words.
+const ARABIC_ROOT_RE = /([\u0621-\u064A] [\u0621-\u064A](?: [\u0621-\u064A]){0,3})/g;
+
+// Arabic base letters (\u0621-\u064A) and diacritics (\u064B-\u0652, \u0670 superscript alef, \u0671 alef wasla)
+const ARABIC_CHAR_RE = /[\u0621-\u0652\u0670\u0671]/;
 
 function parseRef(ref: string): { surah: number; startAyah: number; endAyah: number } {
   const [surah, rest] = ref.split(':');
@@ -195,34 +204,208 @@ function VerseRefLink({ verseRef }: { verseRef: string }) {
   );
 }
 
+// Shared cache for root data so repeated hovers don't re-fetch
+const rootCache = new Map<string, RootDetailData>();
+
+function RootRefLink({ rootText }: { rootText: string }) {
+  const [tooltip, setTooltip] = useState<{
+    loading: boolean;
+    data: RootDetailData | null;
+    error: boolean;
+  } | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Convert spaced Arabic letters to Buckwalter (strip spaces first)
+  const letters = rootText.replace(/ /g, '');
+  const bw = arabicToBuckwalter(letters);
+  const url = `/root/${encodeURIComponent(bw)}`;
+
+  const clearTimer = useCallback(() => {
+    if (hideTimer.current) {
+      clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  }, []);
+
+  const handleMouseEnter = useCallback(async () => {
+    clearTimer();
+
+    if (rootCache.has(bw)) {
+      setTooltip({ loading: false, data: rootCache.get(bw)!, error: false });
+      return;
+    }
+
+    setTooltip({ loading: true, data: null, error: false });
+    try {
+      const result = await fetchRoot(bw);
+      rootCache.set(bw, result);
+      setTooltip({ loading: false, data: result, error: false });
+    } catch {
+      setTooltip({ loading: false, data: null, error: true });
+    }
+  }, [bw, clearTimer]);
+
+  const handleMouseLeave = useCallback(() => {
+    hideTimer.current = setTimeout(() => setTooltip(null), 200);
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimer();
+  }, [clearTimer]);
+
+  return (
+    <span className="relative inline">
+      <span
+        dir="rtl"
+        lang="ar"
+        className="font-arabic text-emerald-700 underline decoration-emerald-300 underline-offset-2 cursor-pointer
+                   hover:text-emerald-900 hover:decoration-emerald-500 transition-colors"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={(e) => { e.preventDefault(); window.location.href = url; }}
+        role="link"
+        tabIndex={0}
+      >
+        {rootText}
+      </span>
+
+      {tooltip && (
+        <span
+          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50
+                     bg-white rounded-lg shadow-lg border border-emerald-200 p-3
+                     min-w-[200px] max-w-[300px] text-sm text-stone-700"
+          onMouseEnter={clearTimer}
+          onMouseLeave={handleMouseLeave}
+        >
+          {/* Arrow */}
+          <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3
+                          bg-white border-l border-t border-emerald-200 rotate-45" />
+
+          {tooltip.loading ? (
+            <span className="flex justify-center py-2">
+              <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+            </span>
+          ) : tooltip.error ? (
+            <span className="text-xs text-red-500 text-center block">
+              Root not found
+            </span>
+          ) : tooltip.data ? (
+            <span className="block space-y-2">
+              {/* Root header */}
+              <span className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <span dir="rtl" lang="ar" className="font-arabic text-lg text-stone-800">
+                    {tooltip.data.root_arabic}
+                  </span>
+                  <span className="text-xs text-emerald-600 font-medium">({tooltip.data.root_buckwalter})</span>
+                </span>
+                <span className="text-xs text-stone-400">
+                  {tooltip.data.total_occurrences} verse{tooltip.data.total_occurrences !== 1 ? 's' : ''}
+                </span>
+              </span>
+
+              {/* Cognate concept */}
+              {tooltip.data.cognate && (
+                <span className="block text-xs text-indigo-600">
+                  Core meaning: <span className="font-semibold">{tooltip.data.cognate.concept}</span>
+                </span>
+              )}
+
+              {/* Lemmas */}
+              {tooltip.data.lemmas.length > 0 && (
+                <span className="flex flex-wrap gap-1">
+                  {tooltip.data.lemmas.slice(0, 6).map((l) => (
+                    <span
+                      key={l.lemma_buckwalter}
+                      dir="rtl"
+                      lang="ar"
+                      className="inline-block font-arabic text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5"
+                    >
+                      {l.lemma_arabic}
+                    </span>
+                  ))}
+                  {tooltip.data.lemmas.length > 6 && (
+                    <span className="text-xs text-stone-400">+{tooltip.data.lemmas.length - 6} more</span>
+                  )}
+                </span>
+              )}
+
+              {/* Link to root page */}
+              <a
+                href={url}
+                className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                           bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700
+                           text-xs font-medium transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                View root page
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                </svg>
+              </a>
+            </span>
+          ) : null}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export default function VerseRefText({ text, className }: Props) {
   if (!text) return null;
 
-  // Split text into segments of plain text and verse references
-  const parts: { type: 'text' | 'ref'; value: string }[] = [];
+  // Collect all matches (verse refs + root refs) with their types
+  const matches: { index: number; length: number; type: 'ref' | 'root'; value: string }[] = [];
+
+  VERSE_REF_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = VERSE_REF_RE.exec(text)) !== null) {
+    matches.push({ index: m.index, length: m[0].length, type: 'ref', value: m[1] });
+  }
+
+  ARABIC_ROOT_RE.lastIndex = 0;
+  while ((m = ARABIC_ROOT_RE.exec(text)) !== null) {
+    // Boundary check: skip if adjacent to other Arabic chars (diacritics or letters).
+    // This filters out regular Arabic words like "لَا إِلَٰهَ" that happen to have
+    // base letters separated by spaces — real root notation like "ر ح م" is isolated.
+    const charBefore = m.index > 0 ? text[m.index - 1] : '';
+    const charAfter = text[m.index + m[0].length] ?? '';
+    if (ARABIC_CHAR_RE.test(charBefore) || ARABIC_CHAR_RE.test(charAfter)) {
+      continue;
+    }
+
+    // Avoid overlapping with verse refs
+    const overlaps = matches.some(
+      (prev) => m!.index < prev.index + prev.length && m!.index + m![0].length > prev.index,
+    );
+    if (!overlaps) {
+      matches.push({ index: m.index, length: m[0].length, type: 'root', value: m[1] });
+    }
+  }
+
+  // Sort by position
+  matches.sort((a, b) => a.index - b.index);
+
+  // If no matches found, just return plain text
+  if (matches.length === 0) {
+    return <span className={className}>{text}</span>;
+  }
+
+  // Build segments
+  const parts: { type: 'text' | 'ref' | 'root'; value: string }[] = [];
   let lastIndex = 0;
 
-  // Reset regex state
-  VERSE_REF_RE.lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = VERSE_REF_RE.exec(text)) !== null) {
-    // Add preceding plain text
+  for (const match of matches) {
     if (match.index > lastIndex) {
       parts.push({ type: 'text', value: text.slice(lastIndex, match.index) });
     }
-    parts.push({ type: 'ref', value: match[1] });
-    lastIndex = match.index + match[0].length;
+    parts.push({ type: match.type, value: match.value });
+    lastIndex = match.index + match.length;
   }
 
-  // Add trailing plain text
   if (lastIndex < text.length) {
     parts.push({ type: 'text', value: text.slice(lastIndex) });
-  }
-
-  // If no refs found, just return plain text
-  if (parts.every((p) => p.type === 'text')) {
-    return <span className={className}>{text}</span>;
   }
 
   return (
@@ -230,6 +413,8 @@ export default function VerseRefText({ text, className }: Props) {
       {parts.map((part, i) =>
         part.type === 'ref' ? (
           <VerseRefLink key={i} verseRef={part.value} />
+        ) : part.type === 'root' ? (
+          <RootRefLink key={i} rootText={part.value} />
         ) : (
           <span key={i}>{part.value}</span>
         ),

@@ -37,7 +37,7 @@ export default function AITranslation({ surah, ayah }: Props) {
   if (!loading && !data) return null;
 
   return (
-    <div className="rounded-xl border border-violet-200 bg-white shadow-sm overflow-hidden">
+    <div className="rounded-xl border border-violet-200 bg-white shadow-sm">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-violet-50/50 transition-colors cursor-pointer"
