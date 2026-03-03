@@ -1,12 +1,15 @@
 """Flask API for the Quran Root Word Analyzer."""
 
+import json
 import math
 import os
+import re
 import sqlite3
 from collections import OrderedDict, defaultdict
+from urllib.parse import quote
 
 import requests
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, redirect, request, send_from_directory
 from flask_cors import CORS
 
 # In Docker, static/ sits next to app.py; in local dev it doesn't exist
@@ -23,6 +26,37 @@ CORS(app)
 # In Docker the DB lives on a volume at /app/data/quran.db;
 # in local dev it's at roots/backend/data/quran.db — same relative path
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "quran.db")
+
+# Surah names (English), index 0 is unused so SURAH_NAMES[1] == "Al-Fatihah"
+SURAH_NAMES = [
+    "", "Al-Fatihah", "Al-Baqarah", "Ali 'Imran", "An-Nisa", "Al-Ma'idah",
+    "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus",
+    "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr",
+    "An-Nahl", "Al-Isra", "Al-Kahf", "Maryam", "Taha",
+    "Al-Anbya", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan",
+    "Ash-Shu'ara", "An-Naml", "Al-Qasas", "Al-'Ankabut", "Ar-Rum",
+    "Luqman", "As-Sajdah", "Al-Ahzab", "Saba", "Fatir",
+    "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir",
+    "Fussilat", "Ash-Shuraa", "Az-Zukhruf", "Ad-Dukhan", "Al-Jathiyah",
+    "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf",
+    "Adh-Dhariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman",
+    "Al-Waqi'ah", "Al-Hadid", "Al-Mujadila", "Al-Hashr", "Al-Mumtahanah",
+    "As-Saf", "Al-Jumu'ah", "Al-Munafiqun", "At-Taghabun", "At-Talaq",
+    "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij",
+    "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddaththir", "Al-Qiyamah",
+    "Al-Insan", "Al-Mursalat", "An-Naba", "An-Nazi'at", "'Abasa",
+    "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Inshiqaq", "Al-Buruj",
+    "At-Tariq", "Al-A'la", "Al-Ghashiyah", "Al-Fajr", "Al-Balad",
+    "Ash-Shams", "Al-Layl", "Ad-Duhaa", "Ash-Sharh", "At-Tin",
+    "Al-'Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat",
+    "Al-Qari'ah", "At-Takathur", "Al-'Asr", "Al-Humazah", "Al-Fil",
+    "Quraysh", "Al-Ma'un", "Al-Kawthar", "Al-Kafirun", "An-Nasr",
+    "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas",
+]
+
+
+def _surah_name(ch: int) -> str:
+    return SURAH_NAMES[ch] if ch < len(SURAH_NAMES) else f"Surah {ch}"
 
 
 def get_db():
@@ -641,6 +675,7 @@ def get_verse(surah: int, ayah: int):
         return jsonify({
             "surah": surah,
             "ayah": ayah,
+            "surah_name": _surah_name(surah),
             "text_uthmani": _strip_bismillah(verse["text_uthmani"], surah, ayah),
             "translation": trans["text_en"] if trans else "",
             "words": words_list,
@@ -658,37 +693,10 @@ def get_surahs():
             "SELECT chapter, COUNT(*) as verse_count FROM verses GROUP BY chapter ORDER BY chapter"
         ).fetchall()
 
-        # Surah names (English)
-        SURAH_NAMES = [
-            "", "Al-Fatihah", "Al-Baqarah", "Ali 'Imran", "An-Nisa", "Al-Ma'idah",
-            "Al-An'am", "Al-A'raf", "Al-Anfal", "At-Tawbah", "Yunus",
-            "Hud", "Yusuf", "Ar-Ra'd", "Ibrahim", "Al-Hijr",
-            "An-Nahl", "Al-Isra", "Al-Kahf", "Maryam", "Taha",
-            "Al-Anbya", "Al-Hajj", "Al-Mu'minun", "An-Nur", "Al-Furqan",
-            "Ash-Shu'ara", "An-Naml", "Al-Qasas", "Al-'Ankabut", "Ar-Rum",
-            "Luqman", "As-Sajdah", "Al-Ahzab", "Saba", "Fatir",
-            "Ya-Sin", "As-Saffat", "Sad", "Az-Zumar", "Ghafir",
-            "Fussilat", "Ash-Shuraa", "Az-Zukhruf", "Ad-Dukhan", "Al-Jathiyah",
-            "Al-Ahqaf", "Muhammad", "Al-Fath", "Al-Hujurat", "Qaf",
-            "Adh-Dhariyat", "At-Tur", "An-Najm", "Al-Qamar", "Ar-Rahman",
-            "Al-Waqi'ah", "Al-Hadid", "Al-Mujadila", "Al-Hashr", "Al-Mumtahanah",
-            "As-Saf", "Al-Jumu'ah", "Al-Munafiqun", "At-Taghabun", "At-Talaq",
-            "At-Tahrim", "Al-Mulk", "Al-Qalam", "Al-Haqqah", "Al-Ma'arij",
-            "Nuh", "Al-Jinn", "Al-Muzzammil", "Al-Muddaththir", "Al-Qiyamah",
-            "Al-Insan", "Al-Mursalat", "An-Naba", "An-Nazi'at", "'Abasa",
-            "At-Takwir", "Al-Infitar", "Al-Mutaffifin", "Al-Inshiqaq", "Al-Buruj",
-            "At-Tariq", "Al-A'la", "Al-Ghashiyah", "Al-Fajr", "Al-Balad",
-            "Ash-Shams", "Al-Layl", "Ad-Duhaa", "Ash-Sharh", "At-Tin",
-            "Al-'Alaq", "Al-Qadr", "Al-Bayyinah", "Az-Zalzalah", "Al-'Adiyat",
-            "Al-Qari'ah", "At-Takathur", "Al-'Asr", "Al-Humazah", "Al-Fil",
-            "Quraysh", "Al-Ma'un", "Al-Kawthar", "Al-Kafirun", "An-Nasr",
-            "Al-Masad", "Al-Ikhlas", "Al-Falaq", "An-Nas",
-        ]
-
         surahs = []
         for row in rows:
             ch = row["chapter"]
-            name = SURAH_NAMES[ch] if ch < len(SURAH_NAMES) else f"Surah {ch}"
+            name = _surah_name(ch)
             surahs.append({
                 "number": ch,
                 "name": name,
@@ -1214,19 +1222,220 @@ def get_word_detail(surah: int, ayah: int, pos: int):
         conn.close()
 
 
+# --------------- SEO helpers ---------------
+
+SITE_URL = os.environ.get("SITE_URL", "https://quran-analyzer.com")
+
+
+def _get_seo_meta(path: str) -> dict:
+    """Return title, description, og_type for a given URL path."""
+    # Verse page: /verse/2:255
+    m = re.match(r"^/verse/(\d+):(\d+)$", path)
+    if m:
+        surah, ayah = int(m.group(1)), int(m.group(2))
+        name = _surah_name(surah)
+        # Quick DB lookup for a translation snippet
+        snippet = ""
+        try:
+            conn = get_db()
+            row = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (surah, ayah),
+            ).fetchone()
+            if row:
+                snippet = row["text_en"][:160]
+            conn.close()
+        except Exception:
+            pass
+        return {
+            "title": f"Surah {name} ({surah}:{ayah}) \u2014 Root Word Analysis | Quran Analyzer",
+            "description": snippet or f"Explore the root words, morphology, and etymology of Quran verse {surah}:{ayah} from Surah {name}.",
+            "og_type": "article",
+            "canonical": f"{SITE_URL}/verse/{surah}:{ayah}",
+        }
+
+    # Root page: /root/rHm
+    m = re.match(r"^/root/(.+)$", path)
+    if m:
+        root_bw = m.group(1)
+        root_arabic = _root_arabic_map.get(root_bw, "")
+        count = len(_root_inv.get(root_bw, set()))
+        label = f"Root {root_arabic} ({root_bw})" if root_arabic else f"Root {root_bw}"
+        return {
+            "title": f"{label} \u2014 {count} Verses | Quran Analyzer",
+            "description": f"Explore all Quran verses containing the root {root_bw}, with morphological breakdowns and Semitic cognates.",
+            "og_type": "article",
+            "canonical": f"{SITE_URL}/root/{quote(root_bw)}",
+        }
+
+    # Word page: /word/2:255/3
+    m = re.match(r"^/word/(\d+):(\d+)/(\d+)$", path)
+    if m:
+        surah, ayah, pos = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        name = _surah_name(surah)
+        return {
+            "title": f"Word Analysis \u2014 {name} {surah}:{ayah} Word {pos} | Quran Analyzer",
+            "description": f"Detailed morphological analysis of word {pos} in Quran verse {surah}:{ayah} from Surah {name}.",
+            "og_type": "article",
+            "canonical": f"{SITE_URL}/word/{surah}:{ayah}/{pos}",
+        }
+
+    # Home
+    return {
+        "title": "Quran Root Word Analyzer",
+        "description": "Explore Quran root words, morphology, and etymology. Search any verse for Arabic root analysis, word-by-word breakdown, Semitic cognates, and AI-derived meanings.",
+        "og_type": "website",
+        "canonical": SITE_URL + "/",
+    }
+
+
+def _build_meta_tags(meta: dict) -> str:
+    """Build HTML meta tag block from SEO meta dict."""
+    title = meta["title"]
+    desc = meta["description"]
+    canonical = meta["canonical"]
+    og_type = meta["og_type"]
+
+    tags = [
+        f'<meta name="description" content="{desc}" />',
+        f'<link rel="canonical" href="{canonical}" />',
+        f'<meta property="og:title" content="{title}" />',
+        f'<meta property="og:description" content="{desc}" />',
+        f'<meta property="og:type" content="{og_type}" />',
+        f'<meta property="og:url" content="{canonical}" />',
+        f'<meta name="twitter:card" content="summary" />',
+        f'<meta name="twitter:title" content="{title}" />',
+        f'<meta name="twitter:description" content="{desc}" />',
+    ]
+
+    # JSON-LD structured data
+    if og_type == "website":
+        ld = {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "name": "Quran Root Word Analyzer",
+            "url": SITE_URL,
+            "potentialAction": {
+                "@type": "SearchAction",
+                "target": f"{SITE_URL}/verse/{{surah}}:{{ayah}}",
+                "query-input": "required name=surah,ayah",
+            },
+        }
+    else:
+        ld = {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": title,
+            "description": desc,
+            "url": canonical,
+            "publisher": {
+                "@type": "Organization",
+                "name": "Quran Analyzer",
+                "url": SITE_URL,
+            },
+        }
+    tags.append(f'<script type="application/ld+json">{json.dumps(ld)}</script>')
+
+    return "\n    ".join(tags)
+
+
+# --------------- robots.txt & sitemap.xml ---------------
+
+@app.route("/robots.txt")
+def robots_txt():
+    body = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
+    return Response(body, mimetype="text/plain")
+
+
+_sitemap_cache: dict = {"xml": None}
+
+
+@app.route("/sitemap.xml")
+def sitemap_xml():
+    if _sitemap_cache["xml"]:
+        resp = Response(_sitemap_cache["xml"], mimetype="application/xml")
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+
+    urls = []
+
+    def _add(loc: str, priority: str):
+        urls.append(f"  <url><loc>{loc}</loc><priority>{priority}</priority></url>")
+
+    # Home
+    _add(SITE_URL + "/", "1.0")
+
+    # All verse pages
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT chapter, verse FROM verses ORDER BY chapter, verse"
+        ).fetchall()
+        for row in rows:
+            _add(f"{SITE_URL}/verse/{row['chapter']}:{row['verse']}", "0.7")
+
+        # All root pages (from in-memory IDF engine)
+        for root_bw in sorted(_root_arabic_map.keys()):
+            _add(f"{SITE_URL}/root/{quote(root_bw)}", "0.6")
+    finally:
+        conn.close()
+
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml += "\n".join(urls)
+    xml += "\n</urlset>\n"
+
+    _sitemap_cache["xml"] = xml
+    resp = Response(xml, mimetype="application/xml")
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+
+# --------------- Legacy redirect ---------------
+
+@app.before_request
+def _redirect_legacy_query_params():
+    """301 redirect /?s=X&a=Y to /verse/X:Y in production."""
+    if request.path == "/" and request.args.get("s") and request.args.get("a"):
+        s = request.args.get("s")
+        a = request.args.get("a")
+        return redirect(f"/verse/{s}:{a}", code=301)
+
+
 # --------------- SPA catch-all (production only) ---------------
+
+_index_html_cache: str | None = None
 
 if SERVE_STATIC:
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
     def serve_spa(path):
-        """Serve static files or fall back to index.html for client-side routes."""
+        """Serve static files or fall back to index.html with injected SEO meta."""
+        global _index_html_cache
+
         # If the file exists in static/, serve it directly
         file_path = os.path.join(STATIC_DIR, path)
         if path and os.path.isfile(file_path):
             return send_from_directory(STATIC_DIR, path)
-        # Otherwise serve index.html (SPA handles routing)
-        return send_from_directory(STATIC_DIR, "index.html")
+
+        # Read and cache index.html template
+        if _index_html_cache is None:
+            with open(os.path.join(STATIC_DIR, "index.html"), "r") as f:
+                _index_html_cache = f.read()
+
+        # Inject SEO meta tags
+        req_path = "/" + path if path else "/"
+        meta = _get_seo_meta(req_path)
+        meta_tags = _build_meta_tags(meta)
+
+        html = _index_html_cache
+        html = html.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
+        html = html.replace(
+            "<title>Quran Root Word Analyzer</title>",
+            f"<title>{meta['title']}</title>",
+        )
+
+        return Response(html, mimetype="text/html")
 
 
 if __name__ == "__main__":

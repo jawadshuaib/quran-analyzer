@@ -54,6 +54,7 @@ export interface RootSummary {
 export interface VerseData {
   surah: number;
   ayah: number;
+  surah_name: string;
   text_uthmani: string;
   translation: string;
   words: Word[];

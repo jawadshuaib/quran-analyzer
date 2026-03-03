@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { RootDetailData, VerseData, Word, CognateData } from '../types';
 import { fetchRoot, fetchVerse } from '../api/quran';
+import { verseUrl, ejtaalUrl } from '../utils/urls';
 import WordTooltip from './WordTooltip';
 
 interface Props {
@@ -24,7 +25,10 @@ export default function RootPage({ rootBw }: Props) {
     setLoading(true);
     setError('');
     fetchRoot(rootBw)
-      .then(setData)
+      .then((result) => {
+        setData(result);
+        document.title = `Root ${result.root_arabic} (${result.root_buckwalter}) \u2014 ${result.total_occurrences} Verses | Quran Analyzer`;
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load root data');
       })
@@ -146,6 +150,42 @@ export default function RootPage({ rootBw }: Props) {
         </section>
       )}
 
+      {/* External references — always visible */}
+      <section className="mb-8">
+        <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">
+          References
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={ejtaalUrl(data.root_buckwalter)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                       bg-amber-100 text-amber-700 hover:bg-amber-200 hover:text-amber-800
+                       text-xs font-medium transition-colors"
+          >
+            Arabic Dictionary
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+            </svg>
+          </a>
+          <a
+            href={`https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(data.root_buckwalter)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
+                       bg-indigo-100 text-indigo-700 hover:bg-indigo-200 hover:text-indigo-800
+                       text-xs font-medium transition-colors"
+          >
+            Quranic Corpus
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+            </svg>
+          </a>
+        </div>
+      </section>
+
       {/* Cognate data */}
       {data.cognate && (
         <section className="mb-8">
@@ -193,23 +233,6 @@ export default function RootPage({ rootBw }: Props) {
                 </table>
               </div>
             )}
-
-            <div className="mt-3">
-              <a
-                href={`https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(data.root_buckwalter)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full
-                           bg-indigo-100 text-indigo-700 hover:bg-indigo-200 hover:text-indigo-800
-                           text-xs font-medium transition-colors"
-              >
-                View in Quranic Corpus
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                </svg>
-              </a>
-            </div>
           </div>
         </section>
       )}
@@ -230,7 +253,7 @@ export default function RootPage({ rootBw }: Props) {
                   className="rounded-lg border border-stone-200 bg-white p-4"
                 >
                   <a
-                    href={`/?s=${v.surah}&a=${v.ayah}`}
+                    href={verseUrl(v.surah, v.ayah)}
                     className="text-xs font-medium text-stone-400 mb-1 inline-block hover:text-emerald-600 transition-colors"
                   >
                     {v.surah}:{v.ayah}

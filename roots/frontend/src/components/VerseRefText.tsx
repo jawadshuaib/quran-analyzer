@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import type { RootDetailData } from '../types';
 import { fetchVerse, fetchRoot } from '../api/quran';
 import { arabicRootToBuckwalter } from '../utils/buckwalter';
+import { verseUrl, ejtaalUrl } from '../utils/urls';
 
 interface Props {
   text: string;
@@ -18,9 +19,10 @@ interface CachedVerse {
 // Matches "56:74" or "96:1–4" / "96:1-4" (en-dash or hyphen range)
 const VERSE_REF_RE = /(\d{1,3}:\d{1,3}(?:[–\-]\d{1,3})?)/g;
 
-// Matches spaced Arabic root letters like "ر ح م" (2–5 base Arabic letters separated by spaces).
+// Matches spaced Arabic root letters like "ر ح م" or dash-separated like "ع-ب-د"
+// (2–5 base Arabic letters separated by spaces or dashes).
 // The boundary check in the matching loop ensures these aren't part of full Arabic words.
-const ARABIC_ROOT_RE = /([\u0621-\u064A] [\u0621-\u064A](?: [\u0621-\u064A]){0,3})/g;
+const ARABIC_ROOT_RE = /([\u0621-\u064A][ \-][\u0621-\u064A](?:[ \-][\u0621-\u064A]){0,3})/g;
 
 // Matches quoted strings: "..." or \u201C...\u201D (curly quotes)
 const QUOTED_RE = /["\u201C][^"\u201D]+["\u201D]/g;
@@ -119,7 +121,7 @@ function VerseRefLink({ verseRef }: { verseRef: string }) {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      window.open(`/?s=${surah}&a=${startAyah}`, '_blank');
+      window.open(verseUrl(surah, startAyah), '_blank');
     },
     [surah, startAyah],
   );
@@ -166,7 +168,7 @@ function VerseRefLink({ verseRef }: { verseRef: string }) {
                   className="block rounded-md hover:bg-violet-50/50 transition-colors px-1 py-0.5 cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    window.open(`/?s=${v.surah}&a=${v.ayah}`, '_blank');
+                    window.open(verseUrl(v.surah, v.ayah), '_blank');
                   }}
                 >
                   <span className="flex items-center justify-between mb-1">
@@ -218,8 +220,8 @@ function RootRefLink({ rootText }: { rootText: string }) {
   } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Convert spaced Arabic letters to normalized Buckwalter for root lookup (strip spaces first)
-  const letters = rootText.replace(/ /g, '');
+  // Convert spaced/dashed Arabic letters to normalized Buckwalter for root lookup
+  const letters = rootText.replace(/[ \-]/g, '');
   const bw = arabicRootToBuckwalter(letters);
   const url = `/root/${encodeURIComponent(bw)}`;
 
@@ -338,6 +340,21 @@ function RootRefLink({ rootText }: { rootText: string }) {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
                   <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                </svg>
+              </a>
+              {/* Link to Arabic dictionary */}
+              <a
+                href={ejtaalUrl(bw)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                           bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700
+                           text-xs font-medium transition-colors mt-1.5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Arabic Dictionary
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                 </svg>
               </a>
             </span>

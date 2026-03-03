@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
 import { fetchVerse, searchWords } from './api/quran';
+import { verseUrl } from './utils/urls';
 import SearchBar from './components/SearchBar';
 import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
@@ -8,6 +9,11 @@ import RelatedVerses from './components/RelatedVerses';
 import WordSearchResults from './components/WordSearchResults';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
+
+function getVerseFromPath(): { surah: number; ayah: number } | null {
+  const match = window.location.pathname.match(/^\/verse\/(\d+):(\d+)$/);
+  return match ? { surah: parseInt(match[1]), ayah: parseInt(match[2]) } : null;
+}
 
 function getRootFromPath(): string | null {
   const match = window.location.pathname.match(/^\/root\/(.+)$/);
@@ -78,11 +84,9 @@ export default function App() {
     try {
       const result = await fetchVerse(surah, ayah);
       setData(result);
+      document.title = `Surah ${result.surah_name} (${surah}:${ayah}) \u2014 Root Word Analysis | Quran Analyzer`;
       // Keep URL in sync with the displayed verse
-      const url = new URL(window.location.href);
-      url.searchParams.set('s', String(surah));
-      url.searchParams.set('a', String(ayah));
-      window.history.pushState(null, '', url);
+      window.history.pushState(null, '', verseUrl(surah, ayah));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -90,12 +94,17 @@ export default function App() {
     }
   }
 
-  // Deep-link: auto-search if ?s= and ?a= query params are present
+  // Deep-link: check /verse/X:Y path first, fall back to ?s=X&a=Y with redirect
   useEffect(() => {
+    const verseParams = getVerseFromPath();
+    if (verseParams) { handleSearch(verseParams.surah, verseParams.ayah); return; }
     const params = new URLSearchParams(window.location.search);
     const s = params.get('s');
     const a = params.get('a');
-    if (s && a) handleSearch(parseInt(s), parseInt(a));
+    if (s && a) {
+      window.history.replaceState(null, '', verseUrl(parseInt(s), parseInt(a)));
+      handleSearch(parseInt(s), parseInt(a));
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to word search results when they load

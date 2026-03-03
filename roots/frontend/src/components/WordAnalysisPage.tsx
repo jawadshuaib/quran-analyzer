@@ -1,12 +1,30 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import type { WordAnalysisData } from '../types';
 import { fetchWordAnalysis } from '../api/quran';
+import { verseUrl, ejtaalUrl } from '../utils/urls';
 import VerseRefText from './VerseRefText';
 
 interface Props {
   surah: number;
   ayah: number;
   pos: number;
+}
+
+function splitNotes(text: string): string[] {
+  const processed = text.replace(/(\..{0,2}) - /g, '$1\n- ');
+  return processed.split('\n');
+}
+
+function FormattedNotes({ text }: { text: string }) {
+  return (
+    <div className="text-sm text-stone-600 leading-relaxed">
+      {splitNotes(text).map((line, i) => (
+        <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
+          <VerseRefText text={line} />
+        </p>
+      ))}
+    </div>
+  );
 }
 
 function CollapsibleSection({ title, content }: { title: string; content: ReactNode }) {
@@ -21,7 +39,7 @@ function CollapsibleSection({ title, content }: { title: string; content: ReactN
         {title}
       </button>
       {open && (
-        <p className="mt-1.5 text-sm text-stone-600 whitespace-pre-line">{content}</p>
+        <div className="mt-1.5">{content}</div>
       )}
     </div>
   );
@@ -36,7 +54,11 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
     setLoading(true);
     setError('');
     fetchWordAnalysis(surah, ayah, pos)
-      .then(setData)
+      .then((result) => {
+        setData(result);
+        const arabic = result.segments[0]?.form_arabic || '';
+        document.title = `Word ${arabic} \u2014 ${surah}:${ayah} Word ${pos} | Quran Analyzer`;
+      })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load word data');
       })
@@ -60,7 +82,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
           {error || 'Word not found'}
         </div>
         <div className="mt-4 text-center">
-          <a href={`/?s=${surah}&a=${ayah}`} className="text-violet-600 hover:text-violet-800 text-sm">
+          <a href={verseUrl(surah, ayah)} className="text-violet-600 hover:text-violet-800 text-sm">
             &larr; Back to verse {surah}:{ayah}
           </a>
         </div>
@@ -82,7 +104,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
       {/* Back link */}
       <div className="mb-6">
         <a
-          href={`/?s=${surah}&a=${ayah}`}
+          href={verseUrl(surah, ayah)}
           className="text-violet-600 hover:text-violet-800 text-sm"
         >
           &larr; Back to verse {surah}:{ayah}
@@ -104,14 +126,29 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               {surah}:{ayah} &middot; word {pos}
             </div>
             {data.root_arabic && (
-              <div className="text-sm text-stone-400">
-                Root:{' '}
+              <div className="text-sm text-stone-400 flex items-center gap-2">
+                <span>
+                  Root:{' '}
+                  <a
+                    href={`/root/${encodeURIComponent(data.root_buckwalter!)}`}
+                    className="text-emerald-600 hover:text-emerald-800"
+                  >
+                    <span dir="rtl" lang="ar" className="font-arabic">{data.root_arabic}</span>
+                    {' '}({data.root_buckwalter})
+                  </a>
+                </span>
                 <a
-                  href={`/root/${encodeURIComponent(data.root_buckwalter!)}`}
-                  className="text-emerald-600 hover:text-emerald-800"
+                  href={ejtaalUrl(data.root_buckwalter!)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                             bg-amber-100 text-amber-700 hover:bg-amber-200 hover:text-amber-800
+                             text-xs font-medium transition-colors"
                 >
-                  <span dir="rtl" lang="ar" className="font-arabic">{data.root_arabic}</span>
-                  {' '}({data.root_buckwalter})
+                  Dictionary
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                  </svg>
                 </a>
               </div>
             )}
@@ -177,9 +214,13 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               </span>
             </div>
 
-            <p className="text-sm text-stone-700 whitespace-pre-line leading-relaxed">
-              {data.ai_meaning.meaning_detailed}
-            </p>
+            <div className="text-sm text-stone-700 leading-relaxed">
+              {splitNotes(data.ai_meaning.meaning_detailed).map((line, i) => (
+                <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
+                  <VerseRefText text={line} />
+                </p>
+              ))}
+            </div>
 
             {data.ai_meaning.semantic_field && (
               <div className="flex flex-wrap gap-1.5">
@@ -195,16 +236,16 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
             )}
 
             {data.ai_meaning.cross_ref_notes && (
-              <CollapsibleSection title="Cross-Reference Notes" content={<VerseRefText text={data.ai_meaning.cross_ref_notes} />} />
+              <CollapsibleSection title="Cross-Reference Notes" content={<FormattedNotes text={data.ai_meaning.cross_ref_notes} />} />
             )}
             {data.ai_meaning.cognate_notes && (
-              <CollapsibleSection title="Cognate Notes" content={<VerseRefText text={data.ai_meaning.cognate_notes} />} />
+              <CollapsibleSection title="Cognate Notes" content={<FormattedNotes text={data.ai_meaning.cognate_notes} />} />
             )}
             {data.ai_meaning.morphology_notes && (
-              <CollapsibleSection title="Morphology Notes" content={<VerseRefText text={data.ai_meaning.morphology_notes} />} />
+              <CollapsibleSection title="Morphology Notes" content={<FormattedNotes text={data.ai_meaning.morphology_notes} />} />
             )}
             {data.ai_meaning.departure_notes && (
-              <CollapsibleSection title="Departure from Conventional Gloss" content={<VerseRefText text={data.ai_meaning.departure_notes} />} />
+              <CollapsibleSection title="Departure from Conventional Gloss" content={<FormattedNotes text={data.ai_meaning.departure_notes} />} />
             )}
 
             <div className="text-xs text-violet-400 pt-2 border-t border-violet-100">
@@ -298,7 +339,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                 >
                   <div className="flex items-center justify-between mb-1">
                     <a
-                      href={`/?s=${occ.surah}&a=${occ.ayah}`}
+                      href={verseUrl(occ.surah, occ.ayah)}
                       className="text-xs font-medium text-stone-400 hover:text-violet-600 transition-colors"
                     >
                       {occ.surah}:{occ.ayah}

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Word, CognateData } from '../types';
+import { ejtaalUrl } from '../utils/urls';
 
 interface Props {
   word: Word;
@@ -152,23 +153,55 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
         </div>
       )}
 
-      {mainRootBw && (
-        <div className="mt-2 pt-2 border-t border-stone-100">
-          <a
-            href={`https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(mainRootBw)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
-                       bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700
-                       text-xs font-medium transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          >
-            View in Quranic Corpus
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-              <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-            </svg>
-          </a>
+      {(wordDetailUrl || mainRootBw) && (
+        <div className="mt-2 pt-2 border-t border-stone-100 space-y-1.5">
+          {wordDetailUrl && (
+            <a
+              href={wordDetailUrl}
+              className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                         bg-violet-50 text-violet-600 hover:bg-violet-100 hover:text-violet-700
+                         text-xs font-medium transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View Word Details
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+              </svg>
+            </a>
+          )}
+          {mainRootBw && (
+            <>
+              <a
+                href={ejtaalUrl(mainRootBw)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                           bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700
+                           text-xs font-medium transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Arabic Dictionary
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                </svg>
+              </a>
+              <a
+                href={`https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(mainRootBw)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                           bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700
+                           text-xs font-medium transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Quranic Corpus
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                </svg>
+              </a>
+            </>
+          )}
         </div>
       )}
     </div>
