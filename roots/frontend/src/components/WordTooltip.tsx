@@ -33,7 +33,7 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
                       bg-white border-l border-t border-stone-200 rotate-45" />
 
       {preferredTranslation ? (
-        /* Judged: show single preferred translation */
+        /* Judged: show single preferred translation — no AI label needed */
         <div className="mb-1.5 text-center">
           {wordDetailUrl ? (
             <a
@@ -41,22 +41,10 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
               className="inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
-              {(preferredSource === 'ai' || preferredSource === 'judge') && (
-                <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
-                  AI
-                </span>
-              )}
               <span className="font-semibold text-stone-900">{preferredTranslation}</span>
             </a>
           ) : (
-            <div className="inline-flex items-center gap-1">
-              {(preferredSource === 'ai' || preferredSource === 'judge') && (
-                <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
-                  AI
-                </span>
-              )}
-              <span className="font-semibold text-stone-900">{preferredTranslation}</span>
-            </div>
+            <span className="font-semibold text-stone-900">{preferredTranslation}</span>
           )}
         </div>
       ) : (
@@ -76,16 +64,20 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
                   className="inline-flex items-center gap-1 text-violet-700 hover:text-violet-900 transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
-                    AI
-                  </span>
+                  {word.translation && (
+                    <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                      AI
+                    </span>
+                  )}
                   <span className="text-xs font-medium">{aiMeaning}</span>
                 </a>
               ) : (
                 <div className="inline-flex items-center gap-1">
-                  <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
-                    AI
-                  </span>
+                  {word.translation && (
+                    <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
+                      AI
+                    </span>
+                  )}
                   <span className="text-xs font-medium text-violet-700">{aiMeaning}</span>
                 </div>
               )}
