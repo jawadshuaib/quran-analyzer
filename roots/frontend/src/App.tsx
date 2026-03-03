@@ -121,10 +121,11 @@ export default function App() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="min-h-screen flex flex-col">
+    <div className="mx-auto max-w-3xl px-4 py-10 flex-1 w-full">
       <header className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-stone-800 mb-2">
-          Quran Root Word Analyzer
+          <a href="/" className="hover:opacity-80 transition-opacity">Quran Root Word Analyzer</a>
         </h1>
         <p className="text-stone-500">
           Search any verse to see its root words and morphological breakdown
@@ -207,7 +208,8 @@ export default function App() {
           </p>
         </div>
       )}
-      <footer className="mt-16 py-6 border-t border-stone-200 text-center text-xs text-stone-400">
+    </div>
+      <footer className="py-6 border-t border-stone-200 text-center text-xs text-stone-400">
         Created by{' '}
         <a href="https://www.linkedin.com/in/jawadshuaib/" target="_blank" rel="noopener noreferrer"
            className="text-stone-500 hover:text-stone-700 underline">Jawad Shuaib</a>.

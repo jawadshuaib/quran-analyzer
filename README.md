@@ -16,7 +16,9 @@ An interactive tool for exploring the morphology and Semitic etymology of every 
 - **Full morphological analysis** — gender, number, person, case, voice, mood, verb form, and state for each word segment
 - **Semitic cognate panel** — expand any root to see its reflexes across Semitic languages with meanings and etymological notes
 - **Word-by-word English glosses** — fetched from the Quran.com API and cached locally
-- **AI-powered translation** — experimental translation engine that derives meaning exclusively from Quranic cross-references, Semitic cognates, and morphological data via a local LLM (Ollama). Translations appear in a violet panel when available.
+- **AI-powered translation** — experimental translation engine that derives meaning exclusively from Quranic cross-references, Semitic cognates, and morphological data via a local LLM (Ollama) or OpenAI. Translations appear in a violet panel when available.
+- **AI word meanings** — per-word AI meanings with cross-references, cognates, and morphological context. Displayed as a violet "AI" badge in tooltips. Uses Zipf-optimized frequency tiers so high-frequency lemmas are translated once and reused.
+- **Translation judge** — LLM-based arbiter that compares conventional (Quran.com) and AI word glosses and picks the best tooltip label using a three-tier Zipf strategy. Writes the winner back to the database as `preferred_translation`.
 - **Corpus links** — each root links directly to the [Quranic Arabic Corpus](https://corpus.quran.com) dictionary entry
 - **Chrome extension** — content script injects word-hover tooltips directly on quran.com pages, plus a popup showing related verses for the current page
 
@@ -165,9 +167,16 @@ quran-related/
 │   │   ├── buckwalter.py               # Buckwalter ↔ Arabic transliteration
 │   │   ├── scrape_semitic_roots.py     # Scraper for semiticroots.net
 │   │   ├── scrape_starling.py          # Scraper for Starling/Tower of Babel DB
-│   │   ├── translate_ai.py            # AI translation pipeline (Ollama)
-│   │   ├── requirements.txt            # Python dependencies
-│   │   └── data/                       # SQLite database and cached data files
+│   │   ├── translate_ai.py            # AI verse translation pipeline (Ollama / OpenAI)
+│   │   ├── translate_ai_batch.py      # Batch API variant (50% cheaper — prepare/submit/download)
+│   │   ├── word_meanings_ai.py        # AI per-word meanings pipeline (Zipf-tiered)
+│   │   ├── word_meanings_ai_batch.py  # Batch API variant for word meanings
+│   │   ├── judge_translations.py      # LLM judge: picks best tooltip gloss
+│   │   ├── judge_translations_batch.py # Batch API variant for judge
+│   │   ├── run_all_verses.sh          # Shell runner: translate full Quran, auto-resumes
+│   │   ├── run_all_words.sh           # Shell runner: process all words, auto-resumes
+│   │   ├── requirements.txt           # Python dependencies
+│   │   └── data/                      # SQLite database and cached data files
 │   └── frontend/
 │       ├── src/
 │       │   ├── App.tsx                 # Main React component with path routing
@@ -177,15 +186,16 @@ quran-related/
 │       │       ├── VerseDisplay.tsx     # Interactive verse with multi-word selection
 │       │       ├── SelectionHeader.tsx  # Selected words/roots bar with live count
 │       │       ├── RootPage.tsx         # Root detail page (/root/<bw>)
+│       │       ├── WordAnalysisPage.tsx # Word detail page (/word/<surah>:<ayah>/<pos>)
 │       │       ├── WordSearchResults.tsx # Cross-verse search results with highlighting
 │       │       ├── RelatedVerses.tsx    # IDF-ranked related verses
 │       │       ├── SurroundingContext.tsx # Adjacent verses for context
-│       │       ├── WordTooltip.tsx      # Word popup with morphology and corpus link
+│       │       ├── WordTooltip.tsx      # Word popup with morphology, AI badge, corpus link
 │       │       ├── CognatePanel.tsx     # Semitic cognates table
 │       │       ├── SearchBar.tsx        # Verse search input
 │       │       ├── WordBreakdown.tsx    # Word-by-word morphology grid
 │       │       ├── MorphologyCard.tsx   # Single word morphology card
-│       │       └── AITranslation.tsx   # AI translation display panel
+│       │       └── AITranslation.tsx   # AI translation display panel (violet)
 │       ├── package.json
 │       └── vite.config.ts              # Vite config with API proxy (port 4000)
 ├── extensions/
@@ -211,7 +221,7 @@ quran-related/
 
 ## API Reference
 
-The Flask backend exposes eight endpoints:
+The Flask backend exposes ten endpoints:
 
 ### `GET /api/verse/<surah>:<ayah>`
 
@@ -393,6 +403,66 @@ Returns the most recent AI-generated translation for a verse, or 404 if none exi
 }
 ```
 
+### `GET /api/verse/<surah>:<ayah>/word-meanings`
+
+Returns AI word meanings for all content words in a verse, keyed by word position. Used by the frontend to populate tooltip badges. Returns an empty `meanings` object when no data exists (never 404).
+
+**Example:** `/api/verse/1:1/word-meanings`
+
+```json
+{
+  "surah": 1,
+  "ayah": 1,
+  "meanings": {
+    "1": {
+      "meaning_short": "In the name of",
+      "has_detail": true,
+      "preferred_translation": "In the name of",
+      "preferred_source": "conventional"
+    },
+    "2": {
+      "meaning_short": "Allah",
+      "has_detail": true
+    }
+  }
+}
+```
+
+When `preferred_translation` is present the frontend uses it as the tooltip label; otherwise it falls back to the conventional Quran.com gloss.
+
+### `GET /api/word/<surah>:<ayah>/<pos>`
+
+Returns full word analysis for the dedicated word page (`/word/<surah>:<ayah>/<pos>`), including morphology segments, AI meaning (with all notes), and other verses where the same lemma appears.
+
+**Example:** `/api/word/1:1/2`
+
+```json
+{
+  "surah": 1,
+  "ayah": 1,
+  "pos": 2,
+  "verse_text": "بِسْمِ ٱللَّهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ",
+  "verse_translation": "In the name of Allah...",
+  "morphology": [ ... ],
+  "ai_meaning": {
+    "meaning_short": "Allah",
+    "meaning_detailed": "...",
+    "semantic_field": "Divinity",
+    "cross_ref_notes": "...",
+    "cognate_notes": "...",
+    "morphology_notes": "...",
+    "departure_notes": "...",
+    "preferred_translation": "Allah",
+    "preferred_source": "conventional",
+    "config_name": "word-v2-gpt5.1",
+    "model_name": "gpt-5.1"
+  },
+  "other_occurrences": [
+    { "surah": 2, "ayah": 1, "word_pos": 3, "meaning_short": "Allah" }
+  ]
+}
+```
+
 ### `GET /api/cognates/<root_buckwalter>`
 
 Returns Semitic cognate data for a specific root.
@@ -419,7 +489,7 @@ The form-based index handles particles and prepositions that have no lemma or ro
 
 ## Database Schema
 
-The SQLite database (`quran.db`) contains eight tables:
+The SQLite database (`quran.db`) contains ten tables:
 
 | Table | Description |
 |-------|-------------|
@@ -429,34 +499,36 @@ The SQLite database (`quran.db`) contains eight tables:
 | `word_glosses` | Cached word-by-word English translations from Quran.com API |
 | `semitic_roots` | Proto-Semitic etymological roots with `source` column (3,516 rows) |
 | `semitic_derivatives` | Language attestations for each root (14,671 rows) |
-| `ai_translation_configs` | Configuration presets for AI translation runs (model, prompts, parameters) |
+| `ai_translation_configs` | Configuration presets for AI runs (model, prompts, temperature, context window) |
 | `ai_translations` | AI-generated verse translations with departure notes and full prompts |
+| `ai_word_meanings` | Per-word AI meanings with cross-reference notes, cognate notes, morphology notes |
+
+The `ai_word_meanings` table also carries two judge columns added at runtime: `preferred_translation` (the judge's winning gloss) and `preferred_source` (`'conventional'`, `'ai'`, or `'custom'`). These are populated by `judge_translations.py` / `judge_translations_batch.py` and served directly to word tooltips via the `/api/verse/<surah>:<ayah>/word-meanings` endpoint.
 
 The `semitic_roots` table has a `source` column (`'semiticroots'` or `'starling'`) so both data sources coexist without conflicts. Root IDs from Starling start at 10001 to avoid collisions.
 
 ---
 
-## AI Translation Engine
+## AI Pipelines
 
-An experimental translation pipeline that derives meaning exclusively from the Quran itself — using surrounding context, cross-references, Semitic cognates, and morphological data. No external tafsir or conventional translations are used as source material (though a conventional translation is shown to the model for reference).
+Three complementary AI pipelines enrich the analysis data stored in the database. All pipelines are offline CLI tools — they write to the database and the frontend serves the results via API. No AI calls happen at request time.
 
-### How It Works
+### Pipeline 1 — Verse Translation (`translate_ai.py`)
 
-For each verse, the pipeline:
+Produces a full AI-generated translation for each verse, derived exclusively from Quranic cross-references, Semitic cognates, and morphological data. No tafsir or conventional translations are used as source material (though a conventional translation is shown to the model as a reference point).
 
-1. **Fetches morphology** — root, lemma, POS, verb form, voice, mood, case, and word glosses
-2. **Gathers surrounding context** — 3 verses before and after (configurable)
-3. **Finds cross-references** — up to 7 related verses via the IDF similarity engine, showing which roots are shared
-4. **Looks up Semitic cognates** — for every root in the verse, pulls etymological data across Akkadian, Hebrew, Aramaic, Syriac, Ge'ez, etc.
-5. **Assembles a structured prompt** — all evidence is presented to the LLM with instructions to translate based only on the provided data
-6. **Stores the result** — translation text, departure notes, the full prompt, and raw response are saved for auditability
+**How it works:**
 
-### Prerequisites
+1. Fetches morphology — root, lemma, POS, verb form, voice, mood, case, and word glosses
+2. Gathers surrounding context — 3 verses before and after (configurable)
+3. Finds cross-references — up to 7 related verses via the IDF similarity engine, showing which roots are shared
+4. Looks up Semitic cognates — for every root, pulls etymological data across Akkadian, Hebrew, Aramaic, Syriac, Ge'ez, etc.
+5. Assembles a structured prompt — all evidence is given to the LLM with instructions to translate from the Quran's own internal evidence
+6. Stores the result — translation text, departure notes (where AI diverges from convention), the full prompt, and raw response
 
-- [Ollama](https://ollama.ai/) installed and running
-- A model pulled (e.g. `ollama pull minimax-m2.5:cloud` or any model available via Ollama)
+**Prerequisites:** [Ollama](https://ollama.ai/) running locally, or an `OPENAI_API_KEY` environment variable set for OpenAI models.
 
-### Usage
+**CLI usage:**
 
 ```bash
 cd roots/backend
@@ -464,28 +536,179 @@ cd roots/backend
 # Dry run — inspect the assembled prompt without calling the model
 python translate_ai.py --verses "1:1" --dry-run
 
-# Translate specific verses
+# Translate specific verses (ranges and comma lists supported)
 python translate_ai.py --verses "1:1-7,24:41,2:255"
 
 # Use a specific model
 python translate_ai.py --verses "1:1" --model "minimax-m2.5:cloud"
+python translate_ai.py --verses "1:1-7" --model "gpt-4.1" --config "gpt4.1-v1"
 
-# Re-translate verses that already exist
+# Re-translate verses already in the database
 python translate_ai.py --verses "1:1" --force
 
-# Adjust temperature
-python translate_ai.py --verses "1:1" --temperature 0.5
+# Translate the full Quran with auto-resume (Ctrl+C to pause, re-run to continue)
+./run_all_verses.sh
+./run_all_verses.sh --status    # progress report without running
+MODEL=minimax-m2.5:cloud ./run_all_verses.sh
 ```
 
-The `--verses` flag accepts comma-separated verse specs with optional ranges: `1:1-7,24:41,2:255,112:1-4`.
+**Batch API (50% cheaper):**
 
-### Configuration
+```bash
+# Generate prompts and upload to OpenAI
+python translate_ai_batch.py prepare --model gpt-5.1 --config "gpt5.1-batch-v2"
+python translate_ai_batch.py submit
 
-Translation configs are stored in the `ai_translation_configs` table. Each config captures the model name, system prompt, temperature, context window size, and number of cross-references. The default config is `quran-only-v1`.
+# Check progress
+python translate_ai_batch.py status
 
-### Frontend Display
+# Download and store results
+python translate_ai_batch.py download
 
-Verses that have an AI translation show a violet "AI Translation" panel (marked "experimental") between the verse display and surrounding context. The panel auto-expands when data is available and hides entirely for untranslated verses.
+# Or all-in-one
+python translate_ai_batch.py run --model gpt-5.1 --config "gpt5.1-batch-v2"
+
+# Limit to specific verses
+python translate_ai_batch.py prepare --verses "1:1-7,2:1-5" --model gpt-5.1
+```
+
+**Frontend display:** Verses with an AI translation show a violet "AI Translation" panel (marked "experimental") between the verse display and surrounding context.
+
+---
+
+### Pipeline 2 — Word Meanings (`word_meanings_ai.py`)
+
+Generates a per-word AI gloss for every content word (words with a root or lemma) in the Quran. Each word receives a `meaning_short` (1–3 word tooltip label), `meaning_detailed` (full explanation), `semantic_field`, `cross_ref_notes`, `cognate_notes`, and `morphology_notes`.
+
+**Zipf optimization:** High-frequency lemmas (>= `--freq-threshold`, default 5) are translated once and their meaning reused across all occurrences — reducing API calls by roughly 60%. Rare lemmas get per-occurrence context-specific meanings.
+
+**CLI usage:**
+
+```bash
+cd roots/backend
+
+# Dry run — preview what would be processed
+python word_meanings_ai.py --verses "1:1-7" --dry-run
+
+# Process specific verses
+python word_meanings_ai.py --verses "1:1-7,2:255"
+
+# Use a specific model and frequency threshold
+python word_meanings_ai.py --verses "2:19" --model "gpt-5.1" --freq-threshold 5
+
+# Process a single word position within a verse
+python word_meanings_ai.py --verses "1:1" --word-pos 3
+
+# Re-process words already in the database
+python word_meanings_ai.py --verses "1:1-7" --force
+
+# Process the full Quran with auto-resume
+./run_all_words.sh
+./run_all_words.sh --status
+MODEL=gpt-5.1 CONFIG=word-v2-gpt5.1 ./run_all_words.sh
+```
+
+**Batch API (three-tier, 50% cheaper):**
+
+The batch variant applies a three-tier strategy based on Zipf's law and POS classification:
+
+- **Tier 1** — Stable/function lemmas (high-frequency, stable POS like particles/prepositions) → processed once per unique lemma via `gpt-5.1`, replicated to all occurrences
+- **Tier 2** — Content lemmas (high-frequency, non-stable POS) → per-occurrence via `gpt-5-nano`
+- **Tier 3** — Rare lemmas (frequency below threshold) → per-occurrence via `gpt-5.1`
+
+Large JSONL files are automatically split into chunks under 150 MB for the OpenAI Files API.
+
+```bash
+python word_meanings_ai_batch.py prepare [--verses "2:19-20"] [--config word-v2-batch] [--freq-threshold 5]
+python word_meanings_ai_batch.py submit
+python word_meanings_ai_batch.py status
+python word_meanings_ai_batch.py download [--force]
+python word_meanings_ai_batch.py run      # all-in-one
+```
+
+**Frontend display:** Words with AI meanings show a violet "AI" badge in their hover tooltip. Clicking the badge (or the word) opens the dedicated word page (`/word/<surah>:<ayah>/<pos>`) with full analysis.
+
+---
+
+### Pipeline 3 — Translation Judge (`judge_translations.py`)
+
+An LLM-based arbiter that compares the conventional Quran.com gloss against the AI `meaning_short` for every word and writes the winner back to `ai_word_meanings.preferred_translation`. The frontend uses `preferred_translation` (when available) as the primary tooltip label, falling back to the conventional gloss.
+
+**Three-tier Zipf strategy:**
+
+| Tier | Condition | Action |
+|------|-----------|--------|
+| 0 | Identical texts (case-insensitive) | Auto-skip — no LLM call |
+| 1 | Function words (particles, prepositions, pronouns, adverbs) | Auto-pick conventional — no LLM call |
+| 2 | High-frequency lemmas (Zipf-reused AI meaning) | Judge one representative; replicate result to all occurrences sharing the same (conventional, AI) pair |
+| 3 | Context-specific meanings | Judge per unique (conventional, AI) text pair; replicate to all words sharing that pair |
+
+Resumable — `Ctrl+C` any time; re-run to continue from where it left off.
+
+**CLI usage:**
+
+```bash
+cd roots/backend
+
+# Preview stats without running (dry run)
+python judge_translations.py --all --dry-run
+
+# Judge the full Quran (Zipf-optimized)
+python judge_translations.py --all
+
+# Judge specific verses
+python judge_translations.py --verses "96:1-5"
+
+# Judge a single word
+python judge_translations.py --verses "96:1" --word-pos 1
+
+# Re-judge everything (overwrite existing decisions)
+python judge_translations.py --all --force
+```
+
+**Batch API:**
+
+```bash
+python judge_translations_batch.py prepare [--verses "96:1-5"] [--force]
+python judge_translations_batch.py submit
+python judge_translations_batch.py status
+python judge_translations_batch.py download
+python judge_translations_batch.py run              # all-in-one
+python judge_translations_batch.py run --verses "96:1-5"   # test subset
+```
+
+**Output columns written to `ai_word_meanings`:**
+
+| Column | Values | Meaning |
+|--------|--------|---------|
+| `preferred_translation` | text | The judge's chosen gloss (or proposed alternative) |
+| `preferred_source` | `'conventional'` / `'ai'` / `'custom'` | Which candidate won (or a new proposal) |
+
+---
+
+### Recommended Pipeline Order
+
+Run the three pipelines in this order for best results:
+
+```
+translate_ai.py  →  word_meanings_ai.py  →  judge_translations.py
+```
+
+The verse translation provides departure notes that inform the word meanings pipeline. The judge relies on `meaning_short` from `word_meanings_ai.py` being populated first.
+
+---
+
+### Model Recommendations
+
+| Use case | Recommended model | Notes |
+|----------|------------------|-------|
+| Verse translation (local) | `qwen3.5:35b` | Needs `/no_think` suffix; ~190s/verse |
+| Verse translation (fast) | `minimax-m2.5:cloud` | ~24s/verse; cloud via Ollama |
+| Word meanings | `gpt-5.1` | Best quality for semantic analysis |
+| Word meanings (budget) | `gpt-5-nano` | Faster/cheaper for high-frequency words |
+| Judge | `gpt-5-nano` | Sufficient for binary choice task |
+
+All OpenAI models require `OPENAI_API_KEY` set in the environment. Ollama models require Ollama running locally (`ollama serve`).
 
 ---
 
@@ -513,7 +736,7 @@ Verses that have an AI translation show a violet "AI Translation" panel (marked 
 - React 19 with TypeScript
 - Tailwind CSS v4
 - Vite 7 for development and bundling
-- Path-based routing: `/` (verse search), `/root/<buckwalter>` (root detail page)
+- Path-based routing: `/` (verse search), `/root/<buckwalter>` (root detail), `/word/<surah>:<ayah>/<pos>` (word analysis)
 
 **Chrome Extension**
 - Manifest V3
