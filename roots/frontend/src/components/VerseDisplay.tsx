@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief } from '../types';
-import { searchWordsCount, fetchWordMeanings } from '../api/quran';
+import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData } from '../types';
+import { searchWordsCount, fetchWordMeanings, fetchAITranslation } from '../api/quran';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
 import SelectionHeader from './SelectionHeader';
+import VerseRefText from './VerseRefText';
+import MethodologyTooltip from './MethodologyTooltip';
 
 interface Props {
   data: VerseData;
@@ -35,6 +37,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
   const [expandedRoot, setExpandedRoot] = useState<string | null>(null);
   const [resultCount, setResultCount] = useState<number | null>(null);
   const [wordMeanings, setWordMeanings] = useState<Record<string, WordMeaningBrief>>({});
+  const [aiTranslation, setAiTranslation] = useState<AITranslationData | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
@@ -78,6 +81,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
     setExpandedRoot(null);
     setResultCount(null);
     setWordMeanings({});
+    setAiTranslation(null);
   }, [data]);
 
   // Fetch AI word meanings for this verse
@@ -85,6 +89,15 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
     let cancelled = false;
     fetchWordMeanings(data.surah, data.ayah).then((res) => {
       if (!cancelled && res) setWordMeanings(res.meanings);
+    });
+    return () => { cancelled = true; };
+  }, [data.surah, data.ayah]);
+
+  // Fetch AI translation for this verse
+  useEffect(() => {
+    let cancelled = false;
+    fetchAITranslation(data.surah, data.ayah).then((result) => {
+      if (!cancelled) setAiTranslation(result);
     });
     return () => { cancelled = true; };
   }, [data.surah, data.ayah]);
@@ -300,7 +313,9 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
         })}
       </div>
 
-      <p className="text-stone-600 italic">{data.translation}</p>
+      <p className="text-stone-600 italic">
+        {aiTranslation ? aiTranslation.translation : data.translation}
+      </p>
 
       {data.roots_summary.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -375,6 +390,18 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
               </span>
             );
           })}
+        </div>
+      )}
+
+      {aiTranslation?.departure_notes && (
+        <div className="mt-4 rounded-lg bg-violet-50 border border-violet-100 p-3">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-xs font-medium text-violet-600">Translation Notes</span>
+            <MethodologyTooltip />
+          </div>
+          <p className="text-sm text-violet-800 leading-relaxed">
+            <VerseRefText text={aiTranslation.departure_notes} />
+          </p>
         </div>
       )}
 

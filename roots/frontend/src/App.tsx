@@ -6,7 +6,6 @@ import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
 import WordSearchResults from './components/WordSearchResults';
-import AITranslation from './components/AITranslation';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 
@@ -172,10 +171,6 @@ export default function App() {
             </div>
           )}
 
-          <AITranslation
-            surah={data.surah}
-            ayah={data.ayah}
-          />
           <SurroundingContext
             surah={data.surah}
             ayah={data.ayah}
