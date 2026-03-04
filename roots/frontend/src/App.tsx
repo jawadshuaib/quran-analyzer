@@ -84,7 +84,7 @@ export default function App() {
     try {
       const result = await fetchVerse(surah, ayah);
       setData(result);
-      document.title = `Surah ${result.surah_name} (${surah}:${ayah}) \u2014 Root Word Analysis | Quran Analyzer`;
+      document.title = `Surah ${result.surah_name} (${surah}:${ayah}) | The Quran Explorer`;
       // Keep URL in sync with the displayed verse
       window.history.pushState(null, '', verseUrl(surah, ayah));
     } catch (err: unknown) {
@@ -133,10 +133,10 @@ export default function App() {
     <div className="mx-auto max-w-3xl px-4 py-10 flex-1 w-full">
       <header className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-stone-800 mb-2">
-          <a href="/" className="hover:opacity-80 transition-opacity">Quran Root Word Analyzer</a>
+          <a href="/" className="hover:opacity-80 transition-opacity">The Quran Explorer</a>
         </h1>
         <p className="text-stone-500">
-          Search any verse to see its root words and morphological breakdown
+          Root words, morphology, Semitic etymology, and AI-powered meanings
         </p>
       </header>
 

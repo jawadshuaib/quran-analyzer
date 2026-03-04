@@ -1,4 +1,4 @@
-"""Flask API for the Quran Root Word Analyzer."""
+"""Flask API for The Quran Explorer."""
 
 import json
 import math
@@ -394,6 +394,22 @@ def _strip_bismillah(text, surah, ayah):
     return text
 
 
+def _best_translation(conn, surah, ayah):
+    """Return AI translation if available, otherwise fall back to conventional."""
+    ai = conn.execute(
+        "SELECT translation_text FROM ai_translations "
+        "WHERE chapter = ? AND verse = ? ORDER BY created_at DESC LIMIT 1",
+        (surah, ayah),
+    ).fetchone()
+    if ai:
+        return ai["translation_text"]
+    conv = conn.execute(
+        "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+        (surah, ayah),
+    ).fetchone()
+    return conv["text_en"] if conv else ""
+
+
 def _fetch_word_glosses(conn, surah, ayah):
     """Get word-by-word English translations, fetching from Quran.com API v4 if not cached."""
     rows = conn.execute(
@@ -555,10 +571,6 @@ def get_root(root_bw: str):
                 "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
                 (ch, v),
             ).fetchone()
-            trans_row = conn.execute(
-                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
-                (ch, v),
-            ).fetchone()
             # Find word positions that contain this root
             morph_rows = conn.execute(
                 "SELECT DISTINCT word_pos FROM morphology "
@@ -570,7 +582,7 @@ def get_root(root_bw: str):
                 "surah": ch,
                 "ayah": v,
                 "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], ch, v) if verse_row else "",
-                "translation": trans_row["text_en"] if trans_row else "",
+                "translation": _best_translation(conn, ch, v),
                 "matched_positions": matched_positions,
             })
 
@@ -677,7 +689,7 @@ def get_verse(surah: int, ayah: int):
             "ayah": ayah,
             "surah_name": _surah_name(surah),
             "text_uthmani": _strip_bismillah(verse["text_uthmani"], surah, ayah),
-            "translation": trans["text_en"] if trans else "",
+            "translation": _best_translation(conn, surah, ayah),
             "words": words_list,
             "roots_summary": roots_list,
         })
@@ -733,10 +745,6 @@ def get_related_verses(surah: int, ayah: int):
                 "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
                 (ch, v),
             ).fetchone()
-            trans_row = conn.execute(
-                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
-                (ch, v),
-            ).fetchone()
 
             # Build shared roots list sorted by IDF (rarest first)
             shared_info = sorted(
@@ -755,7 +763,7 @@ def get_related_verses(surah: int, ayah: int):
                 "surah": ch,
                 "ayah": v,
                 "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], ch, v) if verse_row else "",
-                "translation": trans_row["text_en"] if trans_row else "",
+                "translation": _best_translation(conn, ch, v),
                 "similarity_score": round(containment, 3),
                 "shared_roots": shared_info,
             })
@@ -802,11 +810,10 @@ def get_context(surah: int, ayah: int):
         end = min(total, ayah + after)
 
         rows = conn.execute(
-            "SELECT v.chapter, v.verse, v.text_uthmani, t.text_en "
-            "FROM verses v LEFT JOIN translations t "
-            "ON v.chapter = t.chapter AND v.verse = t.verse "
-            "WHERE v.chapter = ? AND v.verse BETWEEN ? AND ? AND v.verse != ? "
-            "ORDER BY v.verse",
+            "SELECT chapter, verse, text_uthmani "
+            "FROM verses "
+            "WHERE chapter = ? AND verse BETWEEN ? AND ? AND verse != ? "
+            "ORDER BY verse",
             (surah, start, end, ayah),
         ).fetchall()
 
@@ -815,7 +822,7 @@ def get_context(surah: int, ayah: int):
                 "surah": r["chapter"],
                 "ayah": r["verse"],
                 "text_uthmani": _strip_bismillah(r["text_uthmani"], r["chapter"], r["verse"]),
-                "translation": r["text_en"] or "",
+                "translation": _best_translation(conn, r["chapter"], r["verse"]),
             }
             for r in rows
         ]
@@ -968,10 +975,6 @@ def search_words():
                 "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
                 (ch, v),
             ).fetchone()
-            trans_row = conn.execute(
-                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
-                (ch, v),
-            ).fetchone()
 
             # Find word positions that match any of the search terms
             matched_positions = set()
@@ -991,7 +994,7 @@ def search_words():
                 "surah": ch,
                 "ayah": v,
                 "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], ch, v) if verse_row else "",
-                "translation": trans_row["text_en"] if trans_row else "",
+                "translation": _best_translation(conn, ch, v),
                 "score": round(score, 3),
                 "matched_terms": matched,
                 "matched_positions": sorted(matched_positions),
@@ -1151,10 +1154,6 @@ def get_word_detail(surah: int, ayah: int, pos: int):
                     "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
                     (ch, v),
                 ).fetchone()
-                ot_row = conn.execute(
-                    "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
-                    (ch, v),
-                ).fetchone()
 
                 # Get conventional gloss for the word in that verse
                 occ_glosses = _fetch_word_glosses(conn, ch, v)
@@ -1173,7 +1172,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
                     "ayah": v,
                     "word_positions": occ_positions,
                     "text_uthmani": _strip_bismillah(ov_row["text_uthmani"], ch, v) if ov_row else "",
-                    "translation": ot_row["text_en"] if ot_row else "",
+                    "translation": _best_translation(conn, ch, v),
                     "conventional_gloss": occ_gloss,
                     "ai_meaning": occ_ai["meaning_short"] if occ_ai else None,
                 })
@@ -1184,7 +1183,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
             "ayah": ayah,
             "word_pos": pos,
             "text_uthmani": _strip_bismillah(verse_row["text_uthmani"], surah, ayah),
-            "translation": trans_row["text_en"] if trans_row else "",
+            "translation": _best_translation(conn, surah, ayah),
             "segments": segments,
             "conventional_gloss": conventional_gloss,
             "root_arabic": main_root_ar,
@@ -1234,21 +1233,16 @@ def _get_seo_meta(path: str) -> dict:
     if m:
         surah, ayah = int(m.group(1)), int(m.group(2))
         name = _surah_name(surah)
-        # Quick DB lookup for a translation snippet
+        # Quick DB lookup for a translation snippet (prefer AI)
         snippet = ""
         try:
             conn = get_db()
-            row = conn.execute(
-                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
-                (surah, ayah),
-            ).fetchone()
-            if row:
-                snippet = row["text_en"][:160]
+            snippet = _best_translation(conn, surah, ayah)[:160]
             conn.close()
         except Exception:
             pass
         return {
-            "title": f"Surah {name} ({surah}:{ayah}) \u2014 Root Word Analysis | Quran Analyzer",
+            "title": f"Surah {name} ({surah}:{ayah}) | The Quran Explorer",
             "description": snippet or f"Explore the root words, morphology, and etymology of Quran verse {surah}:{ayah} from Surah {name}.",
             "og_type": "article",
             "canonical": f"{SITE_URL}/verse/{surah}:{ayah}",
@@ -1262,7 +1256,7 @@ def _get_seo_meta(path: str) -> dict:
         count = len(_root_inv.get(root_bw, set()))
         label = f"Root {root_arabic} ({root_bw})" if root_arabic else f"Root {root_bw}"
         return {
-            "title": f"{label} \u2014 {count} Verses | Quran Analyzer",
+            "title": f"{label} \u2014 {count} Verses | The Quran Explorer",
             "description": f"Explore all Quran verses containing the root {root_bw}, with morphological breakdowns and Semitic cognates.",
             "og_type": "article",
             "canonical": f"{SITE_URL}/root/{quote(root_bw)}",
@@ -1274,7 +1268,7 @@ def _get_seo_meta(path: str) -> dict:
         surah, ayah, pos = int(m.group(1)), int(m.group(2)), int(m.group(3))
         name = _surah_name(surah)
         return {
-            "title": f"Word Analysis \u2014 {name} {surah}:{ayah} Word {pos} | Quran Analyzer",
+            "title": f"Word Analysis \u2014 {name} {surah}:{ayah} Word {pos} | The Quran Explorer",
             "description": f"Detailed morphological analysis of word {pos} in Quran verse {surah}:{ayah} from Surah {name}.",
             "og_type": "article",
             "canonical": f"{SITE_URL}/word/{surah}:{ayah}/{pos}",
@@ -1282,8 +1276,8 @@ def _get_seo_meta(path: str) -> dict:
 
     # Home
     return {
-        "title": "Quran Root Word Analyzer",
-        "description": "Explore Quran root words, morphology, and etymology. Search any verse for Arabic root analysis, word-by-word breakdown, Semitic cognates, and AI-derived meanings.",
+        "title": "The Quran Explorer",
+        "description": "Explore the Quran verse by verse \u2014 root words, morphology, Semitic etymology, cross-references, and AI-powered meanings.",
         "og_type": "website",
         "canonical": SITE_URL + "/",
     }
@@ -1313,7 +1307,7 @@ def _build_meta_tags(meta: dict) -> str:
         ld = {
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "name": "Quran Root Word Analyzer",
+            "name": "The Quran Explorer",
             "url": SITE_URL,
             "potentialAction": {
                 "@type": "SearchAction",
@@ -1330,7 +1324,7 @@ def _build_meta_tags(meta: dict) -> str:
             "url": canonical,
             "publisher": {
                 "@type": "Organization",
-                "name": "Quran Analyzer",
+                "name": "The Quran Explorer",
                 "url": SITE_URL,
             },
         }
@@ -1431,7 +1425,7 @@ if SERVE_STATIC:
         html = _index_html_cache
         html = html.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
         html = html.replace(
-            "<title>Quran Root Word Analyzer</title>",
+            "<title>The Quran Explorer</title>",
             f"<title>{meta['title']}</title>",
         )
 

@@ -27,7 +27,7 @@ export default function RootPage({ rootBw }: Props) {
     fetchRoot(rootBw)
       .then((result) => {
         setData(result);
-        document.title = `Root ${result.root_arabic} (${result.root_buckwalter}) \u2014 ${result.total_occurrences} Verses | Quran Analyzer`;
+        document.title = `Root ${result.root_arabic} (${result.root_buckwalter}) \u2014 ${result.total_occurrences} Verses | The Quran Explorer`;
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load root data');

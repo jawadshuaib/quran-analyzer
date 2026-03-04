@@ -57,7 +57,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
       .then((result) => {
         setData(result);
         const arabic = result.segments[0]?.form_arabic || '';
-        document.title = `Word ${arabic} \u2014 ${surah}:${ayah} Word ${pos} | Quran Analyzer`;
+        document.title = `Word ${arabic} \u2014 ${surah}:${ayah} Word ${pos} | The Quran Explorer`;
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load word data');
