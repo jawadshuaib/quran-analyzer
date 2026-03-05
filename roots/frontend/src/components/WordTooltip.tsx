@@ -11,7 +11,7 @@ interface Props {
   preferredSource?: 'conventional' | 'ai' | 'judge';
 }
 
-export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, preferredTranslation, preferredSource }: Props) {
+export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, preferredTranslation }: Props) {
   const [expanded, setExpanded] = useState(false);
   const mainRootSeg = word.segments.find((s) => s.root_arabic);
   const mainRoot = mainRootSeg?.root_arabic;
