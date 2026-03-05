@@ -1,10 +1,8 @@
 #!/bin/sh
 set -e
 
-# Copy seed database to the volume only on first run
-if [ ! -f /app/data/quran.db ]; then
-    echo "First run: seeding database into volume..."
-    cp /app/seed-quran.db /app/data/quran.db
-fi
+# Always deploy the latest database from the image
+echo "Deploying latest database..."
+cp /app/seed-quran.db /app/data/quran.db
 
 exec "$@"

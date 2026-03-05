@@ -18,8 +18,7 @@ SERVE_STATIC = os.path.isdir(STATIC_DIR)
 
 app = Flask(
     __name__,
-    static_folder=STATIC_DIR if SERVE_STATIC else None,
-    static_url_path="" if SERVE_STATIC else None,
+    static_folder=None,  # We handle static files in the catch-all route
 )
 CORS(app)
 
@@ -1223,7 +1222,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
 
 # --------------- SEO helpers ---------------
 
-SITE_URL = os.environ.get("SITE_URL", "https://quran-analyzer.com")
+SITE_URL = os.environ.get("SITE_URL", "https://al-nuqta.com")
 
 
 def _get_seo_meta(path: str) -> dict:

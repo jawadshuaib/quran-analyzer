@@ -5,7 +5,7 @@
 - **Single container**: Flask serves the API and the static frontend build (no separate nginx container)
 - **Host-level nginx**: Reverse-proxies `yourdomain.com` → container port 8070
 - **SSL**: Certbot on the host handles Let's Encrypt
-- **Database**: `quran.db` baked into image, copied to a Docker volume on first run (preserves `word_glosses` cache across rebuilds)
+- **Database**: `quran.db` baked into image, overwritten on the Docker volume on every deploy so AI translations, word meanings, and judge results propagate automatically
 - **CI/CD**: Push to `main` → GitHub Actions builds image → pushes to GHCR → SSHs into server to pull & restart
 
 ## Server-Side Setup (one-time)
@@ -74,7 +74,7 @@ On every push to `main`, the GitHub Actions workflow (`.github/workflows/deploy.
 2. Pushes to `ghcr.io/<owner>/quran-root-analyzer:latest`
 3. SSHs into the server, pulls the new image, recreates the container, prunes old images
 
-The Docker entrypoint seeds `quran.db` from the image into the named volume on first run only, so the `word_glosses` cache table persists across deploys.
+The Docker entrypoint overwrites `quran.db` on the volume with the latest version from the image on every deploy. This ensures AI translations, word meanings, and judge results are always up to date. Make sure `assets/quran.db` is current before pushing.
 
 ## Local Docker Testing
 
