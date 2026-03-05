@@ -35,11 +35,6 @@ export default function Header({ parsed, onBack, detailVerse }: Props) {
           </span>
         )}
       </div>
-      {parsed && !detailVerse && (
-        <p className="text-sm text-stone-500 mt-1">
-          Verses similar to {verseLabel}
-        </p>
-      )}
       {detailVerse && (
         <p className="text-sm text-stone-500 mt-1">
           Surrounding context for {detailVerse.surah}:{detailVerse.ayah}

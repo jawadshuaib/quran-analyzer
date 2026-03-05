@@ -49,6 +49,16 @@ export default function RelatedVerseCard({ verse: v, onSelect }: Props) {
           ))}
         </div>
       )}
+
+      <div
+        className="mt-1.5 text-[11px] text-emerald-600 hover:text-emerald-800 transition-colors text-right"
+        onClick={(e) => {
+          e.stopPropagation();
+          chrome.tabs.create({ url: `http://localhost:4000/verse/${v.surah}:${v.ayah}` });
+        }}
+      >
+        Explore More &rarr;
+      </div>
     </button>
   );
 }

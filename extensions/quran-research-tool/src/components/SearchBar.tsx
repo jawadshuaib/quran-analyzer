@@ -22,7 +22,7 @@ export default function SearchBar() {
   return (
     <div className="px-5 py-6">
       <p className="text-sm text-stone-500 mb-3 text-center">
-        Not on a Quran verse page. Search for a verse to analyze:
+        Search for a verse to analyze:
       </p>
       <form onSubmit={handleSubmit} className="flex items-center gap-2">
         <input

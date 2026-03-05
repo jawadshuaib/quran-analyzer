@@ -1,16 +1,22 @@
 {
   "manifest_version": 3,
   "name": "Quran Research Tool",
-  "version": "1.0.0",
-  "description": "Shows related Quran verses when browsing quran.com",
+  "version": "1.1.0",
+  "description": "Identifies Quranic Arabic text on any website and shows word-level morphology, translations, and root analysis",
   "permissions": ["activeTab", "tabs"],
-  "host_permissions": ["http://localhost:5000/*", "*://*.quran.com/*"],
+  "host_permissions": ["http://localhost:5000/*", "<all_urls>"],
   "content_scripts": [
     {
-      "matches": ["*://*.quran.com/*"],
+      "matches": ["<all_urls>"],
       "js": ["content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["quran-index.json"],
+      "matches": ["<all_urls>"]
     }
   ],
   "action": {

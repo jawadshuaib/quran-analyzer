@@ -105,6 +105,16 @@
   font-size: 0.9rem;
   color: #44403c; /* stone-700 */
 }
+a.qrt-root-link {
+  color: #047857; /* emerald-700 */
+  text-decoration: underline;
+  text-decoration-color: #6ee7b7; /* emerald-300 */
+  text-underline-offset: 2px;
+  transition: color 0.15s;
+}
+a.qrt-root-link:hover {
+  color: #064e3b; /* emerald-900 */
+}
 
 /* Cognate section */
 .qrt-cognate-section {
@@ -156,18 +166,16 @@
   text-decoration: underline;
 }
 
-/* Corpus link */
-.qrt-corpus-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  width: 100%;
+/* Action links section */
+.qrt-action-links {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid #f5f5f4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
 }
-.qrt-corpus-link a {
+.qrt-action-link {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,18 +183,36 @@
   width: 100%;
   padding: 0.375rem 0.5rem;
   border-radius: 0.375rem;
-  background: #eef2ff; /* indigo-50 */
-  color: #4f46e5; /* indigo-600 */
   font-size: 0.75rem;
   font-weight: 500;
   text-decoration: none;
   transition: background-color 0.15s, color 0.15s;
 }
-.qrt-corpus-link a:hover {
-  background: #e0e7ff; /* indigo-100 */
-  color: #4338ca; /* indigo-700 */
-}
-.qrt-corpus-link svg {
+.qrt-action-link svg {
   width: 14px;
   height: 14px;
+}
+.qrt-action-violet {
+  background: #f5f3ff; /* violet-50 */
+  color: #7c3aed; /* violet-600 */
+}
+.qrt-action-violet:hover {
+  background: #ede9fe; /* violet-100 */
+  color: #6d28d9; /* violet-700 */
+}
+.qrt-action-amber {
+  background: #fffbeb; /* amber-50 */
+  color: #d97706; /* amber-600 */
+}
+.qrt-action-amber:hover {
+  background: #fef3c7; /* amber-100 */
+  color: #b45309; /* amber-700 */
+}
+.qrt-action-indigo {
+  background: #eef2ff; /* indigo-50 */
+  color: #4f46e5; /* indigo-600 */
+}
+.qrt-action-indigo:hover {
+  background: #e0e7ff; /* indigo-100 */
+  color: #4338ca; /* indigo-700 */
 }

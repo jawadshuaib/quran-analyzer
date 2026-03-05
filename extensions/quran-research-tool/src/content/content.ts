@@ -1,4 +1,9 @@
-/* Quran Research Tool — Content Script for quran.com */
+/* Quran Research Tool — Content Script
+ * Works on quran.com via data-word-location attributes (fast path),
+ * and on ALL websites by scanning Arabic text against a trigram index.
+ */
+
+import { pageHasArabic, scanForQuranText } from './scanner';
 
 // ── Types (mirrored from roots/frontend/src/types) ────────────────────
 
@@ -99,7 +104,7 @@ function getCognateForWord(word: Word, verse: VerseData): CognateData | undefine
   return summary?.cognate ?? undefined;
 }
 
-function buildTooltipHTML(word: Word, cognate?: CognateData): string {
+function buildTooltipHTML(word: Word, surah: number, ayah: number, cognate?: CognateData): string {
   const mainRootSeg = word.segments.find((s) => s.root_arabic);
   const mainRoot = mainRootSeg?.root_arabic;
   const mainRootBw = mainRootSeg?.root_buckwalter;
@@ -127,7 +132,10 @@ function buildTooltipHTML(word: Word, cognate?: CognateData): string {
   // Root / Lemma
   if (mainRoot || mainLemma) {
     html += '<div class="qrt-detail-rows">';
-    if (mainRoot) {
+    if (mainRoot && mainRootBw) {
+      const rootUrl = `http://localhost:4000/root/${encodeURIComponent(mainRootBw)}`;
+      html += `<div class="qrt-detail-row"><span>Root</span><a href="${rootUrl}" target="_blank" rel="noopener noreferrer" class="qrt-detail-arabic qrt-root-link">${esc(mainRoot)}</a></div>`;
+    } else if (mainRoot) {
       html += `<div class="qrt-detail-row"><span>Root</span><span class="qrt-detail-arabic">${esc(mainRoot)}</span></div>`;
     }
     if (mainLemma) {
@@ -155,9 +163,26 @@ function buildTooltipHTML(word: Word, cognate?: CognateData): string {
     html += '</div>';
   }
 
-  // Corpus link
+  // Action links
+  const extIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>';
+  const bookIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/></svg>';
+  const chevronIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg>';
+
   if (mainRootBw) {
-    html += `<div class="qrt-corpus-link"><a href="https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(mainRootBw)}" target="_blank" rel="noopener noreferrer">View in Quranic Corpus<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg></a></div>`;
+    html += '<div class="qrt-action-links">';
+
+    // View Word Details
+    const wordDetailUrl = `http://localhost:4000/word/${surah}:${ayah}/${word.position}`;
+    html += `<a class="qrt-action-link qrt-action-violet" href="${wordDetailUrl}" target="_blank" rel="noopener noreferrer">View Word Details${chevronIcon}</a>`;
+
+    // Arabic Dictionary
+    const ejtaalUrl = `https://ejtaal.net/aa#bwq=${mainRootBw}`;
+    html += `<a class="qrt-action-link qrt-action-amber" href="${ejtaalUrl}" target="_blank" rel="noopener noreferrer">Arabic Dictionary${bookIcon}</a>`;
+
+    // Quranic Corpus
+    html += `<a class="qrt-action-link qrt-action-indigo" href="https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(mainRootBw)}" target="_blank" rel="noopener noreferrer">Quranic Corpus${extIcon}</a>`;
+
+    html += '</div>';
   }
 
   return html;
@@ -171,12 +196,12 @@ function esc(s: string): string {
 
 // ── Tooltip show/hide ──────────────────────────────────────────────────
 
-function showTooltip(el: HTMLElement, word: Word, cognate?: CognateData): void {
+function showTooltip(el: HTMLElement, word: Word, surah: number, ayah: number, cognate?: CognateData): void {
   hideTooltip();
 
   const tooltip = document.createElement('div');
   tooltip.className = 'qrt-tooltip';
-  tooltip.innerHTML = buildTooltipHTML(word, cognate);
+  tooltip.innerHTML = buildTooltipHTML(word, surah, ayah, cognate);
   document.body.appendChild(tooltip);
   activeTooltip = tooltip;
   activeTarget = el;
@@ -255,7 +280,7 @@ function attachTooltips(): void {
       if (!word) return;
 
       const cognate = getCognateForWord(word, verse);
-      showTooltip(el, word, cognate);
+      showTooltip(el, word, surah, ayah, cognate);
     });
 
     el.addEventListener('mouseleave', () => {
@@ -295,7 +320,7 @@ function attachTooltips(): void {
         const word = verse.words.find((w) => w.position === position);
         if (!word) return;
         const cognate = getCognateForWord(word, verse);
-        showTooltip(el, word, cognate);
+        showTooltip(el, word, surah, ayah, cognate);
         pinned = true;
         if (activeTooltip) activeTooltip.classList.add('qrt-tooltip--pinned');
       });
@@ -326,8 +351,29 @@ function debouncedAttach(): void {
   }, 300);
 }
 
+let scanDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let scanRunning = false;
+
+function debouncedScan(): void {
+  if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
+  scanDebounceTimer = setTimeout(async () => {
+    if (scanRunning) return;
+    scanRunning = true;
+    try {
+      const annotated = await scanForQuranText();
+      if (annotated) {
+        // New [data-word-location] spans were created — bind tooltips to them
+        attachTooltips();
+      }
+    } finally {
+      scanRunning = false;
+    }
+  }, 500);
+}
+
 const observer = new MutationObserver(() => {
   debouncedAttach();
+  debouncedScan();
 });
 
 observer.observe(document.body, {
@@ -335,6 +381,14 @@ observer.observe(document.body, {
   subtree: true,
 });
 
-// ── Initial attach ─────────────────────────────────────────────────────
+// ── Initial run ────────────────────────────────────────────────────────
 
+// Fast path: bind tooltips to any existing [data-word-location] elements (quran.com)
 attachTooltips();
+
+// Generic path: scan for Arabic text and annotate Quranic words
+if (pageHasArabic()) {
+  scanForQuranText().then((annotated) => {
+    if (annotated) attachTooltips();
+  });
+}
