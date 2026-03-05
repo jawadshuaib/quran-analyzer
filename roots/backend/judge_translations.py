@@ -243,7 +243,22 @@ def judge_word(
 
     prompt = build_judge_prompt(conn, surah, ayah, word_pos)
     if prompt is None:
-        print(f"    word {word_pos} — skipped (no AI meaning, empty, or identical)")
+        # Check if identical — auto-store conventional if so
+        wm_row = conn.execute(
+            "SELECT meaning_short FROM ai_word_meanings "
+            "WHERE chapter = ? AND verse = ? AND word_pos = ? "
+            "ORDER BY created_at DESC LIMIT 1",
+            (surah, ayah, word_pos),
+        ).fetchone()
+        glosses = _fetch_word_glosses(conn, surah, ayah)
+        conv = (glosses.get(word_pos, "") or "").strip()
+        ai = (wm_row["meaning_short"] if wm_row else "").strip() if wm_row else ""
+        if conv and ai and conv.lower() == ai.lower():
+            _store_judgment(conn, surah, ayah, word_pos, conv, "conventional")
+            conn.commit()
+            print(f"    word {word_pos} — identical, auto-set to conventional")
+            return True
+        print(f"    word {word_pos} — skipped (no AI meaning or empty)")
         return False
 
     if dry_run:
@@ -387,7 +402,7 @@ def run_all(args):
         tier3_total = sum(len(v) for v in tier3_context.values())
 
         print(f"\n=== Zipf Judge Strategy ===")
-        print(f"  Tier 0 - Identical (auto-skip):         {len(tier0_identical):>6,} words ->       0 calls")
+        print(f"  Tier 0 - Identical (auto-conventional):  {len(tier0_identical):>6,} words ->       0 calls")
         print(f"  Tier 1 - Function words (auto-conv):    {len(tier1_function):>6,} words ->       0 calls")
         print(f"  Tier 2 - Zipf-reused (judge 1, copy):   {tier2_total:>6,} words -> {len(tier2_reused):>7,} calls")
         print(f"  Tier 3 - Context-specific (per pair):   {tier3_total:>6,} words -> {len(tier3_context):>7,} calls")
@@ -398,6 +413,24 @@ def run_all(args):
         if args.dry_run:
             print("\n[DRY RUN] No changes made.")
             return
+
+        # ── Tier 0: auto-pick conventional for identical translations ──
+        t0_stored = 0
+        for w in tier0_identical:
+            if w["already_judged"] and not args.force:
+                continue
+            conv = w.get("_conv", "")
+            ai = w.get("meaning_short", "")
+            # Only store if both exist and are identical
+            if conv and ai and conv.strip().lower() == ai.strip().lower():
+                _store_judgment(conn, w["chapter"], w["verse"], w["word_pos"],
+                               conv, "conventional")
+                t0_stored += 1
+                if t0_stored % 500 == 0:
+                    conn.commit()
+        conn.commit()
+        if t0_stored:
+            print(f"\nTier 0: {t0_stored} identical words auto-set to conventional")
 
         # ── Tier 1: auto-pick conventional for function words ──
         t1_stored = 0
