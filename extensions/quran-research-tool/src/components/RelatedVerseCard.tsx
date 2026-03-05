@@ -1,4 +1,5 @@
 import type { RelatedVerse } from '../types/index.ts';
+import { FRONTEND_BASE } from '../config.ts';
 
 interface Props {
   verse: RelatedVerse;
@@ -54,7 +55,7 @@ export default function RelatedVerseCard({ verse: v, onSelect }: Props) {
         className="mt-1.5 text-[11px] text-emerald-600 hover:text-emerald-800 transition-colors text-right"
         onClick={(e) => {
           e.stopPropagation();
-          chrome.tabs.create({ url: `http://localhost:4000/verse/${v.surah}:${v.ayah}` });
+          chrome.tabs.create({ url: `${FRONTEND_BASE}/verse/${v.surah}:${v.ayah}` });
         }}
       >
         Explore More &rarr;

@@ -1,4 +1,5 @@
 import type { Word } from '../types/index.ts';
+import { FRONTEND_BASE } from '../config.ts';
 
 interface Props {
   word: Word;
@@ -76,7 +77,7 @@ export default function WordTooltip({ word, aiMeaning, preferredTranslation }: P
               className="font-arabic text-sm text-emerald-700 underline decoration-emerald-300 underline-offset-2 cursor-pointer hover:text-emerald-900 transition-colors"
               onClick={() =>
                 chrome.tabs.create({
-                  url: `http://localhost:4000/root/${encodeURIComponent(mainRootSeg!.root_buckwalter)}`,
+                  url: `${FRONTEND_BASE}/root/${encodeURIComponent(mainRootSeg!.root_buckwalter)}`,
                 })
               }
             >

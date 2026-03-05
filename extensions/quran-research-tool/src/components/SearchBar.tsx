@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FRONTEND_BASE } from '../config.ts';
 
 export default function SearchBar() {
   const [input, setInput] = useState('');
@@ -15,7 +16,7 @@ export default function SearchBar() {
     const surah = match[1];
     const ayah = match[2];
     chrome.tabs.create({
-      url: `http://localhost:4000/?s=${surah}&a=${ayah}`,
+      url: `${FRONTEND_BASE}/?s=${surah}&a=${ayah}`,
     });
   }
 

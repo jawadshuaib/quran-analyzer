@@ -6,7 +6,9 @@ import type {
   WordMeaningsResponse,
 } from '../types/index.ts';
 
-const BASE = 'http://localhost:5000/api';
+import { API_BASE } from '../config.ts';
+
+const BASE = API_BASE;
 
 export async function fetchRelatedVerses(
   surah: number,

@@ -56,7 +56,8 @@ interface VerseData {
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE as string;
+const FRONTEND_BASE = import.meta.env.VITE_FRONTEND_BASE as string;
 const SELECTOR = '[data-word-location]';
 const BOUND_ATTR = 'data-qrt-bound';
 
@@ -133,7 +134,7 @@ function buildTooltipHTML(word: Word, surah: number, ayah: number, cognate?: Cog
   if (mainRoot || mainLemma) {
     html += '<div class="qrt-detail-rows">';
     if (mainRoot && mainRootBw) {
-      const rootUrl = `http://localhost:4000/root/${encodeURIComponent(mainRootBw)}`;
+      const rootUrl = `${FRONTEND_BASE}/root/${encodeURIComponent(mainRootBw)}`;
       html += `<div class="qrt-detail-row"><span>Root</span><a href="${rootUrl}" target="_blank" rel="noopener noreferrer" class="qrt-detail-arabic qrt-root-link">${esc(mainRoot)}</a></div>`;
     } else if (mainRoot) {
       html += `<div class="qrt-detail-row"><span>Root</span><span class="qrt-detail-arabic">${esc(mainRoot)}</span></div>`;
@@ -156,7 +157,7 @@ function buildTooltipHTML(word: Word, surah: number, ayah: number, cognate?: Cog
       }
       html += '</div>';
       if (cognate.derivatives.length > 4 && mainRootBw) {
-        const rootPageUrl = `http://localhost:4000/root/${encodeURIComponent(mainRootBw)}`;
+        const rootPageUrl = `${FRONTEND_BASE}/root/${encodeURIComponent(mainRootBw)}`;
         html += `<a class="qrt-cognate-more" href="${rootPageUrl}" target="_blank" rel="noopener noreferrer">+${cognate.derivatives.length - 4} more</a>`;
       }
     }
@@ -172,7 +173,7 @@ function buildTooltipHTML(word: Word, surah: number, ayah: number, cognate?: Cog
     html += '<div class="qrt-action-links">';
 
     // View Word Details
-    const wordDetailUrl = `http://localhost:4000/word/${surah}:${ayah}/${word.position}`;
+    const wordDetailUrl = `${FRONTEND_BASE}/word/${surah}:${ayah}/${word.position}`;
     html += `<a class="qrt-action-link qrt-action-violet" href="${wordDetailUrl}" target="_blank" rel="noopener noreferrer">View Word Details${chevronIcon}</a>`;
 
     // Arabic Dictionary

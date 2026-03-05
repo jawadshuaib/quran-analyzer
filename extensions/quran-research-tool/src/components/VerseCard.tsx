@@ -8,7 +8,7 @@ interface Props {
   wordMeanings: Record<string, WordMeaningBrief>;
 }
 
-const FRONTEND_BASE = 'http://localhost:4000';
+import { FRONTEND_BASE } from '../config.ts';
 
 // Matches "56:74" or "96:1-4"
 const VERSE_REF_RE = /(\d{1,3}:\d{1,3}(?:[–\-]\d{1,3})?)/g;

@@ -4,7 +4,7 @@
   "version": "1.1.0",
   "description": "Identifies Quranic Arabic text on any website and shows word-level morphology, translations, and root analysis",
   "permissions": ["activeTab", "tabs"],
-  "host_permissions": ["http://localhost:5000/*", "<all_urls>"],
+  "host_permissions": ["https://al-nuqta.com/*", "<all_urls>"],
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
