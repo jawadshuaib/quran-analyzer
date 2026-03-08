@@ -1,5 +1,6 @@
 """Flask API for The Quran Explorer."""
 
+import html
 import json
 import math
 import os
@@ -1226,6 +1227,18 @@ def get_word_detail(surah: int, ayah: int, pos: int):
 SITE_URL = os.environ.get("SITE_URL", "https://al-nuqta.com")
 
 
+def _is_known_spa_path(path: str) -> bool:
+    if path == "/":
+        return True
+    if re.match(r"^/verse/\d+:\d+$", path):
+        return True
+    if re.match(r"^/root/.+$", path):
+        return True
+    if re.match(r"^/word/\d+:\d+/\d+$", path):
+        return True
+    return False
+
+
 def _get_seo_meta(path: str) -> dict:
     """Return title, description, og_type for a given URL path."""
     # Verse page: /verse/2:255
@@ -1275,11 +1288,22 @@ def _get_seo_meta(path: str) -> dict:
         }
 
     # Home
+    if path == "/":
+        return {
+            "title": "The Quran Explorer",
+            "description": "Explore the Quran verse by verse \u2014 root words, morphology, Semitic etymology, cross-references, and AI-powered meanings.",
+            "og_type": "website",
+            "canonical": SITE_URL + "/",
+            "robots": "index, follow",
+        }
+
+    # Unknown page
     return {
-        "title": "The Quran Explorer",
-        "description": "Explore the Quran verse by verse \u2014 root words, morphology, Semitic etymology, cross-references, and AI-powered meanings.",
+        "title": "Page Not Found | The Quran Explorer",
+        "description": "The requested page does not exist.",
         "og_type": "website",
-        "canonical": SITE_URL + "/",
+        "canonical": SITE_URL + path,
+        "robots": "noindex, follow",
     }
 
 
@@ -1289,17 +1313,24 @@ def _build_meta_tags(meta: dict) -> str:
     desc = meta["description"]
     canonical = meta["canonical"]
     og_type = meta["og_type"]
+    robots = meta.get("robots", "index, follow")
+
+    title_e = html.escape(title, quote=True)
+    desc_e = html.escape(desc, quote=True)
+    canonical_e = html.escape(canonical, quote=True)
+    robots_e = html.escape(robots, quote=True)
 
     tags = [
-        f'<meta name="description" content="{desc}" />',
-        f'<link rel="canonical" href="{canonical}" />',
-        f'<meta property="og:title" content="{title}" />',
-        f'<meta property="og:description" content="{desc}" />',
+        f'<meta name="description" content="{desc_e}" />',
+        f'<meta name="robots" content="{robots_e}" />',
+        f'<link rel="canonical" href="{canonical_e}" />',
+        f'<meta property="og:title" content="{title_e}" />',
+        f'<meta property="og:description" content="{desc_e}" />',
         f'<meta property="og:type" content="{og_type}" />',
-        f'<meta property="og:url" content="{canonical}" />',
+        f'<meta property="og:url" content="{canonical_e}" />',
         f'<meta name="twitter:card" content="summary" />',
-        f'<meta name="twitter:title" content="{title}" />',
-        f'<meta name="twitter:description" content="{desc}" />',
+        f'<meta name="twitter:title" content="{title_e}" />',
+        f'<meta name="twitter:description" content="{desc_e}" />',
     ]
 
     # JSON-LD structured data
@@ -1328,7 +1359,8 @@ def _build_meta_tags(meta: dict) -> str:
                 "url": SITE_URL,
             },
         }
-    tags.append(f'<script type="application/ld+json">{json.dumps(ld)}</script>')
+    ld_json = json.dumps(ld, ensure_ascii=False).replace("<", "\\u003c")
+    tags.append(f'<script type="application/ld+json">{ld_json}</script>')
 
     return "\n    ".join(tags)
 
@@ -1422,14 +1454,15 @@ if SERVE_STATIC:
         meta = _get_seo_meta(req_path)
         meta_tags = _build_meta_tags(meta)
 
-        html = _index_html_cache
-        html = html.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
-        html = html.replace(
+        html_doc = _index_html_cache
+        html_doc = html_doc.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
+        html_doc = html_doc.replace(
             "<title>The Quran Explorer</title>",
-            f"<title>{meta['title']}</title>",
+            f"<title>{html.escape(meta['title'])}</title>",
         )
 
-        return Response(html, mimetype="text/html")
+        status = 200 if _is_known_spa_path(req_path) else 404
+        return Response(html_doc, mimetype="text/html", status=status)
 
 
 if __name__ == "__main__":
