@@ -1230,6 +1230,8 @@ SITE_URL = os.environ.get("SITE_URL", "https://al-nuqta.com")
 def _is_known_spa_path(path: str) -> bool:
     if path == "/":
         return True
+    if re.match(r"^/privacy/extension/?$", path):
+        return True
     if re.match(r"^/verse/\d+:\d+$", path):
         return True
     if re.match(r"^/root/.+$", path):
@@ -1241,6 +1243,16 @@ def _is_known_spa_path(path: str) -> bool:
 
 def _get_seo_meta(path: str) -> dict:
     """Return title, description, og_type for a given URL path."""
+    # Extension privacy page: /privacy/extension
+    if re.match(r"^/privacy/extension/?$", path):
+        return {
+            "title": "Quran Research Tool Privacy Policy | The Quran Explorer",
+            "description": "Privacy policy for the Quran Research Tool Chrome extension, including data access, usage, and retention details.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/privacy/extension",
+            "robots": "index, follow",
+        }
+
     # Verse page: /verse/2:255
     m = re.match(r"^/verse/(\d+):(\d+)$", path)
     if m:
@@ -1390,6 +1402,7 @@ def sitemap_xml():
 
     # Home
     _add(SITE_URL + "/", "1.0")
+    _add(SITE_URL + "/privacy/extension", "0.3")
 
     # All verse pages
     conn = get_db()

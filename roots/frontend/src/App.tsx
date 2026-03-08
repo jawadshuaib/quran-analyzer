@@ -10,6 +10,7 @@ import WordSearchResults from './components/WordSearchResults';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 import NotFound from './components/NotFound';
+import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 
 function getVerseFromPath(): { surah: number; ayah: number } | null {
   const match = window.location.pathname.match(/^\/verse\/(\d+):(\d+)$/);
@@ -28,9 +29,14 @@ function getWordFromPath(): { surah: number; ayah: number; pos: number } | null 
     : null;
 }
 
+function isExtensionPrivacyPath(): boolean {
+  return /^\/privacy\/extension\/?$/.test(window.location.pathname);
+}
+
 function isKnownRoute(): boolean {
   const path = window.location.pathname;
   if (path === '/') return true;
+  if (/^\/privacy\/extension\/?$/.test(path)) return true;
   if (/^\/verse\/\d+:\d+$/.test(path)) return true;
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
@@ -43,6 +49,8 @@ export default function App() {
 
   const rootBw = getRootFromPath();
   if (rootBw) return <RootPage rootBw={rootBw} />;
+
+  if (isExtensionPrivacyPath()) return <ExtensionPrivacyPage />;
 
   if (!isKnownRoute()) return <NotFound />;
   const [data, setData] = useState<VerseData | null>(null);

@@ -1,5 +1,5 @@
 /**
- * Generic Quran text scanner — detects Quranic verses on any webpage
+ * Generic Quran text scanner — detects Quranic verses on supported webpages
  * by matching normalized Arabic word trigrams against a pre-built index.
  */
 

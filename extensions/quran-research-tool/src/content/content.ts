@@ -1,6 +1,7 @@
 /* Quran Research Tool — Content Script
  * Works on quran.com via data-word-location attributes (fast path),
- * and on ALL websites by scanning Arabic text against a trigram index.
+ * and on supported Quran-focused websites by scanning Arabic text
+ * against a trigram index.
  */
 
 import { pageHasArabic, scanForQuranText } from './scanner';
