@@ -202,17 +202,17 @@ def parse_judge_response(raw: str) -> dict | None:
     }
 
 
-def _store_judgment(conn, surah, ayah, word_pos, preferred_translation, preferred_source):
-    """Write preferred_translation + preferred_source to the most recent ai_word_meanings row."""
+def _store_judgment(conn, surah, ayah, word_pos, preferred_translation, preferred_source, reasoning=""):
+    """Write preferred_translation + preferred_source + reasoning to the most recent ai_word_meanings row."""
     conn.execute(
         "UPDATE ai_word_meanings "
-        "SET preferred_translation = ?, preferred_source = ? "
+        "SET preferred_translation = ?, preferred_source = ?, judge_reasoning = ? "
         "WHERE id = ("
         "  SELECT id FROM ai_word_meanings "
         "  WHERE chapter = ? AND verse = ? AND word_pos = ? "
         "  ORDER BY created_at DESC LIMIT 1"
         ")",
-        (preferred_translation, preferred_source, surah, ayah, word_pos),
+        (preferred_translation, preferred_source, reasoning or None, surah, ayah, word_pos),
     )
 
 
@@ -290,7 +290,7 @@ def judge_word(
     preferred_source = source_map.get(parsed["choice"], "judge")
     preferred_translation = parsed["translation"]
 
-    _store_judgment(conn, surah, ayah, word_pos, preferred_translation, preferred_source)
+    _store_judgment(conn, surah, ayah, word_pos, preferred_translation, preferred_source, parsed["reasoning"])
     conn.commit()
 
     print(f"      -> [{parsed['choice']}] \"{preferred_translation}\" ({preferred_source})")
@@ -457,7 +457,7 @@ def run_all(args):
                 for w in group:
                     if w["already_judged"]:
                         row = conn.execute(
-                            "SELECT preferred_translation, preferred_source "
+                            "SELECT preferred_translation, preferred_source, judge_reasoning "
                             "FROM ai_word_meanings "
                             "WHERE chapter = ? AND verse = ? AND word_pos = ? "
                             "AND preferred_translation IS NOT NULL "
@@ -465,7 +465,7 @@ def run_all(args):
                             (w["chapter"], w["verse"], w["word_pos"]),
                         ).fetchone()
                         if row:
-                            cached = (row["preferred_translation"], row["preferred_source"])
+                            cached = (row["preferred_translation"], row["preferred_source"], row["judge_reasoning"] or "")
                             break
 
             if cached:
@@ -473,7 +473,7 @@ def run_all(args):
                 for w in group:
                     if not w["already_judged"]:
                         _store_judgment(conn, w["chapter"], w["verse"], w["word_pos"],
-                                        cached[0], cached[1])
+                                        cached[0], cached[1], cached[2])
                         t2_replicated += 1
                 conn.commit()
                 continue
@@ -507,9 +507,10 @@ def run_all(args):
             print(f"    -> [{parsed['choice']}] \"{pref_trans}\" -> {len(group)} words")
 
             # Store for all words in the group
+            reasoning = parsed.get("reasoning", "")
             for w in group:
                 _store_judgment(conn, w["chapter"], w["verse"], w["word_pos"],
-                                pref_trans, pref_source)
+                                pref_trans, pref_source, reasoning)
             conn.commit()
 
             t2_judged += 1
@@ -531,7 +532,7 @@ def run_all(args):
                 for w in group:
                     if w["already_judged"]:
                         row = conn.execute(
-                            "SELECT preferred_translation, preferred_source "
+                            "SELECT preferred_translation, preferred_source, judge_reasoning "
                             "FROM ai_word_meanings "
                             "WHERE chapter = ? AND verse = ? AND word_pos = ? "
                             "AND preferred_translation IS NOT NULL "
@@ -539,14 +540,14 @@ def run_all(args):
                             (w["chapter"], w["verse"], w["word_pos"]),
                         ).fetchone()
                         if row:
-                            cached = (row["preferred_translation"], row["preferred_source"])
+                            cached = (row["preferred_translation"], row["preferred_source"], row["judge_reasoning"] or "")
                             break
 
             if cached:
                 for w in group:
                     if not w["already_judged"]:
                         _store_judgment(conn, w["chapter"], w["verse"], w["word_pos"],
-                                        cached[0], cached[1])
+                                        cached[0], cached[1], cached[2])
                         t3_replicated += 1
                 conn.commit()
                 continue
@@ -583,9 +584,10 @@ def run_all(args):
             else:
                 print(f"    -> [{parsed['choice']}] \"{pref_trans}\"")
 
+            reasoning = parsed.get("reasoning", "")
             for w in group:
                 _store_judgment(conn, w["chapter"], w["verse"], w["word_pos"],
-                                pref_trans, pref_source)
+                                pref_trans, pref_source, reasoning)
             conn.commit()
 
             t3_judged += 1
@@ -685,9 +687,10 @@ def fix_tier2(args):
 
             print(f"    -> [{parsed['choice']}] \"{pref_trans}\" -> {len(group)} words")
 
+            reasoning = parsed.get("reasoning", "")
             for w in group:
                 _store_judgment(conn, w["chapter"], w["verse"], w["word_pos"],
-                                pref_trans, pref_source)
+                                pref_trans, pref_source, reasoning)
             conn.commit()
 
             judged += 1

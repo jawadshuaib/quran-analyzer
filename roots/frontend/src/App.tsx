@@ -9,6 +9,7 @@ import RelatedVerses from './components/RelatedVerses';
 import WordSearchResults from './components/WordSearchResults';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
+import NotFound from './components/NotFound';
 
 function getVerseFromPath(): { surah: number; ayah: number } | null {
   const match = window.location.pathname.match(/^\/verse\/(\d+):(\d+)$/);
@@ -27,12 +28,23 @@ function getWordFromPath(): { surah: number; ayah: number; pos: number } | null 
     : null;
 }
 
+function isKnownRoute(): boolean {
+  const path = window.location.pathname;
+  if (path === '/') return true;
+  if (/^\/verse\/\d+:\d+$/.test(path)) return true;
+  if (/^\/root\/.+$/.test(path)) return true;
+  if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
+  return false;
+}
+
 export default function App() {
   const wordParams = getWordFromPath();
   if (wordParams) return <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />;
 
   const rootBw = getRootFromPath();
   if (rootBw) return <RootPage rootBw={rootBw} />;
+
+  if (!isKnownRoute()) return <NotFound />;
   const [data, setData] = useState<VerseData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');

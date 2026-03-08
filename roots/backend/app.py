@@ -176,6 +176,7 @@ def _ensure_judge_columns():
         for col, coltype in [
             ("preferred_translation", "TEXT"),
             ("preferred_source", "TEXT"),
+            ("judge_reasoning", "TEXT"),
         ]:
             try:
                 conn.execute(
