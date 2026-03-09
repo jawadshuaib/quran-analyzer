@@ -173,6 +173,8 @@ quran-related/
 │   │   ├── word_meanings_ai_batch.py  # Batch API variant for word meanings
 │   │   ├── judge_translations.py      # LLM judge: picks best tooltip gloss
 │   │   ├── judge_translations_batch.py # Batch API variant for judge
+│   │   ├── surah_context_ai.py        # Qur'an-only surah-so-far context generator
+│   │   ├── SURAH_CONTEXT.md           # Surah-context pipeline docs and operations
 │   │   ├── run_all_verses.sh          # Shell runner: translate full Quran, auto-resumes
 │   │   ├── run_all_words.sh           # Shell runner: process all words, auto-resumes
 │   │   ├── requirements.txt           # Python dependencies
@@ -686,15 +688,49 @@ python judge_translations_batch.py run --verses "96:1-5"   # test subset
 
 ---
 
+### Pipeline 4 — Surah Context (`surah_context_ai.py`)
+
+Offline generator for the frontend section **"What Has Happened So Far"**.
+
+- Qur'an-only evidence window: current surah from `1..target ayah`
+- Uses local translation + departure notes as internal evidence
+- Stores once in DB and serves via API
+- Resumable by default (safe to stop/re-run)
+
+Quick usage:
+
+```bash
+cd roots/backend
+
+# Full Quran (all surahs / all verses)
+python surah_context_ai.py
+
+# Force regenerate current config
+python surah_context_ai.py --force
+
+# Subset
+python surah_context_ai.py --verses "21:1-112"
+```
+
+Current production config for frontend:
+
+- `surah-context-quran-only-v2-summary`
+
+Detailed guide:
+
+- `roots/backend/SURAH_CONTEXT.md`
+
+---
+
 ### Recommended Pipeline Order
 
-Run the three pipelines in this order for best results:
+Run these pipelines in this order for best results:
 
 ```
-translate_ai.py  →  word_meanings_ai.py  →  judge_translations.py
+translate_ai.py  →  word_meanings_ai.py  →  judge_translations.py  →  surah_context_ai.py
 ```
 
-The verse translation provides departure notes that inform the word meanings pipeline. The judge relies on `meaning_short` from `word_meanings_ai.py` being populated first.
+The verse translation provides departure notes that inform both word meanings and surah context. The judge relies on `meaning_short` from `word_meanings_ai.py` being populated first.
 
 ---
 

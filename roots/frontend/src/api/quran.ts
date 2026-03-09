@@ -1,6 +1,7 @@
-import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData } from '../types';
+import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse } from '../types';
 
 const BASE = '/api';
+const SURAH_CONTEXT_CONFIG = 'surah-context-quran-only-v2-summary';
 
 export async function fetchVerse(surah: number, ayah: number): Promise<VerseData> {
   const res = await fetch(`${BASE}/verse/${surah}:${ayah}`);
@@ -33,6 +34,28 @@ export async function fetchContext(
 ): Promise<ContextResponse> {
   const res = await fetch(`${BASE}/context/${surah}:${ayah}`);
   if (!res.ok) throw new Error('Failed to load surrounding context');
+  return res.json();
+}
+
+export async function fetchThematicContext(
+  surah: number,
+  ayah: number,
+): Promise<ThematicContextResponse | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/thematic-context`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load thematic context');
+  return res.json();
+}
+
+export async function fetchSurahContext(
+  surah: number,
+  ayah: number,
+): Promise<SurahContextResponse | null> {
+  const res = await fetch(
+    `${BASE}/verse/${surah}:${ayah}/surah-context?config=${encodeURIComponent(SURAH_CONTEXT_CONFIG)}`
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load surah context');
   return res.json();
 }
 

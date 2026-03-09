@@ -7,6 +7,7 @@ import { verseUrl, ejtaalUrl } from '../utils/urls';
 interface Props {
   text: string;
   className?: string;
+  disableVerseNavigation?: boolean;
 }
 
 interface CachedVerse {
@@ -41,7 +42,7 @@ function parseRef(ref: string): { surah: number; startAyah: number; endAyah: num
 // Shared cross-instance cache so repeated hovers don't re-fetch
 const verseCache = new Map<string, CachedVerse>();
 
-function VerseRefLink({ verseRef }: { verseRef: string }) {
+function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disableNavigation?: boolean }) {
   const { surah, startAyah, endAyah } = parseRef(verseRef);
   const isRange = endAyah > startAyah;
 
@@ -121,9 +122,10 @@ function VerseRefLink({ verseRef }: { verseRef: string }) {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
+      if (disableNavigation) return;
       window.open(verseUrl(surah, startAyah), '_blank');
     },
-    [surah, startAyah],
+    [disableNavigation, surah, startAyah],
   );
 
   return (
@@ -365,7 +367,7 @@ function RootRefLink({ rootText }: { rootText: string }) {
   );
 }
 
-export default function VerseRefText({ text, className }: Props) {
+export default function VerseRefText({ text, className, disableVerseNavigation = false }: Props) {
   if (!text) return null;
 
   // Collect all matches (verse refs, root refs, quoted text) with their types
@@ -435,7 +437,7 @@ export default function VerseRefText({ text, className }: Props) {
     <span className={className}>
       {parts.map((part, i) =>
         part.type === 'ref' ? (
-          <VerseRefLink key={i} verseRef={part.value} />
+          <VerseRefLink key={i} verseRef={part.value} disableNavigation={disableVerseNavigation} />
         ) : part.type === 'root' ? (
           <RootRefLink key={i} rootText={part.value} />
         ) : part.type === 'quoted' ? (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import type { ContextVerse } from '../types';
-import { fetchContext } from '../api/quran';
+import type { ContextVerse, VerseSurahContext } from '../types';
+import { fetchContext, fetchSurahContext } from '../api/quran';
+import VerseRefText from './VerseRefText';
 
 interface Props {
   surah: number;
@@ -12,10 +13,13 @@ export default function SurroundingContext({ surah, ayah, onNavigate }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [verses, setVerses] = useState<ContextVerse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [surahContext, setSurahContext] = useState<VerseSurahContext | null>(null);
+  const [surahContextLoading, setSurahContextLoading] = useState(false);
 
   useEffect(() => {
     setExpanded(false);
     setVerses([]);
+    setSurahContext(null);
   }, [surah, ayah]);
 
   async function handleToggle() {
@@ -33,6 +37,17 @@ export default function SurroundingContext({ surah, ayah, onNavigate }: Props) {
         // silently fail
       } finally {
         setLoading(false);
+      }
+    }
+    if (!surahContext && !surahContextLoading) {
+      setSurahContextLoading(true);
+      try {
+        const data = await fetchSurahContext(surah, ayah);
+        setSurahContext(data?.surah_context ?? null);
+      } catch {
+        // silently fail
+      } finally {
+        setSurahContextLoading(false);
       }
     }
     setExpanded(true);
@@ -62,6 +77,25 @@ export default function SurroundingContext({ surah, ayah, onNavigate }: Props) {
 
       {expanded && (
         <div className="border-t border-stone-100 px-6 py-4">
+          {(surahContextLoading || !!surahContext?.summary_so_far) && (
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-4 mb-4">
+              {surahContextLoading ? (
+                <div className="flex justify-center py-2">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+                </div>
+              ) : (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-indigo-700">What Has Happened So Far</p>
+                  <VerseRefText
+                    text={surahContext?.summary_so_far ?? ''}
+                    className="text-sm text-stone-700"
+                    disableVerseNavigation
+                  />
+              </div>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center py-4">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />

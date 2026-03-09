@@ -101,6 +101,85 @@ export interface ContextResponse {
   surah_total: number;
 }
 
+export interface ThematicVerseRef {
+  surah: number;
+  ayah: number;
+  text_uthmani: string;
+  translation: string;
+}
+
+export interface ThematicLink {
+  theme: string;
+  summary: string;
+  confidence: number;
+  verses: ThematicVerseRef[];
+}
+
+export interface VerseThematicContext {
+  passage: {
+    start_ayah: number | null;
+    end_ayah: number | null;
+    theme: string;
+    confidence: number;
+  };
+  surah_role: {
+    summary: string;
+    confidence: number;
+  };
+  neighbor_surahs: {
+    summary: string;
+    confidence: number;
+  };
+  quran_wide_links: ThematicLink[];
+  evidence: Record<string, unknown>;
+  model: {
+    config_name: string;
+    model_name: string;
+    prompt_version: string;
+    created_at: string;
+  };
+}
+
+export interface ThematicContextResponse {
+  query: { surah: number; ayah: number };
+  thematic_context: VerseThematicContext;
+}
+
+export interface SurahContextKeyVerse {
+  surah: number;
+  ayah: number;
+  why: string;
+  text_uthmani: string;
+  translation: string;
+}
+
+export interface VerseSurahContext {
+  summary_so_far: string;
+  current_verse_focus: string;
+  key_verses: SurahContextKeyVerse[];
+  summary_points: Array<{ text: string; refs: string[] }>;
+  lexical_continuity: Array<{
+    root_buckwalter: string;
+    root_arabic: string;
+    occurrences_before: number;
+    example_refs: string[];
+  }>;
+  signal_score: number;
+  verifier: Record<string, unknown>;
+  evidence: Record<string, unknown>;
+  model: {
+    config_name: string;
+    model_name: string;
+    prompt_version: string;
+    created_at: string;
+  };
+}
+
+export interface SurahContextResponse {
+  query: { surah: number; ayah: number };
+  surah_context: VerseSurahContext;
+}
+
 export interface SearchTerm {
   lemma_bw: string | null;
   root_bw: string | null;

@@ -193,6 +193,114 @@ def _ensure_judge_columns():
 _ensure_judge_columns()
 
 
+def _ensure_thematic_context_tables():
+    """Create versioned Qur'an-only thematic context tables if missing."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS thematic_context_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_name TEXT NOT NULL UNIQUE,
+                model_name TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                methodology_notes TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS verse_thematic_contexts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                config_id INTEGER NOT NULL,
+                passage_start_ayah INTEGER,
+                passage_end_ayah INTEGER,
+                passage_theme TEXT,
+                passage_confidence REAL,
+                surah_role_summary TEXT,
+                surah_role_confidence REAL,
+                neighbor_surah_summary TEXT,
+                neighbor_surah_confidence REAL,
+                quran_wide_links_json TEXT,
+                evidence_json TEXT,
+                raw_response TEXT,
+                model_response_time_ms INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (config_id) REFERENCES thematic_context_configs(id),
+                UNIQUE (chapter, verse, config_id)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_thematic_context_verse
+            ON verse_thematic_contexts (chapter, verse, created_at DESC)
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_thematic_context_tables()
+
+
+def _ensure_surah_context_tables():
+    """Create versioned Surah-so-far context tables if missing."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS surah_context_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_name TEXT NOT NULL UNIQUE,
+                model_name TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                methodology_notes TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS verse_surah_contexts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                config_id INTEGER NOT NULL,
+                summary_so_far TEXT,
+                current_verse_focus TEXT,
+                key_verses_json TEXT,
+                summary_points_json TEXT,
+                lexical_continuity_json TEXT,
+                signal_score REAL,
+                verifier_report_json TEXT,
+                evidence_json TEXT,
+                raw_response TEXT,
+                model_response_time_ms INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (config_id) REFERENCES surah_context_configs(id),
+                UNIQUE (chapter, verse, config_id)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_surah_context_verse
+            ON verse_surah_contexts (chapter, verse, created_at DESC)
+        """)
+        for col, coltype in [
+            ("summary_points_json", "TEXT"),
+            ("lexical_continuity_json", "TEXT"),
+            ("signal_score", "REAL"),
+            ("verifier_report_json", "TEXT"),
+        ]:
+            try:
+                conn.execute(
+                    f"ALTER TABLE verse_surah_contexts ADD COLUMN {col} {coltype}"
+                )
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_surah_context_tables()
+
+
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
 
 ROOT_DISCOUNT = 0.5  # Root-only matches get half credit vs lemma matches
@@ -207,6 +315,68 @@ _root_inv = defaultdict(set)   # root_bw -> set of (ch, v)
 _form_inv = defaultdict(set)   # form_bw -> set of (ch, v)
 _lemma_roots = defaultdict(set)  # lemma_bw -> set of root_bw
 _root_arabic_map = {}          # root_bw -> root_arabic string
+
+THEMATIC_MIN_LINK_CONFIDENCE = 0.62
+THEMATIC_MIN_PASSAGE_CONFIDENCE = 0.68
+THEMATIC_MIN_ROLE_CONFIDENCE = 0.68
+THEMATIC_GENERIC_PHRASES = (
+    "divine punishment",
+    "divine judgment",
+    "human schemes",
+    "futility of opposing",
+    "those who oppose",
+    "human arrogance",
+)
+
+
+def _thematic_text_is_generic(text: str) -> bool:
+    low = (text or "").strip().lower()
+    if len(low) < 28:
+        return True
+    return any(p in low for p in THEMATIC_GENERIC_PHRASES)
+
+
+def _is_thematic_context_displayable(row, links: list[dict]) -> bool:
+    high_links = 0
+    for item in links:
+        if not isinstance(item, dict):
+            continue
+        refs = item.get("related_verses", [])
+        conf = float(item.get("confidence", 0) or 0)
+        summary = str(item.get("summary", "") or "")
+        theme = str(item.get("theme", "") or "")
+        if len(refs) >= 2 and conf >= THEMATIC_MIN_LINK_CONFIDENCE:
+            if not (_thematic_text_is_generic(summary) and _thematic_text_is_generic(theme)):
+                high_links += 1
+
+    p_conf = float(row["passage_confidence"] or 0)
+    p_theme = str(row["passage_theme"] or "")
+    p_start = int(row["passage_start_ayah"] or row["verse"] or 0)
+    p_end = int(row["passage_end_ayah"] or row["verse"] or 0)
+    has_passage = (
+        p_conf >= THEMATIC_MIN_PASSAGE_CONFIDENCE
+        and (p_end - p_start + 1) >= 2
+        and not _thematic_text_is_generic(p_theme)
+    )
+
+    role_conf = float(row["surah_role_confidence"] or 0)
+    role_txt = str(row["surah_role_summary"] or "")
+    has_role = role_conf >= THEMATIC_MIN_ROLE_CONFIDENCE and not _thematic_text_is_generic(role_txt)
+
+    neighbor_conf = float(row["neighbor_surah_confidence"] or 0)
+    neighbor_txt = str(row["neighbor_surah_summary"] or "")
+    has_neighbor = neighbor_conf >= 0.65 and not _thematic_text_is_generic(neighbor_txt)
+
+    score = 0
+    if high_links >= 2:
+        score += 1
+    if has_passage:
+        score += 1
+    if has_role:
+        score += 1
+    if has_neighbor:
+        score += 1
+    return high_links >= 2 and (has_passage or has_role) and score >= 3
 
 
 def _build_similarity_engine():
@@ -832,6 +1002,243 @@ def get_context(surah: int, ayah: int):
             "query": {"surah": surah, "ayah": ayah},
             "context": verses,
             "surah_total": total,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/thematic-context")
+def get_thematic_context(surah: int, ayah: int):
+    """Return precomputed Qur'an-only thematic context for a verse."""
+    config_name = request.args.get("config", type=str)
+    include_all = request.args.get("include_all", "0") == "1"
+    conn = get_db()
+    try:
+        params = [surah, ayah]
+        where_config = ""
+        if config_name:
+            where_config = "AND c.config_name = ?"
+            params.append(config_name)
+
+        row = conn.execute(
+            "SELECT tc.chapter, tc.verse, tc.passage_start_ayah, tc.passage_end_ayah, "
+            "       tc.passage_theme, tc.passage_confidence, "
+            "       tc.surah_role_summary, tc.surah_role_confidence, "
+            "       tc.neighbor_surah_summary, tc.neighbor_surah_confidence, "
+            "       tc.quran_wide_links_json, tc.evidence_json, tc.created_at, "
+            "       c.config_name, c.model_name, c.prompt_version "
+            "FROM verse_thematic_contexts tc "
+            "JOIN thematic_context_configs c ON tc.config_id = c.id "
+            "WHERE tc.chapter = ? AND tc.verse = ? "
+            f"{where_config} "
+            "ORDER BY tc.created_at DESC LIMIT 1",
+            tuple(params),
+        ).fetchone()
+
+        if not row:
+            return jsonify({"error": "No thematic context available"}), 404
+
+        links = []
+        if row["quran_wide_links_json"]:
+            try:
+                links = json.loads(row["quran_wide_links_json"])
+            except json.JSONDecodeError:
+                links = []
+
+        evidence = {}
+        if row["evidence_json"]:
+            try:
+                evidence = json.loads(row["evidence_json"])
+            except json.JSONDecodeError:
+                evidence = {}
+
+        def _hydrate_refs(refs: list[str]) -> list[dict]:
+            out = []
+            for ref in refs:
+                try:
+                    s, a = ref.split(":")
+                    ch, v = int(s), int(a)
+                except (ValueError, AttributeError):
+                    continue
+                vr = conn.execute(
+                    "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                    (ch, v),
+                ).fetchone()
+                if not vr:
+                    continue
+                out.append({
+                    "surah": ch,
+                    "ayah": v,
+                    "text_uthmani": _strip_bismillah(vr["text_uthmani"], ch, v),
+                    "translation": _best_translation(conn, ch, v),
+                })
+            return out
+
+        hydrated_links = []
+        for item in links:
+            refs = item.get("related_verses", []) if isinstance(item, dict) else []
+            hydrated_links.append({
+                "theme": item.get("theme", "") if isinstance(item, dict) else "",
+                "summary": item.get("summary", "") if isinstance(item, dict) else "",
+                "confidence": item.get("confidence", 0.0) if isinstance(item, dict) else 0.0,
+                "verses": _hydrate_refs(refs if isinstance(refs, list) else []),
+            })
+
+        if not include_all and not _is_thematic_context_displayable(row, links):
+            return jsonify({"error": "No high-signal thematic context available"}), 404
+
+        return jsonify({
+            "query": {"surah": surah, "ayah": ayah},
+            "thematic_context": {
+                "passage": {
+                    "start_ayah": row["passage_start_ayah"],
+                    "end_ayah": row["passage_end_ayah"],
+                    "theme": row["passage_theme"] or "",
+                    "confidence": row["passage_confidence"] or 0.0,
+                },
+                "surah_role": {
+                    "summary": row["surah_role_summary"] or "",
+                    "confidence": row["surah_role_confidence"] or 0.0,
+                },
+                "neighbor_surahs": {
+                    "summary": row["neighbor_surah_summary"] or "",
+                    "confidence": row["neighbor_surah_confidence"] or 0.0,
+                },
+                "quran_wide_links": hydrated_links,
+                "evidence": evidence,
+                "model": {
+                    "config_name": row["config_name"],
+                    "model_name": row["model_name"],
+                    "prompt_version": row["prompt_version"],
+                    "created_at": row["created_at"],
+                },
+            },
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/surah-context")
+def get_surah_context(surah: int, ayah: int):
+    """Return precomputed 'what happened so far in this surah' context."""
+    config_name = request.args.get("config", type=str)
+    include_all = request.args.get("include_all", "0") == "1"
+    conn = get_db()
+    try:
+        params = [surah, ayah]
+        where_config = ""
+        if config_name:
+            where_config = "AND c.config_name = ?"
+            params.append(config_name)
+
+        row = conn.execute(
+            "SELECT vc.chapter, vc.verse, vc.summary_so_far, vc.current_verse_focus, "
+            "       vc.key_verses_json, vc.summary_points_json, vc.lexical_continuity_json, "
+            "       vc.signal_score, vc.verifier_report_json, vc.evidence_json, vc.created_at, "
+            "       c.config_name, c.model_name, c.prompt_version "
+            "FROM verse_surah_contexts vc "
+            "JOIN surah_context_configs c ON vc.config_id = c.id "
+            "WHERE vc.chapter = ? AND vc.verse = ? "
+            f"{where_config} "
+            "ORDER BY vc.created_at DESC LIMIT 1",
+            tuple(params),
+        ).fetchone()
+
+        if not row:
+            return jsonify({"error": "No surah context available"}), 404
+
+        key_items = []
+        if row["key_verses_json"]:
+            try:
+                key_items = json.loads(row["key_verses_json"])
+            except json.JSONDecodeError:
+                key_items = []
+
+        if not isinstance(key_items, list):
+            key_items = []
+
+        summary_points = []
+        if row["summary_points_json"]:
+            try:
+                summary_points = json.loads(row["summary_points_json"])
+            except json.JSONDecodeError:
+                summary_points = []
+        if not isinstance(summary_points, list):
+            summary_points = []
+
+        lexical = []
+        if row["lexical_continuity_json"]:
+            try:
+                lexical = json.loads(row["lexical_continuity_json"])
+            except json.JSONDecodeError:
+                lexical = []
+        if not isinstance(lexical, list):
+            lexical = []
+
+        verifier = {}
+        if row["verifier_report_json"]:
+            try:
+                verifier = json.loads(row["verifier_report_json"])
+            except json.JSONDecodeError:
+                verifier = {}
+
+        hydrated = []
+        for item in key_items:
+            if not isinstance(item, dict):
+                continue
+            ref = item.get("ref", "")
+            try:
+                s, a = ref.split(":")
+                ch, v = int(s), int(a)
+            except (ValueError, AttributeError):
+                continue
+            vr = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            if not vr:
+                continue
+            hydrated.append({
+                "surah": ch,
+                "ayah": v,
+                "why": item.get("why", ""),
+                "text_uthmani": _strip_bismillah(vr["text_uthmani"], ch, v),
+                "translation": _best_translation(conn, ch, v),
+            })
+
+        summary = (row["summary_so_far"] or "").strip()
+        focus = (row["current_verse_focus"] or "").strip()
+        signal_score = float(row["signal_score"] or 0.0)
+
+        if not include_all:
+            if signal_score < 0.68:
+                return jsonify({"error": "No high-signal surah context available"}), 404
+
+        evidence = {}
+        if row["evidence_json"]:
+            try:
+                evidence = json.loads(row["evidence_json"])
+            except json.JSONDecodeError:
+                evidence = {}
+
+        return jsonify({
+            "query": {"surah": surah, "ayah": ayah},
+            "surah_context": {
+                "summary_so_far": summary,
+                "current_verse_focus": focus,
+                "key_verses": hydrated,
+                "summary_points": summary_points,
+                "lexical_continuity": lexical,
+                "signal_score": signal_score,
+                "verifier": verifier,
+                "evidence": evidence,
+                "model": {
+                    "config_name": row["config_name"],
+                    "model_name": row["model_name"],
+                    "prompt_version": row["prompt_version"],
+                    "created_at": row["created_at"],
+                },
+            },
         })
     finally:
         conn.close()
