@@ -312,6 +312,7 @@ export default function App() {
             data={data}
             onWordSearch={handleWordSearch}
             wordSearchLoading={wordSearchLoading}
+            onNavigate={handleSearch}
           />
 
           {wordSearchError && (

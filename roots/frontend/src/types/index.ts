@@ -51,6 +51,11 @@ export interface RootSummary {
   cognate?: CognateData | null;
 }
 
+export interface VerseNavRef {
+  surah: number;
+  ayah: number;
+}
+
 export interface VerseData {
   surah: number;
   ayah: number;
@@ -59,6 +64,8 @@ export interface VerseData {
   translation: string;
   words: Word[];
   roots_summary: RootSummary[];
+  previous?: VerseNavRef | null;
+  next?: VerseNavRef | null;
 }
 
 export interface SurahInfo {

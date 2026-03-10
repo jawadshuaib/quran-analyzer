@@ -953,6 +953,36 @@ def get_verse(surah: int, ayah: int):
             cognate = _get_cognate(conn, root_entry["root_buckwalter"])
             root_entry["cognate"] = cognate
 
+        # Build previous/next verse links (across surah boundaries).
+        total_row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM verses WHERE chapter = ?",
+            (surah,),
+        ).fetchone()
+        total_in_surah = int(total_row["cnt"]) if total_row and total_row["cnt"] else 0
+
+        previous = None
+        if ayah > 1:
+            previous = {"surah": surah, "ayah": ayah - 1}
+        elif surah > 1:
+            prev_total_row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM verses WHERE chapter = ?",
+                (surah - 1,),
+            ).fetchone()
+            prev_total = int(prev_total_row["cnt"]) if prev_total_row and prev_total_row["cnt"] else 0
+            if prev_total > 0:
+                previous = {"surah": surah - 1, "ayah": prev_total}
+
+        next_ref = None
+        if total_in_surah > 0 and ayah < total_in_surah:
+            next_ref = {"surah": surah, "ayah": ayah + 1}
+        elif surah < 114:
+            next_exists = conn.execute(
+                "SELECT 1 FROM verses WHERE chapter = ? AND verse = 1",
+                (surah + 1,),
+            ).fetchone()
+            if next_exists:
+                next_ref = {"surah": surah + 1, "ayah": 1}
+
         return jsonify({
             "surah": surah,
             "ayah": ayah,
@@ -961,6 +991,8 @@ def get_verse(surah: int, ayah: int):
             "translation": _best_translation(conn, surah, ayah),
             "words": words_list,
             "roots_summary": roots_list,
+            "previous": previous,
+            "next": next_ref,
         })
     finally:
         conn.close()

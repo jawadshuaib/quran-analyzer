@@ -11,6 +11,7 @@ interface Props {
   data: VerseData;
   onWordSearch?: (terms: SearchTerm[], queryVerse: { surah: number; ayah: number }) => void;
   wordSearchLoading?: boolean;
+  onNavigate?: (surah: number, ayah: number) => void;
 }
 
 /** Split departure notes into separate lines at " - " when preceded by "." within 3 chars. */
@@ -35,7 +36,7 @@ function getContentSegment(word: Word) {
   );
 }
 
-export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: Props) {
+export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, onNavigate }: Props) {
   const [hoveredPos, setHoveredPos] = useState<number | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<Set<number>>(new Set());
   const [selectedRoots, setSelectedRoots] = useState<Set<string>>(new Set());
@@ -255,8 +256,60 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading }: 
         />
       )}
 
-      <div className="mb-1 text-sm font-medium text-stone-500">
-        Surah {data.surah}, Ayah {data.ayah}
+      <div className="mb-1 flex items-center gap-1 text-sm font-medium text-stone-500">
+        {data.previous && (
+          <button
+            type="button"
+            aria-label={`Previous verse ${data.previous.surah}:${data.previous.ayah}`}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate?.(data.previous!.surah, data.previous!.ayah);
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="none"
+              className="h-3.5 w-3.5"
+            >
+              <path
+                d="M12.5 4.5L7 10l5.5 5.5"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
+        <span>Surah {data.surah}, Ayah {data.ayah}</span>
+        {data.next && (
+          <button
+            type="button"
+            aria-label={`Next verse ${data.next.surah}:${data.next.ayah}`}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-stone-600"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate?.(data.next!.surah, data.next!.ayah);
+            }}
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              fill="none"
+              className="h-3.5 w-3.5"
+            >
+              <path
+                d="M7.5 4.5L13 10l-5.5 5.5"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div
