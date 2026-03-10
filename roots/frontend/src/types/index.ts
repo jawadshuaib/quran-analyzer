@@ -180,6 +180,107 @@ export interface SurahContextResponse {
   surah_context: VerseSurahContext;
 }
 
+export interface GrammarInsightItem {
+  title: string;
+  insight: string;
+  refs: string[];
+  kind?: 'investigative' | 'educational';
+  educational_note?: string;
+  category?:
+    | 'perspective_shift'
+    | 'person_mixture'
+    | 'royal_we_vs_i'
+    | 'gender_nuance'
+    | 'sound_communication'
+    | 'time_perspective'
+    | 'oath_structure'
+    | 'exception_scope'
+    | 'conditional_structure'
+    | 'cognate_accusative'
+    | 'demonstrative_distance'
+    | 'plural_type'
+    | 'educational'
+    | 'other_grammar';
+  confidence?: number;
+  morph_evidence?: Array<{ type: string; value: string }>;
+}
+
+export interface V7GrammarInsight {
+  id: string;
+  kind: 'investigative' | 'educational';
+  category: string;
+  title: string;
+  claim: {
+    observation: string;
+    scope: 'word' | 'phrase' | 'clause' | 'verse';
+    strength: 'direct' | 'probable' | 'tentative';
+  };
+  counterfactual: {
+    present: boolean;
+    type: 'explicit_alternative' | 'suppressed_alternative' | 'none';
+    text: string | null;
+    safety: 'high' | 'medium' | 'low' | null;
+  };
+  meaning_payoff: {
+    text: string;
+    type: string;
+    strength: 'strong' | 'moderate' | 'light';
+  };
+  educational_note: {
+    text: string;
+    reading_level: 'basic' | 'intermediate';
+  };
+  evidence_trace: Array<{
+    token_ref: string;
+    surface_ar: string;
+    buckwalter: string;
+    root: string;
+    feature_type: string;
+    feature_value: string;
+    role: 'primary_support' | 'secondary_support' | 'contrast_anchor';
+  }>;
+  quality: {
+    model_confidence_raw: number;
+    evidence_sufficiency: number;
+    linguistic_correctness: number;
+    interpretive_value: number;
+    novelty: number;
+    clarity: number;
+    risk: number;
+    overall_confidence: number;
+  };
+  display: {
+    tier: 'primary' | 'secondary' | 'suppressed';
+    eligible: boolean;
+    reason_codes: string[];
+  };
+}
+
+export interface VerseGrammarInsights {
+  overview: string;
+  insights: GrammarInsightItem[];
+  signal_score: number;
+  generation_version?: string;
+  insights_v7?: V7GrammarInsight[];
+  quality?: Record<string, unknown>;
+  overall_confidence?: number;
+  model_confidence_raw?: number;
+  display?: Record<string, unknown>;
+  verifier: Record<string, unknown>;
+  evidence: Record<string, unknown>;
+  model: {
+    config_name: string;
+    model_name: string;
+    prompt_version: string;
+    created_at: string;
+  };
+}
+
+export interface GrammarInsightsResponse {
+  query: { surah: number; ayah: number };
+  grammar_insights: VerseGrammarInsights;
+}
+
 export interface SearchTerm {
   lemma_bw: string | null;
   root_bw: string | null;

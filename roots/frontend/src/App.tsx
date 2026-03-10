@@ -12,6 +12,9 @@ import WordAnalysisPage from './components/WordAnalysisPage';
 import NotFound from './components/NotFound';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 
+const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
+const CHROME_EXTENSION_ID = 'jbalbedmilokgefgknhieckdidnlikdm';
+
 function getVerseFromPath(): { surah: number; ayah: number } | null {
   const match = window.location.pathname.match(/^\/verse\/(\d+):(\d+)$/);
   return match ? { surah: parseInt(match[1]), ayah: parseInt(match[2]) } : null;
@@ -43,16 +46,121 @@ function isKnownRoute(): boolean {
   return false;
 }
 
+function isMobileUserAgent(): boolean {
+  const ua = navigator.userAgent || '';
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
+}
+
+async function detectExtensionInstalled(): Promise<boolean> {
+  const chromeObj = (window as unknown as { chrome?: { runtime?: { sendMessage?: Function; lastError?: { message?: string } } } }).chrome;
+  const runtime = chromeObj?.runtime;
+  const sendMessage = runtime?.sendMessage;
+  if (!sendMessage) return false;
+
+  return new Promise<boolean>((resolve) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      resolve(false);
+    }, 700);
+
+    try {
+      sendMessage(
+        CHROME_EXTENSION_ID,
+        { type: 'QURAN_RESEARCH_TOOL_PING' },
+        (response: unknown) => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          const hasError = !!runtime.lastError;
+          const ok =
+            !!response &&
+            typeof response === 'object' &&
+            (
+              (response as { installed?: boolean }).installed === true ||
+              (response as { ok?: boolean }).ok === true ||
+              (response as { type?: string }).type === 'QURAN_RESEARCH_TOOL_PONG'
+            );
+          resolve(!hasError && ok);
+        },
+      );
+    } catch {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(false);
+    }
+  });
+}
+
+function TopExtensionBar() {
+  return (
+    <div className="sticky top-0 z-40 w-full border-b border-stone-300 bg-stone-100">
+      <div className="w-full px-4 py-2 flex justify-center">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-2 text-center">
+          <p className="text-sm text-stone-700">
+            Bring deeper analysis to the Quran without leaving your browser.
+          </p>
+          <a
+            href={CHROME_EXTENSION_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center rounded-md bg-stone-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-700 transition-colors"
+          >
+            Get Chrome Extension
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [extensionInstalled, setExtensionInstalled] = useState(false);
+  const [extensionCheckDone, setExtensionCheckDone] = useState(false);
+  const showTopBar =
+    window.location.pathname !== '/' &&
+    !isMobileUserAgent() &&
+    extensionCheckDone &&
+    !extensionInstalled;
   const wordParams = getWordFromPath();
-  if (wordParams) return <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />;
+  if (wordParams) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        {showTopBar && <TopExtensionBar />}
+        <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />
+      </div>
+    );
+  }
 
   const rootBw = getRootFromPath();
-  if (rootBw) return <RootPage rootBw={rootBw} />;
+  if (rootBw) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        {showTopBar && <TopExtensionBar />}
+        <RootPage rootBw={rootBw} />
+      </div>
+    );
+  }
 
-  if (isExtensionPrivacyPath()) return <ExtensionPrivacyPage />;
+  if (isExtensionPrivacyPath()) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        {showTopBar && <TopExtensionBar />}
+        <ExtensionPrivacyPage />
+      </div>
+    );
+  }
 
-  if (!isKnownRoute()) return <NotFound />;
+  if (!isKnownRoute()) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        {showTopBar && <TopExtensionBar />}
+        <NotFound />
+      </div>
+    );
+  }
   const [data, setData] = useState<VerseData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -61,6 +169,7 @@ export default function App() {
   const [wordSearchLoading, setWordSearchLoading] = useState(false);
   const [wordSearchError, setWordSearchError] = useState('');
   const wordSearchRef = useRef<HTMLDivElement>(null);
+  const [showExtensionSection, setShowExtensionSection] = useState(false);
 
   // 15 famous verses — pick 3 at random on each page load
   const featuredVerses = useMemo<[number, number][]>(() => {
@@ -127,6 +236,26 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    let cancelled = false;
+    const mobile = isMobileUserAgent();
+    if (mobile) {
+      setExtensionInstalled(false);
+      setExtensionCheckDone(true);
+      setShowExtensionSection(false);
+      return;
+    }
+    detectExtensionInstalled().then((installed) => {
+      if (cancelled) return;
+      setExtensionInstalled(installed);
+      setExtensionCheckDone(true);
+      setShowExtensionSection(!installed);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Scroll to word search results when they load
   useEffect(() => {
     if (wordSearchResults && wordSearchRef.current) {
@@ -150,6 +279,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
+    {showTopBar && <TopExtensionBar />}
     <div className="mx-auto max-w-3xl px-4 py-10 flex-1 w-full">
       <header className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-stone-800 mb-2">
@@ -215,21 +345,64 @@ export default function App() {
       )}
 
       {!data && !loading && !error && (
-        <div className="text-center text-stone-400 py-16">
-          <p className="text-lg">Try searching for a verse</p>
-          <p className="text-sm mt-1">e.g.{' '}
-            {featuredVerses.map(([s, a], i) => (
-              <span key={i}>
-                {i > 0 && ', '}
-                <button
-                  className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
-                  onClick={() => handleSearch(s, a)}
+        <div className="text-center text-stone-400 py-16 space-y-8">
+          <div>
+            <p className="text-lg">Try searching for a verse</p>
+            <p className="text-sm mt-1">e.g.{' '}
+              {featuredVerses.map(([s, a], i) => (
+                <span key={i}>
+                  {i > 0 && ', '}
+                  <button
+                    className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                    onClick={() => handleSearch(s, a)}
+                  >
+                    {s}:{a}
+                  </button>
+                </span>
+              ))}
+            </p>
+          </div>
+
+          {showExtensionSection && (
+            <div className="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-left">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="flex-1">
+                  <p className="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Chrome Extension</p>
+                  <h2 className="text-lg font-semibold text-stone-800 mt-1">Quran Research Tool</h2>
+                  <p className="text-sm text-stone-500 mt-1">
+                    Bring deeper analysis to the Quran without leaving your browser.
+                  </p>
+                  <ul className="mt-2 text-sm text-stone-600 list-disc pl-5 space-y-1">
+                    <li>Precise word-level analysis</li>
+                    <li>Semitic cognate and root connections</li>
+                    <li>Contextually related verses across the Quran</li>
+                  </ul>
+                  <a
+                    href={CHROME_EXTENSION_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center mt-3 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
+                  >
+                    Add Chrome Extension
+                  </a>
+                </div>
+
+                <a
+                  href={CHROME_EXTENSION_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="shrink-0 rounded-lg overflow-hidden border border-stone-200 hover:border-emerald-300 transition-colors w-full sm:w-56"
                 >
-                  {s}:{a}
-                </button>
-              </span>
-            ))}
-          </p>
+                  <img
+                    src="/chrome-extension-screenshot.png"
+                    alt="Quran Research Tool Chrome extension screenshot"
+                    className="w-full h-auto block"
+                    loading="lazy"
+                  />
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

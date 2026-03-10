@@ -301,6 +301,72 @@ def _ensure_surah_context_tables():
 _ensure_surah_context_tables()
 
 
+def _ensure_grammar_insight_tables():
+    """Create versioned grammar insight tables if missing."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS grammar_insight_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_name TEXT NOT NULL UNIQUE,
+                model_name TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                methodology_notes TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS verse_grammar_insights (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                config_id INTEGER NOT NULL,
+                overview_text TEXT,
+                insights_json TEXT,
+                signal_score REAL,
+                verifier_report_json TEXT,
+                evidence_json TEXT,
+                raw_response TEXT,
+                model_response_time_ms INTEGER,
+                generation_version TEXT,
+                insights_v7_json TEXT,
+                quality_json TEXT,
+                overall_confidence REAL,
+                model_confidence_raw REAL,
+                display_json TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (config_id) REFERENCES grammar_insight_configs(id),
+                UNIQUE (chapter, verse, config_id)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_grammar_insights_verse
+            ON verse_grammar_insights (chapter, verse, created_at DESC)
+        """)
+        for col, coltype in [
+            ("signal_score", "REAL"),
+            ("verifier_report_json", "TEXT"),
+            ("generation_version", "TEXT"),
+            ("insights_v7_json", "TEXT"),
+            ("quality_json", "TEXT"),
+            ("overall_confidence", "REAL"),
+            ("model_confidence_raw", "REAL"),
+            ("display_json", "TEXT"),
+        ]:
+            try:
+                conn.execute(
+                    f"ALTER TABLE verse_grammar_insights ADD COLUMN {col} {coltype}"
+                )
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_grammar_insight_tables()
+
+
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
 
 ROOT_DISCOUNT = 0.5  # Root-only matches get half credit vs lemma matches
@@ -327,6 +393,38 @@ THEMATIC_GENERIC_PHRASES = (
     "those who oppose",
     "human arrogance",
 )
+GRAMMAR_INSIGHT_MIN_SCORE = 0.68
+
+
+def _is_grammar_insight_displayable(score: float, insights: list[dict]) -> bool:
+    """Two-tier display gate for grammar insights.
+
+    Tier A (full): score >= 0.70 and >=2 substantial insights.
+    Tier B (single): score >= 0.50 and >=1 high-confidence grounded insight.
+    """
+    substantial = 0
+    tier_b_hit = False
+    for it in insights:
+        if not isinstance(it, dict):
+            continue
+        txt = str(it.get("insight", "")).strip()
+        if len(txt) >= 90:
+            substantial += 1
+        conf = float(it.get("confidence", 0.0) or 0.0)
+        mev = it.get("morph_evidence", [])
+        if (
+            conf >= 0.80
+            and isinstance(mev, list)
+            and len(mev) >= 1
+            and len(txt) >= 90
+        ):
+            tier_b_hit = True
+
+    if score >= 0.70 and substantial >= 2:
+        return True
+    if score >= 0.50 and tier_b_hit:
+        return True
+    return False
 
 
 def _thematic_text_is_generic(text: str) -> bool:
@@ -1270,6 +1368,109 @@ def get_ai_translation(surah: int, ayah: int):
             "config_name": row["config_name"],
             "model_name": row["model_name"],
             "created_at": row["created_at"],
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/grammar-insights")
+def get_grammar_insights(surah: int, ayah: int):
+    """Return precomputed grammar insights for a verse."""
+    config_name = request.args.get("config", type=str)
+    include_all = request.args.get("include_all", "0") == "1"
+    conn = get_db()
+    try:
+        params = [surah, ayah]
+        where_config = ""
+        if config_name:
+            where_config = "AND c.config_name = ?"
+            params.append(config_name)
+
+        row = conn.execute(
+            "SELECT gi.overview_text, gi.insights_json, gi.signal_score, gi.verifier_report_json, "
+            "       gi.evidence_json, gi.created_at, gi.generation_version, gi.insights_v7_json, "
+            "       gi.quality_json, gi.overall_confidence, gi.model_confidence_raw, gi.display_json, "
+            "       c.config_name, c.model_name, c.prompt_version "
+            "FROM verse_grammar_insights gi "
+            "JOIN grammar_insight_configs c ON gi.config_id = c.id "
+            "WHERE gi.chapter = ? AND gi.verse = ? "
+            f"{where_config} "
+            "ORDER BY gi.created_at DESC LIMIT 1",
+            tuple(params),
+        ).fetchone()
+
+        if not row:
+            return jsonify({"error": "No grammar insights available"}), 404
+
+        insights = []
+        if row["insights_json"]:
+            try:
+                insights = json.loads(row["insights_json"])
+            except json.JSONDecodeError:
+                insights = []
+        if not isinstance(insights, list):
+            insights = []
+
+        verifier = {}
+        if row["verifier_report_json"]:
+            try:
+                verifier = json.loads(row["verifier_report_json"])
+            except json.JSONDecodeError:
+                verifier = {}
+
+        evidence = {}
+        if row["evidence_json"]:
+            try:
+                evidence = json.loads(row["evidence_json"])
+            except json.JSONDecodeError:
+                evidence = {}
+
+        insights_v7 = []
+        if row["insights_v7_json"]:
+            try:
+                insights_v7 = json.loads(row["insights_v7_json"])
+            except json.JSONDecodeError:
+                insights_v7 = []
+
+        quality = {}
+        if row["quality_json"]:
+            try:
+                quality = json.loads(row["quality_json"])
+            except json.JSONDecodeError:
+                quality = {}
+
+        display = {}
+        if row["display_json"]:
+            try:
+                display = json.loads(row["display_json"])
+            except json.JSONDecodeError:
+                display = {}
+
+        score = float(row["signal_score"] or 0.0)
+        if not include_all and not _is_grammar_insight_displayable(score, insights):
+            return jsonify({"error": "No high-signal grammar insights available"}), 404
+
+        return jsonify({
+            "query": {"surah": surah, "ayah": ayah},
+            "grammar_insights": {
+                "overview": (row["overview_text"] or "").strip(),
+                "insights": insights,
+                "signal_score": score,
+                "generation_version": (row["generation_version"] or "v6"),
+                "insights_v7": insights_v7,
+                "quality": quality,
+                "overall_confidence": float(row["overall_confidence"] or score),
+                "model_confidence_raw": float(row["model_confidence_raw"] or 0.0),
+                "display": display,
+                "verifier": verifier,
+                "evidence": evidence,
+                "model": {
+                    "config_name": row["config_name"],
+                    "model_name": row["model_name"],
+                    "prompt_version": row["prompt_version"],
+                    "created_at": row["created_at"],
+                },
+            },
         })
     finally:
         conn.close()

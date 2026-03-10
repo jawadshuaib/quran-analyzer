@@ -1,8 +1,6 @@
 # Surah Context Pipeline (Qur'an-Only)
 
-This document describes the new offline surah-context system that powers the frontend section:
-
-- `What Has Happened So Far`
+This document describes the offline surah-context system.
 
 It is intentionally Qur'an-only: no tafsir, no hadith, no external historical sources.
 
@@ -100,18 +98,13 @@ File: `roots/frontend/src/components/SurroundingContext.tsx`
 
 Current UX:
 
-- Shows only `What Has Happened So Far`
-- Does not show:
-  - `How XX:XX Fits In`
-  - `Lexical Continuity In This Surah`
-  - `Key Earlier Verses In This Surah`
-- If no surah context exists, the summary card is hidden (no fallback message shown).
+- Shows adjacent surrounding verses only.
+- Surah summary (`What Has Happened So Far`) is currently **disabled in frontend** due quality concerns.
+- If no surrounding verses exist, a simple fallback message is shown.
 
-Verse references in the summary use the same tooltip system as translation notes:
-
-- Component: `VerseRefText`
-- Hovering `21:4` or `21:1-3` shows verse preview tooltip
-- In this section, click-through navigation is disabled; tooltip-only interaction is used
+Note:
+- The backend surah-context pipeline still exists and remains queryable for offline QA.
+- Frontend currently does not render `summary_so_far`.
 
 ## Operational Notes
 
@@ -121,4 +114,3 @@ Verse references in the summary use the same tooltip system as translation notes
   1. Create a new config name and prompt version.
   2. Generate/evaluate.
   3. Switch frontend `config` query parameter.
-

@@ -175,6 +175,8 @@ quran-related/
 │   │   ├── judge_translations_batch.py # Batch API variant for judge
 │   │   ├── surah_context_ai.py        # Qur'an-only surah-so-far context generator
 │   │   ├── SURAH_CONTEXT.md           # Surah-context pipeline docs and operations
+│   │   ├── grammar_insights_ai.py     # Experimental grammar-insights generator (paused)
+│   │   ├── GRAMMAR_INSIGHTS_ARCHIVE.md # Archive notes for paused grammar-insights work
 │   │   ├── run_all_verses.sh          # Shell runner: translate full Quran, auto-resumes
 │   │   ├── run_all_words.sh           # Shell runner: process all words, auto-resumes
 │   │   ├── requirements.txt           # Python dependencies
@@ -690,7 +692,7 @@ python judge_translations_batch.py run --verses "96:1-5"   # test subset
 
 ### Pipeline 4 — Surah Context (`surah_context_ai.py`)
 
-Offline generator for the frontend section **"What Has Happened So Far"**.
+Offline generator for surah-level context synthesis (Qur'an-only).
 
 - Qur'an-only evidence window: current surah from `1..target ayah`
 - Uses local translation + departure notes as internal evidence
@@ -716,9 +718,18 @@ Current production config for frontend:
 
 - `surah-context-quran-only-v2-summary`
 
+Current frontend status:
+
+- Surah summary display (`What Has Happened So Far`) is temporarily disabled due quality concerns.
+- Surrounding context still shows adjacent verses.
+
 Detailed guide:
 
 - `roots/backend/SURAH_CONTEXT.md`
+
+Grammar insights archive and pause rationale:
+
+- `roots/backend/GRAMMAR_INSIGHTS_ARCHIVE.md`
 
 ---
 

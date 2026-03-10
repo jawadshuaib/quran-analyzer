@@ -1,7 +1,8 @@
-import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse } from '../types';
+import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse } from '../types';
 
 const BASE = '/api';
 const SURAH_CONTEXT_CONFIG = 'surah-context-quran-only-v2-summary';
+const GRAMMAR_INSIGHTS_CONFIG = 'grammar-insights-quran-only-v7-unified';
 
 export async function fetchVerse(surah: number, ayah: number): Promise<VerseData> {
   const res = await fetch(`${BASE}/verse/${surah}:${ayah}`);
@@ -56,6 +57,18 @@ export async function fetchSurahContext(
   );
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to load surah context');
+  return res.json();
+}
+
+export async function fetchGrammarInsights(
+  surah: number,
+  ayah: number,
+): Promise<GrammarInsightsResponse | null> {
+  const res = await fetch(
+    `${BASE}/verse/${surah}:${ayah}/grammar-insights?config=${encodeURIComponent(GRAMMAR_INSIGHTS_CONFIG)}`
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load grammar insights');
   return res.json();
 }
 
