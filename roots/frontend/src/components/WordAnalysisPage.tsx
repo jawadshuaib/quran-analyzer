@@ -202,7 +202,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
       {data.ai_meaning && (
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">
-            AI-Derived Meaning
+            Context Derived Meaning
           </h2>
           <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-5 space-y-3">
             <div className="flex items-center gap-2">
@@ -244,10 +244,6 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
             {data.ai_meaning.departure_notes && (
               <CollapsibleSection title="Departure from Conventional Gloss" content={<FormattedNotes text={data.ai_meaning.departure_notes} />} />
             )}
-
-            <div className="text-xs text-violet-400 pt-2 border-t border-violet-100">
-              Model: {data.ai_meaning.model_name} &middot; Config: {data.ai_meaning.config_name} &middot; {data.ai_meaning.created_at}
-            </div>
           </div>
         </section>
       )}
