@@ -37,6 +37,18 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.env.*
+!.env.example
+!.env.production.example
+
+# Secrets / certs
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa
+id_rsa.pub
 
 # Claude
 CLAUDE.md

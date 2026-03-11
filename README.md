@@ -133,12 +133,19 @@ Navigate to **http://localhost:4000** in your browser. Try searching for a verse
 ```bash
 cd extensions/quran-research-tool
 
+# Create production env file
+cp .env.production.example .env.production
+
 # Install dependencies
 npm install
 
 # Build the extension
 npm run build
 ```
+
+If needed, edit `.env.production` before build:
+- `VITE_API_BASE` (e.g. `https://al-nuqta.com/api`)
+- `VITE_FRONTEND_BASE` (e.g. `https://al-nuqta.com`)
 
 Then load the extension in Chrome:
 1. Open `chrome://extensions`
