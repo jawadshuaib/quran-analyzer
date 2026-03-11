@@ -206,9 +206,6 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
           </h2>
           <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-5 space-y-3">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold bg-violet-200 text-violet-700 rounded px-1.5 py-0.5 uppercase">
-                AI
-              </span>
               <span className="text-xl font-semibold text-violet-900">
                 {data.ai_meaning.meaning_short}
               </span>
@@ -353,11 +350,8 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                       {occ.ai_meaning && (
                         <a
                           href={`/word/${occ.surah}:${occ.ayah}/${occ.word_positions[0]}`}
-                          className="inline-flex items-center gap-1 text-violet-600 hover:text-violet-800"
+                          className="inline-flex items-center text-violet-600 hover:text-violet-800"
                         >
-                          <span className="text-[10px] font-bold bg-violet-100 text-violet-600 rounded px-1 py-px uppercase">
-                            AI
-                          </span>
                           <span className="font-medium">{occ.ai_meaning}</span>
                         </a>
                       )}

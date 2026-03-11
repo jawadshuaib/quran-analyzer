@@ -116,6 +116,19 @@ function TopExtensionBar() {
   );
 }
 
+function SiteFooter() {
+  return (
+    <footer className="py-6 border-t border-stone-200 text-center text-xs text-stone-400">
+      Created by{' '}
+      <a href="https://www.linkedin.com/in/jawadshuaib/" target="_blank" rel="noopener noreferrer"
+         className="text-stone-500 hover:text-stone-700 underline">Jawad Shuaib</a>.
+      {' '}Code repo available on{' '}
+      <a href="https://github.com/jawadshuaib/quran-analyzer" target="_blank" rel="noopener noreferrer"
+         className="text-stone-500 hover:text-stone-700 underline">GitHub</a>.
+    </footer>
+  );
+}
+
 export default function App() {
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [extensionCheckDone, setExtensionCheckDone] = useState(false);
@@ -129,7 +142,10 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         {showTopBar && <TopExtensionBar />}
-        <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />
+        <div className="flex-1">
+          <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />
+        </div>
+        <SiteFooter />
       </div>
     );
   }
@@ -407,14 +423,7 @@ export default function App() {
         </div>
       )}
     </div>
-      <footer className="py-6 border-t border-stone-200 text-center text-xs text-stone-400">
-        Created by{' '}
-        <a href="https://www.linkedin.com/in/jawadshuaib/" target="_blank" rel="noopener noreferrer"
-           className="text-stone-500 hover:text-stone-700 underline">Jawad Shuaib</a>.
-        {' '}Code repo available on{' '}
-        <a href="https://github.com/jawadshuaib/quran-analyzer" target="_blank" rel="noopener noreferrer"
-           className="text-stone-500 hover:text-stone-700 underline">GitHub</a>.
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

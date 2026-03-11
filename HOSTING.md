@@ -92,3 +92,47 @@ Verify:
 ## Updating the docker-compose.prod.yml Image Name
 
 The default image in `docker-compose.prod.yml` is `ghcr.io/jawadshuaib/quran-root-analyzer:latest`. If your GitHub username or repo differs, update the `image:` field accordingly.
+
+## Database Sync Script
+
+Use the root-level `sync_db.sh` to push local DB updates to the remote Docker container.
+
+### Full DB replace (Option 2)
+
+```bash
+./sync_db.sh full --server user@host --restart
+```
+
+This now performs:
+1. Upload to a temp DB path
+2. Integrity + required-table checks
+3. Backup current live DB
+4. Replace live DB
+5. Health + endpoint verification
+6. Automatic rollback from backup if verification fails
+
+To also persist it for future CI deploys (by updating `assets/quran.db`), add:
+
+```bash
+./sync_db.sh full --server user@host --restart --persist-seed
+```
+
+To persist and immediately push to `main`:
+
+```bash
+./sync_db.sh full --server user@host --restart --persist-seed --commit-push
+```
+
+### Judge-only merge (Option 3)
+
+```bash
+./sync_db.sh judge-only --server user@host
+```
+
+This mode only syncs `preferred_translation`, `preferred_source`, and `judge_reasoning` in `ai_word_meanings`.
+
+### Optional health overrides
+
+```bash
+./sync_db.sh full --server user@host --health-url http://127.0.0.1:8070/api/surahs --health-timeout 180
+```
