@@ -11,13 +11,25 @@ export default function SearchBar({ onSearch, loading }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const match = input.trim().match(/^(\d{1,3}):(\d{1,3})$/);
+    const match = input.trim().match(/^(\d{1,3})(?::(\d{1,3}))?$/);
     if (!match) {
-      setError('Enter a valid reference like 1:4 or 2:255');
+      setError('Enter a valid reference to a verse');
       return;
     }
+    const surah = parseInt(match[1], 10);
+    const ayah = match[2] ? parseInt(match[2], 10) : 1;
+
+    if (surah < 1 || surah > 114) {
+      setError('Enter a valid surah number (1-114)');
+      return;
+    }
+    if (ayah < 1) {
+      setError('Enter a valid verse number');
+      return;
+    }
+
     setError('');
-    onSearch(parseInt(match[1]), parseInt(match[2]));
+    onSearch(surah, ayah);
   }
 
   return (
@@ -26,7 +38,7 @@ export default function SearchBar({ onSearch, loading }: Props) {
         type="text"
         value={input}
         onChange={(e) => { setInput(e.target.value); setError(''); }}
-        placeholder="Enter verse e.g. 1:4"
+        placeholder="Enter verse e.g. 3:5"
         className="w-48 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-center text-lg
                    placeholder:text-stone-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 focus:outline-none"
       />
