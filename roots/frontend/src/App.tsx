@@ -11,6 +11,7 @@ import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 import NotFound from './components/NotFound';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
+import LearningPage from './components/learning/LearningPage';
 
 const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
 const CHROME_EXTENSION_ID = 'jbalbedmilokgefgknhieckdidnlikdm';
@@ -36,6 +37,10 @@ function isExtensionPrivacyPath(): boolean {
   return /^\/privacy\/extension\/?$/.test(window.location.pathname);
 }
 
+function isLearningPath(): boolean {
+  return /^\/learning(\/root\/.+)?\/?$/.test(window.location.pathname);
+}
+
 function isKnownRoute(): boolean {
   const path = window.location.pathname;
   if (path === '/') return true;
@@ -43,6 +48,7 @@ function isKnownRoute(): boolean {
   if (/^\/verse\/\d+:\d+$/.test(path)) return true;
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
+  if (/^\/learning(\/root\/.+)?\/?$/.test(path)) return true;
   return false;
 }
 
@@ -119,6 +125,10 @@ function TopExtensionBar() {
 function SiteFooter() {
   return (
     <footer className="py-6 border-t border-stone-200 text-center text-xs text-stone-400">
+      <a href="/learning" className="text-emerald-600 hover:text-emerald-800 underline font-medium">
+        Learn Quranic Arabic
+      </a>
+      {' | '}
       Created by{' '}
       <a href="https://www.linkedin.com/in/jawadshuaib/" target="_blank" rel="noopener noreferrer"
          className="text-stone-500 hover:text-stone-700 underline">Jawad Shuaib</a>.
@@ -137,6 +147,15 @@ export default function App() {
     !isMobileUserAgent() &&
     extensionCheckDone &&
     !extensionInstalled;
+  if (isLearningPath()) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <LearningPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
   const wordParams = getWordFromPath();
   if (wordParams) {
     return (

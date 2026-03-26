@@ -6,6 +6,7 @@ import math
 import os
 import re
 import sqlite3
+import time
 from collections import OrderedDict, defaultdict
 from urllib.parse import quote
 
@@ -365,6 +366,74 @@ def _ensure_grammar_insight_tables():
 
 
 _ensure_grammar_insight_tables()
+
+
+def _ensure_learning_tables():
+    """Create learning curriculum tables if they don't exist."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS learning_curriculum (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                root_buckwalter TEXT NOT NULL UNIQUE,
+                root_arabic TEXT NOT NULL,
+                unit_number INTEGER NOT NULL,
+                unit_theme TEXT NOT NULL,
+                priority_score REAL NOT NULL,
+                frequency_rank INTEGER NOT NULL,
+                theological_importance REAL,
+                derivative_richness INTEGER,
+                anchor_verse_chapter INTEGER NOT NULL,
+                anchor_verse_verse INTEGER NOT NULL,
+                root_story TEXT NOT NULL,
+                teaching_notes TEXT,
+                related_roots TEXT,
+                config_id INTEGER,
+                created_at TEXT DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS learning_derivatives (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                root_buckwalter TEXT NOT NULL,
+                lemma_buckwalter TEXT NOT NULL,
+                lemma_arabic TEXT NOT NULL,
+                pos TEXT,
+                verb_form TEXT,
+                frequency INTEGER NOT NULL,
+                meaning_gloss TEXT NOT NULL,
+                semantic_shift TEXT,
+                display_order INTEGER NOT NULL,
+                FOREIGN KEY (root_buckwalter) REFERENCES learning_curriculum(root_buckwalter)
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS learning_context_verses (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                root_buckwalter TEXT NOT NULL,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                target_lemma_buckwalter TEXT,
+                verse_role TEXT NOT NULL,
+                teaching_note TEXT,
+                display_order INTEGER NOT NULL,
+                FOREIGN KEY (root_buckwalter) REFERENCES learning_curriculum(root_buckwalter)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_learning_deriv_root
+            ON learning_derivatives (root_buckwalter)
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_learning_ctx_root
+            ON learning_context_verses (root_buckwalter)
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_learning_tables()
 
 
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
@@ -1862,6 +1931,377 @@ def get_word_detail(surah: int, ayah: int, pos: int):
         conn.close()
 
 
+# --------------- Learning Curriculum API ---------------
+
+
+@app.route("/api/learning/curriculum")
+def get_learning_curriculum():
+    """Return all learning units with their roots (lightweight, no verse text)."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT root_buckwalter, root_arabic, unit_number, unit_theme, "
+            "       priority_score, frequency_rank, theological_importance, "
+            "       derivative_richness, anchor_verse_chapter, anchor_verse_verse, "
+            "       related_roots "
+            "FROM learning_curriculum ORDER BY unit_number, priority_score DESC"
+        ).fetchall()
+        if not rows:
+            return jsonify({"units": []})
+
+        units: dict[int, dict] = {}
+        for r in rows:
+            un = r["unit_number"]
+            if un not in units:
+                units[un] = {
+                    "unit_number": un,
+                    "unit_theme": r["unit_theme"],
+                    "roots": [],
+                }
+            units[un]["roots"].append({
+                "root_buckwalter": r["root_buckwalter"],
+                "root_arabic": r["root_arabic"],
+                "frequency_rank": r["frequency_rank"],
+                "theological_importance": r["theological_importance"],
+                "derivative_richness": r["derivative_richness"],
+                "anchor_verse": f"{r['anchor_verse_chapter']}:{r['anchor_verse_verse']}",
+                "related_roots": json.loads(r["related_roots"]) if r["related_roots"] else [],
+            })
+        return jsonify({"units": list(units.values())})
+    finally:
+        conn.close()
+
+
+@app.route("/api/learning/root/<root_bw>")
+def get_learning_root(root_bw: str):
+    """Return full teaching package for one root."""
+    conn = get_db()
+    try:
+        # Curriculum entry
+        cur = conn.execute(
+            "SELECT * FROM learning_curriculum WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        if not cur:
+            return jsonify({"error": "Root not in curriculum"}), 404
+
+        # Derivatives
+        derivs = conn.execute(
+            "SELECT lemma_buckwalter, lemma_arabic, pos, verb_form, frequency, "
+            "       meaning_gloss, semantic_shift, display_order "
+            "FROM learning_derivatives WHERE root_buckwalter = ? "
+            "ORDER BY display_order",
+            (root_bw,),
+        ).fetchall()
+
+        # Context verses
+        ctx_rows = conn.execute(
+            "SELECT chapter, verse, target_lemma_buckwalter, verse_role, "
+            "       teaching_note, display_order "
+            "FROM learning_context_verses WHERE root_buckwalter = ? "
+            "ORDER BY display_order",
+            (root_bw,),
+        ).fetchall()
+
+        # Build verse data for anchor + context verses
+        all_verse_refs = [(cur["anchor_verse_chapter"], cur["anchor_verse_verse"])]
+        for cv in ctx_rows:
+            all_verse_refs.append((cv["chapter"], cv["verse"]))
+
+        verses_data = {}
+        for ch, v in set(all_verse_refs):
+            v_row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            t_row = _best_translation(conn, ch, v)
+
+            # Get morphology for the verse
+            morph_rows = conn.execute(
+                "SELECT word_pos, form_arabic, lemma_buckwalter, lemma_arabic, "
+                "       root_buckwalter, tag, pos, features_raw "
+                "FROM morphology WHERE chapter = ? AND verse = ? "
+                "ORDER BY word_pos",
+                (ch, v),
+            ).fetchall()
+
+            # Get word glosses
+            glosses = _fetch_word_glosses(conn, ch, v)
+
+            # Get AI word meanings
+            ai_meanings = {}
+            wm_rows = conn.execute(
+                "SELECT word_pos, meaning_short, preferred_translation, preferred_source "
+                "FROM ai_word_meanings WHERE chapter = ? AND verse = ? "
+                "ORDER BY created_at DESC",
+                (ch, v),
+            ).fetchall()
+            seen_pos = set()
+            for wmr in wm_rows:
+                wp = wmr["word_pos"]
+                if wp not in seen_pos:
+                    seen_pos.add(wp)
+                    ai_meanings[wp] = {
+                        "meaning_short": wmr["meaning_short"],
+                        "preferred_translation": wmr["preferred_translation"],
+                        "preferred_source": wmr["preferred_source"],
+                    }
+
+            words = []
+            for mr in morph_rows:
+                wp = mr["word_pos"]
+                w = {
+                    "pos": wp,
+                    "arabic": mr["form_arabic"],
+                    "lemma_bw": mr["lemma_buckwalter"],
+                    "lemma_ar": mr["lemma_arabic"],
+                    "root_bw": mr["root_buckwalter"],
+                    "tag": mr["tag"],
+                    "part_of_speech": mr["pos"],
+                    "gloss": glosses.get(wp, ""),
+                    "is_target": mr["root_buckwalter"] == root_bw,
+                }
+                if wp in ai_meanings:
+                    w["ai_meaning"] = ai_meanings[wp]
+                words.append(w)
+
+            text = v_row["text_uthmani"] if v_row else ""
+            if ch > 1 and v == 1:
+                text = _strip_bismillah(text, ch, v)
+
+            verses_data[f"{ch}:{v}"] = {
+                "chapter": ch,
+                "verse": v,
+                "text_uthmani": text,
+                "translation": t_row or "",
+                "surah_name": _surah_name(ch),
+                "words": words,
+            }
+
+        # Cognate data
+        cognate = _get_cognate(conn, root_bw)
+
+        # Related roots info
+        related_roots_data = []
+        related_bw_list = json.loads(cur["related_roots"]) if cur["related_roots"] else []
+        for rbw in related_bw_list:
+            rel_cur = conn.execute(
+                "SELECT root_arabic, unit_number, unit_theme "
+                "FROM learning_curriculum WHERE root_buckwalter = ?",
+                (rbw,),
+            ).fetchone()
+            if rel_cur:
+                related_roots_data.append({
+                    "root_buckwalter": rbw,
+                    "root_arabic": rel_cur["root_arabic"],
+                    "unit_number": rel_cur["unit_number"],
+                    "unit_theme": rel_cur["unit_theme"],
+                })
+
+        anchor_key = f"{cur['anchor_verse_chapter']}:{cur['anchor_verse_verse']}"
+
+        context_verses = []
+        for cv in ctx_rows:
+            vkey = f"{cv['chapter']}:{cv['verse']}"
+            context_verses.append({
+                "verse_ref": vkey,
+                "verse_data": verses_data.get(vkey),
+                "target_lemma_buckwalter": cv["target_lemma_buckwalter"],
+                "verse_role": cv["verse_role"],
+                "teaching_note": cv["teaching_note"],
+            })
+
+        return jsonify({
+            "root_buckwalter": root_bw,
+            "root_arabic": cur["root_arabic"],
+            "unit_number": cur["unit_number"],
+            "unit_theme": cur["unit_theme"],
+            "theological_importance": cur["theological_importance"],
+            "root_story": cur["root_story"],
+            "teaching_notes": cur["teaching_notes"],
+            "anchor_verse": {
+                "verse_ref": anchor_key,
+                "verse_data": verses_data.get(anchor_key),
+            },
+            "derivatives": [dict(d) for d in derivs],
+            "context_verses": context_verses,
+            "cognate": cognate,
+            "related_roots": related_roots_data,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/learning/root/<root_bw>/review-verses")
+def get_learning_review_verses(root_bw: str):
+    """Return fresh verses for spaced repetition review of a root.
+
+    Query param: exclude=1:1,2:255 (comma-separated verse refs to skip)
+    """
+    exclude_str = request.args.get("exclude", "")
+    exclude_set = set()
+    for ref in exclude_str.split(","):
+        ref = ref.strip()
+        if ":" in ref:
+            parts = ref.split(":")
+            try:
+                exclude_set.add((int(parts[0]), int(parts[1])))
+            except ValueError:
+                pass
+
+    # Get all verses containing this root from the inverted index
+    all_verses = _root_inv.get(root_bw, set())
+    if not all_verses:
+        return jsonify({"verses": []})
+
+    # Filter out excluded verses and sort by IDF distinctiveness
+    candidates = [v for v in all_verses if v not in exclude_set]
+    if not candidates:
+        return jsonify({"verses": []})
+
+    # Rank by how "distinctive" this root is in each verse (fewer total roots = more focused)
+    root_idf = _root_idf.get(root_bw, 1.0)
+
+    def verse_score(key):
+        """Prefer shorter verses where this root is prominent."""
+        vr = _verse_roots.get(key, set())
+        vl = _verse_lemmas.get(key, set())
+        total_content = len(vr) + len(vl)
+        return root_idf / max(total_content, 1)
+
+    candidates.sort(key=verse_score, reverse=True)
+    top = candidates[:5]
+
+    conn = get_db()
+    try:
+        result = []
+        for ch, v in top:
+            v_row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            t_row = _best_translation(conn, ch, v)
+
+            # Find which word positions have this root
+            morph_rows = conn.execute(
+                "SELECT word_pos, form_arabic, lemma_buckwalter, lemma_arabic "
+                "FROM morphology WHERE chapter = ? AND verse = ? AND root_buckwalter = ?",
+                (ch, v, root_bw),
+            ).fetchall()
+            target_positions = [mr["word_pos"] for mr in morph_rows]
+
+            glosses = _fetch_word_glosses(conn, ch, v)
+
+            text = v_row["text_uthmani"] if v_row else ""
+            if ch > 1 and v == 1:
+                text = _strip_bismillah(text, ch, v)
+
+            result.append({
+                "chapter": ch,
+                "verse": v,
+                "surah_name": _surah_name(ch),
+                "text_uthmani": text,
+                "translation": t_row or "",
+                "target_positions": target_positions,
+                "target_words": [
+                    {
+                        "pos": mr["word_pos"],
+                        "arabic": mr["form_arabic"],
+                        "lemma_bw": mr["lemma_buckwalter"],
+                        "lemma_ar": mr["lemma_arabic"],
+                        "gloss": glosses.get(mr["word_pos"], ""),
+                    }
+                    for mr in morph_rows
+                ],
+            })
+        return jsonify({"verses": result})
+    finally:
+        conn.close()
+
+
+@app.route("/api/learning/ask", methods=["POST"])
+def learning_ask():
+    """On-demand LLM explanation for a root concept.
+
+    Expects JSON: { root_bw, question, context? }
+    Calls Ollama and returns the explanation.
+    """
+    data = request.get_json(silent=True)
+    if not data or not data.get("root_bw") or not data.get("question"):
+        return jsonify({"error": "root_bw and question are required"}), 400
+
+    root_bw = data["root_bw"]
+    question = data["question"][:500]  # Limit question length
+
+    conn = get_db()
+    try:
+        # Gather root context
+        cur = conn.execute(
+            "SELECT root_arabic, root_story, teaching_notes "
+            "FROM learning_curriculum WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        if not cur:
+            return jsonify({"error": "Root not in curriculum"}), 404
+
+        # Get derivatives for context
+        derivs = conn.execute(
+            "SELECT lemma_arabic, meaning_gloss, verb_form, frequency "
+            "FROM learning_derivatives WHERE root_buckwalter = ? ORDER BY frequency DESC",
+            (root_bw,),
+        ).fetchall()
+
+        deriv_lines = []
+        for d in derivs:
+            vf = f" (Form {d['verb_form']})" if d["verb_form"] else ""
+            deriv_lines.append(f"- {d['lemma_arabic']}{vf}: {d['meaning_gloss']} ({d['frequency']}x)")
+
+        root_arabic = cur["root_arabic"]
+        root_story = cur["root_story"] or ""
+
+        system_prompt = (
+            "You are a Quranic Arabic teacher explaining root concepts to a learner. "
+            "Be clear, accurate, and engaging. Reference specific Quranic usage when helpful. "
+            "Keep your answer concise (under 200 words)."
+        )
+
+        user_prompt = (
+            f"Root: {root_arabic} ({root_bw})\n\n"
+            f"Root story:\n{root_story[:500]}\n\n"
+            f"Derivatives:\n" + "\n".join(deriv_lines[:10]) + "\n\n"
+            f"Student's question: {question}"
+        )
+
+        # Try to call Ollama
+        OLLAMA_URL = "http://localhost:11434/api/chat"
+        model = "qwen3:14b"
+
+        try:
+            t0 = time.time()
+            resp = requests.post(
+                OLLAMA_URL,
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "stream": False,
+                    "options": {"temperature": 0.3},
+                },
+                timeout=120,
+            )
+            resp.raise_for_status()
+            answer = resp.json()["message"]["content"]
+            elapsed = int((time.time() - t0) * 1000)
+            return jsonify({"answer": answer, "model": model, "elapsed_ms": elapsed})
+        except Exception as e:
+            return jsonify({"error": f"LLM unavailable: {str(e)}"}), 503
+
+    finally:
+        conn.close()
+
+
 # --------------- SEO helpers ---------------
 
 SITE_URL = os.environ.get("SITE_URL", "https://al-nuqta.com")
@@ -1877,6 +2317,8 @@ def _is_known_spa_path(path: str) -> bool:
     if re.match(r"^/root/.+$", path):
         return True
     if re.match(r"^/word/\d+:\d+/\d+$", path):
+        return True
+    if re.match(r"^/learning(/root/.+)?/?$", path):
         return True
     return False
 
@@ -1898,19 +2340,33 @@ def _get_seo_meta(path: str) -> dict:
     if m:
         surah, ayah = int(m.group(1)), int(m.group(2))
         name = _surah_name(surah)
-        # Quick DB lookup for a translation snippet (prefer AI)
         snippet = ""
+        arabic = ""
         try:
             conn = get_db()
             snippet = _best_translation(conn, surah, ayah)[:160]
+            v_row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (surah, ayah),
+            ).fetchone()
+            if v_row:
+                arabic = v_row["text_uthmani"][:80]
             conn.close()
         except Exception:
             pass
+        desc_parts = []
+        if arabic:
+            desc_parts.append(f"\u201c{arabic}\u201d")
+        if snippet:
+            desc_parts.append(snippet)
+        else:
+            desc_parts.append(f"Explore root words, morphology, and etymology of Quran verse {surah}:{ayah}.")
         return {
             "title": f"Surah {name} ({surah}:{ayah}) | The Quran Explorer",
-            "description": snippet or f"Explore the root words, morphology, and etymology of Quran verse {surah}:{ayah} from Surah {name}.",
+            "description": " \u2014 ".join(desc_parts),
             "og_type": "article",
             "canonical": f"{SITE_URL}/verse/{surah}:{ayah}",
+            "robots": "index, follow",
         }
 
     # Root page: /root/rHm
@@ -1920,11 +2376,30 @@ def _get_seo_meta(path: str) -> dict:
         root_arabic = _root_arabic_map.get(root_bw, "")
         count = len(_root_inv.get(root_bw, set()))
         label = f"Root {root_arabic} ({root_bw})" if root_arabic else f"Root {root_bw}"
+        # Try to get lemmas for a richer description
+        lemma_samples = ""
+        try:
+            conn = get_db()
+            rows = conn.execute(
+                "SELECT DISTINCT lemma_arabic FROM morphology "
+                "WHERE root_buckwalter = ? AND lemma_arabic IS NOT NULL LIMIT 5",
+                (root_bw,),
+            ).fetchall()
+            conn.close()
+            if rows:
+                lemma_samples = ", ".join(r["lemma_arabic"] for r in rows)
+        except Exception:
+            pass
+        desc = f"Explore {count} Quran verses containing the root {root_arabic or root_bw}"
+        if lemma_samples:
+            desc += f" \u2014 derivatives include {lemma_samples}"
+        desc += ". Morphological breakdowns, cross-references, and Semitic cognates."
         return {
             "title": f"{label} \u2014 {count} Verses | The Quran Explorer",
-            "description": f"Explore all Quran verses containing the root {root_bw}, with morphological breakdowns and Semitic cognates.",
+            "description": desc[:200],
             "og_type": "article",
             "canonical": f"{SITE_URL}/root/{quote(root_bw)}",
+            "robots": "index, follow",
         }
 
     # Word page: /word/2:255/3
@@ -1932,11 +2407,30 @@ def _get_seo_meta(path: str) -> dict:
     if m:
         surah, ayah, pos = int(m.group(1)), int(m.group(2)), int(m.group(3))
         name = _surah_name(surah)
+        word_arabic = ""
+        word_gloss = ""
+        try:
+            conn = get_db()
+            w_row = conn.execute(
+                "SELECT form_arabic, lemma_arabic FROM morphology "
+                "WHERE chapter = ? AND verse = ? AND word_pos = ? LIMIT 1",
+                (surah, ayah, pos),
+            ).fetchone()
+            if w_row:
+                word_arabic = w_row["form_arabic"] or ""
+            glosses = _fetch_word_glosses(conn, surah, ayah)
+            word_gloss = glosses.get(pos, "")
+            conn.close()
+        except Exception:
+            pass
+        word_label = f"{word_arabic} " if word_arabic else ""
+        gloss_part = f' \u2014 "{word_gloss}"' if word_gloss else ""
         return {
-            "title": f"Word Analysis \u2014 {name} {surah}:{ayah} Word {pos} | The Quran Explorer",
-            "description": f"Detailed morphological analysis of word {pos} in Quran verse {surah}:{ayah} from Surah {name}.",
+            "title": f"{word_label}Word {pos}, {name} {surah}:{ayah} | The Quran Explorer",
+            "description": f"Morphology, etymology, and AI analysis of {word_label}(word {pos}) in Surah {name} {surah}:{ayah}{gloss_part}.",
             "og_type": "article",
             "canonical": f"{SITE_URL}/word/{surah}:{ayah}/{pos}",
+            "robots": "index, follow",
         }
 
     # Home
@@ -1946,6 +2440,45 @@ def _get_seo_meta(path: str) -> dict:
             "description": "Explore the Quran verse by verse \u2014 root words, morphology, Semitic etymology, cross-references, and AI-powered meanings.",
             "og_type": "website",
             "canonical": SITE_URL + "/",
+            "robots": "index, follow",
+        }
+
+    # Learning root detail: /learning/root/<root_bw>
+    m = re.match(r"^/learning/root/(.+?)/?$", path)
+    if m:
+        root_bw = m.group(1)
+        root_arabic = _root_arabic_map.get(root_bw, root_bw)
+        # Get curriculum data for richer meta
+        try:
+            conn = get_db()
+            cur = conn.execute(
+                "SELECT root_story, unit_theme FROM learning_curriculum WHERE root_buckwalter = ?",
+                (root_bw,),
+            ).fetchone()
+            conn.close()
+            theme = cur["unit_theme"] if cur else ""
+            snippet = cur["root_story"][:155] + "..." if cur and cur["root_story"] else ""
+            desc = snippet or f"Learn the Quranic root {root_arabic} ({root_bw}) — its derivatives, usage across verses, and theological significance."
+        except Exception:
+            theme = ""
+            desc = f"Learn the Quranic root {root_arabic} ({root_bw}) — its derivatives, usage across verses, and theological significance."
+        title_theme = f" — {theme}" if theme else ""
+        return {
+            "title": f"Root {root_arabic} ({root_bw}){title_theme} | Learn Quranic Arabic",
+            "description": desc,
+            "og_type": "article",
+            "canonical": f"{SITE_URL}/learning/root/{quote(root_bw)}",
+            "robots": "index, follow",
+        }
+
+    # Learning dashboard: /learning
+    if re.match(r"^/learning/?$", path):
+        return {
+            "title": "Learn Quranic Arabic | Quranic Concept Web",
+            "description": "Learn Arabic vocabulary through the Quran itself. Master 50 root word families across 8 thematic units with spaced repetition, connecting vocabulary to theological understanding.",
+            "og_type": "website",
+            "ld_type": "Course",
+            "canonical": SITE_URL + "/learning",
             "robots": "index, follow",
         }
 
@@ -1972,21 +2505,51 @@ def _build_meta_tags(meta: dict) -> str:
     canonical_e = html.escape(canonical, quote=True)
     robots_e = html.escape(robots, quote=True)
 
+    og_image = html.escape(meta.get("og_image", f"{SITE_URL}/og-default.png"), quote=True)
+
     tags = [
         f'<meta name="description" content="{desc_e}" />',
         f'<meta name="robots" content="{robots_e}" />',
         f'<link rel="canonical" href="{canonical_e}" />',
+        # Open Graph
         f'<meta property="og:title" content="{title_e}" />',
         f'<meta property="og:description" content="{desc_e}" />',
         f'<meta property="og:type" content="{og_type}" />',
         f'<meta property="og:url" content="{canonical_e}" />',
-        f'<meta name="twitter:card" content="summary" />',
+        f'<meta property="og:site_name" content="The Quran Explorer" />',
+        f'<meta property="og:image" content="{og_image}" />',
+        f'<meta property="og:locale" content="en_US" />',
+        # Twitter Card
+        f'<meta name="twitter:card" content="summary_large_image" />',
         f'<meta name="twitter:title" content="{title_e}" />',
         f'<meta name="twitter:description" content="{desc_e}" />',
+        f'<meta name="twitter:image" content="{og_image}" />',
     ]
 
     # JSON-LD structured data
-    if og_type == "website":
+    ld_type = meta.get("ld_type")
+    if ld_type == "Course":
+        ld = {
+            "@context": "https://schema.org",
+            "@type": "Course",
+            "name": title,
+            "description": desc,
+            "url": canonical,
+            "provider": {
+                "@type": "Organization",
+                "name": "The Quran Explorer",
+                "url": SITE_URL,
+            },
+            "educationalLevel": "Beginner",
+            "inLanguage": ["ar", "en"],
+            "isAccessibleForFree": True,
+            "hasCourseInstance": {
+                "@type": "CourseInstance",
+                "courseMode": "online",
+                "courseWorkload": "PT1H",
+            },
+        }
+    elif og_type == "website":
         ld = {
             "@context": "https://schema.org",
             "@type": "WebSite",
@@ -2021,7 +2584,13 @@ def _build_meta_tags(meta: dict) -> str:
 
 @app.route("/robots.txt")
 def robots_txt():
-    body = f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n"
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /api/\n"
+        "Disallow: /tools/\n"
+        f"Sitemap: {SITE_URL}/sitemap.xml\n"
+    )
     return Response(body, mimetype="text/plain")
 
 
@@ -2056,6 +2625,14 @@ def sitemap_xml():
         # All root pages (from in-memory IDF engine)
         for root_bw in sorted(_root_arabic_map.keys()):
             _add(f"{SITE_URL}/root/{quote(root_bw)}", "0.6")
+
+        # Learning pages
+        _add(SITE_URL + "/learning", "0.8")
+        cur_roots = conn.execute(
+            "SELECT root_buckwalter FROM learning_curriculum ORDER BY unit_number, priority_score DESC"
+        ).fetchall()
+        for cr in cur_roots:
+            _add(f"{SITE_URL}/learning/root/{quote(cr['root_buckwalter'])}", "0.7")
     finally:
         conn.close()
 
@@ -2104,6 +2681,22 @@ if SERVE_STATIC:
 
         # Inject SEO meta tags
         req_path = "/" + path if path else "/"
+
+        # Unknown paths: return a minimal 404 with noindex — do NOT serve
+        # the full SPA, which search engines may treat as a soft 404.
+        if not _is_known_spa_path(req_path):
+            not_found_html = (
+                '<!DOCTYPE html><html><head>'
+                '<meta charset="utf-8">'
+                '<meta name="robots" content="noindex, nofollow">'
+                '<title>Page Not Found | The Quran Explorer</title>'
+                '</head><body>'
+                '<h1>404 — Page Not Found</h1>'
+                f'<p>Go to <a href="/">The Quran Explorer</a></p>'
+                '</body></html>'
+            )
+            return Response(not_found_html, mimetype="text/html", status=404)
+
         meta = _get_seo_meta(req_path)
         meta_tags = _build_meta_tags(meta)
 
@@ -2114,8 +2707,7 @@ if SERVE_STATIC:
             f"<title>{html.escape(meta['title'])}</title>",
         )
 
-        status = 200 if _is_known_spa_path(req_path) else 404
-        return Response(html_doc, mimetype="text/html", status=status)
+        return Response(html_doc, mimetype="text/html", status=200)
 
 
 if __name__ == "__main__":
