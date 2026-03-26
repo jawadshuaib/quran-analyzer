@@ -3,12 +3,11 @@ import type { LearningVerseData } from '../../types/learning';
 
 interface Props {
   verse: LearningVerseData;
-  targetRootBw: string;
   teachingNote?: string;
   showExploreLink?: boolean;
 }
 
-export default function VerseCard({ verse, targetRootBw, teachingNote, showExploreLink = true }: Props) {
+export default function VerseCard({ verse, teachingNote, showExploreLink = true }: Props) {
   const [flipped, setFlipped] = useState(false);
 
   const targetWords = verse.words.filter((w) => w.is_target);

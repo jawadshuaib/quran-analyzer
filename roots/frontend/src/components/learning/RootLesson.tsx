@@ -209,8 +209,7 @@ export default function RootLesson({ rootBw, onBack }: Props) {
               <VerseCard
                 key={i}
                 verse={cv.verse_data!}
-                targetRootBw={rootBw}
-                teachingNote={cv.teaching_note}
+                               teachingNote={cv.teaching_note}
               />
             ))
           ) : (
