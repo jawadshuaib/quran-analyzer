@@ -1,4 +1,4 @@
-import type { LearningProgress, RootProgress, ReviewItem } from '../types/learning';
+import type { LearningProgress, RootProgress } from '../types/learning';
 import { createInitialRootProgress, nextDueDate, isMastered } from './spaced-repetition';
 
 const STORAGE_KEY = 'quranExplorer.learning';
