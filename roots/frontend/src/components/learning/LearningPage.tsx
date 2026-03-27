@@ -55,19 +55,19 @@ export default function LearningPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8 flex-1 w-full">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 py-10 flex-1 w-full">
       {/* Page header */}
       {view === 'dashboard' && (
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-stone-800 mb-2">
-            Quranic Concept Web
+        <div className="text-center mb-10">
+          <h1 className="text-3xl sm:text-4xl font-bold text-stone-800 mb-3 tracking-tight">
+            Learn Quranic Arabic
           </h1>
-          <p className="text-sm text-stone-500 max-w-lg mx-auto">
-            Learn Arabic vocabulary through the Quran itself. Each root connects to a family
-            of words used across different verses, building both vocabulary and theological understanding.
+          <p className="text-base text-stone-500 max-w-2xl mx-auto leading-relaxed">
+            Master vocabulary through the Quran itself. Each root unlocks a family
+            of words used across different verses — building both vocabulary and deeper understanding.
           </p>
-          <div className="mt-3">
-            <a href="/" className="text-xs text-stone-400 hover:text-stone-600 underline">
+          <div className="mt-4">
+            <a href="/" className="text-sm text-stone-400 hover:text-stone-600 underline">
               Back to Explorer
             </a>
           </div>

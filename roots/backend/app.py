@@ -2016,14 +2016,33 @@ def get_learning_root(root_bw: str):
             ).fetchone()
             t_row = _best_translation(conn, ch, v)
 
-            # Get morphology for the verse
+            text = v_row["text_uthmani"] if v_row else ""
+            if ch > 1 and v == 1:
+                text = _strip_bismillah(text, ch, v)
+
+            # Split clean Uthmani text into words for display
+            uthmani_words = text.split() if text else []
+
+            # Get morphology for the verse — aggregate segments per word_pos
             morph_rows = conn.execute(
                 "SELECT word_pos, form_arabic, lemma_buckwalter, lemma_arabic, "
                 "       root_buckwalter, tag, pos, features_raw "
                 "FROM morphology WHERE chapter = ? AND verse = ? "
-                "ORDER BY word_pos",
+                "ORDER BY word_pos, segment",
                 (ch, v),
             ).fetchall()
+
+            # Aggregate: pick the most informative segment per word_pos
+            # (the one with a root/lemma, or the first one as fallback)
+            word_meta = {}
+            for mr in morph_rows:
+                wp = mr["word_pos"]
+                if wp not in word_meta:
+                    word_meta[wp] = mr
+                elif mr["root_buckwalter"] and not word_meta[wp]["root_buckwalter"]:
+                    word_meta[wp] = mr
+                elif mr["lemma_buckwalter"] and not word_meta[wp]["lemma_buckwalter"]:
+                    word_meta[wp] = mr
 
             # Get word glosses
             glosses = _fetch_word_glosses(conn, ch, v)
@@ -2048,11 +2067,13 @@ def get_learning_root(root_bw: str):
                     }
 
             words = []
-            for mr in morph_rows:
-                wp = mr["word_pos"]
+            for wp in sorted(word_meta.keys()):
+                mr = word_meta[wp]
+                # Use clean Uthmani text for display, fall back to form_arabic
+                display_arabic = uthmani_words[wp - 1] if wp <= len(uthmani_words) else mr["form_arabic"]
                 w = {
                     "pos": wp,
-                    "arabic": mr["form_arabic"],
+                    "arabic": display_arabic,
                     "lemma_bw": mr["lemma_buckwalter"],
                     "lemma_ar": mr["lemma_arabic"],
                     "root_bw": mr["root_buckwalter"],
@@ -2064,10 +2085,6 @@ def get_learning_root(root_bw: str):
                 if wp in ai_meanings:
                     w["ai_meaning"] = ai_meanings[wp]
                 words.append(w)
-
-            text = v_row["text_uthmani"] if v_row else ""
-            if ch > 1 and v == 1:
-                text = _strip_bismillah(text, ch, v)
 
             verses_data[f"{ch}:{v}"] = {
                 "chapter": ch,
@@ -2182,19 +2199,27 @@ def get_learning_review_verses(root_bw: str):
             ).fetchone()
             t_row = _best_translation(conn, ch, v)
 
+            text = v_row["text_uthmani"] if v_row else ""
+            if ch > 1 and v == 1:
+                text = _strip_bismillah(text, ch, v)
+            uthmani_words = text.split() if text else []
+
             # Find which word positions have this root
             morph_rows = conn.execute(
                 "SELECT word_pos, form_arabic, lemma_buckwalter, lemma_arabic "
                 "FROM morphology WHERE chapter = ? AND verse = ? AND root_buckwalter = ?",
                 (ch, v, root_bw),
             ).fetchall()
-            target_positions = [mr["word_pos"] for mr in morph_rows]
+            # Deduplicate by word_pos (multiple segments per word)
+            seen_wp = set()
+            unique_morph = []
+            for mr in morph_rows:
+                if mr["word_pos"] not in seen_wp:
+                    seen_wp.add(mr["word_pos"])
+                    unique_morph.append(mr)
+            target_positions = [mr["word_pos"] for mr in unique_morph]
 
             glosses = _fetch_word_glosses(conn, ch, v)
-
-            text = v_row["text_uthmani"] if v_row else ""
-            if ch > 1 and v == 1:
-                text = _strip_bismillah(text, ch, v)
 
             result.append({
                 "chapter": ch,
@@ -2206,12 +2231,14 @@ def get_learning_review_verses(root_bw: str):
                 "target_words": [
                     {
                         "pos": mr["word_pos"],
-                        "arabic": mr["form_arabic"],
+                        "arabic": uthmani_words[mr["word_pos"] - 1]
+                            if mr["word_pos"] <= len(uthmani_words)
+                            else mr["form_arabic"],
                         "lemma_bw": mr["lemma_buckwalter"],
                         "lemma_ar": mr["lemma_arabic"],
                         "gloss": glosses.get(mr["word_pos"], ""),
                     }
-                    for mr in morph_rows
+                    for mr in unique_morph
                 ],
             })
         return jsonify({"verses": result})

@@ -34,7 +34,7 @@ export default function AskPanel({ rootBw, rootArabic }: Props) {
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full text-center py-3 text-sm text-violet-600 hover:text-violet-800 hover:bg-violet-50 rounded-lg border border-violet-200 transition-colors"
+        className="w-full text-center py-4 text-base text-violet-600 hover:text-violet-800 hover:bg-violet-50 rounded-xl border border-violet-200 transition-all font-medium"
       >
         Ask a question about this root
       </button>
@@ -42,29 +42,29 @@ export default function AskPanel({ rootBw, rootArabic }: Props) {
   }
 
   return (
-    <div className="rounded-xl border border-violet-200 bg-violet-50 p-5">
-      <h3 className="text-sm font-semibold text-violet-700 uppercase tracking-wide mb-3">
+    <div className="rounded-2xl border border-violet-200 bg-violet-50 p-6 sm:p-8">
+      <h3 className="text-sm font-semibold text-violet-700 uppercase tracking-wider mb-4">
         Ask about{' '}
-        <span className="font-arabic text-base" dir="rtl">{rootArabic}</span>
+        <span className="font-arabic text-lg" dir="rtl">{rootArabic}</span>
       </h3>
 
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-3 mb-4">
         <input
           type="text"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAsk()}
           placeholder="e.g., Why does the Quran use Form IV here?"
-          className="flex-1 rounded-lg border border-violet-300 bg-white px-3 py-2 text-sm text-stone-700 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
+          className="flex-1 rounded-xl border border-violet-300 bg-white px-4 py-3 text-base text-stone-700 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-violet-400"
           disabled={loading}
         />
         <button
           onClick={() => handleAsk()}
           disabled={loading || !question.trim()}
-          className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors"
+          className="px-5 py-3 rounded-xl bg-violet-600 text-white text-base font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors"
         >
           {loading ? (
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
           ) : (
             'Ask'
           )}
@@ -73,7 +73,7 @@ export default function AskPanel({ rootBw, rootArabic }: Props) {
 
       {/* Suggestion chips */}
       {!answer && !loading && !error && (
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="flex flex-wrap gap-2 mb-4">
           {[
             'What is the core meaning of this root?',
             'How do the derivatives relate to each other?',
@@ -82,7 +82,7 @@ export default function AskPanel({ rootBw, rootArabic }: Props) {
             <button
               key={q}
               onClick={() => handleAsk(q)}
-              className="text-xs px-2.5 py-1 rounded-full border border-violet-200 text-violet-600 hover:bg-violet-100 transition-colors"
+              className="text-sm px-3 py-1.5 rounded-lg border border-violet-200 text-violet-600 hover:bg-violet-100 transition-colors"
             >
               {q}
             </button>
@@ -91,13 +91,13 @@ export default function AskPanel({ rootBw, rootArabic }: Props) {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-base text-red-700">
           {error}
         </div>
       )}
 
       {answer && (
-        <div className="rounded-lg bg-white border border-violet-200 p-4 text-sm text-stone-700 leading-relaxed whitespace-pre-line">
+        <div className="rounded-xl bg-white border border-violet-200 p-5 text-base text-stone-700 leading-relaxed whitespace-pre-line">
           {answer}
         </div>
       )}

@@ -27,15 +27,15 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+      <div className="flex items-center justify-center py-24">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-red-700 text-base">
         {error}
       </div>
     );
@@ -43,8 +43,8 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
 
   if (units.length === 0) {
     return (
-      <div className="rounded-lg border border-stone-200 bg-white p-8 text-center">
-        <p className="text-stone-500">No curriculum data yet. Run the curriculum generation script first.</p>
+      <div className="rounded-xl border border-stone-200 bg-white p-10 text-center">
+        <p className="text-stone-500 text-base">No curriculum data yet. Run the curriculum generation script first.</p>
       </div>
     );
   }
@@ -62,58 +62,69 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
 
   const totalLearned = progress.stats.totalRootsLearned;
   const totalRoots = units.reduce((acc, u) => acc + u.roots.length, 0);
+  const progressPct = totalRoots > 0 ? Math.round((totalLearned / totalRoots) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Stats bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center gap-6">
-          <div>
-            <p className="text-2xl font-bold text-emerald-700">{totalLearned}</p>
-            <p className="text-xs text-stone-400">Roots Learned</p>
+    <div className="space-y-8">
+      {/* Hero stats card */}
+      <div className="rounded-2xl border border-stone-200 bg-white p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="flex items-center gap-8 sm:gap-10">
+            <div className="text-center">
+              <p className="text-4xl font-bold text-emerald-600">{totalLearned}</p>
+              <p className="text-sm text-stone-400 mt-1">Roots Learned</p>
+            </div>
+            <div className="w-px h-10 bg-stone-200 hidden sm:block" />
+            <div className="text-center">
+              <p className="text-4xl font-bold text-stone-700">{progress.stats.currentStreak}</p>
+              <p className="text-sm text-stone-400 mt-1">Day Streak</p>
+            </div>
+            <div className="w-px h-10 bg-stone-200 hidden sm:block" />
+            <div className="text-center">
+              <p className="text-4xl font-bold text-stone-400">{totalRoots}</p>
+              <p className="text-sm text-stone-400 mt-1">Total Roots</p>
+            </div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-stone-700">{progress.stats.currentStreak}</p>
-            <p className="text-xs text-stone-400">Day Streak</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-stone-700">{totalRoots}</p>
-            <p className="text-xs text-stone-400">Total Roots</p>
+          <div className="flex gap-3 w-full sm:w-auto">
+            {dueCount > 0 && (
+              <button
+                onClick={onStartReview}
+                className="relative flex-1 sm:flex-none px-6 py-3 rounded-xl bg-amber-500 text-white text-base font-semibold hover:bg-amber-600 transition-colors shadow-sm"
+              >
+                Review Due
+                <span className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow">
+                  {dueCount}
+                </span>
+              </button>
+            )}
+            {nextRoot && (
+              <button
+                onClick={() => onSelectRoot(nextRoot.root_buckwalter)}
+                className="flex-1 sm:flex-none px-6 py-3 rounded-xl bg-emerald-600 text-white text-base font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
+              >
+                Continue Learning
+              </button>
+            )}
           </div>
         </div>
-        <div className="flex gap-3">
-          {dueCount > 0 && (
-            <button
-              onClick={onStartReview}
-              className="relative px-5 py-2.5 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors"
-            >
-              Review Due
-              <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-                {dueCount}
-              </span>
-            </button>
-          )}
-          {nextRoot && (
-            <button
-              onClick={() => onSelectRoot(nextRoot.root_buckwalter)}
-              className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
-            >
-              Continue Learning
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Progress bar */}
-      <div className="rounded-full bg-stone-200 h-2 overflow-hidden">
-        <div
-          className="h-full bg-emerald-500 transition-all duration-500"
-          style={{ width: `${totalRoots > 0 ? (totalLearned / totalRoots) * 100 : 0}%` }}
-        />
+        {/* Progress bar */}
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-stone-500">Overall progress</span>
+            <span className="text-sm font-medium text-stone-600">{progressPct}%</span>
+          </div>
+          <div className="rounded-full bg-stone-100 h-3 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 rounded-full transition-all duration-700"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Unit grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {units.map((unit) => {
           const rootBws = unit.roots.map((r) => r.root_buckwalter);
           const mastery = getUnitMastery(progress, rootBws);
@@ -121,26 +132,32 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
           return (
             <div
               key={unit.unit_number}
-              className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition-colors hover:border-emerald-200"
+              className="rounded-2xl border border-stone-200 bg-white p-5 sm:p-6 shadow-sm transition-all hover:border-emerald-300 hover:shadow-md"
             >
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-stone-700">
-                  <span className="text-xs text-stone-400 mr-1">Unit {unit.unit_number}</span>
-                  {unit.unit_theme}
-                </h3>
-                <span className="text-xs text-stone-400">{mastery}%</span>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+                    Unit {unit.unit_number}
+                  </span>
+                  <h3 className="text-lg font-semibold text-stone-800 mt-0.5">
+                    {unit.unit_theme}
+                  </h3>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg font-bold text-stone-600">{mastery}%</span>
+                </div>
               </div>
 
               {/* Mastery bar */}
-              <div className="rounded-full bg-stone-100 h-1.5 mb-3 overflow-hidden">
+              <div className="rounded-full bg-stone-100 h-2 mb-4 overflow-hidden">
                 <div
-                  className="h-full bg-emerald-400 transition-all duration-300"
+                  className="h-full bg-emerald-400 rounded-full transition-all duration-500"
                   style={{ width: `${mastery}%` }}
                 />
               </div>
 
               {/* Root pills */}
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {unit.roots.map((root) => {
                   const rp = progress.rootProgress[root.root_buckwalter];
                   const status = rp?.status || 'unseen';
@@ -149,20 +166,20 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
                     <button
                       key={root.root_buckwalter}
                       onClick={() => onSelectRoot(root.root_buckwalter)}
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-sm border transition-colors ${
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium border transition-all ${
                         status === 'mastered'
-                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800'
+                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm'
                           : status === 'reviewing'
                             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                             : status === 'learning'
                               ? 'border-amber-200 bg-amber-50 text-amber-700'
-                              : 'border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:bg-emerald-50'
+                              : 'border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-sm'
                       }`}
-                      title={`${root.root_arabic} (${root.root_buckwalter}) — ${root.frequency_rank}th most common`}
+                      title={`${root.root_arabic} (${root.root_buckwalter})`}
                     >
-                      <span className="font-arabic text-xs" dir="rtl">{root.root_arabic}</span>
+                      <span className="font-arabic text-base" dir="rtl">{root.root_arabic}</span>
                       {status === 'mastered' && (
-                        <svg className="w-3 h-3 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                         </svg>
                       )}

@@ -14,6 +14,14 @@ interface Props {
 
 type Step = 'anchor' | 'derivatives' | 'story' | 'context' | 'assess';
 
+const STEP_LABELS: Record<Step, string> = {
+  anchor: 'Verse',
+  derivatives: 'Word Family',
+  story: 'Root Story',
+  context: 'Context',
+  assess: 'Self-Assess',
+};
+
 export default function RootLesson({ rootBw, onBack }: Props) {
   const [data, setData] = useState<LearningRootDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,17 +42,17 @@ export default function RootLesson({ rootBw, onBack }: Props) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+      <div className="flex items-center justify-center py-24">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700 text-base">
         {error || 'Failed to load lesson'}
-        <button onClick={onBack} className="block mx-auto mt-3 text-sm text-stone-600 underline">
+        <button onClick={onBack} className="block mx-auto mt-4 text-sm text-stone-600 underline">
           Back to dashboard
         </button>
       </div>
@@ -79,33 +87,33 @@ export default function RootLesson({ rootBw, onBack }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
-          className="text-sm text-stone-500 hover:text-stone-700 flex items-center gap-1"
+          className="text-sm text-stone-500 hover:text-stone-700 flex items-center gap-1.5 font-medium"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Dashboard
         </button>
-        <div className="text-xs text-stone-400">
+        <div className="text-sm text-stone-400">
           Unit {data.unit_number}: {data.unit_theme}
         </div>
       </div>
 
       {/* Root title */}
       <div className="text-center">
-        <h2 className="font-arabic text-4xl text-stone-800 font-bold" dir="rtl">
+        <h2 className="font-arabic text-5xl sm:text-6xl text-stone-800 font-bold" dir="rtl">
           {data.root_arabic}
         </h2>
-        <p className="text-sm text-stone-500 mt-1">
-          Root: {data.root_buckwalter}
+        <p className="text-sm text-stone-500 mt-2">
+          Root: <span className="font-mono">{data.root_buckwalter}</span>
           {data.theological_importance >= 0.7 && (
-            <span className="ml-2 inline-flex items-center gap-1 text-xs text-violet-600">
-              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+            <span className="ml-3 inline-flex items-center gap-1 text-sm text-violet-600 font-medium">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
               Theologically important
@@ -114,21 +122,22 @@ export default function RootLesson({ rootBw, onBack }: Props) {
         </p>
       </div>
 
-      {/* Step indicator */}
-      <div className="flex items-center justify-center gap-2">
+      {/* Step tabs */}
+      <div className="flex items-center justify-center gap-1 bg-stone-100 rounded-xl p-1">
         {steps.map((s, i) => (
           <button
             key={s}
             onClick={() => setStep(s)}
-            className={`w-2.5 h-2.5 rounded-full transition-colors ${
+            className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all ${
               i === currentIdx
-                ? 'bg-emerald-500 scale-125'
+                ? 'bg-white text-emerald-700 shadow-sm'
                 : i < currentIdx
-                  ? 'bg-emerald-300'
-                  : 'bg-stone-200'
+                  ? 'text-emerald-600 hover:bg-white/50'
+                  : 'text-stone-400 hover:bg-white/50'
             }`}
-            title={s}
-          />
+          >
+            {STEP_LABELS[s]}
+          </button>
         ))}
       </div>
 
@@ -136,13 +145,13 @@ export default function RootLesson({ rootBw, onBack }: Props) {
       {step === 'anchor' && (
         anchorVerse ? (
           <div className="space-y-4">
-            <p className="text-sm text-stone-600 text-center">
+            <p className="text-base text-stone-600 text-center">
               Read the verse below, then tap to reveal its meaning.
             </p>
             <VerseCard verse={anchorVerse} />
           </div>
         ) : (
-          <p className="text-sm text-stone-400 text-center py-8">
+          <p className="text-base text-stone-400 text-center py-12">
             Anchor verse data unavailable. Tap Next to continue.
           </p>
         )
@@ -157,31 +166,31 @@ export default function RootLesson({ rootBw, onBack }: Props) {
       )}
 
       {step === 'story' && (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-violet-200 bg-violet-50 p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-violet-700 uppercase tracking-wide">
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-violet-200 bg-violet-50 p-6 sm:p-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-violet-700 uppercase tracking-wider">
                 Root Story
               </h3>
-              <span className="text-xs text-violet-400">AI-generated</span>
+              <span className="text-xs text-violet-400 bg-violet-100 px-2 py-0.5 rounded-full">AI-generated</span>
             </div>
-            <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">
+            <div className="text-base text-stone-700 leading-relaxed whitespace-pre-line">
               {data.root_story}
             </div>
           </div>
 
           {data.cognate && data.cognate.derivatives.length > 0 && (
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-              <h3 className="text-sm font-semibold text-indigo-700 uppercase tracking-wide mb-3">
+            <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 sm:p-8">
+              <h3 className="text-sm font-semibold text-indigo-700 uppercase tracking-wider mb-4">
                 Semitic Cognates
               </h3>
-              <p className="text-xs text-stone-500 mb-2">
+              <p className="text-sm text-stone-500 mb-3">
                 The same root appears in other Semitic languages:
               </p>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {data.cognate.derivatives.slice(0, 6).map((d, i) => (
-                  <div key={i} className="flex items-baseline gap-2 text-sm">
-                    <span className="text-xs font-medium text-indigo-600 min-w-[70px]">
+                  <div key={i} className="flex items-baseline gap-3 text-base">
+                    <span className="text-sm font-semibold text-indigo-600 min-w-[80px]">
                       {d.language}
                     </span>
                     <span className="text-stone-700">{d.displayed_text || d.word}</span>
@@ -198,8 +207,8 @@ export default function RootLesson({ rootBw, onBack }: Props) {
       )}
 
       {step === 'context' && (
-        <div className="space-y-4">
-          <p className="text-sm text-stone-600 text-center">
+        <div className="space-y-5">
+          <p className="text-base text-stone-600 text-center">
             See how the same root is used in different contexts:
           </p>
           {contextVerses.length > 0 ? (
@@ -207,11 +216,11 @@ export default function RootLesson({ rootBw, onBack }: Props) {
               <VerseCard
                 key={i}
                 verse={cv.verse_data!}
-                               teachingNote={cv.teaching_note}
+                teachingNote={cv.teaching_note}
               />
             ))
           ) : (
-            <p className="text-sm text-stone-400 text-center py-8">
+            <p className="text-base text-stone-400 text-center py-12">
               No additional context verses available for this root.
             </p>
           )}
@@ -219,31 +228,31 @@ export default function RootLesson({ rootBw, onBack }: Props) {
       )}
 
       {step === 'assess' && (
-        <div className="rounded-xl border border-stone-200 bg-white p-6 text-center shadow-sm">
+        <div className="rounded-2xl border border-stone-200 bg-white p-8 sm:p-10 text-center shadow-sm">
           {!assessed ? (
             <>
-              <h3 className="text-lg font-semibold text-stone-800 mb-2">
+              <h3 className="text-xl font-semibold text-stone-800 mb-2">
                 How well do you know this root?
               </h3>
-              <p className="text-sm text-stone-500 mb-6">
+              <p className="text-base text-stone-500 mb-8">
                 Be honest — this helps schedule your reviews.
               </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
                   onClick={() => handleAssessment('new')}
-                  className="px-5 py-2.5 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors"
+                  className="px-6 py-3 rounded-xl border-2 border-red-200 bg-red-50 text-red-700 text-base font-semibold hover:bg-red-100 hover:border-red-300 transition-all"
                 >
                   New to me
                 </button>
                 <button
                   onClick={() => handleAssessment('recognized')}
-                  className="px-5 py-2.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium hover:bg-amber-100 transition-colors"
+                  className="px-6 py-3 rounded-xl border-2 border-amber-200 bg-amber-50 text-amber-700 text-base font-semibold hover:bg-amber-100 hover:border-amber-300 transition-all"
                 >
                   Recognized it
                 </button>
                 <button
                   onClick={() => handleAssessment('knew')}
-                  className="px-5 py-2.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium hover:bg-emerald-100 transition-colors"
+                  className="px-6 py-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 text-base font-semibold hover:bg-emerald-100 hover:border-emerald-300 transition-all"
                 >
                   Knew it well
                 </button>
@@ -251,28 +260,28 @@ export default function RootLesson({ rootBw, onBack }: Props) {
             </>
           ) : (
             <>
-              <div className="text-3xl mb-3">&#10003;</div>
-              <h3 className="text-lg font-semibold text-emerald-700 mb-2">
+              <div className="text-4xl mb-4">&#10003;</div>
+              <h3 className="text-xl font-semibold text-emerald-700 mb-2">
                 Root learned!
               </h3>
-              <p className="text-sm text-stone-500 mb-4">
+              <p className="text-base text-stone-500 mb-6">
                 This root will come up for review based on your rating.
               </p>
 
               {/* Related roots */}
               {data.related_roots.length > 0 && (
-                <div className="border-t border-stone-200 pt-4 mt-4">
-                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-3">
+                <div className="border-t border-stone-200 pt-6 mt-6">
+                  <p className="text-sm font-semibold text-stone-500 uppercase tracking-wider mb-4">
                     Connected Concepts
                   </p>
-                  <div className="flex flex-wrap gap-2 justify-center">
+                  <div className="flex flex-wrap gap-2.5 justify-center">
                     {data.related_roots.map((rr) => (
                       <a
                         key={rr.root_buckwalter}
                         href={`/learning/root/${encodeURIComponent(rr.root_buckwalter)}`}
-                        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 border border-emerald-200 bg-emerald-50 text-sm text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        className="inline-flex items-center gap-2 rounded-xl px-4 py-2 border border-emerald-200 bg-emerald-50 text-base text-emerald-700 hover:bg-emerald-100 transition-colors"
                       >
-                        <span className="font-arabic" dir="rtl">{rr.root_arabic}</span>
+                        <span className="font-arabic text-lg" dir="rtl">{rr.root_arabic}</span>
                         <span className="text-xs text-stone-400">{rr.unit_theme}</span>
                       </a>
                     ))}
@@ -282,7 +291,7 @@ export default function RootLesson({ rootBw, onBack }: Props) {
 
               <button
                 onClick={onBack}
-                className="mt-6 px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+                className="mt-8 px-8 py-3 rounded-xl bg-emerald-600 text-white text-base font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
               >
                 Back to Dashboard
               </button>
@@ -293,20 +302,20 @@ export default function RootLesson({ rootBw, onBack }: Props) {
 
       {/* Navigation */}
       {!assessed && (
-        <div className="flex justify-between">
+        <div className="flex justify-between pt-2">
           <button
             onClick={prevStep}
             disabled={currentIdx === 0}
-            className="px-4 py-2 rounded-lg text-sm text-stone-600 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2.5 rounded-xl text-base text-stone-600 hover:bg-stone-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-medium"
           >
-            Previous
+            &larr; Previous
           </button>
           <button
             onClick={nextStep}
             disabled={currentIdx === steps.length - 1}
-            className="px-4 py-2 rounded-lg text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2.5 rounded-xl text-base bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors font-medium shadow-sm"
           >
-            {currentIdx === steps.length - 2 ? 'Self-Assess' : 'Next'}
+            {currentIdx === steps.length - 2 ? 'Self-Assess' : 'Next'} &rarr;
           </button>
         </div>
       )}

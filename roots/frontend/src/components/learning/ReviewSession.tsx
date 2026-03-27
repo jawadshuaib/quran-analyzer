@@ -87,19 +87,19 @@ export default function ReviewSession({ onBack }: Props) {
 
   if (sessionComplete) {
     return (
-      <div className="rounded-xl border border-stone-200 bg-white p-8 text-center shadow-sm">
-        <div className="text-4xl mb-3">&#127881;</div>
-        <h2 className="text-xl font-semibold text-stone-800 mb-2">
+      <div className="rounded-2xl border border-stone-200 bg-white p-10 sm:p-12 text-center shadow-sm">
+        <div className="text-5xl mb-4">&#127881;</div>
+        <h2 className="text-2xl font-bold text-stone-800 mb-3">
           {reviewCount > 0 ? 'Review Complete!' : 'Nothing to Review'}
         </h2>
-        <p className="text-sm text-stone-500 mb-6">
+        <p className="text-base text-stone-500 mb-8">
           {reviewCount > 0
             ? `You reviewed ${reviewCount} root${reviewCount > 1 ? 's' : ''} today.`
             : 'All your roots are up to date. Come back later!'}
         </p>
         <button
           onClick={onBack}
-          className="px-6 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors"
+          className="px-8 py-3 rounded-xl bg-emerald-600 text-white text-base font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
         >
           Back to Dashboard
         </button>
@@ -109,9 +109,9 @@ export default function ReviewSession({ onBack }: Props) {
 
   if (error) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700 text-base">
         {error}
-        <button onClick={onBack} className="block mx-auto mt-3 text-sm text-stone-600 underline">
+        <button onClick={onBack} className="block mx-auto mt-4 text-sm text-stone-600 underline">
           Back to dashboard
         </button>
       </div>
@@ -120,28 +120,28 @@ export default function ReviewSession({ onBack }: Props) {
 
   if (loading || !verse) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+      <div className="flex items-center justify-center py-24">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="text-sm text-stone-500 hover:text-stone-700 flex items-center gap-1">
+        <button onClick={onBack} className="text-sm text-stone-500 hover:text-stone-700 flex items-center gap-1.5 font-medium">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Exit Review
         </button>
-        <span className="text-xs text-stone-400">
+        <span className="text-sm text-stone-400 font-medium">
           {currentIdx + 1} of {dueRoots.length}
         </span>
       </div>
 
-      <p className="text-sm text-stone-600 text-center">
+      <p className="text-base text-stone-600 text-center">
         Can you identify the highlighted root word?
       </p>
 
@@ -152,44 +152,44 @@ export default function ReviewSession({ onBack }: Props) {
             flipped ? 'rotate-y-180' : ''
           }`}
           onClick={() => !rated && setFlipped(!flipped)}
-          style={{ minHeight: '180px' }}
+          style={{ minHeight: '220px' }}
         >
           {/* Front */}
-          <div className="absolute inset-0 backface-hidden rounded-xl border border-stone-200 bg-white p-6 shadow-sm flex flex-col items-center justify-center">
-            <p className="text-xs text-stone-400 mb-3">
+          <div className="absolute inset-0 backface-hidden rounded-2xl border border-stone-200 bg-white p-6 sm:p-8 shadow-sm flex flex-col items-center justify-center">
+            <p className="text-sm text-stone-400 mb-4">
               {verse.surah_name} {verse.chapter}:{verse.verse}
             </p>
-            <p className="font-arabic text-2xl sm:text-3xl leading-loose text-stone-800 text-center" dir="rtl" lang="ar">
+            <p className="font-arabic text-2xl sm:text-3xl md:text-4xl leading-[2.2] text-stone-800 text-center" dir="rtl" lang="ar">
               {verse.text_uthmani.split(' ').map((word, i) => {
                 const isTarget = verse.target_positions.includes(i + 1);
                 return (
                   <span key={i}>
                     {i > 0 && ' '}
-                    <span className={isTarget ? 'text-emerald-700 font-bold underline decoration-emerald-300 decoration-2 underline-offset-4' : ''}>
+                    <span className={isTarget ? 'text-emerald-700 font-bold underline decoration-emerald-300 decoration-2 underline-offset-8' : ''}>
                       {word}
                     </span>
                   </span>
                 );
               })}
             </p>
-            <p className="text-xs text-stone-400 mt-4">Tap to reveal</p>
+            <p className="text-sm text-stone-400 mt-5">Tap to reveal</p>
           </div>
 
           {/* Back */}
-          <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm overflow-y-auto">
-            <p className="text-xs text-stone-400 mb-2">
+          <div className="absolute inset-0 backface-hidden rotate-y-180 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 sm:p-8 shadow-sm overflow-y-auto">
+            <p className="text-sm text-stone-400 mb-3">
               {verse.surah_name} {verse.chapter}:{verse.verse}
             </p>
-            <p className="text-stone-700 text-sm leading-relaxed mb-4">
+            <p className="text-stone-700 text-base leading-relaxed mb-5">
               {verse.translation}
             </p>
             {verse.target_words.map((tw) => (
-              <div key={tw.pos} className="mb-2">
-                <span className="font-arabic text-lg text-emerald-800" dir="rtl">{tw.arabic}</span>
-                <span className="text-stone-500 mx-2">—</span>
-                <span className="text-stone-700 text-sm">{tw.gloss}</span>
+              <div key={tw.pos} className="mb-3 flex items-baseline gap-2 flex-wrap">
+                <span className="font-arabic text-xl text-emerald-800 font-bold" dir="rtl">{tw.arabic}</span>
+                <span className="text-stone-400">—</span>
+                <span className="text-stone-700 text-base font-medium">{tw.gloss}</span>
                 {tw.lemma_ar && (
-                  <span className="ml-2 text-xs text-stone-400">
+                  <span className="text-sm text-stone-400">
                     (lemma: <span className="font-arabic" dir="rtl">{tw.lemma_ar}</span>)
                   </span>
                 )}
@@ -201,30 +201,30 @@ export default function ReviewSession({ onBack }: Props) {
 
       {/* Rating buttons (only show after flip) */}
       {flipped && !rated && (
-        <div className="text-center space-y-3">
-          <p className="text-sm text-stone-600">How did you do?</p>
-          <div className="flex gap-3 justify-center">
+        <div className="text-center space-y-4">
+          <p className="text-base text-stone-600">How did you do?</p>
+          <div className="flex gap-3 justify-center flex-wrap">
             <button
               onClick={() => handleRate('again')}
-              className="px-4 py-2 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors"
+              className="px-5 py-2.5 rounded-xl border-2 border-red-200 bg-red-50 text-red-700 text-base font-semibold hover:bg-red-100 hover:border-red-300 transition-all"
             >
               Again
             </button>
             <button
               onClick={() => handleRate('hard')}
-              className="px-4 py-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium hover:bg-amber-100 transition-colors"
+              className="px-5 py-2.5 rounded-xl border-2 border-amber-200 bg-amber-50 text-amber-700 text-base font-semibold hover:bg-amber-100 hover:border-amber-300 transition-all"
             >
               Hard
             </button>
             <button
               onClick={() => handleRate('good')}
-              className="px-4 py-2 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-sm font-medium hover:bg-emerald-100 transition-colors"
+              className="px-5 py-2.5 rounded-xl border-2 border-emerald-200 bg-emerald-50 text-emerald-700 text-base font-semibold hover:bg-emerald-100 hover:border-emerald-300 transition-all"
             >
               Good
             </button>
             <button
               onClick={() => handleRate('easy')}
-              className="px-4 py-2 rounded-lg border border-sky-200 bg-sky-50 text-sky-700 text-sm font-medium hover:bg-sky-100 transition-colors"
+              className="px-5 py-2.5 rounded-xl border-2 border-sky-200 bg-sky-50 text-sky-700 text-base font-semibold hover:bg-sky-100 hover:border-sky-300 transition-all"
             >
               Easy
             </button>
@@ -233,7 +233,7 @@ export default function ReviewSession({ onBack }: Props) {
       )}
 
       {rated && (
-        <p className="text-center text-sm text-emerald-600 animate-pulse">
+        <p className="text-center text-base text-emerald-600 animate-pulse font-medium">
           Loading next...
         </p>
       )}
