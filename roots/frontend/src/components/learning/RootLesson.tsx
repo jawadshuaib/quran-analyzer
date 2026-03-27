@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { LearningRootDetail } from '../../types/learning';
 import { fetchLearningRoot } from '../../api/learning';
-import { loadProgress, saveProgress, markRootLearned, getRootProgress } from '../../utils/learning-storage';
+import { loadProgress, saveProgress, markRootLearned } from '../../utils/learning-storage';
 import { selfAssessmentToQuality } from '../../utils/spaced-repetition';
 import VerseCard from './VerseCard';
 import DerivativeMap from './DerivativeMap';
@@ -20,7 +20,6 @@ export default function RootLesson({ rootBw, onBack }: Props) {
   const [error, setError] = useState('');
   const [step, setStep] = useState<Step>('anchor');
   const [assessed, setAssessed] = useState(false);
-  const [showStory, setShowStory] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,7 +51,6 @@ export default function RootLesson({ rootBw, onBack }: Props) {
     );
   }
 
-  const progress = getRootProgress(loadProgress(), rootBw);
   const anchorVerse = data.anchor_verse.verse_data;
   const contextVerses = data.context_verses.filter((cv) => cv.verse_role !== 'anchor' && cv.verse_data);
 
@@ -141,7 +139,7 @@ export default function RootLesson({ rootBw, onBack }: Props) {
             <p className="text-sm text-stone-600 text-center">
               Read the verse below, then tap to reveal its meaning.
             </p>
-            <VerseCard verse={anchorVerse} targetRootBw={rootBw} />
+            <VerseCard verse={anchorVerse} />
           </div>
         ) : (
           <p className="text-sm text-stone-400 text-center py-8">

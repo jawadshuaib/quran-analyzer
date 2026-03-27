@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { ReviewVerseData } from '../../types/learning';
+import type { ReviewVerseData, LearningProgress } from '../../types/learning';
 import { fetchReviewVerses } from '../../api/learning';
 import { loadProgress, saveProgress, updateReviewResult, getRootProgress } from '../../utils/learning-storage';
 import { updateSM2, isDue, reviewRatingToQuality } from '../../utils/spaced-repetition';
@@ -125,8 +125,6 @@ export default function ReviewSession({ onBack }: Props) {
       </div>
     );
   }
-
-  const rootBw = dueRoots[currentIdx];
 
   return (
     <div className="space-y-6">

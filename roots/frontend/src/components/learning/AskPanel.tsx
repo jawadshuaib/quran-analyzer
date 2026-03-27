@@ -59,7 +59,7 @@ export default function AskPanel({ rootBw, rootArabic }: Props) {
           disabled={loading}
         />
         <button
-          onClick={handleAsk}
+          onClick={() => handleAsk()}
           disabled={loading || !question.trim()}
           className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 transition-colors"
         >
