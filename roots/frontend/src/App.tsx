@@ -12,6 +12,7 @@ import WordAnalysisPage from './components/WordAnalysisPage';
 import NotFound from './components/NotFound';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 import LearningPage from './components/learning/LearningPage';
+import LearningPromo from './components/LearningPromo';
 
 const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
 const CHROME_EXTENSION_ID = 'jbalbedmilokgefgknhieckdidnlikdm';
@@ -125,14 +126,10 @@ function TopExtensionBar() {
 function SiteFooter() {
   return (
     <footer className="py-6 border-t border-stone-200 text-center text-xs text-stone-400">
-      <a href="/learning" className="text-emerald-600 hover:text-emerald-800 underline font-medium">
-        Learn Quranic Arabic
-      </a>
-      {' | '}
       Created by{' '}
       <a href="https://www.linkedin.com/in/jawadshuaib/" target="_blank" rel="noopener noreferrer"
          className="text-stone-500 hover:text-stone-700 underline">Jawad Shuaib</a>.
-      {' '}Code repo available on{' '}
+      {' '}Code on{' '}
       <a href="https://github.com/jawadshuaib/quran-analyzer" target="_blank" rel="noopener noreferrer"
          className="text-stone-500 hover:text-stone-700 underline">GitHub</a>.
     </footer>
@@ -321,7 +318,7 @@ export default function App() {
           <a href="/" className="hover:opacity-80 transition-opacity">The Quran Explorer</a>
         </h1>
         <p className="text-stone-500">
-          Root words, morphology, Semitic etymology, and AI-powered meanings
+          Root words, morphology, Semitic etymology, and context based translation
         </p>
       </header>
 
@@ -439,6 +436,8 @@ export default function App() {
               </div>
             </div>
           )}
+
+          <LearningPromo />
         </div>
       )}
     </div>
