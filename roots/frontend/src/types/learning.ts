@@ -14,6 +14,9 @@ export interface LearningRootSummary {
   derivative_richness: number;
   anchor_verse: string; // "S:A"
   related_roots: string[];
+  mnemonic_image_url: string | null;
+  mnemonic_caption: string | null;
+  top_derivatives: { lemma_arabic: string; meaning_gloss: string }[];
 }
 
 export interface CurriculumResponse {
@@ -95,6 +98,8 @@ export interface LearningRootDetail {
   theological_importance: number;
   root_story: string;
   teaching_notes: string;
+  mnemonic_image_url: string | null;
+  mnemonic_caption: string | null;
   anchor_verse: {
     verse_ref: string;
     verse_data: LearningVerseData | null;

@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import LearningDashboard from './LearningDashboard';
 import RootLesson from './RootLesson';
 import ReviewSession from './ReviewSession';
+import MnemonicSheet from './MnemonicSheet';
 
-type View = 'dashboard' | 'lesson' | 'review';
+type View = 'dashboard' | 'lesson' | 'review' | 'mnemonic-sheet';
 
 function getLearningRootFromPath(): string | null {
   const match = window.location.pathname.match(/^\/learning\/root\/(.+?)(?:\/)?$/);
@@ -14,12 +15,14 @@ export default function LearningPage() {
   const [view, setView] = useState<View>('dashboard');
   const [activeRootBw, setActiveRootBw] = useState<string | null>(null);
 
-  // Handle deep links to /learning/root/<rootBw>
+  // Handle deep links to /learning/root/<rootBw> and /learning/mnemonic-sheet
   useEffect(() => {
     const rootBw = getLearningRootFromPath();
     if (rootBw) {
       setActiveRootBw(rootBw);
       setView('lesson');
+    } else if (window.location.pathname === '/learning/mnemonic-sheet') {
+      setView('mnemonic-sheet');
     }
 
     function handlePopState() {
@@ -27,6 +30,9 @@ export default function LearningPage() {
       if (rootBw) {
         setActiveRootBw(rootBw);
         setView('lesson');
+      } else if (window.location.pathname === '/learning/mnemonic-sheet') {
+        setView('mnemonic-sheet');
+        setActiveRootBw(null);
       } else if (window.location.pathname === '/learning') {
         setView('dashboard');
         setActiveRootBw(null);
@@ -87,6 +93,10 @@ export default function LearningPage() {
 
       {view === 'review' && (
         <ReviewSession onBack={handleBack} />
+      )}
+
+      {view === 'mnemonic-sheet' && (
+        <MnemonicSheet onBack={handleBack} onSelectRoot={handleSelectRoot} />
       )}
     </div>
   );

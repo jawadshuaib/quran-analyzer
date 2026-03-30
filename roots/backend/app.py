@@ -389,6 +389,8 @@ def _ensure_learning_tables():
                 teaching_notes TEXT,
                 related_roots TEXT,
                 config_id INTEGER,
+                mnemonic_image_path TEXT,
+                mnemonic_caption TEXT,
                 created_at TEXT DEFAULT (datetime('now'))
             )
         """)
@@ -434,6 +436,26 @@ def _ensure_learning_tables():
 
 
 _ensure_learning_tables()
+
+
+def _ensure_mnemonic_columns():
+    """Add mnemonic_image_path and mnemonic_caption columns if missing."""
+    conn = get_db()
+    try:
+        for col, coltype in [
+            ("mnemonic_image_path", "TEXT"),
+            ("mnemonic_caption", "TEXT"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE learning_curriculum ADD COLUMN {col} {coltype}")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass  # column already exists
+    finally:
+        conn.close()
+
+
+_ensure_mnemonic_columns()
 
 
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
@@ -1943,11 +1965,30 @@ def get_learning_curriculum():
             "SELECT root_buckwalter, root_arabic, unit_number, unit_theme, "
             "       priority_score, frequency_rank, theological_importance, "
             "       derivative_richness, anchor_verse_chapter, anchor_verse_verse, "
-            "       related_roots "
+            "       related_roots, mnemonic_image_path, mnemonic_caption "
             "FROM learning_curriculum ORDER BY unit_number, priority_score DESC"
         ).fetchall()
         if not rows:
             return jsonify({"units": []})
+
+        # Pre-fetch top 2 derivatives per root (by frequency) for the mnemonic sheet
+        all_root_bws = [r["root_buckwalter"] for r in rows]
+        top_derivs: dict[str, list] = {bw: [] for bw in all_root_bws}
+        if all_root_bws:
+            placeholders = ",".join("?" for _ in all_root_bws)
+            deriv_rows = conn.execute(
+                "SELECT root_buckwalter, lemma_arabic, meaning_gloss, frequency "
+                f"FROM learning_derivatives WHERE root_buckwalter IN ({placeholders}) "
+                "ORDER BY root_buckwalter, frequency DESC",
+                all_root_bws,
+            ).fetchall()
+            for dr in deriv_rows:
+                bw = dr["root_buckwalter"]
+                if len(top_derivs[bw]) < 2:
+                    top_derivs[bw].append({
+                        "lemma_arabic": dr["lemma_arabic"],
+                        "meaning_gloss": dr["meaning_gloss"],
+                    })
 
         units: dict[int, dict] = {}
         for r in rows:
@@ -1966,6 +2007,12 @@ def get_learning_curriculum():
                 "derivative_richness": r["derivative_richness"],
                 "anchor_verse": f"{r['anchor_verse_chapter']}:{r['anchor_verse_verse']}",
                 "related_roots": json.loads(r["related_roots"]) if r["related_roots"] else [],
+                "mnemonic_image_url": (
+                    f"/api/learning/root/{r['root_buckwalter']}/mnemonic-image"
+                    if r["mnemonic_image_path"] else None
+                ),
+                "mnemonic_caption": r["mnemonic_caption"] or None,
+                "top_derivatives": top_derivs.get(r["root_buckwalter"], []),
             })
         return jsonify({"units": list(units.values())})
     finally:
@@ -2128,6 +2175,11 @@ def get_learning_root(root_bw: str):
                 "teaching_note": cv["teaching_note"],
             })
 
+        mnemonic_url = (
+            f"/api/learning/root/{root_bw}/mnemonic-image"
+            if cur["mnemonic_image_path"] else None
+        )
+
         return jsonify({
             "root_buckwalter": root_bw,
             "root_arabic": cur["root_arabic"],
@@ -2136,6 +2188,8 @@ def get_learning_root(root_bw: str):
             "theological_importance": cur["theological_importance"],
             "root_story": cur["root_story"],
             "teaching_notes": cur["teaching_notes"],
+            "mnemonic_image_url": mnemonic_url,
+            "mnemonic_caption": cur["mnemonic_caption"] if cur["mnemonic_caption"] else None,
             "anchor_verse": {
                 "verse_ref": anchor_key,
                 "verse_data": verses_data.get(anchor_key),
@@ -2147,6 +2201,35 @@ def get_learning_root(root_bw: str):
         })
     finally:
         conn.close()
+
+
+@app.route("/api/learning/root/<root_bw>/mnemonic-image")
+def get_mnemonic_image(root_bw: str):
+    """Serve the mnemonic image for a root word."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT mnemonic_image_path FROM learning_curriculum WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row or not row["mnemonic_image_path"]:
+        return jsonify({"error": "No mnemonic image for this root"}), 404
+
+    # mnemonic_image_path is stored relative to the backend dir
+    backend_dir = os.path.dirname(os.path.abspath(__file__))
+    img_abs = os.path.join(backend_dir, row["mnemonic_image_path"])
+    img_dir = os.path.dirname(img_abs)
+    img_file = os.path.basename(img_abs)
+
+    if not os.path.isfile(img_abs):
+        return jsonify({"error": "Image file not found on disk"}), 404
+
+    response = send_from_directory(img_dir, img_file, mimetype="image/webp")
+    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return response
 
 
 @app.route("/api/learning/root/<root_bw>/review-verses")

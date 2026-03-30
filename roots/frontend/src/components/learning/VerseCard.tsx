@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { LearningVerseData } from '../../types/learning';
 
 interface Props {
   verse: LearningVerseData;
   teachingNote?: string;
   showExploreLink?: boolean;
+  onFlip?: (flipped: boolean) => void;
+  flipTrigger?: number;
 }
 
-export default function VerseCard({ verse, teachingNote, showExploreLink = true }: Props) {
+export default function VerseCard({ verse, teachingNote, showExploreLink = true, onFlip, flipTrigger }: Props) {
   const [flipped, setFlipped] = useState(false);
+
+  // External flip trigger — toggle flip when trigger changes
+  useEffect(() => {
+    if (flipTrigger !== undefined && flipTrigger > 0) {
+      setFlipped((prev) => { const next = !prev; onFlip?.(next); return next; });
+    }
+  }, [flipTrigger]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const targetWords = verse.words.filter((w) => w.is_target);
 
@@ -18,7 +27,7 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true 
         className={`relative w-full transition-transform duration-500 transform-style-preserve-3d cursor-pointer ${
           flipped ? 'rotate-y-180' : ''
         }`}
-        onClick={() => setFlipped(!flipped)}
+        onClick={() => { const next = !flipped; setFlipped(next); onFlip?.(next); }}
         style={{ minHeight: '220px' }}
       >
         {/* Front: Arabic verse */}
@@ -56,10 +65,37 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true 
             {verse.surah_name} {verse.chapter}:{verse.verse}
           </p>
 
+          {/* Word-by-word (compact) — shown first */}
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
+              Word by Word
+            </p>
+            <div className="flex flex-wrap gap-x-5 gap-y-2" dir="rtl">
+              {verse.words.map((w) => (
+                <div key={w.pos} className="text-center">
+                  <p className={`font-arabic text-base ${w.is_target ? 'text-emerald-700 font-bold' : 'text-stone-700'}`}>
+                    {w.arabic}
+                  </p>
+                  <p className="text-xs text-stone-400 mt-0.5" dir="ltr">
+                    {w.ai_meaning?.preferred_translation
+                      || w.ai_meaning?.meaning_short
+                      || w.gloss
+                      || ''}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Full translation */}
-          <p className="text-stone-700 text-base leading-relaxed mb-5">
-            {verse.translation}
-          </p>
+          <div className="border-t border-emerald-200 pt-4 mb-4">
+            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+              Translation
+            </p>
+            <p className="text-stone-700 text-base leading-relaxed">
+              {verse.translation}
+            </p>
+          </div>
 
           {/* Target word(s) highlighted */}
           {targetWords.length > 0 && (
@@ -88,28 +124,6 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true 
               ))}
             </div>
           )}
-
-          {/* Word-by-word (compact) */}
-          <div className="border-t border-emerald-200 pt-4 mt-3">
-            <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
-              Word by Word
-            </p>
-            <div className="flex flex-wrap gap-x-5 gap-y-2" dir="rtl">
-              {verse.words.map((w) => (
-                <div key={w.pos} className="text-center">
-                  <p className={`font-arabic text-base ${w.is_target ? 'text-emerald-700 font-bold' : 'text-stone-700'}`}>
-                    {w.arabic}
-                  </p>
-                  <p className="text-xs text-stone-400 mt-0.5" dir="ltr">
-                    {w.ai_meaning?.preferred_translation
-                      || w.ai_meaning?.meaning_short
-                      || w.gloss
-                      || ''}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
 
           {teachingNote && (
             <p className="text-sm text-emerald-600 italic mt-4 border-t border-emerald-200 pt-3">

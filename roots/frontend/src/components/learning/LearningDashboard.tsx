@@ -64,6 +64,16 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
   const totalRoots = units.reduce((acc, u) => acc + u.roots.length, 0);
   const progressPct = totalRoots > 0 ? Math.round((totalLearned / totalRoots) * 100) : 0;
 
+  // Collect mnemonic images for collage
+  const mnemonicRoots = units
+    .flatMap((u) => u.roots)
+    .filter((r) => r.mnemonic_image_url);
+
+  function navigateToMnemonicSheet() {
+    window.history.pushState(null, '', '/learning/mnemonic-sheet');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
+
   return (
     <div className="space-y-8">
       {/* Hero stats card */}
@@ -85,7 +95,7 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
               <p className="text-sm text-stone-400 mt-1">Total Roots</p>
             </div>
           </div>
-          <div className="flex gap-3 w-full sm:w-auto">
+          <div className="flex gap-3 w-full sm:w-auto flex-wrap">
             {dueCount > 0 && (
               <button
                 onClick={onStartReview}
@@ -123,6 +133,48 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
         </div>
       </div>
 
+      {/* Mnemonic collage section */}
+      {mnemonicRoots.length > 0 && (
+        <div className="rounded-2xl border border-stone-200 bg-white overflow-hidden shadow-sm">
+          <div className="relative">
+            {/* Image collage grid */}
+            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10">
+              {mnemonicRoots.slice(0, 20).map((root) => (
+                <div key={root.root_buckwalter} className="aspect-square overflow-hidden">
+                  <img
+                    src={root.mnemonic_image_url!}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Gradient overlay with text */}
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/30 to-transparent flex flex-col items-center justify-end p-5 sm:p-6 cursor-pointer"
+              onClick={navigateToMnemonicSheet}
+            >
+              <h3 className="text-white text-lg sm:text-xl font-bold mb-1 drop-shadow-lg">
+                Visual Mnemonic Sheet
+              </h3>
+              <p className="text-white/80 text-xs sm:text-sm text-center max-w-md mb-3 drop-shadow">
+                {mnemonicRoots.length} root illustrations — study, print, and memorize
+              </p>
+              <button
+                onClick={navigateToMnemonicSheet}
+                className="px-5 py-2.5 rounded-xl bg-white/95 text-stone-800 text-sm font-semibold hover:bg-white transition-colors shadow-lg flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                View Full Sheet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Unit grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         {units.map((unit) => {
@@ -156,8 +208,8 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
                 />
               </div>
 
-              {/* Root pills */}
-              <div className="flex flex-wrap gap-2">
+              {/* Root cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {unit.roots.map((root) => {
                   const rp = progress.rootProgress[root.root_buckwalter];
                   const status = rp?.status || 'unseen';
@@ -166,23 +218,36 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
                     <button
                       key={root.root_buckwalter}
                       onClick={() => onSelectRoot(root.root_buckwalter)}
-                      className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium border transition-all ${
+                      className={`group flex flex-col items-center rounded-xl border overflow-hidden transition-all hover:shadow-md ${
                         status === 'mastered'
-                          ? 'border-emerald-300 bg-emerald-100 text-emerald-800 shadow-sm'
+                          ? 'border-emerald-300 bg-emerald-50'
                           : status === 'reviewing'
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            ? 'border-emerald-200 bg-emerald-50/50'
                             : status === 'learning'
-                              ? 'border-amber-200 bg-amber-50 text-amber-700'
-                              : 'border-stone-200 bg-white text-stone-600 hover:border-emerald-300 hover:bg-emerald-50 hover:shadow-sm'
+                              ? 'border-amber-200 bg-amber-50/50'
+                              : 'border-stone-200 bg-white hover:border-emerald-300'
                       }`}
                       title={`${root.root_arabic} (${root.root_buckwalter})`}
                     >
-                      <span className="font-arabic text-base" dir="rtl">{root.root_arabic}</span>
-                      {status === 'mastered' && (
-                        <svg className="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
+                      {root.mnemonic_image_url ? (
+                        <img
+                          src={root.mnemonic_image_url}
+                          alt=""
+                          className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full aspect-[4/3] bg-stone-100 flex items-center justify-center">
+                          <span className="font-arabic text-3xl text-stone-300" dir="rtl">{root.root_arabic}</span>
+                        </div>
                       )}
+                      <div className="flex items-center gap-1.5 px-2 py-2">
+                        <span className="font-arabic text-lg font-medium text-stone-800" dir="rtl">{root.root_arabic}</span>
+                        {status === 'mastered' && (
+                          <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
                     </button>
                   );
                 })}

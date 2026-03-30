@@ -28,6 +28,8 @@ export default function RootLesson({ rootBw, onBack }: Props) {
   const [error, setError] = useState('');
   const [step, setStep] = useState<Step>('anchor');
   const [assessed, setAssessed] = useState(false);
+  const [anchorFlipped, setAnchorFlipped] = useState(false);
+  const [flipTrigger, setFlipTrigger] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,6 +108,15 @@ export default function RootLesson({ rootBw, onBack }: Props) {
 
       {/* Root title */}
       <div className="text-center">
+        {data.mnemonic_image_url && (
+          <div className="flex justify-center mb-3">
+            <img
+              src={data.mnemonic_image_url}
+              alt={`Mnemonic for ${data.root_arabic}`}
+              className="w-16 h-16 rounded-full object-cover border-2 border-emerald-200 shadow-sm"
+            />
+          </div>
+        )}
         <h2 className="font-arabic text-5xl sm:text-6xl text-stone-800 font-bold" dir="rtl">
           {data.root_arabic}
         </h2>
@@ -144,11 +155,31 @@ export default function RootLesson({ rootBw, onBack }: Props) {
       {/* Step content */}
       {step === 'anchor' && (
         anchorVerse ? (
-          <div className="space-y-4">
+          <div className="space-y-5">
+            {data.mnemonic_image_url && (
+              <div className="flex flex-col items-center gap-2">
+                <img
+                  src={data.mnemonic_image_url}
+                  alt={`Mnemonic image for ${data.root_arabic}`}
+                  className="w-full max-w-sm rounded-2xl object-cover shadow-md border border-stone-100 cursor-pointer hover:shadow-lg transition-shadow"
+                  style={{ maxHeight: '280px' }}
+                  onClick={() => setFlipTrigger((n) => n + 1)}
+                />
+                {anchorFlipped && data.mnemonic_caption ? (
+                  <p className="text-sm text-stone-600 italic text-center max-w-sm leading-relaxed animate-in fade-in duration-500">
+                    {data.mnemonic_caption}
+                  </p>
+                ) : !anchorFlipped ? (
+                  <p className="text-xs text-stone-400 italic">
+                    Tap the image or verse to reveal meaning
+                  </p>
+                ) : null}
+              </div>
+            )}
             <p className="text-base text-stone-600 text-center">
-              Read the verse below, then tap to reveal its meaning.
+              {anchorFlipped ? 'Now connect the image above to the meaning below.' : 'Read the verse below, then tap to reveal its meaning.'}
             </p>
-            <VerseCard verse={anchorVerse} />
+            <VerseCard verse={anchorVerse} onFlip={setAnchorFlipped} flipTrigger={flipTrigger} />
           </div>
         ) : (
           <p className="text-base text-stone-400 text-center py-12">

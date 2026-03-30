@@ -19,6 +19,8 @@ export default function ReviewSession({ onBack }: Props) {
   const [rated, setRated] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(false);
   const [reviewCount, setReviewCount] = useState(0);
+  const [hintUsed, setHintUsed] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
   // Find due roots on mount
   useEffect(() => {
@@ -43,6 +45,8 @@ export default function ReviewSession({ onBack }: Props) {
     setLoading(true);
     setFlipped(false);
     setRated(false);
+    setHintUsed(false);
+    setShowHint(false);
     setError('');
 
     fetchReviewVerses(rootBw, exclude)
@@ -64,7 +68,9 @@ export default function ReviewSession({ onBack }: Props) {
 
   function handleRate(label: 'again' | 'hard' | 'good' | 'easy') {
     const rootBw = dueRoots[currentIdx];
-    const quality = reviewRatingToQuality(label);
+    // If the learner used the hint, cap their rating at "hard"
+    const effectiveLabel = hintUsed && (label === 'good' || label === 'easy') ? 'hard' : label;
+    const quality = reviewRatingToQuality(effectiveLabel);
     const rp = getRootProgress(progress, rootBw);
     const newSM2 = updateSM2(rp.sm2, quality);
     const verseRef = verse ? `${verse.chapter}:${verse.verse}` : '';
@@ -198,6 +204,30 @@ export default function ReviewSession({ onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Hint button and mnemonic image (before flip) */}
+      {!flipped && !rated && (
+        <div className="text-center space-y-3">
+          {!showHint ? (
+            <button
+              onClick={() => { setShowHint(true); setHintUsed(true); }}
+              className="text-xs text-stone-400 hover:text-stone-600 underline underline-offset-2 transition-colors"
+            >
+              Show hint
+            </button>
+          ) : (
+            <div className="flex flex-col items-center gap-2 animate-in fade-in duration-300">
+              <img
+                src={`/api/learning/root/${dueRoots[currentIdx]}/mnemonic-image`}
+                alt="Mnemonic hint"
+                className="w-36 h-36 rounded-xl object-cover border border-stone-200 shadow-sm"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+              <p className="text-xs text-stone-400 italic">Hint revealed — using this will count as "Hard"</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Rating buttons (only show after flip) */}
       {flipped && !rated && (

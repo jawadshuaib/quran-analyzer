@@ -25,3 +25,23 @@ body {
     transform: rotateY(180deg);
   }
 }
+
+/* Print styles for mnemonic sheet */
+@media print {
+  body {
+    background: white !important;
+  }
+  header, footer, nav {
+    display: none !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+  @page {
+    margin: 0.5in;
+    size: letter;
+  }
+}

@@ -38,7 +38,7 @@ function isExtensionPrivacyPath(): boolean {
 }
 
 function isLearningPath(): boolean {
-  return /^\/learning(\/root\/.+)?\/?$/.test(window.location.pathname);
+  return /^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(window.location.pathname);
 }
 
 function isKnownRoute(): boolean {
@@ -48,7 +48,7 @@ function isKnownRoute(): boolean {
   if (/^\/verse\/\d+:\d+$/.test(path)) return true;
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
-  if (/^\/learning(\/root\/.+)?\/?$/.test(path)) return true;
+  if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
   return false;
 }
 
