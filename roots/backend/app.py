@@ -24,6 +24,10 @@ app = Flask(
 )
 CORS(app)
 
+# Register public API v1 Blueprint
+from api_v1 import v1_bp
+app.register_blueprint(v1_bp)
+
 # In Docker the DB lives on a volume at /app/data/quran.db;
 # in local dev it's at roots/backend/data/quran.db — same relative path
 DB_PATH = os.path.join(os.path.dirname(__file__), "data", "quran.db")

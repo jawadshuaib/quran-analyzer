@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Copy application code
 COPY roots/backend/app.py ./app.py
+COPY roots/backend/api_v1.py ./api_v1.py
 
 # Copy database as seed (entrypoint copies to volume on first run)
 COPY assets/quran.db ./seed-quran.db

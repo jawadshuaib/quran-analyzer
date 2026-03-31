@@ -230,9 +230,39 @@ quran-related/
 
 ---
 
-## API Reference
+## Public API v1
 
-The Flask backend exposes ten endpoints:
+al-nuqta.com exposes a comprehensive, versioned REST API for developers who want to build on the Quranic analysis data. All endpoints are GET-based, require no authentication, and support CORS for browser-based consumers.
+
+**Base URL:** `https://al-nuqta.com/api/v1/`
+
+**Quick examples:**
+```bash
+# Get a verse with default data
+curl "https://al-nuqta.com/api/v1/verses/67:1"
+
+# Get a verse with AI translation, word meanings, and related verses
+curl "https://al-nuqta.com/api/v1/verses/67:1?fields=ai-translation,word-meanings,related"
+
+# Get everything in one request
+curl "https://al-nuqta.com/api/v1/verses/67:1?fields=all"
+
+# Look up a root
+curl "https://al-nuqta.com/api/v1/roots/mlk"
+
+# Search for verses containing specific roots
+curl "https://al-nuqta.com/api/v1/search?root=mlk&root=Elm"
+```
+
+The API covers **19 endpoints** across verses, words, roots, surahs, search, and learning resources. Every response uses a consistent JSON envelope with `ok`, `data`, and `meta` fields.
+
+**Full documentation:** [API.md](API.md)
+
+---
+
+## Internal API Reference
+
+The Flask backend also exposes internal endpoints used by the React frontend. These are not versioned and may change without notice:
 
 ### `GET /api/verse/<surah>:<ayah>`
 
