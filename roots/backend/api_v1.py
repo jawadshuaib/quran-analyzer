@@ -745,7 +745,7 @@ def get_learning_curriculum():
                 "anchor_verse": f"{r['anchor_verse_chapter']}:{r['anchor_verse_verse']}",
                 "related_roots": _json.loads(r["related_roots"]) if r["related_roots"] else [],
                 "mnemonic_image_url": (
-                    f"/api/v1/learning/roots/{r['root_buckwalter']}/mnemonic"
+                    f"/api/v1/learning/roots/{r['root_buckwalter']}/mnemonic?v={_app()._MNEMONIC_VERSION}"
                     if r["mnemonic_image_path"] else None
                 ),
                 "mnemonic_caption": r["mnemonic_caption"] or None,
@@ -809,7 +809,7 @@ def get_learning_root(root_bw: str):
                 })
 
         mnemonic_url = (
-            f"/api/v1/learning/roots/{root_bw}/mnemonic"
+            f"/api/v1/learning/roots/{root_bw}/mnemonic?v={_app()._MNEMONIC_VERSION}"
             if cur["mnemonic_image_path"] else None
         )
 
@@ -858,7 +858,9 @@ def get_learning_mnemonic(root_bw: str):
         return _error("NO_DATA", "Image file not found on disk", 404)
 
     response = send_from_directory(img_dir, img_file, mimetype="image/webp")
-    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    mtime = int(os.path.getmtime(img_abs))
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["ETag"] = f'"{root_bw}-{mtime}"'
     return response
 
 

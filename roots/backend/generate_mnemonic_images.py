@@ -47,6 +47,7 @@ HORDE_KEY = os.environ.get("HORDE_API_KEY", "0000000000")  # anonymous key
 ART_STYLE = (
     "minimalist watercolor illustration, warm earth tones, contemplative mood, "
     "clean composition, no text, no Arabic script, no calligraphy, no people, "
+    "no hands, no fingers, no human body parts, no faces, no infants, "
     "no depictions of prophets or divine figures"
 )
 
@@ -55,34 +56,49 @@ IMAGE_DIR = os.path.join(os.path.dirname(__file__), "data", "mnemonic_images")
 # ── System prompt for Ollama ────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """\
-You are a specialist in Arabic linguistics and visual mnemonic pedagogy. Your job is
-to create a VISUAL MNEMONIC that helps a learner remember an Arabic root word's meaning.
+You create ICONIC VISUAL MNEMONICS for Arabic root words.
 
-The mnemonic must work like this: the image should depict a concrete scene that
-DIRECTLY and OBVIOUSLY represents the root's core meaning. A learner who sees the
-image should immediately think of the root's meaning.
+THE GOAL: When a student thinks of this root, ONE unforgettable image should
+flash in their mind. The image must be so vivid and specific that it burns into
+memory — like a logo for the word.
 
-Return a JSON object with exactly two fields:
+WHAT MAKES A GREAT MNEMONIC IMAGE:
+- ONE bold, iconic object that embodies the root's CONCRETE/PHYSICAL origin
+- Visually striking — high contrast, clear silhouette, would work as a logo
+- Instantly recognizable: a helmet, a key, a scale, a seed, a shield, a flame
+- NOT a scene or story — just the object, powerful and centered
+- NOT abstract, NOT vague (no "glowing light", no "vast landscape", no "mist")
+
+EXAMPLE — غ ف ر (ghafara) = to forgive:
+  Physical origin: to cover/protect (a helmet covers the head)
+  Image: A single bronze helmet, centered, heroic angle
+  Caption: "Helmet covers to protect. Forgiveness covers the sin. غَفَرَ"
+
+PROCESS:
+1. Find the root's CONCRETE physical origin (use the etymology/cognates provided)
+2. Pick ONE iconic object that embodies it — something a child could draw
+3. Write a short caption: physical meaning → Quranic meaning (one sentence max)
+
+Return JSON:
 {
   "image_prompt": "...",
   "caption": "..."
 }
 
-Rules for image_prompt (80-120 words):
-1. Depict ONE clear, concrete scene that embodies the root's PRIMARY meaning
-2. Be extremely literal and obvious — if the root means "to cover/forgive", show
-   something being covered or sheltered. If it means "to know", show discovery/learning.
-3. Name specific objects, materials, lighting, and composition
-4. NO Arabic text, no calligraphy, no writing of any kind
-5. NO depictions of prophets, angels, divine figures, or people
-6. End with the art style specification provided
+Rules for image_prompt (40-70 words — SHORTER is better for image generators):
+1. ONE object, centered, bold composition — like a product photo or icon
+2. Name the specific object, its material, color, and lighting
+3. Keep it SIMPLE — fewer elements = better generated image
+4. NO Arabic text, no calligraphy, no writing
+5. NO people, hands, fingers, faces, human body parts, mouths, eyes, or infants
+6. NO prophets, angels, or divine figures
+7. End with the art style specification provided
 
-Rules for caption (15-25 words):
-1. Explain how the image connects to the root's meaning
-2. Start with the root's core meaning, then explain the visual metaphor
-3. Use the format: "Root meaning: [meaning]. [How the image captures it.]"
-4. Example: "Root meaning: to cover, forgive. The veil gently covering the thorns
-   shows how forgiveness covers faults."
+Rules for caption (15-25 words max):
+1. One sentence bridging physical origin → Quranic meaning
+2. End with the root in Arabic
+3. Be insightful, not encyclopedic — if the connection is obvious, keep it short
+4. Only explain the bridge if it's genuinely non-obvious
 
 Respond with ONLY the JSON object. No markdown fences, no explanation."""
 
@@ -105,11 +121,17 @@ def craft_image_prompt(root_bw: str, root_arabic: str, root_story: str, derivati
     user_prompt = f"""\
 Arabic root: {root_arabic} (Buckwalter: {root_bw})
 
-Root story (core meaning and theology):
+Root story (etymology, core meaning, and theology):
 {story_snippet}
 
 Key derivatives and their meanings:
 {derivs_text}
+
+YOUR TASK:
+1. What is the ONE concrete object that captures this root's physical origin?
+   (helmet, key, scale, seed, shield, rope, flame, path, seal, etc.)
+2. Describe that object for an image generator — bold, centered, iconic.
+3. Write a brief caption bridging physical → Quranic meaning.
 
 Art style to append at the END of image_prompt:
 "{ART_STYLE}"

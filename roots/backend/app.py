@@ -14,6 +14,9 @@ import requests
 from flask import Flask, Response, jsonify, redirect, request, send_from_directory
 from flask_cors import CORS
 
+# Bump this when mnemonic images are regenerated to bust browser caches
+_MNEMONIC_VERSION = 6
+
 # In Docker, static/ sits next to app.py; in local dev it doesn't exist
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 SERVE_STATIC = os.path.isdir(STATIC_DIR)
@@ -2012,7 +2015,7 @@ def get_learning_curriculum():
                 "anchor_verse": f"{r['anchor_verse_chapter']}:{r['anchor_verse_verse']}",
                 "related_roots": json.loads(r["related_roots"]) if r["related_roots"] else [],
                 "mnemonic_image_url": (
-                    f"/api/learning/root/{r['root_buckwalter']}/mnemonic-image"
+                    f"/api/learning/root/{r['root_buckwalter']}/mnemonic-image?v={_MNEMONIC_VERSION}"
                     if r["mnemonic_image_path"] else None
                 ),
                 "mnemonic_caption": r["mnemonic_caption"] or None,
@@ -2180,7 +2183,7 @@ def get_learning_root(root_bw: str):
             })
 
         mnemonic_url = (
-            f"/api/learning/root/{root_bw}/mnemonic-image"
+            f"/api/learning/root/{root_bw}/mnemonic-image?v={_MNEMONIC_VERSION}"
             if cur["mnemonic_image_path"] else None
         )
 
@@ -2232,7 +2235,10 @@ def get_mnemonic_image(root_bw: str):
         return jsonify({"error": "Image file not found on disk"}), 404
 
     response = send_from_directory(img_dir, img_file, mimetype="image/webp")
-    response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    # Use file mtime as ETag so updated images are re-fetched
+    mtime = int(os.path.getmtime(img_abs))
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["ETag"] = f'"{root_bw}-{mtime}"'
     return response
 
 
