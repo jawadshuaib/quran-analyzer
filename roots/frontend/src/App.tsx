@@ -395,6 +395,8 @@ export default function App() {
             </p>
           </div>
 
+          <hr className="border-stone-200/60 max-w-xs mx-auto" />
+
           {showExtensionSection && (
             <div className="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-left">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
