@@ -24,6 +24,9 @@ COPY roots/backend/app.py ./app.py
 # Copy database as seed (entrypoint copies to volume on first run)
 COPY assets/quran.db ./seed-quran.db
 
+# Copy mnemonic images as seed (entrypoint deploys to data volume)
+COPY assets/mnemonic_images ./seed-mnemonic-images
+
 # Copy built frontend into static/
 COPY --from=frontend-build /build/dist ./static
 

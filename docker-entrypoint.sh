@@ -5,7 +5,11 @@ set -e
 echo "Deploying latest database..."
 cp /app/seed-quran.db /app/data/quran.db
 
-# Ensure mnemonic images directory exists on the data volume
+# Deploy mnemonic images to the data volume
 mkdir -p /app/data/mnemonic_images
+if [ -d /app/seed-mnemonic-images ] && [ "$(ls -A /app/seed-mnemonic-images 2>/dev/null)" ]; then
+  echo "Deploying mnemonic images..."
+  cp /app/seed-mnemonic-images/* /app/data/mnemonic_images/
+fi
 
 exec "$@"
