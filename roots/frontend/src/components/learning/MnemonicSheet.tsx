@@ -152,10 +152,12 @@ export default function MnemonicSheet({ onBack, onSelectRoot }: Props) {
               </svg>
             </button>
 
-            {/* Clickable card body */}
-            <button
-              onClick={() => onSelectRoot(root.root_buckwalter)}
-              className="w-full text-left cursor-pointer"
+            {/* Clickable card body — opens root lesson in new tab */}
+            <a
+              href={`https://al-nuqta.com/learning/root/${root.root_buckwalter}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full text-left cursor-pointer"
             >
               <img
                 src={root.mnemonic_image_url!}
@@ -186,7 +188,7 @@ export default function MnemonicSheet({ onBack, onSelectRoot }: Props) {
                   </div>
                 )}
               </div>
-            </button>
+            </a>
           </div>
         ))}
       </div>
