@@ -5,10 +5,10 @@ import { loadDismissed, saveDismissed, clearDismissed } from '../../utils/mnemon
 
 interface Props {
   onBack: () => void;
-  onSelectRoot: (rootBw: string) => void;
+  onSelectRoot?: (rootBw: string) => void;
 }
 
-export default function MnemonicSheet({ onBack, onSelectRoot }: Props) {
+export default function MnemonicSheet({ onBack }: Props) {
   const [units, setUnits] = useState<LearningUnit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
