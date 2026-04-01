@@ -2438,7 +2438,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/word/\d+:\d+/\d+$", path):
         return True
-    if re.match(r"^/learning(/root/.+)?/?$", path):
+    if re.match(r"^/learning(/root/.+|/mnemonic-sheet)?/?$", path):
         return True
     return False
 
@@ -2588,6 +2588,16 @@ def _get_seo_meta(path: str) -> dict:
             "description": desc,
             "og_type": "article",
             "canonical": f"{SITE_URL}/learning/root/{quote(root_bw)}",
+            "robots": "index, follow",
+        }
+
+    # Mnemonic sheet: /learning/mnemonic-sheet
+    if re.match(r"^/learning/mnemonic-sheet/?$", path):
+        return {
+            "title": "Mnemonic Sheet — 50 Quranic Root Words | Learn Quranic Arabic",
+            "description": "Visual mnemonic cards for the 50 most important Quranic Arabic root words. Each card pairs an iconic image with the root's etymological meaning.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/learning/mnemonic-sheet",
             "robots": "index, follow",
         }
 
@@ -2748,6 +2758,7 @@ def sitemap_xml():
 
         # Learning pages
         _add(SITE_URL + "/learning", "0.8")
+        _add(SITE_URL + "/learning/mnemonic-sheet", "0.7")
         cur_roots = conn.execute(
             "SELECT root_buckwalter FROM learning_curriculum ORDER BY unit_number, priority_score DESC"
         ).fetchall()
