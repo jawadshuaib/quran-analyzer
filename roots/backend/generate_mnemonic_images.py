@@ -45,7 +45,7 @@ HORDE_KEY = os.environ.get("HORDE_API_KEY", "0000000000")  # anonymous key
 
 # Consistent art style across all 50 root images
 ART_STYLE = (
-    "minimalist watercolor illustration, warm earth tones, contemplative mood, "
+    "minimalist watercolor illustration, vivid rich colors, bold color palette, "
     "clean composition, no text, no Arabic script, no calligraphy, no people, "
     "no hands, no fingers, no human body parts, no faces, no infants, "
     "no depictions of prophets or divine figures"
