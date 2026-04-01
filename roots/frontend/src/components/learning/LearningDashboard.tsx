@@ -51,10 +51,11 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
     );
   }
 
-  // Find next unlearned root
+  // Find next unlearned root (skip dismissed roots — user already knows them)
   const nextRoot = (() => {
     for (const unit of units) {
       for (const root of unit.roots) {
+        if (dismissed.has(root.root_buckwalter)) continue;
         const rp = progress.rootProgress[root.root_buckwalter];
         if (!rp || rp.status === 'unseen') return root;
       }
@@ -62,7 +63,12 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
     return null;
   })();
 
-  const totalLearned = progress.stats.totalRootsLearned;
+  // Count dismissed roots as "learned" (avoid double-counting roots that were both studied and dismissed)
+  const dismissedOnly = Array.from(dismissed).filter((bw) => {
+    const rp = progress.rootProgress[bw];
+    return !rp || rp.status === 'unseen';
+  }).length;
+  const totalLearned = progress.stats.totalRootsLearned + dismissedOnly;
   const totalRoots = units.reduce((acc, u) => acc + u.roots.length, 0);
   const progressPct = totalRoots > 0 ? Math.round((totalLearned / totalRoots) * 100) : 0;
 
