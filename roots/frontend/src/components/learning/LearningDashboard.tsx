@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import type { LearningUnit } from '../../types/learning';
 import { fetchCurriculum } from '../../api/learning';
 import { loadProgress, getUnitMastery } from '../../utils/learning-storage';
-import { getDueCount } from '../../utils/spaced-repetition';
+import { isDue } from '../../utils/spaced-repetition';
+import { loadDismissed } from '../../utils/mnemonic-dismissed';
 
 interface Props {
   onSelectRoot: (rootBw: string) => void;
@@ -14,7 +15,8 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const progress = loadProgress();
-  const dueCount = getDueCount(progress.reviewQueue);
+  const dismissed = loadDismissed();
+  const dueCount = progress.reviewQueue.filter((r) => isDue(r) && !dismissed.has(r.rootBw)).length;
 
   useEffect(() => {
     let cancelled = false;
@@ -213,21 +215,24 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
                 {unit.roots.map((root) => {
                   const rp = progress.rootProgress[root.root_buckwalter];
                   const status = rp?.status || 'unseen';
+                  const isDismissed = dismissed.has(root.root_buckwalter);
 
                   return (
                     <button
                       key={root.root_buckwalter}
                       onClick={() => onSelectRoot(root.root_buckwalter)}
                       className={`group flex flex-col items-center rounded-xl border overflow-hidden transition-all hover:shadow-md ${
-                        status === 'mastered'
-                          ? 'border-emerald-300 bg-emerald-50'
-                          : status === 'reviewing'
-                            ? 'border-emerald-200 bg-emerald-50/50'
-                            : status === 'learning'
-                              ? 'border-amber-200 bg-amber-50/50'
-                              : 'border-stone-200 bg-white hover:border-emerald-300'
+                        isDismissed
+                          ? 'border-stone-100 bg-stone-50 opacity-40 grayscale hover:opacity-70 hover:grayscale-0'
+                          : status === 'mastered'
+                            ? 'border-emerald-300 bg-emerald-50'
+                            : status === 'reviewing'
+                              ? 'border-emerald-200 bg-emerald-50/50'
+                              : status === 'learning'
+                                ? 'border-amber-200 bg-amber-50/50'
+                                : 'border-stone-200 bg-white hover:border-emerald-300'
                       }`}
-                      title={`${root.root_arabic} (${root.root_buckwalter})`}
+                      title={`${root.root_arabic} (${root.root_buckwalter})${isDismissed ? ' — marked as known' : ''}`}
                     >
                       {root.mnemonic_image_url ? (
                         <img
@@ -242,7 +247,7 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
                       )}
                       <div className="flex items-center gap-1.5 px-2 py-2">
                         <span className="font-arabic text-lg font-medium text-stone-800" dir="rtl">{root.root_arabic}</span>
-                        {status === 'mastered' && (
+                        {status === 'mastered' && !isDismissed && (
                           <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>

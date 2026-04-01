@@ -1,21 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { LearningUnit } from '../../types/learning';
 import { fetchCurriculum } from '../../api/learning';
-
-const STORAGE_KEY = 'mnemonic-dismissed-roots';
-
-function loadDismissed(): Set<string> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch {
-    return new Set();
-  }
-}
-
-function saveDismissed(set: Set<string>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(set)));
-}
+import { loadDismissed, saveDismissed, clearDismissed } from '../../utils/mnemonic-dismissed';
 
 interface Props {
   onBack: () => void;
@@ -39,7 +25,7 @@ export default function MnemonicSheet({ onBack, onSelectRoot }: Props) {
 
   const resetDismissed = useCallback(() => {
     setDismissed(new Set());
-    localStorage.removeItem(STORAGE_KEY);
+    clearDismissed();
   }, []);
 
   useEffect(() => {
@@ -138,18 +124,19 @@ export default function MnemonicSheet({ onBack, onSelectRoot }: Props) {
             key={root.root_buckwalter}
             className="group relative rounded-xl border border-stone-200 bg-white overflow-hidden print:break-inside-avoid print:border-stone-300 text-left transition-all hover:border-emerald-300 hover:shadow-md"
           >
-            {/* Dismiss button — top-right corner, visible on hover */}
+            {/* "Already Know" button — top-right corner, visible on hover */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 dismissRoot(root.root_buckwalter);
               }}
-              title="I know this root — hide it"
-              className="print:hidden absolute top-1.5 right-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+              title="Mark as already known"
+              className="print:hidden absolute top-1.5 right-1.5 z-10 flex items-center gap-1 rounded-full bg-black/60 text-white text-[10px] font-medium pl-2 pr-2.5 py-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-emerald-600"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
+              Known
             </button>
 
             {/* Clickable card body — opens root lesson in new tab */}
@@ -178,7 +165,9 @@ export default function MnemonicSheet({ onBack, onSelectRoot }: Props) {
                 </p>
                 {root.top_derivatives && root.top_derivatives.length > 0 && (
                   <div className="pt-1 border-t border-stone-100 space-y-0.5">
-                    {root.top_derivatives.map((d, i) => (
+                    {root.top_derivatives
+                      .filter((d, i, arr) => arr.findIndex((x) => x.lemma_arabic === d.lemma_arabic) === i)
+                      .map((d, i) => (
                       <p key={i} className="text-[11px] text-stone-500 leading-snug print:text-[9px]">
                         <span className="font-arabic text-stone-700 font-medium" dir="rtl">{d.lemma_arabic}</span>
                         {' '}

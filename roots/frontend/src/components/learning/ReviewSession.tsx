@@ -3,6 +3,7 @@ import type { ReviewVerseData, LearningProgress } from '../../types/learning';
 import { fetchReviewVerses } from '../../api/learning';
 import { loadProgress, saveProgress, updateReviewResult, getRootProgress } from '../../utils/learning-storage';
 import { updateSM2, isDue, reviewRatingToQuality } from '../../utils/spaced-repetition';
+import { loadDismissed } from '../../utils/mnemonic-dismissed';
 
 interface Props {
   onBack: () => void;
@@ -26,7 +27,8 @@ export default function ReviewSession({ onBack }: Props) {
   useEffect(() => {
     const p = loadProgress();
     setProgress(p);
-    const due = p.reviewQueue.filter(isDue).map((r) => r.rootBw);
+    const dismissed = loadDismissed();
+    const due = p.reviewQueue.filter(isDue).filter((r) => !dismissed.has(r.rootBw)).map((r) => r.rootBw);
     setDueRoots(due);
     if (due.length === 0) {
       setSessionComplete(true);
