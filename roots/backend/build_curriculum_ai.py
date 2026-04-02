@@ -10,6 +10,7 @@ Usage:
     python build_curriculum_ai.py --dry-run                # Preview without saving
     python build_curriculum_ai.py --force                  # Regenerate existing
     python build_curriculum_ai.py --model minimax-m2.5:cloud
+    python build_curriculum_ai.py --specific "Slw,sjd,sbH" # Process only these roots
 """
 
 import argparse
@@ -91,6 +92,67 @@ UNIT_DEFINITIONS = [
         "theme": "Human & Community",
         "description": "People, nations, prophets, messengers",
         "seed_roots": ["qwm", "nfs", "rsl", "nbA", "Ahl", "nsr"],
+    },
+    # ── Units 11-20: Second set of 50 roots ──
+    {
+        "number": 11,
+        "theme": "Life, Death & Eternity",
+        "description": "Living, dying, eternity, this world vs. the next",
+        "seed_roots": ["Hyy", "mwt", "xld", "dnw", "nhr"],
+    },
+    {
+        "number": 12,
+        "theme": "Prayer & Devotion",
+        "description": "Salat, prostration, glorification, repentance",
+        "seed_roots": ["Slw", "sjd", "sbH", "$kr", "twb"],
+    },
+    {
+        "number": 13,
+        "theme": "Virtue & Character",
+        "description": "Righteousness, truthfulness, patience, obedience, love",
+        "seed_roots": ["SlH", "Sdq", "Sbr", "TwE", "Hbb"],
+    },
+    {
+        "number": 14,
+        "theme": "Sin & Deviation",
+        "description": "Going astray, polytheism, enmity, forbidden acts",
+        "seed_roots": ["Dll", "$rk", "Edw", "$Tn", "Hrm"],
+    },
+    {
+        "number": 15,
+        "theme": "Perception & Heart",
+        "description": "Hearing, seeing, contemplating, the heart, witnessing",
+        "seed_roots": ["smE", "bSr", "nZr", "qlb", "$hd"],
+    },
+    {
+        "number": 16,
+        "theme": "Community & Family",
+        "description": "Nation, family, humankind, children, brotherhood",
+        "seed_roots": ["Amm", "Ahl", "Ans", "wld", "Axw"],
+    },
+    {
+        "number": 17,
+        "theme": "Divine Power & Provision",
+        "description": "God's power, greatness, might, provision, grace",
+        "seed_roots": ["qdr", "EZm", "Ezz", "rzq", "fDl"],
+    },
+    {
+        "number": 18,
+        "theme": "Prophecy & Recompense",
+        "description": "Revelation, prophecy, warning, glad tidings, promises",
+        "seed_roots": ["wHy", "nbA", "n*r", "b$r", "wEd"],
+    },
+    {
+        "number": 19,
+        "theme": "Actions & Movement",
+        "description": "Emerging, entering, following, returning, fighting",
+        "seed_roots": ["xrj", "dxl", "tbE", "rjE", "qtl"],
+    },
+    {
+        "number": 20,
+        "theme": "Religion & Judgment",
+        "description": "Islam, religion, recompense, blessings, fear of God",
+        "seed_roots": ["slm", "dyn", "jzy", "nEm", "xwf"],
     },
 ]
 
@@ -432,20 +494,33 @@ Return ONLY valid JSON, no markdown fencing, no extra text."""
     return result
 
 
-def build_curriculum(conn, num_roots=50, model="minimax-m2.5:cloud", dry_run=False, force=False):
-    """Main curriculum building function."""
+def build_curriculum(conn, num_roots=50, model="minimax-m2.5:cloud", dry_run=False, force=False, specific_roots=None):
+    """Main curriculum building function.
+
+    If specific_roots is provided (list of buckwalter strings), only those
+    roots are processed regardless of num_roots.
+    """
     print(f"\n{'='*60}")
     print(f"Building Quranic Concept Web Curriculum")
-    print(f"Roots: {num_roots} | Model: {model} | Dry run: {dry_run}")
+    if specific_roots:
+        print(f"Specific roots: {len(specific_roots)} | Model: {model} | Dry run: {dry_run}")
+    else:
+        print(f"Roots: {num_roots} | Model: {model} | Dry run: {dry_run}")
     print(f"{'='*60}\n")
 
     # Step 1: Get root frequencies
     freq = get_root_frequencies(conn)
     print(f"Found {len(freq)} distinct roots in morphology table")
 
-    # Step 2: Select top N roots
-    sorted_roots = sorted(freq.items(), key=lambda x: x[1], reverse=True)[:num_roots]
-    selected_roots = {r[0] for r, _ in zip(sorted_roots, range(num_roots))}
+    # Step 2: Select roots
+    if specific_roots:
+        # Use only the specified roots (in the order given)
+        sorted_roots = [(rbw, freq.get(rbw, 0)) for rbw in specific_roots if rbw in freq]
+        missing = [rbw for rbw in specific_roots if rbw not in freq]
+        if missing:
+            print(f"WARNING: These roots not found in morphology: {', '.join(missing)}")
+    else:
+        sorted_roots = sorted(freq.items(), key=lambda x: x[1], reverse=True)[:num_roots]
     selected_roots_set = {r for r, _ in sorted_roots}
 
     print(f"Selected top {len(sorted_roots)} roots:")
@@ -613,10 +688,15 @@ def build_curriculum(conn, num_roots=50, model="minimax-m2.5:cloud", dry_run=Fal
 def main():
     parser = argparse.ArgumentParser(description="Build Quranic Concept Web curriculum")
     parser.add_argument("--roots", type=int, default=50, help="Number of top roots to include (default: 50)")
+    parser.add_argument("--specific", type=str, help="Comma-separated buckwalter roots to process (overrides --roots)")
     parser.add_argument("--model", default="minimax-m2.5:cloud", help="LLM model for root stories")
     parser.add_argument("--dry-run", action="store_true", help="Preview without saving")
     parser.add_argument("--force", action="store_true", help="Regenerate existing entries")
     args = parser.parse_args()
+
+    specific = None
+    if args.specific:
+        specific = [r.strip() for r in args.specific.split(",") if r.strip()]
 
     # Build the similarity engine (needed for IDF weights and inverted indexes)
     print("Building similarity engine...")
@@ -625,7 +705,8 @@ def main():
     conn = get_db()
     try:
         build_curriculum(conn, num_roots=args.roots, model=args.model,
-                         dry_run=args.dry_run, force=args.force)
+                         dry_run=args.dry_run, force=args.force,
+                         specific_roots=specific)
     finally:
         conn.close()
 
