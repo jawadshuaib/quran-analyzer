@@ -15,7 +15,7 @@ from flask import Flask, Response, jsonify, redirect, request, send_from_directo
 from flask_cors import CORS
 
 # Bump this when mnemonic images are regenerated to bust browser caches
-_MNEMONIC_VERSION = 10
+_MNEMONIC_VERSION = 11
 
 # In Docker, static/ sits next to app.py; in local dev it doesn't exist
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
