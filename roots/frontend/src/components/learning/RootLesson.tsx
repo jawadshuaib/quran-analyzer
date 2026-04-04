@@ -22,6 +22,8 @@ const STEP_LABELS: Record<Step, string> = {
   assess: 'Self-Assess',
 };
 
+const FILL_BLANKS_KEY = 'learning.fillInBlanks';
+
 export default function RootLesson({ rootBw, onBack }: Props) {
   const [data, setData] = useState<LearningRootDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,10 @@ export default function RootLesson({ rootBw, onBack }: Props) {
   const [assessed, setAssessed] = useState(false);
   const [anchorFlipped, setAnchorFlipped] = useState(false);
   const [flipTrigger, setFlipTrigger] = useState(0);
+  const [fillInBlanks, setFillInBlanks] = useState<boolean>(() => {
+    const stored = window.localStorage.getItem(FILL_BLANKS_KEY);
+    return stored === null ? true : stored === '1';
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +77,14 @@ export default function RootLesson({ rootBw, onBack }: Props) {
     const updated = markRootLearned(loadProgress(), rootBw, quality, verseRef);
     saveProgress(updated);
     setAssessed(true);
+  }
+
+  function toggleFillInBlanks() {
+    setFillInBlanks((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(FILL_BLANKS_KEY, next ? '1' : '0');
+      return next;
+    });
   }
 
   const steps: Step[] = ['anchor', 'derivatives', 'story', 'context', 'assess'];
@@ -179,7 +193,26 @@ export default function RootLesson({ rootBw, onBack }: Props) {
             <p className="text-base text-stone-600 text-center">
               {anchorFlipped ? 'Now connect the image above to the meaning below.' : 'Read the verse below, then tap to reveal its meaning.'}
             </p>
-            <VerseCard verse={anchorVerse} onFlip={setAnchorFlipped} flipTrigger={flipTrigger} />
+
+            {/* Fill in the Blanks toggle */}
+            <div className="flex items-center justify-center gap-2.5">
+              <button
+                onClick={toggleFillInBlanks}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  fillInBlanks ? 'bg-emerald-500' : 'bg-stone-300'
+                }`}
+                aria-label="Toggle fill in the blanks mode"
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                    fillInBlanks ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                  }`}
+                />
+              </button>
+              <span className="text-sm text-stone-500">Fill in the Blanks</span>
+            </div>
+
+            <VerseCard verse={anchorVerse} onFlip={setAnchorFlipped} flipTrigger={flipTrigger} fillInBlanks={fillInBlanks} />
           </div>
         ) : (
           <p className="text-base text-stone-400 text-center py-12">
@@ -239,15 +272,34 @@ export default function RootLesson({ rootBw, onBack }: Props) {
 
       {step === 'context' && (
         <div className="space-y-5">
-          <p className="text-base text-stone-600 text-center">
-            See how the same root is used in different contexts:
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-base text-stone-600">
+              See how the same root is used in different contexts:
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleFillInBlanks}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  fillInBlanks ? 'bg-emerald-500' : 'bg-stone-300'
+                }`}
+                aria-label="Toggle fill in the blanks mode"
+              >
+                <span
+                  className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow-sm transition-transform ${
+                    fillInBlanks ? 'translate-x-[18px]' : 'translate-x-[3px]'
+                  }`}
+                />
+              </button>
+              <span className="text-xs text-stone-500">Blanks</span>
+            </div>
+          </div>
           {contextVerses.length > 0 ? (
             contextVerses.map((cv, i) => (
               <VerseCard
                 key={i}
                 verse={cv.verse_data!}
                 teachingNote={cv.teaching_note}
+                fillInBlanks={fillInBlanks}
               />
             ))
           ) : (

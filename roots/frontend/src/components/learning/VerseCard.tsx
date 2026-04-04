@@ -7,9 +7,10 @@ interface Props {
   showExploreLink?: boolean;
   onFlip?: (flipped: boolean) => void;
   flipTrigger?: number;
+  fillInBlanks?: boolean;
 }
 
-export default function VerseCard({ verse, teachingNote, showExploreLink = true, onFlip, flipTrigger }: Props) {
+export default function VerseCard({ verse, teachingNote, showExploreLink = true, onFlip, flipTrigger, fillInBlanks = false }: Props) {
   const [flipped, setFlipped] = useState(false);
 
   // External flip trigger — toggle flip when trigger changes
@@ -35,22 +36,56 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
           <p className="text-sm text-stone-400 mb-4">
             {verse.surah_name} {verse.chapter}:{verse.verse}
           </p>
-          <p className="font-arabic text-2xl sm:text-3xl md:text-4xl leading-[2.2] text-stone-800 text-center" dir="rtl" lang="ar">
-            {verse.words.map((w, i) => (
-              <span key={i}>
-                {i > 0 && ' '}
-                <span
-                  className={
+
+          {fillInBlanks ? (
+            /* Fill-in-the-blanks mode: word-by-word with target words as blanks */
+            <div className="flex flex-wrap gap-x-4 gap-y-3 justify-center" dir="rtl">
+              {verse.words.map((w, i) => (
+                <div key={i} className="text-center flex flex-col items-center">
+                  <p className={`font-arabic text-xl sm:text-2xl ${
                     w.is_target
-                      ? 'text-emerald-700 font-bold underline decoration-emerald-300 decoration-2 underline-offset-8'
-                      : ''
-                  }
-                >
-                  {w.arabic}
+                      ? 'text-emerald-700 font-bold'
+                      : 'text-stone-800'
+                  }`}>
+                    {w.arabic}
+                  </p>
+                  <p className="text-xs mt-1 min-w-[40px]" dir="ltr">
+                    {w.is_target ? (
+                      <span className="inline-block border-b-2 border-dashed border-emerald-400 text-emerald-400 px-2">
+                        ?
+                      </span>
+                    ) : (
+                      <span className="text-stone-400">
+                        {w.ai_meaning?.preferred_translation
+                          || w.ai_meaning?.meaning_short
+                          || w.gloss
+                          || ''}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* Standard mode: Arabic text only */
+            <p className="font-arabic text-2xl sm:text-3xl md:text-4xl leading-[2.2] text-stone-800 text-center" dir="rtl" lang="ar">
+              {verse.words.map((w, i) => (
+                <span key={i}>
+                  {i > 0 && ' '}
+                  <span
+                    className={
+                      w.is_target
+                        ? 'text-emerald-700 font-bold underline decoration-emerald-300 decoration-2 underline-offset-8'
+                        : ''
+                    }
+                  >
+                    {w.arabic}
+                  </span>
                 </span>
-              </span>
-            ))}
-          </p>
+              ))}
+            </p>
+          )}
+
           <p className="text-sm text-stone-400 mt-5 flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
