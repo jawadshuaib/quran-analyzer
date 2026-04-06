@@ -10,7 +10,7 @@ export default function RootSearch() {
   const [selectedIdx, setSelectedIdx] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim() || q.trim().length < 1) {
