@@ -42,7 +42,12 @@ export default function RootLesson({ rootBw, onBack }: Props) {
     setLoading(true);
     setError('');
     fetchLearningRoot(rootBw)
-      .then((d) => { if (!cancelled) setData(d); })
+      .then((d) => {
+        if (!cancelled) {
+          setData(d);
+          document.title = `Root ${d.root_arabic} (${d.root_buckwalter}) — ${d.unit_theme || 'Learn Quranic Arabic'} | The Quran Explorer`;
+        }
+      })
       .catch((e) => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };

@@ -98,7 +98,7 @@ export default function RootPage({ rootBw }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
+    <div className="mx-auto w-full max-w-3xl px-4 py-10 overflow-x-hidden">
       {/* Back link */}
       <div className="mb-6">
         <a href="/" className="text-indigo-600 hover:text-indigo-800 text-sm">
@@ -201,7 +201,7 @@ export default function RootPage({ rootBw }: Props) {
           <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">
             Semitic Cognates
           </h2>
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-5">
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3 sm:p-5 overflow-hidden">
             <div className="flex items-center gap-3 mb-4">
               <span className="text-indigo-700 font-medium">
                 {data.cognate.transliteration}
@@ -212,13 +212,13 @@ export default function RootPage({ rootBw }: Props) {
             </div>
 
             {data.cognate.derivatives.length > 0 && (
-              <div className="rounded-lg border border-indigo-100 bg-white overflow-hidden">
+              <div className="rounded-lg border border-indigo-100 bg-white overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-indigo-50 text-indigo-600 text-xs">
-                      <th className="text-left px-4 py-2 font-medium">Language</th>
-                      <th className="text-left px-4 py-2 font-medium">Word</th>
-                      <th className="text-left px-4 py-2 font-medium">Meaning</th>
+                      <th className="text-left px-2 sm:px-4 py-2 font-medium">Language</th>
+                      <th className="text-left px-2 sm:px-4 py-2 font-medium">Word</th>
+                      <th className="text-left px-2 sm:px-4 py-2 font-medium">Meaning</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -227,13 +227,13 @@ export default function RootPage({ rootBw }: Props) {
                         key={i}
                         className={i % 2 === 0 ? 'bg-white' : 'bg-indigo-50/30'}
                       >
-                        <td className="px-4 py-2 text-stone-500 whitespace-nowrap">
+                        <td className="px-2 sm:px-4 py-2 text-stone-500">
                           {d.language}
                         </td>
-                        <td className="px-4 py-2 text-stone-800 font-medium">
+                        <td className="px-2 sm:px-4 py-2 text-stone-800 font-medium">
                           {d.displayed_text}
                         </td>
-                        <td className="px-4 py-2 text-stone-600">
+                        <td className="px-2 sm:px-4 py-2 text-stone-600">
                           {d.meaning || d.concept}
                         </td>
                       </tr>

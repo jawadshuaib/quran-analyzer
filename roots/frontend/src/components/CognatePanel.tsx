@@ -58,7 +58,7 @@ export default function CognatePanel({ rootArabic, rootBuckwalter, cognate, onCl
       </div>
 
       {cognate.derivatives.length > 0 && (
-        <div className="rounded-md border border-indigo-100 bg-white overflow-hidden">
+        <div className="rounded-md border border-indigo-100 bg-white overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-indigo-50 text-indigo-600 text-xs">
@@ -73,7 +73,7 @@ export default function CognatePanel({ rootArabic, rootBuckwalter, cognate, onCl
                   key={i}
                   className={i % 2 === 0 ? 'bg-white' : 'bg-indigo-50/30'}
                 >
-                  <td className="px-3 py-1.5 text-stone-500 whitespace-nowrap">
+                  <td className="px-3 py-1.5 text-stone-500">
                     {d.language}
                   </td>
                   <td className="px-3 py-1.5 text-stone-800 font-medium">

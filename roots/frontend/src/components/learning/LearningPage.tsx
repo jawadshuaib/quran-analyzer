@@ -23,6 +23,9 @@ export default function LearningPage() {
       setView('lesson');
     } else if (window.location.pathname === '/learning/mnemonic-sheet') {
       setView('mnemonic-sheet');
+      document.title = 'Mnemonic Sheet — Learn Quranic Arabic | The Quran Explorer';
+    } else {
+      document.title = 'Learn Quranic Arabic Through Root Words | The Quran Explorer';
     }
 
     function handlePopState() {
@@ -53,6 +56,7 @@ export default function LearningPage() {
     setView('dashboard');
     setActiveRootBw(null);
     window.history.pushState(null, '', '/learning');
+    document.title = 'Learn Quranic Arabic Through Root Words | The Quran Explorer';
   }
 
   function handleStartReview() {

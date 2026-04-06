@@ -130,6 +130,29 @@ export async function fetchWordAnalysis(
   return res.json();
 }
 
+export interface RootSearchResult {
+  root_buckwalter: string;
+  root_arabic: string;
+  meaning: string;
+  frequency: number;
+  in_curriculum: boolean;
+  sample_verse: {
+    ref: string;
+    words: string[];
+    matched_positions: number[];
+    starts_truncated?: boolean;
+    ends_truncated?: boolean;
+    translation: string;
+  } | null;
+}
+
+export async function searchRoots(query: string, limit = 10): Promise<RootSearchResult[]> {
+  if (!query.trim()) return [];
+  const res = await fetch(`${BASE}/roots/search?q=${encodeURIComponent(query.trim())}&limit=${limit}`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function searchWordsCount(
   terms: SearchTerm[],
   queryVerse?: { surah: number; ayah: number },

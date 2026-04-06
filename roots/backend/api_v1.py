@@ -555,6 +555,200 @@ def get_root_verses(root_bw: str):
         conn.close()
 
 
+@v1_bp.route("/roots/search")
+def search_roots():
+    """Search roots by Buckwalter, phonetic alias, Arabic text, or English meaning.
+
+    Query params:
+        q      — search query (required)
+        limit  — max results (default 10, max 30)
+
+    Returns matching roots with Arabic form, meaning, frequency, and a sample verse.
+    """
+    import sqlite3 as _sqlite3
+
+    mod = _app()
+    q = request.args.get("q", "").strip().lower()
+    if not q:
+        return _error("INVALID_PARAM", "Provide a 'q' query parameter", 400)
+
+    limit = request.args.get("limit", 10, type=int)
+    limit = max(1, min(limit, 30))
+
+    conn = mod.get_db()
+    try:
+        matched_roots = {}  # root_bw -> score
+
+        # 1. Direct Buckwalter match
+        for root_bw in mod._root_arabic_map:
+            if root_bw.lower() == q:
+                matched_roots[root_bw] = 100
+            elif root_bw.lower().startswith(q):
+                matched_roots[root_bw] = 80
+
+        # 2. Arabic text -> resolve to root via morphology
+        if any('\u0600' <= c <= '\u06FF' for c in q):
+            rows = conn.execute(
+                "SELECT DISTINCT root_buckwalter FROM morphology "
+                "WHERE (arabic_word LIKE ? OR lemma_arabic LIKE ?) "
+                "AND root_buckwalter IS NOT NULL AND root_buckwalter != '' LIMIT 20",
+                (f"%{q}%", f"%{q}%"),
+            ).fetchall()
+            for r in rows:
+                rbw = r["root_buckwalter"]
+                if rbw not in matched_roots:
+                    matched_roots[rbw] = 70
+
+        # 3. Alias table lookup
+        try:
+            alias_rows = conn.execute(
+                "SELECT root_buckwalter, source FROM root_search_aliases "
+                "WHERE alias = ? OR alias LIKE ?",
+                (q, f"{q}%"),
+            ).fetchall()
+            for r in alias_rows:
+                rbw = r["root_buckwalter"]
+                score = 75 if r["source"] == "ai" else 60
+                if rbw not in matched_roots or matched_roots[rbw] < score:
+                    matched_roots[rbw] = score
+        except _sqlite3.OperationalError:
+            pass
+
+        # 4. English meaning search
+        if len(q) >= 2 and not any('\u0600' <= c <= '\u06FF' for c in q):
+            try:
+                rows = conn.execute(
+                    "SELECT DISTINCT root_buckwalter FROM learning_derivatives "
+                    "WHERE LOWER(meaning_gloss) LIKE ? LIMIT 20",
+                    (f"%{q}%",),
+                ).fetchall()
+                for r in rows:
+                    rbw = r["root_buckwalter"]
+                    if rbw not in matched_roots:
+                        matched_roots[rbw] = 50
+            except _sqlite3.OperationalError:
+                pass
+
+            try:
+                rows = conn.execute(
+                    "SELECT DISTINCT m.root_buckwalter FROM morphology m "
+                    "JOIN word_glosses wg ON m.chapter = wg.chapter AND m.verse = wg.verse AND m.word_pos = wg.word_pos "
+                    "WHERE LOWER(wg.translation_en) LIKE ? "
+                    "AND m.root_buckwalter IS NOT NULL AND m.root_buckwalter != '' LIMIT 20",
+                    (f"%{q}%",),
+                ).fetchall()
+                for r in rows:
+                    rbw = r["root_buckwalter"]
+                    if rbw not in matched_roots:
+                        matched_roots[rbw] = 45
+            except _sqlite3.OperationalError:
+                pass
+
+        if not matched_roots:
+            return _envelope([], meta={"query": q, "total": 0})
+
+        # Sort by score desc, then frequency desc
+        scored = []
+        for root_bw, score in matched_roots.items():
+            freq = len(mod._root_inv.get(root_bw, set()))
+            scored.append((root_bw, score, freq))
+        scored.sort(key=lambda x: (-x[1], -x[2]))
+        scored = scored[:limit]
+
+        results = []
+        for root_bw, _score, freq in scored:
+            root_arabic = mod._root_arabic_map.get(root_bw, "")
+            meaning = ""
+
+            try:
+                m_row = conn.execute(
+                    "SELECT meaning_gloss FROM learning_derivatives "
+                    "WHERE root_buckwalter = ? ORDER BY frequency DESC LIMIT 1",
+                    (root_bw,),
+                ).fetchone()
+                if m_row:
+                    meaning = m_row["meaning_gloss"]
+            except _sqlite3.OperationalError:
+                pass
+
+            if not meaning:
+                try:
+                    g_row = conn.execute(
+                        "SELECT wg.translation_en FROM morphology m "
+                        "JOIN word_glosses wg ON m.chapter = wg.chapter AND m.verse = wg.verse AND m.word_pos = wg.word_pos "
+                        "WHERE m.root_buckwalter = ? AND wg.translation_en IS NOT NULL AND wg.translation_en != '' LIMIT 1",
+                        (root_bw,),
+                    ).fetchone()
+                    if g_row:
+                        meaning = g_row["translation_en"]
+                except _sqlite3.OperationalError:
+                    pass
+
+            # Sample verse with Arabic words and matched positions
+            sample = None
+            verse_keys = sorted(mod._root_inv.get(root_bw, set()))[:1]
+            if verse_keys:
+                ch, v = verse_keys[0]
+                vrow = conn.execute(
+                    "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                    (ch, v),
+                ).fetchone()
+                if vrow:
+                    arabic_text = mod._strip_bismillah(vrow["text_uthmani"], ch, v)
+                    arabic_words = arabic_text.split()
+                    morph_rows = conn.execute(
+                        "SELECT DISTINCT word_pos FROM morphology "
+                        "WHERE chapter = ? AND verse = ? AND root_buckwalter = ?",
+                        (ch, v, root_bw),
+                    ).fetchall()
+                    matched_positions = [r["word_pos"] for r in morph_rows]
+                    max_words = 10
+                    if arabic_words and matched_positions:
+                        first_match = min(matched_positions) - 1
+                        if len(arabic_words) <= max_words:
+                            start = 0
+                        elif first_match <= max_words // 2:
+                            start = 0
+                        else:
+                            start = min(first_match - max_words // 2, len(arabic_words) - max_words)
+                    else:
+                        start = 0
+                    end = start + max_words
+                    windowed_words = arabic_words[start:end]
+                    adjusted_positions = [p - start for p in matched_positions if start < p <= start + max_words]
+                    sample = {
+                        "ref": f"{ch}:{v}",
+                        "words": windowed_words,
+                        "matched_positions": adjusted_positions,
+                        "starts_truncated": start > 0,
+                        "ends_truncated": end < len(arabic_words),
+                        "translation": mod._best_translation(conn, ch, v)[:150],
+                    }
+
+            in_curriculum = False
+            try:
+                c_row = conn.execute(
+                    "SELECT 1 FROM learning_curriculum WHERE root_buckwalter = ?",
+                    (root_bw,),
+                ).fetchone()
+                in_curriculum = c_row is not None
+            except _sqlite3.OperationalError:
+                pass
+
+            results.append({
+                "root_buckwalter": root_bw,
+                "root_arabic": root_arabic,
+                "meaning": meaning,
+                "frequency": freq,
+                "in_curriculum": in_curriculum,
+                "sample_verse": sample,
+            })
+
+        return _envelope(results, meta={"query": q, "total": len(results)})
+    finally:
+        conn.close()
+
+
 # ---------------------------------------------------------------------------
 # 4. SURAHS
 # ---------------------------------------------------------------------------

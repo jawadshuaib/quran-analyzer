@@ -2516,7 +2516,7 @@ def _get_seo_meta(path: str) -> dict:
         desc += ". Morphological breakdowns, cross-references, and Semitic cognates."
         return {
             "title": f"{label} \u2014 {count} Verses | The Quran Explorer",
-            "description": desc[:200],
+            "description": desc[:160],
             "og_type": "article",
             "canonical": f"{SITE_URL}/root/{quote(root_bw)}",
             "robots": "index, follow",
@@ -2712,6 +2712,21 @@ def _build_meta_tags(meta: dict) -> str:
 
 # --------------- robots.txt & sitemap.xml ---------------
 
+@app.route("/llms.txt")
+def llms_txt():
+    """Serve llms.txt for AI/LLM crawler discovery."""
+    # In production, serve from static/; in dev, from frontend public/
+    llms_path = os.path.join(STATIC_DIR, "llms.txt") if SERVE_STATIC else None
+    if llms_path and os.path.isfile(llms_path):
+        return send_from_directory(STATIC_DIR, "llms.txt", mimetype="text/plain")
+    # Fallback: serve from frontend public dir in dev
+    frontend_public = os.path.join(os.path.dirname(__file__), "..", "frontend", "public")
+    llms_dev = os.path.join(frontend_public, "llms.txt")
+    if os.path.isfile(llms_dev):
+        return send_from_directory(os.path.abspath(frontend_public), "llms.txt", mimetype="text/plain")
+    return Response("# llms.txt not found", mimetype="text/plain", status=404)
+
+
 @app.route("/robots.txt")
 def robots_txt():
     body = (
@@ -2720,6 +2735,27 @@ def robots_txt():
         "Disallow: /api/\n"
         "Disallow: /tools/\n"
         f"Sitemap: {SITE_URL}/sitemap.xml\n"
+        "\n"
+        "# Allow AI/LLM crawlers to access the public API\n"
+        "User-agent: GPTBot\n"
+        "Allow: /api/v1/\n"
+        "Disallow: /api/learning/\n"
+        "\n"
+        "User-agent: ChatGPT-User\n"
+        "Allow: /api/v1/\n"
+        "Disallow: /api/learning/\n"
+        "\n"
+        "User-agent: Claude-Web\n"
+        "Allow: /api/v1/\n"
+        "Disallow: /api/learning/\n"
+        "\n"
+        "User-agent: PerplexityBot\n"
+        "Allow: /api/v1/\n"
+        "Disallow: /api/learning/\n"
+        "\n"
+        "User-agent: CCBot\n"
+        "Allow: /api/v1/\n"
+        "Disallow: /api/learning/\n"
     )
     return Response(body, mimetype="text/plain")
 
@@ -2778,6 +2814,210 @@ def sitemap_xml():
     return resp
 
 
+# --------------- Root Search ---------------
+
+@app.route("/api/roots/search")
+def search_roots():
+    """Search roots by Buckwalter, phonetic alias, Arabic text, or English meaning.
+
+    Query params:
+        q: search query (required, min 1 char)
+        limit: max results (default 10, max 30)
+
+    Returns list of matching roots with Arabic form, meaning, frequency, and sample verse.
+    """
+    q = request.args.get("q", "").strip().lower()
+    if not q:
+        return jsonify([])
+
+    limit = min(int(request.args.get("limit", 10)), 30)
+
+    conn = get_db()
+    try:
+        matched_roots = {}  # root_bw -> match_score
+
+        # 1. Direct Buckwalter match (exact or prefix)
+        for root_bw in _root_arabic_map:
+            if root_bw.lower() == q:
+                matched_roots[root_bw] = 100  # exact match
+            elif root_bw.lower().startswith(q):
+                matched_roots[root_bw] = 80   # prefix match
+
+        # 2. Arabic text -> resolve to root via morphology
+        # Check if query contains Arabic characters
+        if any('\u0600' <= c <= '\u06FF' for c in q):
+            # Look up the Arabic word in morphology to find its root
+            rows = conn.execute(
+                "SELECT DISTINCT root_buckwalter, root_arabic FROM morphology "
+                "WHERE (arabic_word LIKE ? OR lemma_arabic LIKE ?) "
+                "AND root_buckwalter IS NOT NULL AND root_buckwalter != '' "
+                "LIMIT 20",
+                (f"%{q}%", f"%{q}%"),
+            ).fetchall()
+            for r in rows:
+                rbw = r["root_buckwalter"]
+                if rbw not in matched_roots:
+                    matched_roots[rbw] = 70
+
+        # 3. Alias table lookup
+        try:
+            alias_rows = conn.execute(
+                "SELECT root_buckwalter, source FROM root_search_aliases "
+                "WHERE alias = ? OR alias LIKE ?",
+                (q, f"{q}%"),
+            ).fetchall()
+            for r in alias_rows:
+                rbw = r["root_buckwalter"]
+                score = 75 if r["source"] == "ai" else 60
+                if rbw not in matched_roots or matched_roots[rbw] < score:
+                    matched_roots[rbw] = score
+        except sqlite3.OperationalError:
+            pass  # table may not exist yet
+
+        # 4. English meaning search in learning_derivatives
+        if len(q) >= 2 and not any('\u0600' <= c <= '\u06FF' for c in q):
+            try:
+                meaning_rows = conn.execute(
+                    "SELECT DISTINCT root_buckwalter FROM learning_derivatives "
+                    "WHERE LOWER(meaning_gloss) LIKE ? LIMIT 20",
+                    (f"%{q}%",),
+                ).fetchall()
+                for r in meaning_rows:
+                    rbw = r["root_buckwalter"]
+                    if rbw not in matched_roots:
+                        matched_roots[rbw] = 50
+            except sqlite3.OperationalError:
+                pass
+
+            # Also search word_glosses for English meanings
+            try:
+                gloss_rows = conn.execute(
+                    "SELECT DISTINCT m.root_buckwalter FROM morphology m "
+                    "JOIN word_glosses wg ON m.chapter = wg.chapter AND m.verse = wg.verse AND m.word_pos = wg.word_pos "
+                    "WHERE LOWER(wg.translation_en) LIKE ? "
+                    "AND m.root_buckwalter IS NOT NULL AND m.root_buckwalter != '' "
+                    "LIMIT 20",
+                    (f"%{q}%",),
+                ).fetchall()
+                for r in gloss_rows:
+                    rbw = r["root_buckwalter"]
+                    if rbw not in matched_roots:
+                        matched_roots[rbw] = 45
+            except sqlite3.OperationalError:
+                pass
+
+        if not matched_roots:
+            return jsonify([])
+
+        # Sort by score desc, then by frequency desc
+        scored = []
+        for root_bw, score in matched_roots.items():
+            freq = len(_root_inv.get(root_bw, set()))
+            scored.append((root_bw, score, freq))
+        scored.sort(key=lambda x: (-x[1], -x[2]))
+        scored = scored[:limit]
+
+        # Build rich results
+        results = []
+        for root_bw, score, freq in scored:
+            root_arabic = _root_arabic_map.get(root_bw, "")
+
+            # Get top meaning from learning_derivatives or word_glosses
+            meaning = ""
+            try:
+                m_row = conn.execute(
+                    "SELECT meaning_gloss FROM learning_derivatives "
+                    "WHERE root_buckwalter = ? ORDER BY frequency DESC LIMIT 1",
+                    (root_bw,),
+                ).fetchone()
+                if m_row:
+                    meaning = m_row["meaning_gloss"]
+            except sqlite3.OperationalError:
+                pass
+
+            if not meaning:
+                try:
+                    g_row = conn.execute(
+                        "SELECT wg.translation_en FROM morphology m "
+                        "JOIN word_glosses wg ON m.chapter = wg.chapter AND m.verse = wg.verse AND m.word_pos = wg.word_pos "
+                        "WHERE m.root_buckwalter = ? AND wg.translation_en IS NOT NULL AND wg.translation_en != '' "
+                        "LIMIT 1",
+                        (root_bw,),
+                    ).fetchone()
+                    if g_row:
+                        meaning = g_row["translation_en"]
+                except sqlite3.OperationalError:
+                    pass
+
+            # Get one sample verse with Arabic words and matched positions
+            sample = None
+            verse_keys = sorted(_root_inv.get(root_bw, set()))[:1]
+            if verse_keys:
+                ch, v = verse_keys[0]
+                vrow = conn.execute(
+                    "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                    (ch, v),
+                ).fetchone()
+                if vrow:
+                    arabic_text = _strip_bismillah(vrow["text_uthmani"], ch, v)
+                    arabic_words = arabic_text.split()
+                    # Find which word positions contain this root
+                    morph_rows = conn.execute(
+                        "SELECT DISTINCT word_pos FROM morphology "
+                        "WHERE chapter = ? AND verse = ? AND root_buckwalter = ?",
+                        (ch, v, root_bw),
+                    ).fetchall()
+                    matched_positions = [r["word_pos"] for r in morph_rows]
+                    # Window around matched word so it's always visible
+                    max_words = 10
+                    if arabic_words and matched_positions:
+                        first_match = min(matched_positions) - 1  # 0-based
+                        if len(arabic_words) <= max_words:
+                            start = 0
+                        elif first_match <= max_words // 2:
+                            start = 0
+                        else:
+                            start = min(first_match - max_words // 2, len(arabic_words) - max_words)
+                    else:
+                        start = 0
+                    end = start + max_words
+                    windowed_words = arabic_words[start:end]
+                    # Adjust positions to be relative to the window
+                    adjusted_positions = [p - start for p in matched_positions if start < p <= start + max_words]
+                    sample = {
+                        "ref": f"{ch}:{v}",
+                        "words": windowed_words,
+                        "matched_positions": adjusted_positions,
+                        "starts_truncated": start > 0,
+                        "ends_truncated": end < len(arabic_words),
+                        "translation": _best_translation(conn, ch, v)[:150],
+                    }
+
+            # Check if it's in the learning curriculum
+            in_curriculum = False
+            try:
+                c_row = conn.execute(
+                    "SELECT 1 FROM learning_curriculum WHERE root_buckwalter = ?",
+                    (root_bw,),
+                ).fetchone()
+                in_curriculum = c_row is not None
+            except sqlite3.OperationalError:
+                pass
+
+            results.append({
+                "root_buckwalter": root_bw,
+                "root_arabic": root_arabic,
+                "meaning": meaning,
+                "frequency": freq,
+                "in_curriculum": in_curriculum,
+                "sample_verse": sample,
+            })
+
+        return jsonify(results)
+    finally:
+        conn.close()
+
+
 # --------------- Legacy redirect ---------------
 
 @app.before_request
@@ -2787,6 +3027,118 @@ def _redirect_legacy_query_params():
         s = request.args.get("s")
         a = request.args.get("a")
         return redirect(f"/verse/{s}:{a}", code=301)
+
+
+# --------------- Noscript content for LLM crawlers ---------------
+
+def _build_noscript_content(path: str) -> str:
+    """Generate static HTML content for crawlers that don't execute JavaScript.
+
+    This ensures LLM crawlers (GPTBot, Claude-Web, etc.) see meaningful
+    content in the page body, not just an empty <div id="root"></div>.
+    """
+    parts = []
+
+    # Verse page: /verse/X:Y
+    m = re.match(r'^/verse/(\d+):(\d+)$', path)
+    if m:
+        surah, ayah = int(m.group(1)), int(m.group(2))
+        conn = get_db()
+        try:
+            vrow = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (surah, ayah),
+            ).fetchone()
+            if vrow:
+                text = _strip_bismillah(vrow["text_uthmani"], surah, ayah)
+                trans = _best_translation(conn, surah, ayah)
+                name = _surah_name(surah)
+                parts.append(f'<h1>Surah {html.escape(name)} ({surah}:{ayah})</h1>')
+                parts.append(f'<p dir="rtl" lang="ar">{html.escape(text)}</p>')
+                parts.append(f'<p>{html.escape(trans)}</p>')
+
+                # Root summary
+                morph = conn.execute(
+                    "SELECT DISTINCT root_buckwalter FROM morphology "
+                    "WHERE chapter = ? AND verse = ? AND root_buckwalter IS NOT NULL AND root_buckwalter != ''",
+                    (surah, ayah),
+                ).fetchall()
+                if morph:
+                    root_links = []
+                    for r in morph:
+                        rbw = r["root_buckwalter"]
+                        ra = _root_arabic_map.get(rbw, "")
+                        root_links.append(f'<a href="/root/{quote(rbw)}">{html.escape(ra)} ({html.escape(rbw)})</a>')
+                    parts.append(f'<p>Roots in this verse: {", ".join(root_links)}</p>')
+        finally:
+            conn.close()
+
+    # Root page: /root/X
+    m = re.match(r'^/root/(.+)$', path)
+    if m:
+        root_bw = m.group(1)
+        root_arabic = _root_arabic_map.get(root_bw, "")
+        if root_arabic:
+            freq = len(_root_inv.get(root_bw, set()))
+            parts.append(f'<h1>Root {html.escape(root_arabic)} ({html.escape(root_bw)})</h1>')
+            parts.append(f'<p>This root appears in {freq} verses across the Quran.</p>')
+            conn = get_db()
+            try:
+                lemmas = conn.execute(
+                    "SELECT DISTINCT lemma_arabic FROM morphology "
+                    "WHERE root_buckwalter = ? AND lemma_arabic IS NOT NULL AND lemma_arabic != '' LIMIT 10",
+                    (root_bw,),
+                ).fetchall()
+                if lemmas:
+                    lemma_list = ", ".join(html.escape(r["lemma_arabic"]) for r in lemmas)
+                    parts.append(f'<p>Derived forms: {lemma_list}</p>')
+            finally:
+                conn.close()
+
+    # Learning hub: /learning
+    if path == '/learning' or path == '/learning/':
+        parts.append('<h1>Learn Quranic Arabic Through Root Words</h1>')
+        parts.append('<p>Master 118 essential root words across 18 thematic units. '
+                     'Each root unlocks a family of words used throughout the Quran, '
+                     'building both vocabulary and deeper understanding.</p>')
+        parts.append('<p>Features: visual mnemonics, spaced repetition, verse-by-verse discovery, '
+                     'and fill-in-the-blank vocabulary testing.</p>')
+
+    # Learning root page: /learning/root/X
+    m = re.match(r'^/learning/root/(.+?)/?$', path)
+    if m:
+        root_bw = m.group(1)
+        root_arabic = _root_arabic_map.get(root_bw, "")
+        if root_arabic:
+            parts.append(f'<h1>Learn Root {html.escape(root_arabic)} ({html.escape(root_bw)})</h1>')
+            conn = get_db()
+            try:
+                cur = conn.execute(
+                    "SELECT root_story, unit_theme FROM learning_curriculum WHERE root_buckwalter = ?",
+                    (root_bw,),
+                ).fetchone()
+                if cur:
+                    parts.append(f'<p>Theme: {html.escape(cur["unit_theme"])}</p>')
+                    parts.append(f'<p>{html.escape(cur["root_story"][:300])}</p>')
+            finally:
+                conn.close()
+
+    # Home page
+    if path in ('', '/'):
+        parts.append('<h1>The Quran Explorer</h1>')
+        parts.append('<p>Explore the Quran verse by verse with root word analysis, '
+                     'morphology, Semitic etymology, cross-references, and AI-powered translations.</p>')
+        parts.append('<p>Search by verse reference (e.g., 2:255) or explore root words '
+                     '(e.g., xlq, khalaq, create).</p>')
+        parts.append(f'<p><a href="/learning">Learn Quranic Arabic</a> through 118 root words '
+                     'across 18 thematic units.</p>')
+        parts.append(f'<p>Free public API available at <a href="{SITE_URL}/api/v1/">{SITE_URL}/api/v1/</a>.</p>')
+
+    if not parts:
+        return ""
+
+    content = "\n".join(parts)
+    return f'<noscript><div style="max-width:800px;margin:0 auto;padding:20px">{content}</div></noscript>'
 
 
 # --------------- SPA catch-all (production only) ---------------
@@ -2831,12 +3183,20 @@ if SERVE_STATIC:
         meta = _get_seo_meta(req_path)
         meta_tags = _build_meta_tags(meta)
 
+        # Generate noscript content for LLM/bot crawlers that don't execute JS
+        noscript_html = _build_noscript_content(req_path)
+
         html_doc = _index_html_cache
         html_doc = html_doc.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
         html_doc = html_doc.replace(
             "<title>The Quran Explorer</title>",
             f"<title>{html.escape(meta['title'])}</title>",
         )
+        if noscript_html:
+            html_doc = html_doc.replace(
+                '<div id="root"></div>',
+                f'<div id="root"></div>\n{noscript_html}',
+            )
 
         return Response(html_doc, mimetype="text/html", status=200)
 

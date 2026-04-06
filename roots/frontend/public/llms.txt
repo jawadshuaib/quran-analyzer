@@ -1,0 +1,50 @@
+# al-nuqta.com — The Quran Explorer
+
+> A free, open-source tool for Quranic text analysis — root words, morphology, Semitic etymology, AI-powered translations, and an interactive Arabic learning curriculum.
+
+## About
+
+al-nuqta.com provides deep linguistic analysis of every verse, word, and root in the Quran. It combines traditional Arabic morphology with Semitic comparative etymology and AI-powered contextual translations. The site also offers a structured learning curriculum for Quranic Arabic built around root word families.
+
+## Key Features
+
+- **Verse Analysis**: Word-by-word morphological breakdown of any verse (6,236 verses)
+- **Root Word Explorer**: Browse 1,600+ Arabic root words with cognates from Hebrew, Aramaic, Akkadian, and other Semitic languages
+- **AI Translations**: Context-aware verse translations that go beyond conventional glosses
+- **Word Meanings**: AI-generated per-word semantic analysis with cross-references
+- **Related Verses**: IDF-weighted semantic similarity to find thematically connected passages
+- **Learning Curriculum**: 118 root words across 18 thematic units with visual mnemonics, spaced repetition, and verse-by-verse discovery
+- **Root Search**: Fuzzy search across Buckwalter transliteration, Arabic text, romanizations, and English meanings
+
+## Public API
+
+The site offers a free, read-only REST API at `https://al-nuqta.com/api/v1/`.
+
+Full documentation: https://github.com/jawadshuaib/quran-analyzer/blob/main/API.md
+
+### Key Endpoints
+
+- `GET /api/v1/verses/{surah}:{ayah}` — Verse text, translation, morphology, roots
+- `GET /api/v1/verses/{surah}:{ayah}?fields=all` — Full analysis (AI translation, related verses, grammar, thematic context)
+- `GET /api/v1/words/{surah}:{ayah}/{position}` — Deep word analysis with cognates and cross-references
+- `GET /api/v1/roots/{buckwalter}` — Root overview with lemmas, cognates, and sample verses
+- `GET /api/v1/roots/search?q={query}` — Fuzzy root search (Buckwalter, Arabic, romanization, English)
+- `GET /api/v1/search?root={bw}&root={bw}` — Find verses containing multiple roots
+- `GET /api/v1/surahs` — All 114 surahs
+- `GET /api/v1/learning/curriculum` — Structured learning curriculum with mnemonics
+
+### Response Format
+
+All endpoints return JSON with envelope: `{ "ok": true, "data": {...}, "meta": {...} }`
+
+### Buckwalter Transliteration
+
+Roots and lemmas use Buckwalter encoding. Common mappings: خ=x, ل=l, ق=q, ش=$, ذ=*, ع=E, غ=g, ص=S, ض=D, ط=T, ظ=Z, ح=H.
+
+## Source Code
+
+GitHub: https://github.com/jawadshuaib/quran-analyzer
+
+## Contact
+
+For questions or issues: https://github.com/jawadshuaib/quran-analyzer/issues

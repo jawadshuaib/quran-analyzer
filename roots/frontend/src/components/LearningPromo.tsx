@@ -60,7 +60,7 @@ export default function LearningPromo() {
               <div key={root.root_buckwalter} className="aspect-square overflow-hidden">
                 <img
                   src={root.mnemonic_image_url!}
-                  alt=""
+                  alt={`Mnemonic for root ${root.root_arabic}`}
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />

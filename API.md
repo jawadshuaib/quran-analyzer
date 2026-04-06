@@ -261,6 +261,46 @@ curl "https://al-nuqta.com/api/v1/roots/mlk"
 }
 ```
 
+#### `GET /api/v1/roots/search?q={query}`
+
+Fuzzy root search supporting Buckwalter transliteration, phonetic romanizations (e.g., `khalaq`), Arabic text (e.g., `خلق`), and English meaning keywords (e.g., `create`). Ideal for building autocomplete/typeahead UIs.
+
+**Query Parameters:**
+
+| Param | Default | Max | Description |
+|-------|---------|-----|-------------|
+| `q` | _(required)_ | — | Search query (Buckwalter, romanization, Arabic, or English) |
+| `limit` | `10` | `30` | Max results |
+
+**Example:**
+
+```bash
+curl "https://al-nuqta.com/api/v1/roots/search?q=create&limit=5"
+```
+
+```json
+{
+  "ok": true,
+  "data": [
+    {
+      "root_buckwalter": "xlq",
+      "root_arabic": "خ ل ق",
+      "meaning": "created",
+      "frequency": 261,
+      "in_curriculum": true,
+      "sample_verse": {
+        "ref": "2:21",
+        "text": "يَـٰٓأَيُّهَا ٱلنَّاسُ ٱعْبُدُوا۟ رَبَّكُمُ ٱلَّذِى خَلَقَكُمْ...",
+        "translation": "O mankind, worship your Lord, who created you..."
+      }
+    }
+  ],
+  "meta": { "query": "create", "total": 1 }
+}
+```
+
+The search resolves aliases automatically — searching `khalaq`, `kh-l-q`, `خلق`, or `create` all return the root `xlq` (خ ل ق).
+
 #### `GET /api/v1/roots/{root_bw}/cognates`
 
 Semitic cognate data only.
@@ -516,6 +556,14 @@ curl "https://al-nuqta.com/api/v1/words/67:1/1"
 
 ```bash
 curl "https://al-nuqta.com/api/v1/roots/rHm/cognates"
+```
+
+### Search for a root by English meaning or romanization
+
+```bash
+curl "https://al-nuqta.com/api/v1/roots/search?q=mercy"
+curl "https://al-nuqta.com/api/v1/roots/search?q=khalaq"
+curl "https://al-nuqta.com/api/v1/roots/search?q=خلق"
 ```
 
 ### Browse the learning curriculum

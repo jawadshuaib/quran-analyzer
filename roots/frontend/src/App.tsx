@@ -13,6 +13,7 @@ import NotFound from './components/NotFound';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 import LearningPage from './components/learning/LearningPage';
 import LearningPromo from './components/LearningPromo';
+import RootSearch from './components/RootSearch';
 
 const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
 const CHROME_EXTENSION_ID = 'jbalbedmilokgefgknhieckdidnlikdm';
@@ -396,6 +397,18 @@ export default function App() {
           </div>
 
           <hr className="border-stone-200/60 max-w-xs mx-auto" />
+
+          {/* Root search */}
+          <div className="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-left">
+            <div className="flex flex-col items-center text-center">
+              <p className="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Root Search</p>
+              <h2 className="text-lg font-semibold text-stone-800 mt-1">Explore Quranic Root Words</h2>
+              <p className="text-sm text-stone-500 mt-1 mb-4">
+                Search by Buckwalter, Arabic, romanization, or English meaning
+              </p>
+              <RootSearch />
+            </div>
+          </div>
 
           {showExtensionSection && (
             <div className="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-left">

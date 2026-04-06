@@ -151,7 +151,7 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
                 <div key={root.root_buckwalter} className="aspect-square overflow-hidden">
                   <img
                     src={root.mnemonic_image_url!}
-                    alt=""
+                    alt={`Mnemonic for root ${root.root_arabic}`}
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
@@ -243,7 +243,7 @@ export default function LearningDashboard({ onSelectRoot, onStartReview }: Props
                       {root.mnemonic_image_url ? (
                         <img
                           src={root.mnemonic_image_url}
-                          alt=""
+                          alt={`Visual mnemonic for ${root.root_arabic} (${root.root_buckwalter})`}
                           className="w-full aspect-[4/3] object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
