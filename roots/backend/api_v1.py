@@ -674,9 +674,10 @@ def search_roots():
             if not meaning:
                 try:
                     g_row = conn.execute(
-                        "SELECT wg.translation_en FROM morphology m "
+                        "SELECT wg.translation_en, COUNT(*) AS cnt FROM morphology m "
                         "JOIN word_glosses wg ON m.chapter = wg.chapter AND m.verse = wg.verse AND m.word_pos = wg.word_pos "
-                        "WHERE m.root_buckwalter = ? AND wg.translation_en IS NOT NULL AND wg.translation_en != '' LIMIT 1",
+                        "WHERE m.root_buckwalter = ? AND wg.translation_en IS NOT NULL AND wg.translation_en != '' "
+                        "GROUP BY wg.translation_en ORDER BY cnt DESC, LENGTH(wg.translation_en) ASC LIMIT 1",
                         (root_bw,),
                     ).fetchone()
                     if g_row:
