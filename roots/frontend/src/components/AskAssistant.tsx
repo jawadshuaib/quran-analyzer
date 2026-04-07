@@ -17,6 +17,9 @@ interface Message {
 /** Max conversation turns (user+assistant pairs) to send to Claude to avoid exceeding context limits */
 const MAX_HISTORY_TURNS = 10;
 
+/** Auto-clear conversation after 1 hour of inactivity */
+const THREAD_TIMEOUT_MS = 60 * 60 * 1000;
+
 /** Strip HTML tags and script-like content from user input */
 function sanitizeInput(text: string): string {
   return text
@@ -47,12 +50,27 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
   const streamingRef = useRef(false);
   const rafRef = useRef<number | null>(null);
   const latestStreamRef = useRef('');
+  const lastMessageTimeRef = useRef<number>(0);
 
   const hasApiKey = !!getApiKey();
   const freeRemaining = freeLimit - freeUsed;
   const canAskFree = freeRemaining > 0;
   // User can ask if they have their own key OR if they have free questions left
   const canAsk = hasApiKey || canAskFree;
+
+  // Clear stale conversation if last message was over 1 hour ago
+  const clearIfStale = useCallback(() => {
+    if (messages.length > 0 && lastMessageTimeRef.current > 0) {
+      if (Date.now() - lastMessageTimeRef.current > THREAD_TIMEOUT_MS) {
+        setMessages([]);
+        setStreamText('');
+        setError('');
+        contextRef.current = '';
+        setThreadId(null);
+        lastMessageTimeRef.current = 0;
+      }
+    }
+  }, [messages.length]);
 
   // Reset state when page changes
   useEffect(() => {
@@ -64,6 +82,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     setExpandedHistoryId(null);
     setTab('ask');
     setThreadId(null);
+    lastMessageTimeRef.current = 0;
   }, [pageType, pageKey]);
 
   // Load usage count on mount
@@ -95,6 +114,11 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     };
   }, [streamText]);
 
+  // Auto-clear stale conversation when panel opens
+  useEffect(() => {
+    if (open) clearIfStale();
+  }, [open, clearIfStale]);
+
   // Eagerly check if history exists when panel opens
   useEffect(() => {
     if (open && !historyLoaded) {
@@ -114,6 +138,9 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
 
   const handleSubmit = useCallback(async () => {
     if (!input.trim() || streaming) return;
+
+    // Auto-clear stale thread before submitting
+    clearIfStale();
 
     const trimmed = sanitizeInput(input);
 
@@ -176,6 +203,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
         setStreamText('');
         latestStreamRef.current = '';
         setMessages((prev) => [...prev, { role: 'assistant', content: text }]);
+        lastMessageTimeRef.current = Date.now();
 
         // Increment free usage counter locally
         if (!usingOwnKey) {
@@ -225,7 +253,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
         pageType, contextRef.current, question, getSessionId(), conversationHistory, callbacks,
       );
     }
-  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer, threadId]);
+  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer, threadId, clearIfStale]);
 
   const handleCancel = () => {
     abortRef.current?.abort();
@@ -256,7 +284,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
         const a = parseInt(match[2], 10);
         if (s >= 1 && s <= 114 && a >= 1 && a <= 286) {
           return (
-            <a key={i} href={`/verse/${part}`}
+            <a key={i} href={`/verse/${part}`} target="_blank" rel="noopener noreferrer"
               className="text-indigo-600 hover:text-indigo-800 font-medium hover:underline">
               {part}
             </a>
