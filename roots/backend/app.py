@@ -1040,6 +1040,54 @@ def _moderate_question(question: str) -> dict:
         return {"approved": True, "reworded": question, "reason": None}
 
 
+def _synthesize_questions(questions: list) -> str:
+    """Synthesize multiple follow-up questions into one clear, consolidated question.
+
+    Uses Claude Haiku to merge a thread of questions into a single question
+    that captures everything the user explored.
+    Falls back to joining with semicolons if the API call fails.
+    """
+    if len(questions) <= 1:
+        return questions[0] if questions else ""
+
+    if not _CLAUDE_API_KEY:
+        return "; ".join(questions)
+
+    numbered = "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
+    prompt = (
+        "A user asked the following series of questions in a Quran study conversation:\n\n"
+        f"{numbered}\n\n"
+        "Synthesize these into ONE clear, concise question (1-2 sentences max) that captures "
+        "the full scope of what the user was exploring. Keep the original intent. "
+        "Respond with ONLY the synthesized question text, nothing else."
+    )
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": _CLAUDE_API_KEY,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": _MODERATION_MODEL,
+                "max_tokens": 200,
+                "temperature": 0,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=15,
+        )
+        if not resp.ok:
+            return "; ".join(questions)
+
+        body = resp.json()
+        text = body.get("content", [{}])[0].get("text", "").strip()
+        return text if text else "; ".join(questions)
+    except Exception:
+        return "; ".join(questions)
+
+
 @app.route("/api/assistant/usage")
 def get_assistant_usage():
     """Return how many free questions the session has used."""
@@ -1156,28 +1204,47 @@ def proxy_assistant_ask():
 
 @app.route("/api/assistant/save", methods=["POST"])
 def save_assistant_qa():
-    """Save an Ask the Quran Q&A pair."""
+    """Save or update an Ask the Quran Q&A conversation thread.
+
+    If `thread_id` is provided, updates the existing history entry with a
+    synthesized question (from all_questions) and the latest answer.
+    Otherwise, creates a new entry.
+    """
     data = request.get_json(force=True)
     required = ("session_id", "page_type", "page_key", "question", "answer")
     for field in required:
         if not data.get(field):
             return jsonify({"error": f"Missing required field: {field}"}), 400
 
-    # Sanitize question: strip HTML/JS to prevent injection
+    thread_id = data.get("thread_id")          # int or None
+    all_questions = data.get("all_questions")   # list[str] or None
+
+    # Sanitize the current question
     q = data.get("question", "")
-    q = re.sub(r"<[^>]*>", "", q)              # strip HTML tags
+    q = re.sub(r"<[^>]*>", "", q)
     q = re.sub(r"javascript\s*:", "", q, flags=re.IGNORECASE)
     q = re.sub(r"on\w+\s*=", "", q, flags=re.IGNORECASE)
     data["question"] = q.strip()
 
-    # Input length limits to prevent abuse
+    # Sanitize all_questions too
+    if all_questions and isinstance(all_questions, list):
+        sanitized = []
+        for aq in all_questions:
+            if isinstance(aq, str):
+                aq = re.sub(r"<[^>]*>", "", aq)
+                aq = re.sub(r"javascript\s*:", "", aq, flags=re.IGNORECASE)
+                aq = re.sub(r"on\w+\s*=", "", aq, flags=re.IGNORECASE)
+                sanitized.append(aq.strip()[:500])
+        all_questions = [q for q in sanitized if q]
+
+    # Input length limits
     MAX_LEN = {"question": 500, "answer": 50000, "context_summary": 500}
     for field, limit in MAX_LEN.items():
         val = data.get(field, "")
         if isinstance(val, str) and len(val) > limit:
             data[field] = val[:limit]
 
-    # Moderate the question: check appropriateness + reword for clarity
+    # Moderate the current question
     moderation = _moderate_question(data["question"])
     if not moderation["approved"]:
         return jsonify({
@@ -1186,13 +1253,47 @@ def save_assistant_qa():
             "reason": moderation.get("reason", "Question was not appropriate for saving."),
         })
 
-    # Use the reworded question for history
+    # --- UPDATE existing thread entry ---
+    if thread_id and all_questions and len(all_questions) > 1:
+        # Synthesize all questions into one consolidated question
+        synthesized = _synthesize_questions(all_questions)
+        # Reword the synthesized question for grammar/clarity
+        synth_mod = _moderate_question(synthesized)
+        saved_question = synth_mod["reworded"] if synth_mod["approved"] else synthesized
+
+        try:
+            conn = get_db()
+            try:
+                conn.execute(
+                    "UPDATE assistant_conversations "
+                    "SET question = ?, answer = ?, model_used = ?, response_time_ms = ? "
+                    "WHERE id = ? AND session_id = ?",
+                    (
+                        saved_question,
+                        data["answer"],
+                        data.get("model_used", ""),
+                        data.get("response_time_ms"),
+                        thread_id,
+                        data["session_id"],
+                    ),
+                )
+                conn.commit()
+                return jsonify({
+                    "ok": True,
+                    "id": thread_id,
+                    "reworded_question": saved_question,
+                })
+            finally:
+                conn.close()
+        except Exception as e:
+            return jsonify({"error": f"Failed to update: {str(e)[:200]}"}), 500
+
+    # --- INSERT new entry (first question in thread) ---
     saved_question = moderation["reworded"]
 
     try:
         conn = get_db()
         try:
-            # Ensure table exists (lazy creation if startup failed due to DB lock)
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS assistant_conversations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

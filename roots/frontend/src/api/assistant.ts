@@ -15,6 +15,7 @@ export interface QAEntry {
 
 export interface SaveResult {
   ok: boolean;
+  id?: number;
   moderated?: boolean;
   reworded_question?: string;
   reason?: string;
@@ -28,21 +29,31 @@ export async function saveQA(params: {
   contextSummary: string;
   modelUsed: string;
   responseTimeMs: number;
+  threadId?: number | null;
+  allQuestions?: string[];
 }): Promise<SaveResult> {
   try {
+    const body: Record<string, unknown> = {
+      session_id: getSessionId(),
+      page_type: params.pageType,
+      page_key: params.pageKey,
+      question: params.question,
+      answer: params.answer,
+      context_summary: params.contextSummary,
+      model_used: params.modelUsed,
+      response_time_ms: params.responseTimeMs,
+    };
+    if (params.threadId) {
+      body.thread_id = params.threadId;
+    }
+    if (params.allQuestions && params.allQuestions.length > 1) {
+      body.all_questions = params.allQuestions;
+    }
+
     const res = await fetch(`${API_BASE}/api/assistant/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: getSessionId(),
-        page_type: params.pageType,
-        page_key: params.pageKey,
-        question: params.question,
-        answer: params.answer,
-        context_summary: params.contextSummary,
-        model_used: params.modelUsed,
-        response_time_ms: params.responseTimeMs,
-      }),
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       return await res.json();

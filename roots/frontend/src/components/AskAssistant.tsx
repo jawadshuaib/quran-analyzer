@@ -40,6 +40,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
   const [freeUsed, setFreeUsed] = useState(0);
   const [freeLimit, setFreeLimit] = useState(3);
   const [usageLoaded, setUsageLoaded] = useState(false);
+  const [threadId, setThreadId] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const contextRef = useRef<string>('');
@@ -62,6 +63,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     setHistoryLoaded(false);
     setExpandedHistoryId(null);
     setTab('ask');
+    setThreadId(null);
   }, [pageType, pageKey]);
 
   // Load usage count on mount
@@ -180,7 +182,13 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
           setFreeUsed((prev) => prev + 1);
         }
 
-        // Save to history
+        // Collect all user questions in this thread (previous + current)
+        const allQuestions = [
+          ...messages.filter((m) => m.role === 'user').map((m) => m.content),
+          question,
+        ];
+
+        // Save to history — first question creates entry, follow-ups update it
         const contextSummary = contextRef.current.slice(0, 200) + '...';
         saveQA({
           pageType,
@@ -190,6 +198,12 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
           contextSummary,
           modelUsed: modelTag,
           responseTimeMs,
+          threadId,
+          allQuestions,
+        }).then((result) => {
+          if (result.ok && result.id) {
+            setThreadId(result.id);
+          }
         });
         setHistoryLoaded(false);
       },
@@ -211,7 +225,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
         pageType, contextRef.current, question, getSessionId(), conversationHistory, callbacks,
       );
     }
-  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer]);
+  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer, threadId]);
 
   const handleCancel = () => {
     abortRef.current?.abort();
@@ -229,6 +243,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     setStreamText('');
     setError('');
     contextRef.current = '';
+    setThreadId(null);
   };
 
   // Auto-link verse references (only valid Quran ranges)
