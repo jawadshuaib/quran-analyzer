@@ -89,7 +89,6 @@ export async function fetchHistory(
     const params = new URLSearchParams({
       page_type: pageType,
       page_key: pageKey,
-      session_id: getSessionId(),
       limit: String(limit),
     });
     const res = await fetch(`${API_BASE}/api/assistant/history?${params}`);

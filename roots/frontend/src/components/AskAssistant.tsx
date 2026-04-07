@@ -408,7 +408,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
                   tab === 'history' ? 'bg-white text-violet-800 shadow-sm' : 'text-violet-600 hover:text-violet-800'
                 }`}
               >
-                History
+                Q&amp;A
               </button>
             </div>
           )}
@@ -549,7 +549,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
             </div>
           ) : history.length === 0 ? (
             <p className="text-sm text-stone-400 text-center py-6">
-              No previous questions for this {pageType}.
+              No questions have been asked about this {pageType} yet.
             </p>
           ) : (
             <div className="space-y-4">

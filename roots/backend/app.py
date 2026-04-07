@@ -1338,8 +1338,7 @@ def save_assistant_qa():
 
 @app.route("/api/assistant/history")
 def get_assistant_history():
-    """Get Q&A history for a page."""
-    session_id = request.args.get("session_id", "")
+    """Get shared Q&A for a page (visible to all users)."""
     page_type = request.args.get("page_type", "")
     page_key = request.args.get("page_key", "")
     try:
@@ -1347,7 +1346,7 @@ def get_assistant_history():
     except (ValueError, TypeError):
         limit = 50
 
-    if not session_id or not page_type or not page_key:
+    if not page_type or not page_key:
         return jsonify({"history": []})
 
     conn = get_db()
@@ -1355,9 +1354,9 @@ def get_assistant_history():
         rows = conn.execute(
             "SELECT id, question, answer, model_used, created_at "
             "FROM assistant_conversations "
-            "WHERE session_id = ? AND page_type = ? AND page_key = ? "
+            "WHERE page_type = ? AND page_key = ? "
             "ORDER BY created_at DESC LIMIT ?",
-            (session_id, page_type, page_key, limit),
+            (page_type, page_key, limit),
         ).fetchall()
         return jsonify({
             "history": [
