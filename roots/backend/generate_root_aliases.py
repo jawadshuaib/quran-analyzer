@@ -131,14 +131,15 @@ def generate_ai_aliases(root_bw, root_arabic, top_meaning, model):
     prompt = f"""Given this Arabic root: {root_arabic} (Buckwalter: {root_bw})
 Meaning: {top_meaning}
 
-Generate a JSON array of 5-10 alternative search strings that an English-speaking student of Arabic might type when looking for this root. Include:
-1. Common romanizations (e.g., for خ ل ق: "khalaq", "khalaqa", "kh-l-q")
-2. Simplified spellings without diacritical distinctions (e.g., "kalaq" for khalaq)
-3. The English meaning keywords (e.g., "create", "creation")
-4. Common misspellings or alternate transliterations
+Generate a JSON array of 10-15 search strings that English-speaking users might type when looking for this root. Include:
+1. Romanizations with hyphens between letters (e.g., "kh-l-q", "i-l-m", "r-h-m")
+2. Romanizations without hyphens (e.g., "khlq", "ilm", "rhm")
+3. Simplified spellings where emphatic Arabic letters are replaced with plain ones (ع→a/i, ح→h, ص→s, ض→d, ط→t, ظ→z, ث→th/s, خ→kh/x, غ→gh/g, ش→sh)
+4. Common misspellings an English speaker might make (e.g., "ism" for إثم, "ilm" for علم)
+5. English meaning keywords and close synonyms (e.g., "mercy", "compassion", "merciful" for رحم)
 
 Return ONLY a JSON array of lowercase strings, nothing else. Example:
-["khalaq", "khalaqa", "kh-l-q", "create", "creation"]"""
+["kh-l-q", "khalaq", "khlq", "kalaq", "create", "creation", "creator"]"""
 
     try:
         raw = call_ollama(model, prompt)
@@ -181,8 +182,18 @@ def main():
         rows = conn.execute("SELECT DISTINCT root_buckwalter FROM root_search_aliases WHERE source = 'ai'").fetchall()
         existing = {r["root_buckwalter"] for r in rows}
 
-    # Get meanings from learning_derivatives or word_glosses
+    # Get meanings: ai_root_meanings > learning_derivatives > word_glosses
     meanings = {}
+    try:
+        for r in conn.execute("""
+            SELECT root_buckwalter, primary_meaning FROM ai_root_meanings
+            ORDER BY config_id DESC
+        """).fetchall():
+            if r["root_buckwalter"] not in meanings:
+                meanings[r["root_buckwalter"]] = r["primary_meaning"]
+    except sqlite3.OperationalError:
+        pass  # table may not exist yet
+
     for r in conn.execute("""
         SELECT root_buckwalter, meaning_gloss FROM learning_derivatives
         ORDER BY frequency DESC

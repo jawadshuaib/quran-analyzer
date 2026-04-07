@@ -14,6 +14,9 @@ import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 import LearningPage from './components/learning/LearningPage';
 import LearningPromo from './components/LearningPromo';
 import RootSearch from './components/RootSearch';
+import SettingsPage from './components/SettingsPage';
+import AskAssistant from './components/AskAssistant';
+import { buildVerseContext, buildWordContext } from './utils/context-builders';
 
 const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
 const CHROME_EXTENSION_ID = 'jbalbedmilokgefgknhieckdidnlikdm';
@@ -51,6 +54,7 @@ function isKnownRoute(): boolean {
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
+  if (/^\/settings\/?$/.test(path)) return true;
   return false;
 }
 
@@ -181,6 +185,15 @@ export default function App() {
       <div className="min-h-screen flex flex-col">
         {showTopBar && <TopExtensionBar />}
         <ExtensionPrivacyPage />
+      </div>
+    );
+  }
+
+  if (/^\/settings\/?$/.test(window.location.pathname)) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        {showTopBar && <TopExtensionBar />}
+        <SettingsPage />
       </div>
     );
   }
@@ -373,6 +386,12 @@ export default function App() {
             ayah={data.ayah}
             onNavigate={handleSearch}
             forceCollapse={!!wordSearchResults}
+          />
+
+          <AskAssistant
+            pageType="verse"
+            pageKey={`${data.surah}:${data.ayah}`}
+            contextGatherer={() => buildVerseContext(data.surah, data.ayah)}
           />
         </div>
       )}

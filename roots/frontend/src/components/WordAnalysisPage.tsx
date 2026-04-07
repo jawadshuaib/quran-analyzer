@@ -3,6 +3,8 @@ import type { WordAnalysisData } from '../types';
 import { fetchWordAnalysis } from '../api/quran';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
 import VerseRefText from './VerseRefText';
+import AskAssistant from './AskAssistant';
+import { buildWordContext } from '../utils/context-builders';
 
 interface Props {
   surah: number;
@@ -382,6 +384,13 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
           </div>
         </section>
       )}
+
+      {/* Ask the Quran Assistant */}
+      <AskAssistant
+        pageType="word"
+        pageKey={`${surah}:${ayah}/${pos}`}
+        contextGatherer={() => buildWordContext(surah, ayah, pos)}
+      />
     </div>
   );
 }

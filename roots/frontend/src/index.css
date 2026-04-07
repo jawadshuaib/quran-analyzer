@@ -10,6 +10,13 @@ body {
   min-height: 100vh;
 }
 
+/* All clickable elements should show pointer cursor */
+button,
+[role="button"],
+summary {
+  cursor: pointer;
+}
+
 /* Flip card utilities */
 @layer utilities {
   .perspective-1000 {

@@ -347,6 +347,9 @@ export interface RootDetailData {
   lemmas: LemmaInfo[];
   cognate: CognateData | null;
   sample_verses: RootSampleVerse[];
+  primary_meaning?: string;
+  detailed_meaning?: string;
+  semantic_field?: string;
 }
 
 export interface WordMeaningBrief {

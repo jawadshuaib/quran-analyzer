@@ -1,5 +1,6 @@
 import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse } from '../types';
 
+export const API_BASE = '';
 const BASE = '/api';
 const SURAH_CONTEXT_CONFIG = 'surah-context-quran-only-v2-summary';
 const GRAMMAR_INSIGHTS_CONFIG = 'grammar-insights-quran-only-v7-unified';

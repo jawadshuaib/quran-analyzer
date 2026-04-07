@@ -486,14 +486,28 @@ def get_root(root_bw: str):
                 "matched_positions": sorted(r["word_pos"] for r in morph_rows),
             })
 
-        return _envelope({
+        # AI-generated root meaning (latest config)
+        ai_row = conn.execute(
+            "SELECT primary_meaning, detailed_meaning, semantic_field "
+            "FROM ai_root_meanings WHERE root_buckwalter = ? "
+            "ORDER BY config_id DESC LIMIT 1",
+            (root_bw,),
+        ).fetchone()
+
+        result = {
             "root_arabic": root_arabic,
             "root_buckwalter": root_bw,
             "total_occurrences": total_occurrences,
             "lemmas": lemmas,
             "cognate": cognate,
             "sample_verses": sample_verses,
-        })
+        }
+        if ai_row:
+            result["primary_meaning"] = ai_row["primary_meaning"]
+            result["detailed_meaning"] = ai_row["detailed_meaning"]
+            result["semantic_field"] = ai_row["semantic_field"]
+
+        return _envelope(result)
     finally:
         conn.close()
 
@@ -614,7 +628,23 @@ def search_roots():
         except _sqlite3.OperationalError:
             pass
 
-        # 4. English meaning search
+        # 4. AI root meanings search
+        if len(q) >= 2 and not any('\u0600' <= c <= '\u06FF' for c in q):
+            try:
+                ai_rows = conn.execute(
+                    "SELECT DISTINCT root_buckwalter FROM ai_root_meanings "
+                    "WHERE LOWER(primary_meaning) LIKE ? OR LOWER(semantic_field) LIKE ? "
+                    "LIMIT 20",
+                    (f"%{q}%", f"%{q}%"),
+                ).fetchall()
+                for r in ai_rows:
+                    rbw = r["root_buckwalter"]
+                    if rbw not in matched_roots or matched_roots[rbw] < 55:
+                        matched_roots[rbw] = 55
+            except _sqlite3.OperationalError:
+                pass
+
+        # 5. English meaning search
         if len(q) >= 2 and not any('\u0600' <= c <= '\u06FF' for c in q):
             try:
                 rows = conn.execute(
@@ -658,18 +688,30 @@ def search_roots():
         results = []
         for root_bw, _score, freq in scored:
             root_arabic = mod._root_arabic_map.get(root_bw, "")
+            # Get top meaning: AI root meaning > learning_derivatives > word_glosses
             meaning = ""
-
             try:
-                m_row = conn.execute(
-                    "SELECT meaning_gloss FROM learning_derivatives "
-                    "WHERE root_buckwalter = ? ORDER BY frequency DESC LIMIT 1",
+                ai_row = conn.execute(
+                    "SELECT primary_meaning FROM ai_root_meanings "
+                    "WHERE root_buckwalter = ? ORDER BY config_id DESC LIMIT 1",
                     (root_bw,),
                 ).fetchone()
-                if m_row:
-                    meaning = m_row["meaning_gloss"]
+                if ai_row:
+                    meaning = ai_row["primary_meaning"]
             except _sqlite3.OperationalError:
                 pass
+
+            if not meaning:
+                try:
+                    m_row = conn.execute(
+                        "SELECT meaning_gloss FROM learning_derivatives "
+                        "WHERE root_buckwalter = ? ORDER BY frequency DESC LIMIT 1",
+                        (root_bw,),
+                    ).fetchone()
+                    if m_row:
+                        meaning = m_row["meaning_gloss"]
+                except _sqlite3.OperationalError:
+                    pass
 
             if not meaning:
                 try:

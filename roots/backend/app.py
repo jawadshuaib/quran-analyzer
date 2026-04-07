@@ -1,5 +1,7 @@
 """Flask API for The Quran Explorer."""
 
+from __future__ import annotations
+
 import html
 import json
 import math
@@ -68,7 +70,7 @@ def _surah_name(ch: int) -> str:
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -201,6 +203,39 @@ def _ensure_judge_columns():
 _ensure_judge_columns()
 
 
+def _ensure_ai_root_meanings_table():
+    """Create the ai_root_meanings table if it doesn't exist."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_root_meanings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                root_buckwalter TEXT NOT NULL,
+                config_id INTEGER NOT NULL,
+                primary_meaning TEXT NOT NULL,
+                detailed_meaning TEXT NOT NULL,
+                semantic_field TEXT,
+                evidence_summary TEXT,
+                full_prompt TEXT,
+                raw_response TEXT,
+                model_response_time_ms INTEGER,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (config_id) REFERENCES ai_translation_configs(id),
+                UNIQUE (root_buckwalter, config_id)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_root_meanings_root
+            ON ai_root_meanings (root_buckwalter)
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_ai_root_meanings_table()
+
+
 def _ensure_thematic_context_tables():
     """Create versioned Qur'an-only thematic context tables if missing."""
     conn = get_db()
@@ -248,6 +283,49 @@ def _ensure_thematic_context_tables():
 
 
 _ensure_thematic_context_tables()
+
+
+def _ensure_assistant_conversations_table():
+    for _attempt in range(15):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=60)
+            conn.row_factory = sqlite3.Row
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS assistant_conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    page_type TEXT NOT NULL,
+                    page_key TEXT NOT NULL,
+                    question TEXT NOT NULL,
+                    answer TEXT NOT NULL,
+                    context_summary TEXT,
+                    model_used TEXT,
+                    response_time_ms INTEGER,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_assistant_conv_page
+                ON assistant_conversations (page_type, page_key, created_at DESC)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_assistant_conv_session
+                ON assistant_conversations (session_id, created_at DESC)
+            """)
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError:
+            import time as _t
+            _t.sleep(3)
+    # If all retries fail, print warning but don't crash — table will be created lazily
+    print("WARNING: Could not create assistant_conversations table (DB locked). Will retry on first use.")
+
+
+try:
+    _ensure_assistant_conversations_table()
+except Exception as e:
+    print(f"WARNING: assistant table setup failed: {e}")
 
 
 def _ensure_surah_context_tables():
@@ -888,6 +966,218 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
     }
 
 
+# ---------------------------------------------------------------------------
+# "Ask the Quran" — free-tier proxy (server-side Claude calls)
+# ---------------------------------------------------------------------------
+
+_FREE_QUESTION_LIMIT = 3
+_PROXY_MODEL = "claude-sonnet-4-20250514"
+_CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "")
+
+
+@app.route("/api/assistant/usage")
+def get_assistant_usage():
+    """Return how many free questions the session has used."""
+    session_id = request.args.get("session_id", "")
+    if not session_id:
+        return jsonify({"used": 0, "limit": _FREE_QUESTION_LIMIT})
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM assistant_conversations "
+            "WHERE session_id = ? AND model_used = ?",
+            (session_id, f"free:{_PROXY_MODEL}"),
+        ).fetchone()
+        used = row[0] if row else 0
+        return jsonify({"used": used, "limit": _FREE_QUESTION_LIMIT})
+    except Exception:
+        return jsonify({"used": 0, "limit": _FREE_QUESTION_LIMIT})
+    finally:
+        conn.close()
+
+
+@app.route("/api/assistant/ask", methods=["POST"])
+def proxy_assistant_ask():
+    """Stream a Claude response using the server's API key (free tier)."""
+    if not _CLAUDE_API_KEY:
+        return jsonify({"error": "Assistant not configured on this server"}), 503
+
+    data = request.get_json(force=True)
+    session_id = data.get("session_id", "")
+
+    # Check usage limit
+    if session_id:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM assistant_conversations "
+                "WHERE session_id = ? AND model_used = ?",
+                (session_id, f"free:{_PROXY_MODEL}"),
+            ).fetchone()
+            used = row[0] if row else 0
+        except Exception:
+            used = 0
+        finally:
+            conn.close()
+        if used >= _FREE_QUESTION_LIMIT:
+            return jsonify({
+                "error": "free_limit_reached",
+                "message": f"You've used all {_FREE_QUESTION_LIMIT} free questions. Add your own Claude API key to continue.",
+                "used": used,
+                "limit": _FREE_QUESTION_LIMIT,
+            }), 429
+
+    system_prompt = data.get("system", "")
+    messages = data.get("messages", [])
+    if not messages:
+        return jsonify({"error": "No messages provided"}), 400
+
+    # Limit input size
+    if len(system_prompt) > 30000:
+        system_prompt = system_prompt[:30000]
+    for msg in messages:
+        if isinstance(msg.get("content"), str) and len(msg["content"]) > 5000:
+            msg["content"] = msg["content"][:5000]
+
+    def generate():
+        import json as _json
+        try:
+            resp = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": _CLAUDE_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": _PROXY_MODEL,
+                    "max_tokens": 4096,
+                    "temperature": 0.3,
+                    "system": system_prompt,
+                    "messages": messages,
+                    "stream": True,
+                },
+                stream=True,
+                timeout=120,
+            )
+            if not resp.ok:
+                error_body = resp.text[:200]
+                yield f"data: {_json.dumps({'type': 'error', 'error': {'message': f'API error ({resp.status_code}): {error_body}'}})}\n\n"
+                return
+
+            for line in resp.iter_lines(decode_unicode=True):
+                if line and line.startswith("data: "):
+                    yield line + "\n\n"
+        except Exception as e:
+            yield f"data: {_json.dumps({'type': 'error', 'error': {'message': str(e)[:200]}})}\n\n"
+
+    return Response(
+        generate(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.route("/api/assistant/save", methods=["POST"])
+def save_assistant_qa():
+    """Save an Ask the Quran Q&A pair."""
+    data = request.get_json(force=True)
+    required = ("session_id", "page_type", "page_key", "question", "answer")
+    for field in required:
+        if not data.get(field):
+            return jsonify({"error": f"Missing required field: {field}"}), 400
+
+    # Input length limits to prevent abuse
+    MAX_LEN = {"question": 2000, "answer": 50000, "context_summary": 500}
+    for field, limit in MAX_LEN.items():
+        val = data.get(field, "")
+        if isinstance(val, str) and len(val) > limit:
+            data[field] = val[:limit]
+
+    try:
+        conn = get_db()
+        try:
+            # Ensure table exists (lazy creation if startup failed due to DB lock)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS assistant_conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    page_type TEXT NOT NULL,
+                    page_key TEXT NOT NULL,
+                    question TEXT NOT NULL,
+                    answer TEXT NOT NULL,
+                    context_summary TEXT,
+                    model_used TEXT,
+                    response_time_ms INTEGER,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """)
+            cur = conn.execute(
+                "INSERT INTO assistant_conversations "
+                "(session_id, page_type, page_key, question, answer, "
+                " context_summary, model_used, response_time_ms) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    data["session_id"],
+                    data["page_type"],
+                    data["page_key"],
+                    data["question"],
+                    data["answer"],
+                    data.get("context_summary", ""),
+                    data.get("model_used", ""),
+                    data.get("response_time_ms"),
+                ),
+            )
+            conn.commit()
+            return jsonify({"ok": True, "id": cur.lastrowid})
+        finally:
+            conn.close()
+    except Exception as e:
+        return jsonify({"error": f"Failed to save: {str(e)[:200]}"}), 500
+
+
+@app.route("/api/assistant/history")
+def get_assistant_history():
+    """Get Q&A history for a page."""
+    session_id = request.args.get("session_id", "")
+    page_type = request.args.get("page_type", "")
+    page_key = request.args.get("page_key", "")
+    try:
+        limit = min(int(request.args.get("limit", 50)), 100)
+    except (ValueError, TypeError):
+        limit = 50
+
+    if not session_id or not page_type or not page_key:
+        return jsonify({"history": []})
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, question, answer, model_used, created_at "
+            "FROM assistant_conversations "
+            "WHERE session_id = ? AND page_type = ? AND page_key = ? "
+            "ORDER BY created_at DESC LIMIT ?",
+            (session_id, page_type, page_key, limit),
+        ).fetchall()
+        return jsonify({
+            "history": [
+                {
+                    "id": r["id"],
+                    "question": r["question"],
+                    "answer": r["answer"],
+                    "model_used": r["model_used"],
+                    "created_at": r["created_at"],
+                }
+                for r in rows
+            ]
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/cognates/<root_bw>")
 def get_cognates(root_bw: str):
     """Get Semitic cognate data for a Buckwalter root (e.g. 'Hmd')."""
@@ -953,14 +1243,28 @@ def get_root(root_bw: str):
                 "matched_positions": matched_positions,
             })
 
-        return jsonify({
+        # AI-generated root meaning (latest config)
+        ai_row = conn.execute(
+            "SELECT primary_meaning, detailed_meaning, semantic_field "
+            "FROM ai_root_meanings WHERE root_buckwalter = ? "
+            "ORDER BY config_id DESC LIMIT 1",
+            (root_bw,),
+        ).fetchone()
+
+        result = {
             "root_arabic": root_arabic,
             "root_buckwalter": root_bw,
             "total_occurrences": total_occurrences,
             "lemmas": lemmas,
             "cognate": cognate,
             "sample_verses": sample_verses,
-        })
+        }
+        if ai_row:
+            result["primary_meaning"] = ai_row["primary_meaning"]
+            result["detailed_meaning"] = ai_row["detailed_meaning"]
+            result["semantic_field"] = ai_row["semantic_field"]
+
+        return jsonify(result)
     finally:
         conn.close()
 
@@ -2440,6 +2744,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/learning(/root/.+|/mnemonic-sheet)?/?$", path):
         return True
+    if re.match(r"^/settings/?$", path):
+        return True
     return False
 
 
@@ -2874,7 +3180,23 @@ def search_roots():
         except sqlite3.OperationalError:
             pass  # table may not exist yet
 
-        # 4. English meaning search in learning_derivatives
+        # 4. AI root meanings search
+        if len(q) >= 2 and not any('\u0600' <= c <= '\u06FF' for c in q):
+            try:
+                ai_rows = conn.execute(
+                    "SELECT DISTINCT root_buckwalter FROM ai_root_meanings "
+                    "WHERE LOWER(primary_meaning) LIKE ? OR LOWER(semantic_field) LIKE ? "
+                    "LIMIT 20",
+                    (f"%{q}%", f"%{q}%"),
+                ).fetchall()
+                for r in ai_rows:
+                    rbw = r["root_buckwalter"]
+                    if rbw not in matched_roots or matched_roots[rbw] < 55:
+                        matched_roots[rbw] = 55
+            except sqlite3.OperationalError:
+                pass
+
+        # 5. English meaning search in learning_derivatives
         if len(q) >= 2 and not any('\u0600' <= c <= '\u06FF' for c in q):
             try:
                 meaning_rows = conn.execute(
@@ -2922,18 +3244,30 @@ def search_roots():
         for root_bw, score, freq in scored:
             root_arabic = _root_arabic_map.get(root_bw, "")
 
-            # Get top meaning from learning_derivatives or word_glosses
+            # Get top meaning: AI root meaning > learning_derivatives > word_glosses
             meaning = ""
             try:
-                m_row = conn.execute(
-                    "SELECT meaning_gloss FROM learning_derivatives "
-                    "WHERE root_buckwalter = ? ORDER BY frequency DESC LIMIT 1",
+                ai_row = conn.execute(
+                    "SELECT primary_meaning FROM ai_root_meanings "
+                    "WHERE root_buckwalter = ? ORDER BY config_id DESC LIMIT 1",
                     (root_bw,),
                 ).fetchone()
-                if m_row:
-                    meaning = m_row["meaning_gloss"]
+                if ai_row:
+                    meaning = ai_row["primary_meaning"]
             except sqlite3.OperationalError:
                 pass
+
+            if not meaning:
+                try:
+                    m_row = conn.execute(
+                        "SELECT meaning_gloss FROM learning_derivatives "
+                        "WHERE root_buckwalter = ? ORDER BY frequency DESC LIMIT 1",
+                        (root_bw,),
+                    ).fetchone()
+                    if m_row:
+                        meaning = m_row["meaning_gloss"]
+                except sqlite3.OperationalError:
+                    pass
 
             if not meaning:
                 try:

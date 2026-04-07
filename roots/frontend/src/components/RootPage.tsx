@@ -3,6 +3,8 @@ import type { RootDetailData, VerseData, Word, CognateData } from '../types';
 import { fetchRoot, fetchVerse } from '../api/quran';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
 import WordTooltip from './WordTooltip';
+import AskAssistant from './AskAssistant';
+import { buildRootContext } from '../utils/context-builders';
 
 interface Props {
   rootBw: string;
@@ -133,6 +135,48 @@ export default function RootPage({ rootBw }: Props) {
           </a>
         </div>
       </header>
+
+      {/* AI Root Meaning */}
+      {data.primary_meaning && (
+        <section className="mb-8">
+          <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
+            <h2 className="text-lg font-semibold text-violet-900 mb-3">
+              {data.primary_meaning}
+            </h2>
+            {data.detailed_meaning && (
+              <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">
+                {data.detailed_meaning.split(/(\d+:\d+)/).map((part, i) => {
+                  const verseMatch = part.match(/^(\d+):(\d+)$/);
+                  if (verseMatch) {
+                    return (
+                      <a
+                        key={i}
+                        href={`/verse/${part}`}
+                        className="text-violet-600 hover:text-violet-800 font-medium hover:underline"
+                      >
+                        {part}
+                      </a>
+                    );
+                  }
+                  return <span key={i}>{part}</span>;
+                })}
+              </div>
+            )}
+            {data.semantic_field && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {data.semantic_field.split(',').map((tag) => (
+                  <span
+                    key={tag.trim()}
+                    className="text-xs px-2 py-0.5 rounded-full bg-violet-100/80 text-violet-600"
+                  >
+                    {tag.trim()}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Lemmas */}
       {data.lemmas.length > 0 && (
@@ -308,6 +352,13 @@ export default function RootPage({ rootBw }: Props) {
           </div>
         </section>
       )}
+
+      {/* Ask the Quran Assistant */}
+      <AskAssistant
+        pageType="root"
+        pageKey={rootBw}
+        contextGatherer={() => Promise.resolve(buildRootContext(data))}
+      />
     </div>
   );
 }
