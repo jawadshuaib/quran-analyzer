@@ -16,7 +16,7 @@ import LearningPromo from './components/LearningPromo';
 import RootSearch from './components/RootSearch';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
-import { buildVerseContext, buildWordContext } from './utils/context-builders';
+import { buildVerseContext } from './utils/context-builders';
 
 const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
 const CHROME_EXTENSION_ID = 'jbalbedmilokgefgknhieckdidnlikdm';
