@@ -66,6 +66,22 @@ Add these three secrets in your repo settings (**Settings > Secrets and variable
 | `SERVER_USER` | SSH username (e.g. `root` or a deploy user) |
 | `SERVER_SSH_KEY` | Private SSH key for that user |
 
+### 6. Create the environment file
+
+The "Ask the Quran" AI assistant uses a server-side proxy to provide free-tier access. The proxy requires a Claude API key set in an `.env` file next to `docker-compose.prod.yml` on your server.
+
+```bash
+nano /opt/quran-root-analyzer/.env
+```
+
+Add the following line:
+
+```
+CLAUDE_API_KEY=sk-ant-...
+```
+
+`docker-compose.prod.yml` loads this file automatically via `env_file`. If `CLAUDE_API_KEY` is missing or not set, the free-tier proxy returns a `503` gracefully — users can still supply their own API key in the Settings page to unlock the assistant.
+
 ## How It Works
 
 On every push to `main`, the GitHub Actions workflow (`.github/workflows/deploy.yml`):

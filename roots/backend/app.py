@@ -972,7 +972,72 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
 
 _FREE_QUESTION_LIMIT = 3
 _PROXY_MODEL = "claude-sonnet-4-20250514"
+_MODERATION_MODEL = "claude-haiku-4-20250414"
 _CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "")
+
+
+def _moderate_question(question: str) -> dict:
+    """Use a fast Claude model to check appropriateness and reword the question.
+
+    Returns {"approved": bool, "reworded": str, "reason": str|None}.
+    Falls back to approving the raw question if the API key is missing or the call fails.
+    """
+    if not _CLAUDE_API_KEY:
+        return {"approved": True, "reworded": question, "reason": None}
+
+    prompt = (
+        "You are a content moderator for a Quran study application. "
+        "A user submitted the following question to the assistant:\n\n"
+        f'"{question}"\n\n'
+        "Do TWO things:\n"
+        "1. Decide if this question is APPROPRIATE. Reject if it is:\n"
+        "   - Gibberish, random characters, or keyboard mashing\n"
+        "   - Abusive, hateful, bullying, or vulgar language\n"
+        "   - Spam or advertising\n"
+        "   - Completely unrelated nonsense (not a real question)\n"
+        "   Accept everything else — even simple, off-topic, or naive questions are fine.\n"
+        "2. If approved, reword the question for clarity and proper grammar. "
+        "Keep the original meaning and intent. If it's already clear, return it as-is. "
+        "Do NOT add information the user didn't ask about.\n\n"
+        'Respond with ONLY a JSON object: {"approved": true/false, "reworded": "...", "reason": "..."}\n'
+        'If approved, "reason" should be null. If rejected, "reason" should be a short user-friendly explanation.'
+    )
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": _CLAUDE_API_KEY,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": _MODERATION_MODEL,
+                "max_tokens": 300,
+                "temperature": 0,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=15,
+        )
+        if not resp.ok:
+            return {"approved": True, "reworded": question, "reason": None}
+
+        import json as _json
+        body = resp.json()
+        text = body.get("content", [{}])[0].get("text", "")
+        # Extract JSON from the response (may be wrapped in markdown code block)
+        text = text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        result = _json.loads(text)
+        return {
+            "approved": bool(result.get("approved", True)),
+            "reworded": str(result.get("reworded", question)).strip() or question,
+            "reason": result.get("reason"),
+        }
+    except Exception:
+        # On any failure, allow the question through unchanged
+        return {"approved": True, "reworded": question, "reason": None}
 
 
 @app.route("/api/assistant/usage")
@@ -1032,12 +1097,20 @@ def proxy_assistant_ask():
     if not messages:
         return jsonify({"error": "No messages provided"}), 400
 
-    # Limit input size
+    # Sanitize and limit input size
     if len(system_prompt) > 30000:
         system_prompt = system_prompt[:30000]
     for msg in messages:
-        if isinstance(msg.get("content"), str) and len(msg["content"]) > 5000:
-            msg["content"] = msg["content"][:5000]
+        if isinstance(msg.get("content"), str):
+            # Strip HTML/JS from user messages and enforce length limits
+            if msg.get("role") == "user":
+                c = msg["content"]
+                c = re.sub(r"<[^>]*>", "", c)
+                c = re.sub(r"javascript\s*:", "", c, flags=re.IGNORECASE)
+                c = re.sub(r"on\w+\s*=", "", c, flags=re.IGNORECASE)
+                msg["content"] = c.strip()[:500]
+            elif len(msg["content"]) > 5000:
+                msg["content"] = msg["content"][:5000]
 
     def generate():
         import json as _json
@@ -1090,12 +1163,31 @@ def save_assistant_qa():
         if not data.get(field):
             return jsonify({"error": f"Missing required field: {field}"}), 400
 
+    # Sanitize question: strip HTML/JS to prevent injection
+    q = data.get("question", "")
+    q = re.sub(r"<[^>]*>", "", q)              # strip HTML tags
+    q = re.sub(r"javascript\s*:", "", q, flags=re.IGNORECASE)
+    q = re.sub(r"on\w+\s*=", "", q, flags=re.IGNORECASE)
+    data["question"] = q.strip()
+
     # Input length limits to prevent abuse
-    MAX_LEN = {"question": 2000, "answer": 50000, "context_summary": 500}
+    MAX_LEN = {"question": 500, "answer": 50000, "context_summary": 500}
     for field, limit in MAX_LEN.items():
         val = data.get(field, "")
         if isinstance(val, str) and len(val) > limit:
             data[field] = val[:limit]
+
+    # Moderate the question: check appropriateness + reword for clarity
+    moderation = _moderate_question(data["question"])
+    if not moderation["approved"]:
+        return jsonify({
+            "ok": False,
+            "moderated": True,
+            "reason": moderation.get("reason", "Question was not appropriate for saving."),
+        })
+
+    # Use the reworded question for history
+    saved_question = moderation["reworded"]
 
     try:
         conn = get_db()
@@ -1124,7 +1216,7 @@ def save_assistant_qa():
                     data["session_id"],
                     data["page_type"],
                     data["page_key"],
-                    data["question"],
+                    saved_question,
                     data["answer"],
                     data.get("context_summary", ""),
                     data.get("model_used", ""),
@@ -1132,7 +1224,11 @@ def save_assistant_qa():
                 ),
             )
             conn.commit()
-            return jsonify({"ok": True, "id": cur.lastrowid})
+            return jsonify({
+                "ok": True,
+                "id": cur.lastrowid,
+                "reworded_question": saved_question,
+            })
         finally:
             conn.close()
     except Exception as e:

@@ -17,6 +17,15 @@ interface Message {
 /** Max conversation turns (user+assistant pairs) to send to Claude to avoid exceeding context limits */
 const MAX_HISTORY_TURNS = 10;
 
+/** Strip HTML tags and script-like content from user input */
+function sanitizeInput(text: string): string {
+  return text
+    .replace(/<[^>]*>/g, '')           // strip HTML tags
+    .replace(/javascript\s*:/gi, '')   // strip javascript: URIs
+    .replace(/on\w+\s*=/gi, '')        // strip event handlers like onclick=
+    .trim();
+}
+
 export default function AskAssistant({ pageType, pageKey, contextGatherer }: Props) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<'ask' | 'history'>('ask');
@@ -104,6 +113,19 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
   const handleSubmit = useCallback(async () => {
     if (!input.trim() || streaming) return;
 
+    const trimmed = sanitizeInput(input);
+
+    // Silent input validation — only show error when hit
+    const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+    if (trimmed.length < 7 || wordCount < 2) {
+      setError('Please enter a complete question.');
+      return;
+    }
+    if (trimmed.length > 500) {
+      setError('Your question is too long. Please keep it concise.');
+      return;
+    }
+
     // Determine mode: own key or free proxy
     const usingOwnKey = hasApiKey;
     if (!usingOwnKey && !canAskFree) {
@@ -112,7 +134,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
       return;
     }
 
-    const question = input.trim();
+    const question = trimmed;
     setInput('');
     setError('');
     setMessages((prev) => [...prev, { role: 'user', content: question }]);
@@ -445,7 +467,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
                 <input
                   type="text"
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => { setInput(e.target.value); if (error) setError(''); }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -454,6 +476,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
                   }}
                   placeholder={`Ask about this ${pageType}...`}
                   disabled={streaming}
+                  maxLength={500}
                   className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm
                              focus:border-violet-400 focus:ring-1 focus:ring-violet-400 outline-none
                              disabled:bg-stone-50 disabled:text-stone-400"

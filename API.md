@@ -236,6 +236,9 @@ curl "https://al-nuqta.com/api/v1/roots/mlk"
     "root_arabic": "م ل ك",
     "root_buckwalter": "mlk",
     "total_occurrences": 206,
+    "primary_meaning": "To possess, reign, or have dominion",
+    "detailed_meaning": "The root م-ل-ك conveys sovereign ownership and the authority that flows from it. It encompasses the concepts of kingship, dominion, and legitimate possession — always carrying the sense that authority belongs to one who has the capacity to exercise it justly.",
+    "semantic_field": "Sovereignty and governance",
     "lemmas": [
       { "lemma_arabic": "مَلِك", "lemma_buckwalter": "malik" },
       { "lemma_arabic": "مَلَك", "lemma_buckwalter": "malak" },

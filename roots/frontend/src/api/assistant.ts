@@ -13,6 +13,13 @@ export interface QAEntry {
   created_at: string;
 }
 
+export interface SaveResult {
+  ok: boolean;
+  moderated?: boolean;
+  reworded_question?: string;
+  reason?: string;
+}
+
 export async function saveQA(params: {
   pageType: string;
   pageKey: string;
@@ -21,9 +28,9 @@ export async function saveQA(params: {
   contextSummary: string;
   modelUsed: string;
   responseTimeMs: number;
-}): Promise<void> {
+}): Promise<SaveResult> {
   try {
-    await fetch(`${API_BASE}/api/assistant/save`, {
+    const res = await fetch(`${API_BASE}/api/assistant/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -37,8 +44,13 @@ export async function saveQA(params: {
         response_time_ms: params.responseTimeMs,
       }),
     });
+    if (res.ok) {
+      return await res.json();
+    }
+    return { ok: false };
   } catch {
     // Silently fail — history saving is not critical
+    return { ok: false };
   }
 }
 
