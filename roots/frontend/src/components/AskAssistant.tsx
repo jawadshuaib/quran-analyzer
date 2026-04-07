@@ -439,8 +439,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[120px]">
             {messages.length === 0 && !streaming && (
               <p className="text-sm text-stone-400 text-center py-6">
-                Ask a question about this {pageType}. The assistant analyzes the Quran
-                from its own text — no external sources.
+                Ask a question about this {pageType}. The assistant will use root-level analysis to provide an answer.
               </p>
             )}
 
