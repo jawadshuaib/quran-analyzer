@@ -3,6 +3,7 @@ services:
     image: ghcr.io/jawadshuaib/quran-root-analyzer:latest
     container_name: quran-root-analyzer
     restart: unless-stopped
+    env_file: .env
     ports:
       - "8070:8000"
     environment:
