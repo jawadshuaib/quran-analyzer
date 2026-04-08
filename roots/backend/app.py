@@ -8,6 +8,7 @@ import math
 import os
 import re
 import sqlite3
+import threading
 import time
 from collections import OrderedDict, defaultdict
 from urllib.parse import quote
@@ -326,6 +327,61 @@ try:
     _ensure_assistant_conversations_table()
 except Exception as e:
     print(f"WARNING: assistant table setup failed: {e}")
+
+
+def _ensure_insight_evolution_table():
+    """Create the insight_evolution_log table for tracking Q&A-driven translation improvements."""
+    for _attempt in range(5):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=60)
+            conn.row_factory = sqlite3.Row
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS insight_evolution_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    conversation_id INTEGER NOT NULL,
+                    chapter INTEGER NOT NULL,
+                    verse INTEGER NOT NULL,
+                    word_pos INTEGER,
+                    status TEXT NOT NULL,
+                    target_table TEXT,
+                    target_column TEXT,
+                    target_row_id INTEGER,
+                    old_value TEXT,
+                    new_value TEXT,
+                    evaluation_model TEXT NOT NULL,
+                    evaluation_reasoning TEXT NOT NULL,
+                    confidence_score REAL,
+                    qa_question TEXT NOT NULL,
+                    qa_answer TEXT NOT NULL,
+                    reverted_at TEXT,
+                    reverted_by TEXT,
+                    created_at TEXT DEFAULT (datetime('now'))
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_insight_evo_verse
+                ON insight_evolution_log (chapter, verse, created_at DESC)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_insight_evo_status
+                ON insight_evolution_log (status, created_at DESC)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_insight_evo_conversation
+                ON insight_evolution_log (conversation_id)
+            """)
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError:
+            time.sleep(3)
+    print("WARNING: Could not create insight_evolution_log table (DB locked).")
+
+
+try:
+    _ensure_insight_evolution_table()
+except Exception as e:
+    print(f"WARNING: insight evolution table setup failed: {e}")
 
 
 def _ensure_surah_context_tables():
@@ -1088,6 +1144,344 @@ def _synthesize_questions(questions: list) -> str:
         return "; ".join(questions)
 
 
+# ---------------------------------------------------------------------------
+# Insight Evolution — Q&A-driven translation improvement
+# ---------------------------------------------------------------------------
+
+INSIGHT_CONFIDENCE_THRESHOLD = 0.85
+_INSIGHT_MODEL = _PROXY_MODEL  # Claude Sonnet for careful evaluation
+
+ALLOWED_INSIGHT_TARGETS = {
+    ("ai_translations", "departure_notes"),
+    ("ai_word_meanings", "meaning_detailed"),
+    ("ai_word_meanings", "departure_notes"),
+}
+
+_INSIGHT_SYSTEM_PROMPT = """You are a careful, honest academic reviewer evaluating whether a Q&A conversation about a Quranic verse has produced a genuinely novel insight that is MISSING from the current scholarly analysis.
+
+Your goal is to identify observations that BROADEN understanding of the Quranic text. Accept insights that are textually grounded and add something genuinely new. But be EXTREMELY cautious about two failure modes:
+
+1. HALLUCINATIONS — The AI assistant may have fabricated a cross-reference, root connection, or cognate claim that doesn't actually exist. Verify any specific claims (verse references, root meanings) against the provided data. If a claimed cross-reference or root meaning is not present in the data provided to you, it may be hallucinated — reject it.
+
+2. SYCOPHANTIC AGREEMENT — The AI assistant may have agreed with a user's premise just to be agreeable, producing an "insight" that isn't actually supported by the text. If the Q&A reads like the AI simply validated whatever the user said without providing independent textual evidence, reject it.
+
+ALL of these must be true for something to qualify as an insight:
+1. It is a SPECIFIC linguistic, etymological, semantic, or structural observation about the Arabic text
+2. It is NOT already captured in the existing translation notes, word meanings, or departure notes shown below
+3. It is derived EXCLUSIVELY from: the Quran's own text, Arabic root word analysis, morphology, or Semitic cognate evidence. REJECT anything sourced from hadith, tafsir, Islamic jurisprudence, sectarian commentary, or any external religious texts.
+4. The AI's response provides INDEPENDENT textual support — not just agreement with the user's premise
+
+REJECT these categories outright:
+- Spiritual reflections or devotional commentary
+- Restatements of what the existing data already says
+- Theological opinions or sectarian interpretations
+- Anything sourced from hadith, tafsir, or Islamic tradition
+- Vague claims about "deeper meaning" without specific textual evidence
+- User assertions that the AI merely echoed back without independent verification
+- Post-Quranic religious terminology (e.g. "Islamic", "halal", "haram", "sunnah")
+
+You may only recommend updates to these fields:
+- ai_translations.departure_notes: Add a note about a verse-level insight
+- ai_word_meanings.meaning_detailed: Enrich the detailed explanation for a specific word (specify word_pos)
+- ai_word_meanings.departure_notes: Add a word-level departure note (specify word_pos)
+
+You MUST NOT recommend changes to: translation_text, meaning_short, preferred_translation.
+
+Updates must be MINIMAL APPENDS — do not rewrite existing content, only add a brief note with new information.
+
+Respond with ONLY a JSON object in this exact format:
+{"verdict": "NO_INSIGHT" or "INSIGHT", "confidence": 0.0 to 1.0, "reasoning": "1-3 sentences explaining your decision", "update": null or {"target_table": "ai_translations" or "ai_word_meanings", "target_column": "departure_notes" or "meaning_detailed", "word_pos": null or integer, "append_text": "the text to append"}}
+
+If verdict is NO_INSIGHT, set update to null. If verdict is INSIGHT, update must be non-null."""
+
+
+def _evaluate_insight(conversation_id: int, chapter: int, verse: int,
+                      question: str, answer: str) -> None:
+    """Evaluate a Q&A conversation for novel insights worth incorporating.
+
+    Runs in a background thread. All results (including rejections and errors)
+    are logged to insight_evolution_log. Never raises exceptions to the caller.
+    """
+    if not _CLAUDE_API_KEY:
+        return
+
+    try:
+        conn = get_db()
+        try:
+            # Dedup: skip if already evaluated
+            existing = conn.execute(
+                "SELECT id FROM insight_evolution_log WHERE conversation_id = ?",
+                (conversation_id,),
+            ).fetchone()
+            if existing:
+                return
+
+            # Fetch current AI translation for this verse
+            trans_row = conn.execute(
+                "SELECT id, translation_text, departure_notes "
+                "FROM ai_translations WHERE chapter = ? AND verse = ? "
+                "ORDER BY created_at DESC LIMIT 1",
+                (chapter, verse),
+            ).fetchone()
+
+            # Fetch current word meanings for this verse
+            word_rows = conn.execute(
+                "SELECT id, word_pos, meaning_short, meaning_detailed, "
+                "       departure_notes, preferred_translation "
+                "FROM ai_word_meanings WHERE chapter = ? AND verse = ? "
+                "ORDER BY word_pos",
+                (chapter, verse),
+            ).fetchall()
+
+            # If no translation or word data exists, nothing to improve
+            if not trans_row and not word_rows:
+                conn.execute(
+                    "INSERT INTO insight_evolution_log "
+                    "(conversation_id, chapter, verse, status, "
+                    " evaluation_model, evaluation_reasoning, qa_question, qa_answer) "
+                    "VALUES (?, ?, ?, 'skipped_no_data', ?, ?, ?, ?)",
+                    (conversation_id, chapter, verse, _INSIGHT_MODEL,
+                     "No AI translation or word meanings exist for this verse yet.",
+                     question[:500], answer[:5000]),
+                )
+                conn.commit()
+                return
+
+            # Build the user prompt
+            translation_text = trans_row["translation_text"] if trans_row else "(none)"
+            departure_notes = trans_row["departure_notes"] if trans_row and trans_row["departure_notes"] else "(none)"
+
+            word_section = ""
+            for wr in word_rows:
+                detailed_trunc = (wr["meaning_detailed"] or "")[:300]
+                dep = wr["departure_notes"] or "(none)"
+                pref = wr["preferred_translation"] or "(none)"
+                word_section += (
+                    f"  Word {wr['word_pos']}: short=\"{wr['meaning_short']}\", "
+                    f"detailed=\"{detailed_trunc}\", departure=\"{dep}\", "
+                    f"preferred=\"{pref}\"\n"
+                )
+
+            user_prompt = (
+                f"## Verse Under Review\n{chapter}:{verse}\n\n"
+                f"## Current AI Translation\n{translation_text}\n\n"
+                f"## Current Departure Notes (verse-level)\n{departure_notes}\n\n"
+                f"## Current Word Meanings\n{word_section or '(no word meanings available)'}\n\n"
+                f"## Q&A Conversation\nQuestion: {question}\n\nAnswer: {answer[:3000]}\n\n"
+                "Does this Q&A contain a genuinely novel insight that is MISSING "
+                "from the current data above?"
+            )
+
+            # Call Claude Sonnet
+            resp = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": _CLAUDE_API_KEY,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": _INSIGHT_MODEL,
+                    "max_tokens": 1500,
+                    "temperature": 0,
+                    "system": _INSIGHT_SYSTEM_PROMPT,
+                    "messages": [{"role": "user", "content": user_prompt}],
+                },
+                timeout=60,
+            )
+
+            if not resp.ok:
+                conn.execute(
+                    "INSERT INTO insight_evolution_log "
+                    "(conversation_id, chapter, verse, status, "
+                    " evaluation_model, evaluation_reasoning, qa_question, qa_answer) "
+                    "VALUES (?, ?, ?, 'error', ?, ?, ?, ?)",
+                    (conversation_id, chapter, verse, _INSIGHT_MODEL,
+                     f"API error ({resp.status_code}): {resp.text[:200]}",
+                     question[:500], answer[:5000]),
+                )
+                conn.commit()
+                return
+
+            # Parse the JSON response
+            body = resp.json()
+            text = body.get("content", [{}])[0].get("text", "").strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+
+            result = json.loads(text)
+            verdict = result.get("verdict", "NO_INSIGHT")
+            confidence = float(result.get("confidence", 0.0))
+            reasoning = str(result.get("reasoning", ""))
+            update = result.get("update")
+
+            # Gate: only proceed if INSIGHT with sufficient confidence
+            if verdict != "INSIGHT" or confidence < INSIGHT_CONFIDENCE_THRESHOLD or not update:
+                conn.execute(
+                    "INSERT INTO insight_evolution_log "
+                    "(conversation_id, chapter, verse, status, "
+                    " evaluation_model, evaluation_reasoning, confidence_score, "
+                    " qa_question, qa_answer) "
+                    "VALUES (?, ?, ?, 'no_insight', ?, ?, ?, ?, ?)",
+                    (conversation_id, chapter, verse, _INSIGHT_MODEL,
+                     reasoning, confidence, question[:500], answer[:5000]),
+                )
+                conn.commit()
+                return
+
+            # Validate the update target
+            target_table = update.get("target_table", "")
+            target_column = update.get("target_column", "")
+            word_pos = update.get("word_pos")
+            append_text = str(update.get("append_text", "")).strip()
+
+            if (target_table, target_column) not in ALLOWED_INSIGHT_TARGETS:
+                conn.execute(
+                    "INSERT INTO insight_evolution_log "
+                    "(conversation_id, chapter, verse, status, "
+                    " evaluation_model, evaluation_reasoning, confidence_score, "
+                    " qa_question, qa_answer) "
+                    "VALUES (?, ?, ?, 'error', ?, ?, ?, ?, ?)",
+                    (conversation_id, chapter, verse, _INSIGHT_MODEL,
+                     f"Invalid target: {target_table}.{target_column}",
+                     confidence, question[:500], answer[:5000]),
+                )
+                conn.commit()
+                return
+
+            if not append_text:
+                conn.execute(
+                    "INSERT INTO insight_evolution_log "
+                    "(conversation_id, chapter, verse, status, "
+                    " evaluation_model, evaluation_reasoning, confidence_score, "
+                    " qa_question, qa_answer) "
+                    "VALUES (?, ?, ?, 'error', ?, ?, ?, ?, ?)",
+                    (conversation_id, chapter, verse, _INSIGHT_MODEL,
+                     "Empty append_text in update", confidence,
+                     question[:500], answer[:5000]),
+                )
+                conn.commit()
+                return
+
+            # Fetch the target row
+            if target_table == "ai_translations":
+                target_row = conn.execute(
+                    "SELECT id, departure_notes FROM ai_translations "
+                    "WHERE chapter = ? AND verse = ? ORDER BY created_at DESC LIMIT 1",
+                    (chapter, verse),
+                ).fetchone()
+            else:  # ai_word_meanings
+                if word_pos is None:
+                    conn.execute(
+                        "INSERT INTO insight_evolution_log "
+                        "(conversation_id, chapter, verse, status, "
+                        " evaluation_model, evaluation_reasoning, confidence_score, "
+                        " qa_question, qa_answer) "
+                        "VALUES (?, ?, ?, 'error', ?, ?, ?, ?, ?)",
+                        (conversation_id, chapter, verse, _INSIGHT_MODEL,
+                         "word_pos required for ai_word_meanings target",
+                         confidence, question[:500], answer[:5000]),
+                    )
+                    conn.commit()
+                    return
+                target_row = conn.execute(
+                    f"SELECT id, {target_column} FROM ai_word_meanings "
+                    "WHERE chapter = ? AND verse = ? AND word_pos = ? "
+                    "ORDER BY created_at DESC LIMIT 1",
+                    (chapter, verse, word_pos),
+                ).fetchone()
+
+            if not target_row:
+                conn.execute(
+                    "INSERT INTO insight_evolution_log "
+                    "(conversation_id, chapter, verse, word_pos, status, "
+                    " evaluation_model, evaluation_reasoning, confidence_score, "
+                    " qa_question, qa_answer) "
+                    "VALUES (?, ?, ?, ?, 'error', ?, ?, ?, ?, ?)",
+                    (conversation_id, chapter, verse, word_pos, _INSIGHT_MODEL,
+                     f"Target row not found in {target_table}",
+                     confidence, question[:500], answer[:5000]),
+                )
+                conn.commit()
+                return
+
+            # Apply the update: append, never replace
+            target_row_id = target_row["id"]
+            old_value = target_row[target_column] or ""
+            if old_value:
+                new_value = old_value + " | " + append_text
+            else:
+                new_value = append_text
+
+            conn.execute(
+                f"UPDATE {target_table} SET {target_column} = ? WHERE id = ?",
+                (new_value, target_row_id),
+            )
+
+            # Log the successful update
+            conn.execute(
+                "INSERT INTO insight_evolution_log "
+                "(conversation_id, chapter, verse, word_pos, status, "
+                " target_table, target_column, target_row_id, "
+                " old_value, new_value, "
+                " evaluation_model, evaluation_reasoning, confidence_score, "
+                " qa_question, qa_answer) "
+                "VALUES (?, ?, ?, ?, 'updated', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (conversation_id, chapter, verse, word_pos,
+                 target_table, target_column, target_row_id,
+                 old_value, new_value,
+                 _INSIGHT_MODEL, reasoning, confidence,
+                 question[:500], answer[:5000]),
+            )
+            conn.commit()
+            print(f"INSIGHT EVOLUTION: Updated {target_table}.{target_column} "
+                  f"for {chapter}:{verse} (confidence={confidence:.2f})")
+
+        finally:
+            conn.close()
+    except Exception as e:
+        # Last resort: try to log the error
+        try:
+            conn2 = get_db()
+            try:
+                conn2.execute(
+                    "INSERT INTO insight_evolution_log "
+                    "(conversation_id, chapter, verse, status, "
+                    " evaluation_model, evaluation_reasoning, qa_question, qa_answer) "
+                    "VALUES (?, ?, ?, 'error', ?, ?, ?, ?)",
+                    (conversation_id, chapter, verse, _INSIGHT_MODEL,
+                     f"Exception: {str(e)[:300]}",
+                     question[:500], answer[:5000]),
+                )
+                conn2.commit()
+            finally:
+                conn2.close()
+        except Exception:
+            pass  # absolutely never crash
+
+
+def _trigger_insight_evaluation(conversation_id: int, chapter_verse: str,
+                                question: str, answer: str) -> None:
+    """Fire-and-forget background evaluation of a Q&A for novel insights."""
+    if not _CLAUDE_API_KEY:
+        return
+
+    parts = chapter_verse.split(":")
+    if len(parts) != 2:
+        return
+    try:
+        chapter, verse = int(parts[0]), int(parts[1])
+    except (ValueError, TypeError):
+        return
+
+    t = threading.Thread(
+        target=_evaluate_insight,
+        args=(conversation_id, chapter, verse, question, answer),
+        daemon=True,
+    )
+    t.start()
+
+
 @app.route("/api/assistant/usage")
 def get_assistant_usage():
     """Return how many free questions the session has used."""
@@ -1278,6 +1672,11 @@ def save_assistant_qa():
                     ),
                 )
                 conn.commit()
+                # Trigger async insight evaluation for verse Q&A
+                if data.get("page_type") == "verse":
+                    _trigger_insight_evaluation(
+                        thread_id, data["page_key"],
+                        saved_question, data["answer"])
                 return jsonify({
                     "ok": True,
                     "id": thread_id,
@@ -1324,10 +1723,16 @@ def save_assistant_qa():
                     data.get("response_time_ms"),
                 ),
             )
+            new_id = cur.lastrowid
             conn.commit()
+            # Trigger async insight evaluation for verse Q&A
+            if data.get("page_type") == "verse":
+                _trigger_insight_evaluation(
+                    new_id, data["page_key"],
+                    saved_question, data["answer"])
             return jsonify({
                 "ok": True,
-                "id": cur.lastrowid,
+                "id": new_id,
                 "reworded_question": saved_question,
             })
         finally:
@@ -1369,6 +1774,157 @@ def get_assistant_history():
                 }
                 for r in rows
             ]
+        })
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# Insight Evolution — API endpoints
+# ---------------------------------------------------------------------------
+
+
+def _revert_insight(log_id: int, reverted_by: str = "admin") -> dict:
+    """Revert a single insight evolution change. Returns status dict."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM insight_evolution_log WHERE id = ?", (log_id,)
+        ).fetchone()
+
+        if not row:
+            return {"error": "Log entry not found"}
+        if row["status"] != "updated":
+            return {"error": "Only 'updated' entries can be reverted"}
+        if row["reverted_at"]:
+            return {"error": "Already reverted"}
+
+        target = (row["target_table"], row["target_column"])
+        if target not in ALLOWED_INSIGHT_TARGETS:
+            return {"error": "Invalid target — cannot revert"}
+
+        # Restore old value
+        conn.execute(
+            f"UPDATE {row['target_table']} SET {row['target_column']} = ? WHERE id = ?",
+            (row["old_value"], row["target_row_id"]),
+        )
+        # Mark as reverted
+        conn.execute(
+            "UPDATE insight_evolution_log "
+            "SET reverted_at = datetime('now'), reverted_by = ? WHERE id = ?",
+            (reverted_by, log_id),
+        )
+        conn.commit()
+        return {"ok": True, "reverted_log_id": log_id}
+    finally:
+        conn.close()
+
+
+@app.route("/api/insight-evolution/log")
+def get_insight_evolution_log():
+    """View the insight evolution audit log."""
+    chapter = request.args.get("chapter")
+    verse = request.args.get("verse")
+    status = request.args.get("status")
+    try:
+        limit = min(int(request.args.get("limit", 50)), 200)
+    except (ValueError, TypeError):
+        limit = 50
+
+    conn = get_db()
+    try:
+        conditions = []
+        params = []
+        if chapter:
+            conditions.append("chapter = ?")
+            params.append(int(chapter))
+        if verse:
+            conditions.append("verse = ?")
+            params.append(int(verse))
+        if status:
+            conditions.append("status = ?")
+            params.append(status)
+
+        where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+        rows = conn.execute(
+            f"SELECT * FROM insight_evolution_log {where} "
+            "ORDER BY created_at DESC LIMIT ?",
+            params + [limit],
+        ).fetchall()
+
+        return jsonify({
+            "entries": [
+                {k: row[k] for k in row.keys()}
+                for row in rows
+            ]
+        })
+    except Exception:
+        return jsonify({"entries": []})
+    finally:
+        conn.close()
+
+
+@app.route("/api/insight-evolution/revert", methods=["POST"])
+def revert_insight_evolution():
+    """Revert a single insight evolution change."""
+    data = request.get_json(force=True)
+    log_id = data.get("log_id")
+    if not log_id:
+        return jsonify({"error": "log_id is required"}), 400
+
+    result = _revert_insight(int(log_id))
+    if "error" in result:
+        return jsonify(result), 400
+    return jsonify(result)
+
+
+@app.route("/api/insight-evolution/stats")
+def get_insight_evolution_stats():
+    """Summary statistics for the insight evolution system."""
+    conn = get_db()
+    try:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM insight_evolution_log"
+        ).fetchone()[0]
+
+        by_status = conn.execute(
+            "SELECT status, COUNT(*) as cnt FROM insight_evolution_log GROUP BY status"
+        ).fetchall()
+        status_counts = {r["status"]: r["cnt"] for r in by_status}
+
+        updated = status_counts.get("updated", 0)
+        reverted = conn.execute(
+            "SELECT COUNT(*) FROM insight_evolution_log "
+            "WHERE status = 'updated' AND reverted_at IS NOT NULL"
+        ).fetchone()[0]
+
+        # Recent insights (last 10 updates)
+        recent = conn.execute(
+            "SELECT id, chapter, verse, word_pos, target_table, target_column, "
+            "       confidence_score, evaluation_reasoning, created_at, reverted_at "
+            "FROM insight_evolution_log WHERE status = 'updated' "
+            "ORDER BY created_at DESC LIMIT 10"
+        ).fetchall()
+
+        return jsonify({
+            "total_evaluations": total,
+            "status_breakdown": status_counts,
+            "total_insights": updated,
+            "total_reverted": reverted,
+            "active_insights": updated - reverted,
+            "recent_insights": [
+                {k: r[k] for k in r.keys()}
+                for r in recent
+            ],
+        })
+    except Exception:
+        return jsonify({
+            "total_evaluations": 0,
+            "status_breakdown": {},
+            "total_insights": 0,
+            "total_reverted": 0,
+            "active_insights": 0,
+            "recent_insights": [],
         })
     finally:
         conn.close()
