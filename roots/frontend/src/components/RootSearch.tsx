@@ -41,11 +41,7 @@ export default function RootSearch() {
   function navigate(root: RootSearchResult) {
     setOpen(false);
     setQuery('');
-    if (root.in_curriculum) {
-      window.location.href = `/learning/root/${root.root_buckwalter}`;
-    } else {
-      window.location.href = `/root/${encodeURIComponent(root.root_buckwalter)}`;
-    }
+    window.location.href = `/root/${encodeURIComponent(root.root_buckwalter)}`;
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
