@@ -43,7 +43,6 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
   const [freeUsed, setFreeUsed] = useState(0);
   const [freeLimit, setFreeLimit] = useState(3);
   const [usageLoaded, setUsageLoaded] = useState(false);
-  const [threadIdState, setThreadIdState] = useState<number | null>(null);
   const threadIdRef = useRef<number | null>(null);
   const inflightSaveRef = useRef<Promise<unknown> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -70,7 +69,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
         contextRef.current = '';
         threadIdRef.current = null;
         inflightSaveRef.current = null;
-        setThreadIdState(null);
+
         lastMessageTimeRef.current = 0;
       }
     }
@@ -87,7 +86,6 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     setHistoryLoaded(false);
     setExpandedHistoryId(null);
     setTab('ask');
-    setThreadIdState(null);
     lastMessageTimeRef.current = 0;
   }, [pageType, pageKey]);
 
@@ -241,7 +239,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
           });
           if (result.ok && result.id) {
             threadIdRef.current = result.id;  // synchronous update (Fix 1)
-            setThreadIdState(result.id);
+
           }
           // Refresh history list after every successful save (Fix 4)
           if (result.ok) {
@@ -293,7 +291,6 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     contextRef.current = '';
     threadIdRef.current = null;
     inflightSaveRef.current = null;
-    setThreadIdState(null);
   };
 
   // Auto-link verse references (only valid Quran ranges)
