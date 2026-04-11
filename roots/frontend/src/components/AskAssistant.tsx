@@ -43,7 +43,9 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
   const [freeUsed, setFreeUsed] = useState(0);
   const [freeLimit, setFreeLimit] = useState(3);
   const [usageLoaded, setUsageLoaded] = useState(false);
-  const [threadId, setThreadId] = useState<number | null>(null);
+  const [threadIdState, setThreadIdState] = useState<number | null>(null);
+  const threadIdRef = useRef<number | null>(null);
+  const inflightSaveRef = useRef<Promise<unknown> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const contextRef = useRef<string>('');
@@ -66,7 +68,9 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
         setStreamText('');
         setError('');
         contextRef.current = '';
-        setThreadId(null);
+        threadIdRef.current = null;
+        inflightSaveRef.current = null;
+        setThreadIdState(null);
         lastMessageTimeRef.current = 0;
       }
     }
@@ -75,13 +79,15 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
   // Reset state when page changes
   useEffect(() => {
     contextRef.current = '';
+    threadIdRef.current = null;
+    inflightSaveRef.current = null;
     setMessages([]);
     setStreamText('');
     setError('');
     setHistoryLoaded(false);
     setExpandedHistoryId(null);
     setTab('ask');
-    setThreadId(null);
+    setThreadIdState(null);
     lastMessageTimeRef.current = 0;
   }, [pageType, pageKey]);
 
@@ -216,24 +222,38 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
           question,
         ];
 
-        // Save to history — first question creates entry, follow-ups update it
+        // Serialize saves: wait for any in-flight save to finish first (Fix 2)
         const contextSummary = contextRef.current.slice(0, 200) + '...';
-        saveQA({
-          pageType,
-          pageKey,
-          question,
-          answer: text,
-          contextSummary,
-          modelUsed: modelTag,
-          responseTimeMs,
-          threadId,
-          allQuestions,
-        }).then((result) => {
-          if (result.ok && result.id) {
-            setThreadId(result.id);
+        const doSave = async () => {
+          if (inflightSaveRef.current) {
+            try { await inflightSaveRef.current; } catch { /* ignore */ }
           }
-        });
-        setHistoryLoaded(false);
+          const result = await saveQA({
+            pageType,
+            pageKey,
+            question,
+            answer: text,
+            contextSummary,
+            modelUsed: modelTag,
+            responseTimeMs,
+            threadId: threadIdRef.current,  // read from ref, not closure (Fix 1)
+            allQuestions,
+          });
+          if (result.ok && result.id) {
+            threadIdRef.current = result.id;  // synchronous update (Fix 1)
+            setThreadIdState(result.id);
+          }
+          // Refresh history list after every successful save (Fix 4)
+          if (result.ok) {
+            try {
+              const h = await fetchHistory(pageType, pageKey);
+              setHistory(h);
+              setHistoryLoaded(true);
+            } catch { /* ignore */ }
+          }
+        };
+        const savePromise = doSave();
+        inflightSaveRef.current = savePromise;
       },
       onError: (errMsg: string) => {
         setStreaming(false);
@@ -253,7 +273,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
         pageType, contextRef.current, question, getSessionId(), conversationHistory, callbacks,
       );
     }
-  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer, threadId, clearIfStale]);
+  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer, clearIfStale]);
 
   const handleCancel = () => {
     abortRef.current?.abort();
@@ -271,7 +291,9 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     setStreamText('');
     setError('');
     contextRef.current = '';
-    setThreadId(null);
+    threadIdRef.current = null;
+    inflightSaveRef.current = null;
+    setThreadIdState(null);
   };
 
   // Auto-link verse references (only valid Quran ranges)

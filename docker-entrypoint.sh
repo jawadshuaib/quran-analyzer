@@ -82,6 +82,42 @@ except Exception as e:
 " 2>&1
 fi
 
+# Back up verse themes
+if [ -f /app/data/quran.db ]; then
+  echo "Backing up verse themes..."
+  python3 -c "
+import sqlite3
+src = '/app/data/quran.db'
+bak = '/tmp/verse_themes_backup.db'
+try:
+    conn = sqlite3.connect(src)
+    tables = conn.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name='verse_themes'\").fetchall()
+    if tables:
+        count = conn.execute('SELECT COUNT(*) FROM verse_themes').fetchone()[0]
+        if count > 0:
+            cols = 'chapter, verse, theme, confidence, config_id, model_used, created_at'
+            bak_conn = sqlite3.connect(bak)
+            bak_conn.execute('''CREATE TABLE IF NOT EXISTS verse_themes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+                theme TEXT NOT NULL, confidence REAL, config_id INTEGER,
+                model_used TEXT, created_at TEXT DEFAULT (datetime(\"now\")),
+                UNIQUE(chapter, verse, theme))''')
+            all_rows = conn.execute(f'SELECT {cols} FROM verse_themes').fetchall()
+            bak_conn.executemany(f'INSERT OR IGNORE INTO verse_themes ({cols}) VALUES (?,?,?,?,?,?,?)', all_rows)
+            bak_conn.commit()
+            bak_conn.close()
+            print(f'  Backed up {count} verse theme entries')
+        else:
+            print('  No verse themes to back up')
+    else:
+        print('  No verse_themes table found')
+    conn.close()
+except Exception as e:
+    print(f'  Verse themes backup warning: {e}')
+" 2>&1
+fi
+
 # Always deploy the latest database from the image
 echo "Deploying latest database..."
 cp /app/seed-quran.db /app/data/quran.db
@@ -154,6 +190,37 @@ try:
     os.remove(bak)
 except Exception as e:
     print(f'  Insight restore warning: {e}')
+" 2>&1
+fi
+
+# Restore verse themes into the fresh database
+if [ -f /tmp/verse_themes_backup.db ]; then
+  echo "Restoring verse themes..."
+  python3 -c "
+import sqlite3
+bak = '/tmp/verse_themes_backup.db'
+dst = '/app/data/quran.db'
+try:
+    bak_conn = sqlite3.connect(bak)
+    cols = 'chapter, verse, theme, confidence, config_id, model_used, created_at'
+    rows = bak_conn.execute(f'SELECT {cols} FROM verse_themes').fetchall()
+    bak_conn.close()
+    if rows:
+        conn = sqlite3.connect(dst)
+        conn.execute('''CREATE TABLE IF NOT EXISTS verse_themes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chapter INTEGER NOT NULL, verse INTEGER NOT NULL,
+            theme TEXT NOT NULL, confidence REAL, config_id INTEGER,
+            model_used TEXT, created_at TEXT DEFAULT (datetime(\"now\")),
+            UNIQUE(chapter, verse, theme))''')
+        conn.executemany(f'INSERT OR IGNORE INTO verse_themes ({cols}) VALUES (?,?,?,?,?,?,?)', rows)
+        conn.commit()
+        conn.close()
+        print(f'  Restored {len(rows)} verse theme entries')
+    import os
+    os.remove(bak)
+except Exception as e:
+    print(f'  Verse themes restore warning: {e}')
 " 2>&1
 fi
 

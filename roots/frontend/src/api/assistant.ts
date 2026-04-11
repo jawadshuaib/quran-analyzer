@@ -18,6 +18,7 @@ export interface SaveResult {
   id?: number;
   moderated?: boolean;
   reworded_question?: string;
+  answer?: string;
   reason?: string;
 }
 

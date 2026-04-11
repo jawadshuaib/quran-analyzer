@@ -599,6 +599,47 @@ def _ensure_mnemonic_columns():
 _ensure_mnemonic_columns()
 
 
+def _ensure_verse_themes_table():
+    """Create the verse_themes table for storing thematic tags per verse."""
+    for _attempt in range(5):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=60)
+            conn.row_factory = sqlite3.Row
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS verse_themes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chapter INTEGER NOT NULL,
+                    verse INTEGER NOT NULL,
+                    theme TEXT NOT NULL,
+                    confidence REAL,
+                    config_id INTEGER,
+                    model_used TEXT,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(chapter, verse, theme)
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_verse_themes_verse
+                ON verse_themes (chapter, verse)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_verse_themes_theme
+                ON verse_themes (theme)
+            """)
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError:
+            time.sleep(3)
+    print("WARNING: Could not create verse_themes table (DB locked).")
+
+
+try:
+    _ensure_verse_themes_table()
+except Exception as e:
+    print(f"WARNING: verse_themes table setup failed: {e}")
+
+
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
 
 ROOT_DISCOUNT = 0.5  # Root-only matches get half credit vs lemma matches
@@ -1600,9 +1641,11 @@ def proxy_assistant_ask():
 def save_assistant_qa():
     """Save or update an Ask the Quran Q&A conversation thread.
 
-    If `thread_id` is provided, updates the existing history entry with a
-    synthesized question (from all_questions) and the latest answer.
-    Otherwise, creates a new entry.
+    Uses a three-layer upsert strategy:
+    1. Client sends thread_id from a previous save → direct UPDATE.
+    2. No thread_id but a recent row exists for this (session, page) → UPDATE that row.
+    3. No match at all → INSERT a new row.
+    Synthesis runs on every UPDATE path, not just when the client provides all_questions.
     """
     data = request.get_json(force=True)
     required = ("session_id", "page_type", "page_key", "question", "answer")
@@ -1629,7 +1672,7 @@ def save_assistant_qa():
                 aq = re.sub(r"javascript\s*:", "", aq, flags=re.IGNORECASE)
                 aq = re.sub(r"on\w+\s*=", "", aq, flags=re.IGNORECASE)
                 sanitized.append(aq.strip()[:500])
-        all_questions = [q for q in sanitized if q]
+        all_questions = [sq for sq in sanitized if sq]
 
     # Input length limits
     MAX_LEN = {"question": 500, "answer": 50000, "context_summary": 500}
@@ -1647,94 +1690,123 @@ def save_assistant_qa():
             "reason": moderation.get("reason", "Question was not appropriate for saving."),
         })
 
-    # --- UPDATE existing thread entry ---
-    if thread_id and all_questions and len(all_questions) > 1:
-        # Synthesize all questions into one consolidated question
-        synthesized = _synthesize_questions(all_questions)
-        # Reword the synthesized question for grammar/clarity
-        synth_mod = _moderate_question(synthesized)
-        saved_question = synth_mod["reworded"] if synth_mod["approved"] else synthesized
-
+    try:
+        conn = get_db()
         try:
-            conn = get_db()
-            try:
+            # Use BEGIN IMMEDIATE for atomic lookup+write (Fix 7)
+            conn.execute("BEGIN IMMEDIATE")
+
+            # --- Resolve existing row: client thread_id OR session-based lookup (Fix 5) ---
+            existing_row = None
+            if thread_id:
+                existing_row = conn.execute(
+                    "SELECT id, question FROM assistant_conversations "
+                    "WHERE id = ? AND session_id = ?",
+                    (thread_id, data["session_id"]),
+                ).fetchone()
+
+            if not existing_row:
+                # Defense-in-depth: look for a recent row from same session+page (Fix 5)
+                existing_row = conn.execute(
+                    "SELECT id, question FROM assistant_conversations "
+                    "WHERE session_id = ? AND page_type = ? AND page_key = ? "
+                    "  AND created_at > datetime('now', '-1 hour') "
+                    "ORDER BY id DESC LIMIT 1",
+                    (data["session_id"], data["page_type"], data["page_key"]),
+                ).fetchone()
+
+            if existing_row:
+                # --- UPDATE path --- (Fix 6: always synthesize when updating)
+                row_id = existing_row["id"]
+                existing_question = existing_row["question"]
+
+                # Build question list for synthesis
+                if all_questions and len(all_questions) > 1:
+                    questions_to_merge = all_questions
+                else:
+                    # Fallback: merge existing stored question + new question
+                    questions_to_merge = [existing_question, data["question"]]
+
+                # Synthesize + moderate
+                synthesized = _synthesize_questions(questions_to_merge)
+                synth_mod = _moderate_question(synthesized)
+                saved_question = synth_mod["reworded"] if synth_mod["approved"] else synthesized
+
                 conn.execute(
                     "UPDATE assistant_conversations "
                     "SET question = ?, answer = ?, model_used = ?, response_time_ms = ? "
-                    "WHERE id = ? AND session_id = ?",
+                    "WHERE id = ?",
                     (
                         saved_question,
                         data["answer"],
                         data.get("model_used", ""),
                         data.get("response_time_ms"),
-                        thread_id,
-                        data["session_id"],
+                        row_id,
                     ),
                 )
                 conn.commit()
+
                 # Trigger async insight evaluation for verse Q&A
                 if data.get("page_type") == "verse":
                     _trigger_insight_evaluation(
-                        thread_id, data["page_key"],
+                        row_id, data["page_key"],
                         saved_question, data["answer"])
+
                 return jsonify({
                     "ok": True,
-                    "id": thread_id,
+                    "id": row_id,
                     "reworded_question": saved_question,
+                    "answer": data["answer"],
                 })
-            finally:
-                conn.close()
-        except Exception as e:
-            return jsonify({"error": f"Failed to update: {str(e)[:200]}"}), 500
+            else:
+                # --- INSERT path (genuinely first question) ---
+                saved_question = moderation["reworded"]
 
-    # --- INSERT new entry (first question in thread) ---
-    saved_question = moderation["reworded"]
-
-    try:
-        conn = get_db()
-        try:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS assistant_conversations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    page_type TEXT NOT NULL,
-                    page_key TEXT NOT NULL,
-                    question TEXT NOT NULL,
-                    answer TEXT NOT NULL,
-                    context_summary TEXT,
-                    model_used TEXT,
-                    response_time_ms INTEGER,
-                    created_at TEXT DEFAULT (datetime('now'))
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS assistant_conversations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        session_id TEXT NOT NULL,
+                        page_type TEXT NOT NULL,
+                        page_key TEXT NOT NULL,
+                        question TEXT NOT NULL,
+                        answer TEXT NOT NULL,
+                        context_summary TEXT,
+                        model_used TEXT,
+                        response_time_ms INTEGER,
+                        created_at TEXT DEFAULT (datetime('now'))
+                    )
+                """)
+                cur = conn.execute(
+                    "INSERT INTO assistant_conversations "
+                    "(session_id, page_type, page_key, question, answer, "
+                    " context_summary, model_used, response_time_ms) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        data["session_id"],
+                        data["page_type"],
+                        data["page_key"],
+                        saved_question,
+                        data["answer"],
+                        data.get("context_summary", ""),
+                        data.get("model_used", ""),
+                        data.get("response_time_ms"),
+                    ),
                 )
-            """)
-            cur = conn.execute(
-                "INSERT INTO assistant_conversations "
-                "(session_id, page_type, page_key, question, answer, "
-                " context_summary, model_used, response_time_ms) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    data["session_id"],
-                    data["page_type"],
-                    data["page_key"],
-                    saved_question,
-                    data["answer"],
-                    data.get("context_summary", ""),
-                    data.get("model_used", ""),
-                    data.get("response_time_ms"),
-                ),
-            )
-            new_id = cur.lastrowid
-            conn.commit()
-            # Trigger async insight evaluation for verse Q&A
-            if data.get("page_type") == "verse":
-                _trigger_insight_evaluation(
-                    new_id, data["page_key"],
-                    saved_question, data["answer"])
-            return jsonify({
-                "ok": True,
-                "id": new_id,
-                "reworded_question": saved_question,
-            })
+                new_id = cur.lastrowid
+                conn.commit()
+
+                # Trigger async insight evaluation for verse Q&A
+                if data.get("page_type") == "verse":
+                    _trigger_insight_evaluation(
+                        new_id, data["page_key"],
+                        saved_question, data["answer"])
+
+                return jsonify({
+                    "ok": True,
+                    "id": new_id,
+                    "reworded_question": saved_question,
+                    "answer": data["answer"],
+                })
         finally:
             conn.close()
     except Exception as e:
@@ -1925,6 +1997,79 @@ def get_insight_evolution_stats():
             "total_reverted": 0,
             "active_insights": 0,
             "recent_insights": [],
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/verse/<verse_ref>/themes")
+def get_verse_themes(verse_ref: str):
+    """Get themes assigned to a verse. verse_ref is 'surah:ayah'."""
+    parts = verse_ref.split(":")
+    if len(parts) != 2:
+        return jsonify({"error": "Invalid verse reference"}), 400
+    try:
+        chapter, verse = int(parts[0]), int(parts[1])
+    except ValueError:
+        return jsonify({"error": "Invalid verse reference"}), 400
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT theme, confidence FROM verse_themes "
+            "WHERE chapter = ? AND verse = ? ORDER BY confidence DESC",
+            (chapter, verse),
+        ).fetchall()
+        return jsonify({
+            "chapter": chapter,
+            "verse": verse,
+            "themes": [{"theme": r["theme"], "confidence": r["confidence"]} for r in rows],
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/themes")
+def get_all_themes():
+    """Get all distinct themes and their verse counts."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT theme, COUNT(*) as verse_count FROM verse_themes "
+            "GROUP BY theme ORDER BY verse_count DESC"
+        ).fetchall()
+        return jsonify({
+            "themes": [{"theme": r["theme"], "verse_count": r["verse_count"]} for r in rows],
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/themes/<theme>/verses")
+def get_verses_by_theme(theme: str):
+    """Get all verses for a given theme."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT vt.chapter, vt.verse, vt.confidence, v.text_uthmani, t.text_en "
+            "FROM verse_themes vt "
+            "JOIN verses v ON vt.chapter = v.chapter AND vt.verse = v.verse "
+            "LEFT JOIN translations t ON vt.chapter = t.chapter AND vt.verse = t.verse "
+            "WHERE vt.theme = ? ORDER BY vt.chapter, vt.verse",
+            (theme,),
+        ).fetchall()
+        return jsonify({
+            "theme": theme,
+            "verses": [
+                {
+                    "chapter": r["chapter"],
+                    "verse": r["verse"],
+                    "confidence": r["confidence"],
+                    "text_uthmani": r["text_uthmani"],
+                    "text_en": r["text_en"],
+                }
+                for r in rows
+            ],
         })
     finally:
         conn.close()
