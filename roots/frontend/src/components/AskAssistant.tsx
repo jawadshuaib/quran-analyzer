@@ -20,6 +20,21 @@ const MAX_HISTORY_TURNS = 10;
 /** Auto-clear conversation after 1 hour of inactivity */
 const THREAD_TIMEOUT_MS = 60 * 60 * 1000;
 
+/** localStorage key for tracking which Q&A entries the user has seen */
+function getSeenKey(pageType: string, pageKey: string): string {
+  return `qa_seen_${pageType}_${pageKey}`;
+}
+
+function getLastSeenId(pageType: string, pageKey: string): number {
+  try {
+    return parseInt(localStorage.getItem(getSeenKey(pageType, pageKey)) || '0', 10);
+  } catch { return 0; }
+}
+
+function markAsSeen(pageType: string, pageKey: string, latestId: number): void {
+  try { localStorage.setItem(getSeenKey(pageType, pageKey), String(latestId)); } catch { /* ignore */ }
+}
+
 /** Strip HTML tags and script-like content from user input */
 function sanitizeInput(text: string): string {
   return text
@@ -43,6 +58,7 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
   const [freeUsed, setFreeUsed] = useState(0);
   const [freeLimit, setFreeLimit] = useState(3);
   const [usageLoaded, setUsageLoaded] = useState(false);
+  const [qaFlash, setQaFlash] = useState(false);
   const threadIdRef = useRef<number | null>(null);
   const inflightSaveRef = useRef<Promise<unknown> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -123,9 +139,9 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     if (open) clearIfStale();
   }, [open, clearIfStale]);
 
-  // Eagerly check if history exists when panel opens
+  // Eagerly check if history exists (even when closed, to show glow indicator)
   useEffect(() => {
-    if (open && !historyLoaded) {
+    if (!historyLoaded) {
       fetchHistory(pageType, pageKey)
         .then((h) => {
           setHistory(h);
@@ -136,9 +152,27 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
           setHistoryLoaded(true);
         });
     }
-  }, [open, historyLoaded, pageType, pageKey]);
+  }, [historyLoaded, pageType, pageKey]);
 
   const hasHistory = historyLoaded && history.length > 0;
+  const latestQAId = hasHistory ? Math.max(...history.map(h => h.id)) : 0;
+  const hasUnreadQA = hasHistory && latestQAId > getLastSeenId(pageType, pageKey);
+
+  // Flash the Q&A tab when panel opens and there's unread content
+  useEffect(() => {
+    if (open && hasUnreadQA) {
+      setQaFlash(true);
+      const timer = setTimeout(() => setQaFlash(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [open, hasUnreadQA]);
+
+  // Mark as read when user views the Q&A tab
+  useEffect(() => {
+    if (tab === 'history' && hasHistory && latestQAId > 0) {
+      markAsSeen(pageType, pageKey, latestQAId);
+    }
+  }, [tab, hasHistory, latestQAId, pageType, pageKey]);
 
   const handleSubmit = useCallback(async () => {
     if (!input.trim() || streaming) return;
@@ -384,12 +418,13 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full
+        className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full
                    bg-violet-600 text-white shadow-lg shadow-violet-200
                    hover:bg-violet-700 hover:shadow-xl hover:shadow-violet-300
                    transition-all duration-200 group
-                   px-4 py-3 sm:px-5 sm:py-3.5"
-        title="Ask the Quran"
+                   px-4 py-3 sm:px-5 sm:py-3.5
+                   ${hasUnreadQA ? 'ring-2 ring-yellow-300 ring-offset-2 shadow-[0_0_12px_rgba(253,224,71,0.5)]' : ''}`}
+        title={hasUnreadQA ? 'Ask the Quran — new Q&A available' : 'Ask the Quran'}
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -425,9 +460,12 @@ export default function AskAssistant({ pageType, pageKey, contextGatherer }: Pro
                 onClick={() => setTab('history')}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
                   tab === 'history' ? 'bg-white text-violet-800 shadow-sm' : 'text-violet-600 hover:text-violet-800'
-                }`}
+                } ${qaFlash && tab !== 'history' ? 'animate-pulse bg-yellow-100 text-yellow-800 ring-1 ring-yellow-300' : ''}`}
               >
                 Q&amp;A
+                {hasUnreadQA && tab !== 'history' && (
+                  <span className="ml-1 inline-block w-1.5 h-1.5 rounded-full bg-yellow-400" />
+                )}
               </button>
             </div>
           )}
