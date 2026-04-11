@@ -1094,7 +1094,9 @@ def _moderate_question(question: str) -> dict:
         "   - Completely unrelated nonsense (not a real question)\n"
         "   Accept everything else — even simple, off-topic, or naive questions are fine.\n"
         "2. If approved, reword the question for clarity and proper grammar. "
-        "Keep the original meaning and intent. If it's already clear, return it as-is. "
+        "Write it in third-person FAQ style — do NOT use 'you' or 'your'. "
+        "For example, 'What does this verse mean?' not 'Can you explain this verse to me?'. "
+        "Keep the original meaning and intent. If it's already clear and third-person, return it as-is. "
         "Do NOT add information the user didn't ask about.\n\n"
         'Respond with ONLY a JSON object: {"approved": true/false, "reworded": "...", "reason": "..."}\n'
         'If approved, "reason" should be null. If rejected, "reason" should be a short user-friendly explanation.'
@@ -1155,7 +1157,10 @@ def _synthesize_questions(questions: list) -> str:
         "A user asked the following series of questions in a Quran study conversation:\n\n"
         f"{numbered}\n\n"
         "Synthesize these into ONE clear, concise question (1-2 sentences max) that captures "
-        "the full scope of what the user was exploring. Keep the original intent. "
+        "the full scope of what the user was exploring. "
+        "Write it in third-person FAQ style for general readers — do NOT use 'you' or 'your'. "
+        "For example: 'What is the significance of...' not 'Can you explain...'. "
+        "Keep the original intent. "
         "Respond with ONLY the synthesized question text, nothing else."
     )
 
