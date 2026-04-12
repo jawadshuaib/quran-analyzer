@@ -5,6 +5,8 @@ import { verseUrl, ejtaalUrl } from '../utils/urls';
 import WordTooltip from './WordTooltip';
 import AskAssistant from './AskAssistant';
 import { buildRootContext } from '../utils/context-builders';
+import SaveButton from './SaveButton';
+import { notifySavedItemsChanged } from './SavedItemsPanel';
 
 interface Props {
   rootBw: string;
@@ -124,15 +126,27 @@ export default function RootPage({ rootBw }: Props) {
               {data.total_occurrences} verse{data.total_occurrences !== 1 ? 's' : ''}
             </div>
           </div>
-          <a
-            href={`/learning/root/${encodeURIComponent(rootBw)}`}
-            className="ml-auto self-start inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-            </svg>
-            Learn this root
-          </a>
+          <div className="ml-auto flex items-center gap-2">
+            <div className="rounded-full bg-white shadow-sm">
+              <SaveButton
+                type="root"
+                itemKey={rootBw}
+                label={`Root ${data.root_arabic} (${data.root_buckwalter})`}
+                href={`/root/${encodeURIComponent(rootBw)}`}
+                subtitle={data.primary_meaning || undefined}
+                onToggle={() => notifySavedItemsChanged()}
+              />
+            </div>
+            <a
+              href={`/learning/root/${encodeURIComponent(rootBw)}`}
+              className="self-start inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Learn this root
+            </a>
+          </div>
         </div>
       </header>
 

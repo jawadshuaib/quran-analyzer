@@ -70,7 +70,7 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
 
   // Fetch themes for saved verses
   const fetchThemes = useCallback(async (verseItems: SavedItem[]) => {
-    if (verseItems.length < 2) {
+    if (verseItems.length === 0) {
       setVerseThemes({});
       return;
     }
@@ -154,9 +154,11 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     countByType[item.type]++;
   }
 
-  // Group verses by theme
+  // Group verses by theme (or separate types when mixed)
   const verseCount = countByType.verse;
-  const shouldGroup = groupByTheme && verseCount >= 2 && (filter === 'all' || filter === 'verse');
+  const nonVerseCount = countByType.word + countByType.root;
+  const hasMixedTypes = verseCount > 0 && nonVerseCount > 0;
+  const shouldGroup = groupByTheme && (verseCount >= 2 || hasMixedTypes) && (filter === 'all' || filter === 'verse');
 
   const groupedContent = useGroupedByTheme(filtered, verseThemes, shouldGroup);
 
@@ -221,8 +223,8 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
           <span className="text-xs text-stone-400">({count})</span>
         </div>
         <div className="flex items-center gap-1">
-          {/* Theme grouping toggle — only show when 2+ verses */}
-          {verseCount >= 2 && (
+          {/* Theme grouping toggle — show when 2+ verses or mixed types */}
+          {(verseCount >= 2 || hasMixedTypes) && (
             <button
               onClick={() => setGroupByTheme((prev) => !prev)}
               className={`rounded-md p-1.5 transition-colors ${
@@ -400,7 +402,9 @@ function useGroupedByTheme(
   const verses = items.filter((i) => i.type === 'verse');
   const nonVerses = items.filter((i) => i.type !== 'verse');
 
-  if (verses.length < 2) return [];
+  // Need at least 2 verses OR a mix of verses + non-verses to group
+  if (verses.length === 0 && nonVerses.length === 0) return [];
+  if (verses.length < 2 && nonVerses.length === 0) return [];
 
   // Build theme → verses map using primary (highest confidence) theme
   const themeMap = new Map<string, SavedItem[]>();
