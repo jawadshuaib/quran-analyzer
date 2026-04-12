@@ -204,6 +204,24 @@ def _ensure_judge_columns():
 _ensure_judge_columns()
 
 
+def _ensure_align_checked_column():
+    """Add align_checked_at column to ai_word_meanings if missing."""
+    conn = get_db()
+    try:
+        try:
+            conn.execute(
+                "ALTER TABLE ai_word_meanings ADD COLUMN align_checked_at TEXT"
+            )
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # column already exists
+    finally:
+        conn.close()
+
+
+_ensure_align_checked_column()
+
+
 def _ensure_ai_root_meanings_table():
     """Create the ai_root_meanings table if it doesn't exist."""
     conn = get_db()

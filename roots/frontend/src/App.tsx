@@ -16,6 +16,7 @@ import LearningPromo from './components/LearningPromo';
 import RootSearch from './components/RootSearch';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
+import SavedItemsPanel from './components/SavedItemsPanel';
 import { buildVerseContext } from './utils/context-builders';
 
 const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
@@ -153,6 +154,7 @@ export default function App() {
       <div className="min-h-screen flex flex-col">
         <LearningPage />
         <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -166,6 +168,7 @@ export default function App() {
           <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />
         </div>
         <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -176,6 +179,7 @@ export default function App() {
       <div className="min-h-screen flex flex-col">
         {showTopBar && <TopExtensionBar />}
         <RootPage rootBw={rootBw} />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -475,6 +479,7 @@ export default function App() {
       )}
     </div>
       <SiteFooter />
+      <SavedItemsPanel />
     </div>
   );
 }

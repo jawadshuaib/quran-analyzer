@@ -6,6 +6,8 @@ import CognatePanel from './CognatePanel';
 import SelectionHeader from './SelectionHeader';
 import VerseRefText from './VerseRefText';
 import MethodologyTooltip from './MethodologyTooltip';
+import SaveButton from './SaveButton';
+import { notifySavedItemsChanged } from './SavedItemsPanel';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -246,9 +248,20 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   return (
     <div
       ref={containerRef}
-      className="rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+      className="relative rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
       onClick={clearAll}
     >
+      {/* Save heart — top-left, floating on card border */}
+      <div className="absolute -top-2.5 -left-2.5 z-10 rounded-full bg-white shadow-sm">
+        <SaveButton
+          type="verse"
+          itemKey={`${data.surah}:${data.ayah}`}
+          label={`Surah ${data.surah_name} ${data.surah}:${data.ayah}`}
+          href={`/verse/${data.surah}:${data.ayah}`}
+          subtitle={data.translation}
+          onToggle={() => notifySavedItemsChanged()}
+        />
+      </div>
       {hasSelection && (
         <SelectionHeader
           selectedWords={selectedWordItems}
