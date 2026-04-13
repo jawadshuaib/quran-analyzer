@@ -58,7 +58,12 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
     fetchWordAnalysis(surah, ayah, pos)
       .then((result) => {
         setData(result);
-        const arabic = result.segments[0]?.form_arabic || '';
+        const mainSeg = result.segments.find(
+          (s) => (s.lemma_buckwalter || s.root_buckwalter) && s.pos !== 'Prefix' && s.pos !== 'Suffix' && s.pos !== 'Pronoun'
+        ) ?? result.segments.find(
+          (s) => s.form_buckwalter && s.pos !== 'Prefix' && s.pos !== 'Suffix' && s.pos !== 'Pronoun'
+        ) ?? result.segments[0];
+        const arabic = mainSeg?.form_arabic || '';
         document.title = `Word ${arabic} \u2014 ${surah}:${ayah} Word ${pos} | The Quran Explorer`;
       })
       .catch((err: unknown) => {
@@ -96,10 +101,13 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
   const verseWords = data.text_uthmani.split(/\s+/).filter(Boolean);
 
   // Build main segment info for display
-  const mainPos = data.segments.find(
-    (s) => s.pos && s.pos !== 'Prefix' && s.pos !== 'Suffix'
-  )?.pos;
-  const formArabic = data.segments[0]?.form_arabic;
+  const mainSeg = data.segments.find(
+    (s) => (s.lemma_buckwalter || s.root_buckwalter) && s.pos !== 'Prefix' && s.pos !== 'Suffix' && s.pos !== 'Pronoun'
+  ) ?? data.segments.find(
+    (s) => s.form_buckwalter && s.pos !== 'Prefix' && s.pos !== 'Suffix' && s.pos !== 'Pronoun'
+  ) ?? data.segments[0];
+  const mainPos = mainSeg?.pos;
+  const formArabic = mainSeg?.form_arabic;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
