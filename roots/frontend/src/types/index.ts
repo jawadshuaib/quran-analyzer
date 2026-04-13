@@ -387,7 +387,7 @@ export interface WordAIMeaning {
   model_name: string;
   created_at: string;
   preferred_translation?: string;
-  preferred_source?: 'conventional' | 'ai' | 'judge';
+  preferred_source?: string;
 }
 
 export interface WordAnalysisData {
