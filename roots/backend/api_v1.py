@@ -930,6 +930,63 @@ def search():
 
 
 # ---------------------------------------------------------------------------
+# 5b. SEMANTIC SEARCH
+# ---------------------------------------------------------------------------
+
+@v1_bp.route("/search/semantic")
+def search_semantic():
+    """GET /api/v1/search/semantic?q=mercy+and+forgiveness&limit=10
+
+    Find verses by natural-language meaning using pre-computed vector embeddings.
+    """
+    mod = _app()
+    query = request.args.get("q", "").strip()
+    if not query:
+        return _error("INVALID_PARAM", "Missing required query parameter 'q'", 400)
+    if len(query) > 500:
+        return _error("INVALID_PARAM", "Query too long (max 500 characters)", 400)
+    try:
+        limit = min(int(request.args.get("limit", "10")), 50)
+    except (ValueError, TypeError):
+        return _error("INVALID_PARAM", "limit must be a positive integer", 400)
+
+    results = mod._semantic_search(query, limit=limit)
+    if not results:
+        return _envelope(
+            {"query": query, "results": []},
+            meta={"total": 0},
+        )
+
+    conn = mod.get_db()
+    try:
+        out = []
+        for ch, v, score, snippet in results:
+            row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            text = row["text_uthmani"] if row else ""
+            if text:
+                text = mod._strip_bismillah(text, ch, v)
+            translation = mod._best_translation(conn, ch, v)
+            display_text = translation if translation else snippet.split(" | ")[0] if snippet else ""
+            out.append({
+                "surah": ch,
+                "ayah": v,
+                "surah_name": mod._surah_name(ch),
+                "text_uthmani": text,
+                "translation": display_text,
+                "score": round(score, 4),
+            })
+        return _envelope(
+            {"query": query, "results": out},
+            meta={"total": len(out)},
+        )
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # 6. LEARNING
 # ---------------------------------------------------------------------------
 

@@ -409,6 +409,47 @@ curl "https://al-nuqta.com/api/v1/search?root=mlk&root=Elm&limit=5"
 }
 ```
 
+#### `GET /api/v1/search/semantic`
+
+Find verses by natural-language meaning using vector embeddings. Unlike root/lemma search which matches exact morphological terms, semantic search understands the *meaning* of your query and finds conceptually similar verses.
+
+**Query Parameters:**
+
+| Param | Description |
+|-------|-------------|
+| `q` | Natural-language search query (required, max 500 chars) |
+| `limit` | Max results to return (default 10, max 50) |
+
+**Example:**
+
+```bash
+curl "https://al-nuqta.com/api/v1/search/semantic?q=day+of+judgment&limit=3"
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "query": "day of judgment",
+    "results": [
+      {
+        "surah": 51, "ayah": 12,
+        "surah_name": "Adh-Dhariyat",
+        "text_uthmani": "...",
+        "translation": "They ask, \"When is the Day of Judgment?\"",
+        "score": 0.8273
+      }
+    ]
+  },
+  "meta": { "total": 3 }
+}
+```
+
+**Notes:**
+- The `score` field is cosine similarity (0.0 to 1.0). Higher means more relevant.
+- Queries work best in English. Results are ranked by semantic similarity to the verse translations.
+- Results below a 0.25 similarity threshold are automatically filtered out.
+
 ---
 
 ### 6. Learning

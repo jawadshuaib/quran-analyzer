@@ -13,6 +13,7 @@ import time
 from collections import OrderedDict, defaultdict
 from urllib.parse import quote
 
+import numpy as np
 import requests
 from flask import Flask, Response, jsonify, redirect, request, send_from_directory
 from flask_cors import CORS
@@ -938,6 +939,106 @@ def _find_related_verses(surah, ayah, limit=10):
 
 
 _build_similarity_engine()
+
+# --------------- Semantic Embedding Search Engine ---------------
+
+_embedding_model = None       # Lazy-loaded SentenceTransformer
+_embedding_model_lock = threading.Lock()
+_embedding_matrix = None      # np.ndarray shape (N, dim), pre-normalised
+_embedding_keys = []          # list of (chapter, verse) in same order as matrix rows
+_embedding_texts = {}         # (chapter, verse) -> text_used for snippets
+_EMBEDDING_DIM = 384
+_SEMANTIC_MODEL_NAME = "all-MiniLM-L6-v2"
+
+
+def _load_embedding_matrix():
+    """Load pre-computed verse embeddings from DB into a NumPy matrix."""
+    global _embedding_matrix, _embedding_keys, _embedding_texts
+    conn = get_db()
+    try:
+        # Check if table exists
+        tbl = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='verse_embeddings'"
+        ).fetchone()
+        if not tbl:
+            print("  Semantic search: verse_embeddings table not found — skipping")
+            return
+        rows = conn.execute(
+            "SELECT chapter, verse, embedding, text_used FROM verse_embeddings "
+            "ORDER BY chapter, verse"
+        ).fetchall()
+        if not rows:
+            print("  Semantic search: no embeddings found — skipping")
+            return
+        keys = []
+        texts = {}
+        vecs = []
+        skipped = 0
+        for r in rows:
+            ch, v = r["chapter"], r["verse"]
+            vec = np.frombuffer(r["embedding"], dtype=np.float32)
+            if vec.shape[0] != _EMBEDDING_DIM:
+                skipped += 1
+                continue
+            keys.append((ch, v))
+            texts[(ch, v)] = r["text_used"] or ""
+            vecs.append(vec)
+        if skipped:
+            print(f"  WARNING: Skipped {skipped} embeddings with wrong dimensions")
+        try:
+            _embedding_matrix = np.vstack(vecs)  # (N, 384)
+        except ValueError as e:
+            print(f"  ERROR: Failed to stack embeddings: {e}")
+            _embedding_matrix = None
+            return
+        _embedding_keys = keys
+        _embedding_texts = texts
+        print(f"  Semantic search ready: {len(keys)} verse embeddings loaded")
+    finally:
+        conn.close()
+
+
+_load_embedding_matrix()
+
+
+def _get_embedding_model():
+    """Lazy-load the sentence transformer model (thread-safe)."""
+    global _embedding_model
+    if _embedding_model is not None:
+        return _embedding_model
+    with _embedding_model_lock:
+        if _embedding_model is None:
+            from sentence_transformers import SentenceTransformer
+            _embedding_model = SentenceTransformer(_SEMANTIC_MODEL_NAME)
+    return _embedding_model
+
+
+def _semantic_search(query: str, limit: int = 10, threshold: float = 0.25):
+    """Search verses by semantic similarity to a natural-language query.
+
+    Returns list of (chapter, verse, score, snippet) sorted by score DESC.
+    """
+    if _embedding_matrix is None or len(_embedding_keys) == 0:
+        return []
+    model = _get_embedding_model()
+    q_vec = model.encode([query], normalize_embeddings=True)  # (1, 384)
+    # Cosine similarity (vectors are pre-normalised, so dot product = cosine)
+    scores = _embedding_matrix @ q_vec.T  # (N, 1)
+    scores = scores.flatten()
+    # Get top results above threshold
+    top_idx = np.argsort(scores)[::-1][:limit * 2]  # grab extra, filter by threshold
+    results = []
+    for idx in top_idx:
+        score = float(scores[idx])
+        if score < threshold:
+            break
+        ch, v = _embedding_keys[idx]
+        snippet = _embedding_texts.get((ch, v), "")
+        results.append((ch, v, score, snippet))
+        if len(results) >= limit:
+            break
+    return results
+
 
 # Load exact Bismillah from DB to avoid Unicode diacritics-ordering mismatches
 _conn = get_db()
@@ -2967,6 +3068,59 @@ def search_words():
             "terms_used": resolved,
             "results": results,
             "total_found": total_found,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/semantic-search")
+def semantic_search_api():
+    """Search verses by natural-language meaning using vector embeddings.
+
+    GET /api/semantic-search?q=punishment+for+disbelievers&limit=10
+    """
+    query = request.args.get("q", "").strip()
+    if not query:
+        return jsonify({"error": "Missing query parameter 'q'"}), 400
+    if len(query) > 500:
+        return jsonify({"error": "Query too long (max 500 characters)"}), 400
+    try:
+        limit = min(int(request.args.get("limit", "10")), 50)
+    except (ValueError, TypeError):
+        return jsonify({"error": "limit must be a positive integer"}), 400
+
+    results = _semantic_search(query, limit=limit)
+    if not results:
+        return jsonify({"query": query, "results": [], "total": 0})
+
+    # Fetch verse text + translation for each result
+    conn = get_db()
+    try:
+        out = []
+        for ch, v, score, snippet in results:
+            row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, v),
+            ).fetchone()
+            text = row["text_uthmani"] if row else ""
+            if text:
+                text = _strip_bismillah(text, ch, v)
+            translation = _best_translation(conn, ch, v)
+            # Clean snippet: strip pipe-delimited themes metadata
+            display_text = translation if translation else snippet.split(" | ")[0] if snippet else ""
+            surah_name = _surah_name(ch)
+            out.append({
+                "surah": ch,
+                "ayah": v,
+                "surah_name": surah_name,
+                "text_uthmani": text,
+                "translation": display_text,
+                "score": round(score, 4),
+            })
+        return jsonify({
+            "query": query,
+            "results": out,
+            "total": len(out),
         })
     finally:
         conn.close()

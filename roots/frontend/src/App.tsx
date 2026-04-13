@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
-import { fetchVerse, searchWords } from './api/quran';
+import type { SemanticSearchResponse } from './api/quran';
+import { fetchVerse, searchWords, semanticSearch } from './api/quran';
 import { verseUrl } from './utils/urls';
 import SearchBar from './components/SearchBar';
 import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
 import WordSearchResults from './components/WordSearchResults';
+import SemanticSearchResults from './components/SemanticSearchResults';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 import NotFound from './components/NotFound';
@@ -218,6 +220,10 @@ export default function App() {
   const [wordSearchLoading, setWordSearchLoading] = useState(false);
   const [wordSearchError, setWordSearchError] = useState('');
   const wordSearchRef = useRef<HTMLDivElement>(null);
+  const [semanticResults, setSemanticResults] = useState<SemanticSearchResponse | null>(null);
+  const [semanticLoading, setSemanticLoading] = useState(false);
+  const [semanticError, setSemanticError] = useState('');
+  const semanticRef = useRef<HTMLDivElement>(null);
   const [showExtensionSection, setShowExtensionSection] = useState(false);
 
   // 15 famous verses — pick 3 at random on each page load
@@ -259,6 +265,8 @@ export default function App() {
     setData(null);
     setWordSearchResults(null);
     setWordSearchError('');
+    setSemanticResults(null);
+    setSemanticError('');
     try {
       const result = await fetchVerse(surah, ayah);
       setData(result);
@@ -312,6 +320,32 @@ export default function App() {
     }
   }, [wordSearchResults]);
 
+  // Scroll to semantic search results when they load
+  useEffect(() => {
+    if (semanticResults && semanticRef.current) {
+      semanticRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [semanticResults]);
+
+  async function handleSemanticSearch(query: string) {
+    setSemanticLoading(true);
+    setSemanticError('');
+    setSemanticResults(null);
+    // Clear verse display when doing semantic search
+    setData(null);
+    setError('');
+    setWordSearchResults(null);
+    try {
+      const result = await semanticSearch(query, 15);
+      setSemanticResults(result);
+      document.title = `Search: ${query} | The Quran Explorer`;
+    } catch (err: unknown) {
+      setSemanticError(err instanceof Error ? err.message : 'Semantic search failed');
+    } finally {
+      setSemanticLoading(false);
+    }
+  }
+
   async function handleWordSearch(terms: SearchTerm[], queryVerse: { surah: number; ayah: number }) {
     setWordSearchLoading(true);
     setWordSearchError('');
@@ -340,10 +374,14 @@ export default function App() {
       </header>
 
       <div className="flex justify-center mb-8">
-        <SearchBar onSearch={handleSearch} loading={loading} />
+        <SearchBar
+          onSearch={handleSearch}
+          onSemanticSearch={handleSemanticSearch}
+          loading={loading || semanticLoading}
+        />
       </div>
 
-      {loading && (
+      {(loading || semanticLoading) && (
         <div className="flex justify-center py-12">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
         </div>
@@ -352,6 +390,22 @@ export default function App() {
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
           {error}
+        </div>
+      )}
+
+      {semanticError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
+          {semanticError}
+        </div>
+      )}
+
+      {semanticResults && (
+        <div ref={semanticRef}>
+          <SemanticSearchResults
+            data={semanticResults}
+            onNavigate={handleSearch}
+            onClose={() => setSemanticResults(null)}
+          />
         </div>
       )}
 

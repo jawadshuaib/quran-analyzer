@@ -11,6 +11,7 @@ An interactive tool for exploring the morphology and Semitic etymology of every 
 - **Cross-verse word search** — select words and/or root pills, then search the entire Quran for verses containing all of them. Result count updates live as you select. Matched words are highlighted in yellow in the results.
 - **Root-based search** — click root pills at the bottom of a verse to add roots to your search query alongside individual words
 - **Root detail page** — select a single root to see "Analyze this Root", which opens a dedicated page (`/root/<buckwalter>`) showing all lemmas derived from that root, the full Semitic cognate table, and sample verses with highlighted occurrences and word-hover tooltips
+- **Semantic search** — search verses by meaning using natural language (e.g. "day of judgment", "patience and gratitude"). Powered by sentence-transformer vector embeddings over all 6,236 AI translations
 - **Related verses** — IDF-weighted similarity engine automatically finds verses that share the most roots and lemmas with the current verse, ranked by containment score
 - **Surrounding context** — view the verses before and after the current verse for context, with click-to-navigate
 - **Full morphological analysis** — gender, number, person, case, voice, mood, verb form, and state for each word segment

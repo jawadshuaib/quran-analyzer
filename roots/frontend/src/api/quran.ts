@@ -167,3 +167,34 @@ export async function searchWordsCount(
   const data = await res.json();
   return data.total_found ?? 0;
 }
+
+// --- Semantic (vector) search ---
+
+export interface SemanticSearchResult {
+  surah: number;
+  ayah: number;
+  surah_name: string;
+  text_uthmani: string;
+  translation: string;
+  score: number;
+}
+
+export interface SemanticSearchResponse {
+  query: string;
+  results: SemanticSearchResult[];
+  total: number;
+}
+
+export async function semanticSearch(
+  query: string,
+  limit = 10,
+): Promise<SemanticSearchResponse> {
+  const res = await fetch(
+    `${BASE}/semantic-search?q=${encodeURIComponent(query)}&limit=${limit}`,
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string })?.error || `Semantic search failed (${res.status})`);
+  }
+  return res.json();
+}

@@ -14,13 +14,18 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Python deps
+# Install Python deps (CPU-only torch to keep image small)
 COPY roots/backend/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt gunicorn
+
+# Pre-download sentence-transformer model so first search is fast
+RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # Copy application code
 COPY roots/backend/app.py ./app.py
 COPY roots/backend/api_v1.py ./api_v1.py
+COPY roots/backend/build_embeddings.py ./build_embeddings.py
 
 # Copy database as seed (entrypoint copies to volume on first run)
 COPY assets/quran.db ./seed-quran.db
