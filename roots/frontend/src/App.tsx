@@ -3,7 +3,7 @@ import type { VerseData, SearchTerm, WordSearchResponse } from './types';
 import type { SemanticSearchResponse } from './api/quran';
 import { fetchVerse, searchWords, semanticSearch } from './api/quran';
 import { verseUrl } from './utils/urls';
-import SearchBar from './components/SearchBar';
+import UnifiedSearch from './components/UnifiedSearch';
 import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
@@ -15,7 +15,6 @@ import NotFound from './components/NotFound';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 import LearningPage from './components/learning/LearningPage';
 import LearningPromo from './components/LearningPromo';
-import RootSearch from './components/RootSearch';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
 import SavedItemsPanel from './components/SavedItemsPanel';
@@ -340,7 +339,13 @@ export default function App() {
       setSemanticResults(result);
       document.title = `Search: ${query} | The Quran Explorer`;
     } catch (err: unknown) {
-      setSemanticError(err instanceof Error ? err.message : 'Semantic search failed');
+      const msg = err instanceof Error ? err.message : 'Semantic search failed';
+      // Friendly message for 404 (endpoint not deployed yet) or network errors
+      if (msg.includes('404') || msg.includes('Failed to fetch')) {
+        setSemanticError('Semantic search is not available yet. Please try again later.');
+      } else {
+        setSemanticError(msg);
+      }
     } finally {
       setSemanticLoading(false);
     }
@@ -373,11 +378,11 @@ export default function App() {
         </p>
       </header>
 
-      <div className="flex justify-center mb-8">
-        <SearchBar
-          onSearch={handleSearch}
-          onSemanticSearch={handleSemanticSearch}
-          loading={loading || semanticLoading}
+      <div className="mb-8">
+        <UnifiedSearch
+          onNavigateVerse={handleSearch}
+          onFullSemanticSearch={handleSemanticSearch}
+          loading={loading}
         />
       </div>
 
@@ -474,18 +479,6 @@ export default function App() {
           </div>
 
           <hr className="border-stone-200/60 max-w-xs mx-auto" />
-
-          {/* Root search */}
-          <div className="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-left">
-            <div className="flex flex-col items-center text-center">
-              <p className="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Root Search</p>
-              <h2 className="text-lg font-semibold text-stone-800 mt-1">Explore Quranic Root Words</h2>
-              <p className="text-sm text-stone-500 mt-1 mb-4">
-                Search by Buckwalter, Arabic, romanization, or English meaning
-              </p>
-              <RootSearch />
-            </div>
-          </div>
 
           {showExtensionSection && (
             <div className="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-left">

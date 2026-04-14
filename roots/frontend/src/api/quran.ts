@@ -147,9 +147,33 @@ export interface RootSearchResult {
   } | null;
 }
 
-export async function searchRoots(query: string, limit = 10): Promise<RootSearchResult[]> {
+// --- Verse preview (lightweight) ---
+
+export interface VersePreview {
+  surah: number;
+  ayah: number;
+  surah_name: string;
+  text_uthmani: string;
+  translation: string;
+}
+
+export async function fetchVersePreview(
+  surah: number,
+  ayah: number,
+  signal?: AbortSignal,
+): Promise<VersePreview | null> {
+  try {
+    const res = await fetch(`${BASE}/verse/${surah}:${ayah}/preview`, { signal });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function searchRoots(query: string, limit = 10, signal?: AbortSignal): Promise<RootSearchResult[]> {
   if (!query.trim()) return [];
-  const res = await fetch(`${BASE}/roots/search?q=${encodeURIComponent(query.trim())}&limit=${limit}`);
+  const res = await fetch(`${BASE}/roots/search?q=${encodeURIComponent(query.trim())}&limit=${limit}`, { signal });
   if (!res.ok) return [];
   return res.json();
 }
@@ -188,9 +212,11 @@ export interface SemanticSearchResponse {
 export async function semanticSearch(
   query: string,
   limit = 10,
+  signal?: AbortSignal,
 ): Promise<SemanticSearchResponse> {
   const res = await fetch(
     `${BASE}/semantic-search?q=${encodeURIComponent(query)}&limit=${limit}`,
+    { signal },
   );
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

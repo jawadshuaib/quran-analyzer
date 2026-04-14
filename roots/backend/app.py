@@ -2290,6 +2290,30 @@ def get_root(root_bw: str):
         conn.close()
 
 
+@app.route("/api/verse/<int:surah>:<int:ayah>/preview")
+def get_verse_preview(surah: int, ayah: int):
+    """Lightweight verse preview — just text, translation, and surah name."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+            (surah, ayah),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": f"Verse {surah}:{ayah} not found"}), 404
+        text = _strip_bismillah(row["text_uthmani"], surah, ayah)
+        translation = _best_translation(conn, surah, ayah)
+        return jsonify({
+            "surah": surah,
+            "ayah": ayah,
+            "surah_name": _surah_name(surah),
+            "text_uthmani": text,
+            "translation": translation or "",
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/verse/<int:surah>:<int:ayah>")
 def get_verse(surah: int, ayah: int):
     conn = get_db()
