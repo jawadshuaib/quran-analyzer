@@ -219,13 +219,6 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               <span className="text-xl font-semibold text-violet-900">
                 {data.ai_meaning.preferred_translation || data.ai_meaning.meaning_short}
               </span>
-              {data.ai_meaning.preferred_translation && data.ai_meaning.preferred_source && (
-                <span className="text-xs bg-violet-100 text-violet-600 rounded-full px-2 py-0.5">
-                  {data.ai_meaning.preferred_source.startsWith('align_fix') ? 'aligned' :
-                   data.ai_meaning.preferred_source === 'conventional' ? 'conventional' :
-                   data.ai_meaning.preferred_source === 'ai' ? 'AI' : 'reviewed'}
-                </span>
-              )}
             </div>
 
             <div className="text-sm text-stone-700 leading-relaxed">
