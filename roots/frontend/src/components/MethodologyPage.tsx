@@ -53,7 +53,7 @@ function Section({
 }
 
 /* ───────── example card used inside sections ───────── */
-function Example({ label, children }: { label: string; children: React.ReactNode }) {
+function Example({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="rounded-lg bg-cream border border-card-border p-4 sm:p-5">
       <p className="text-[11px] text-ink-muted tracking-wider uppercase mb-2">{label}</p>
@@ -119,19 +119,22 @@ export default function MethodologyPage() {
           </p>
 
           <Example label="Example · Verse 96:1">
-            <p
+            <a
+              href="/verse/96:1"
               dir="rtl"
               lang="ar"
-              className="font-arabic text-2xl text-ink text-right leading-[2] mb-3"
+              className="block font-arabic text-2xl text-ink text-right leading-[2] mb-3 hover:text-gold-hover transition-colors"
             >
               ٱقْرَأْ بِٱسْمِ رَبِّكَ ٱلَّذِى خَلَقَ
-            </p>
+            </a>
             <p className="text-sm text-ink-secondary">
-              The word <span className="font-medium text-ink">ٱقْرَأْ</span> (from
+              The word <a href="/word/96:1/1" className="font-medium text-ink hover:text-gold-hover transition-colors">ٱقْرَأْ</a> (from
               the root <a href="/root/qrA" className="text-emerald-700 hover:underline font-medium">q-r-ʾ</a>)
               is conventionally rendered as "read." But cross-referencing its
-              other Quranic occurrences — particularly in verses like 17:14 and
-              75:18 — reveals a broader meaning: to proclaim, to recite aloud,
+              other Quranic occurrences — particularly in verses like{' '}
+              <a href="/verse/17:14" className="text-gold-hover hover:text-gold font-medium">17:14</a> and{' '}
+              <a href="/verse/75:18" className="text-gold-hover hover:text-gold font-medium">75:18</a>{' '}
+              — reveals a broader meaning: to proclaim, to recite aloud,
               to gather and deliver. The Quran's own usage shapes the gloss,
               not an inherited English convention.
             </p>
@@ -188,7 +191,7 @@ export default function MethodologyPage() {
               even Akkadian (<span className="italic">rēmu</span> — womb), this root
               consistently refers to the womb — the seat of tender, nurturing
               care. The Quran's own usage of the plural{' '}
-              <span className="font-medium text-ink">arḥām</span> (wombs, 2:228)
+              <span className="font-medium text-ink">arḥām</span> (wombs, <a href="/verse/2:228" className="text-gold-hover hover:text-gold font-medium">2:228</a>)
               preserves this concrete sense. Understanding the root's origin
               transforms "mercy" from an abstract attribute into something
               visceral — a compassion as intimate as a mother's bond with the
@@ -217,7 +220,7 @@ export default function MethodologyPage() {
             regardless of what a dictionary might list for the bare root.
           </p>
 
-          <Example label="Example · Root ع ل م (ʿ-l-m) — Three forms, three meanings">
+          <Example label={<>Example · Root <a href="/root/Elm" className="text-gold-hover hover:text-gold">ع ل م (ʿ-l-m)</a> — Three forms, three meanings</>}>
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <span dir="rtl" lang="ar" className="font-arabic text-xl text-ink shrink-0 w-16 text-center">عَلِمَ</span>
@@ -236,7 +239,7 @@ export default function MethodologyPage() {
                   <p className="text-sm text-ink-secondary">
                     <span className="font-medium text-ink">ʿallama</span> — "he taught."
                     Form II adds a causative shade: to cause someone else
-                    to know. Appears in 96:5, <span className="italic">"taught the human what he did not know."</span>
+                    to know. Appears in <a href="/verse/96:5" className="text-gold-hover hover:text-gold font-medium">96:5</a>, <span className="italic">"taught the human what he did not know."</span>
                   </p>
                 </div>
               </div>
@@ -283,21 +286,21 @@ export default function MethodologyPage() {
             choice, with the reasoning available on the word's detail page.
           </p>
 
-          <Example label="Example · Verse 2:3, word 4">
+          <Example label={<>Example · <a href="/verse/2:3" className="text-gold-hover hover:text-gold">Verse 2:3</a>, word 4</>}>
             <div className="flex items-center gap-4 mb-3">
-              <span dir="rtl" lang="ar" className="font-arabic text-2xl text-ink">ٱلصَّلَوٰةَ</span>
+              <a href="/word/2:3/4" dir="rtl" lang="ar" className="font-arabic text-2xl text-ink hover:text-gold-hover transition-colors">ٱلصَّلَوٰةَ</a>
               <div>
                 <p className="text-sm font-medium text-ink">aṣ-ṣalāh</p>
-                <p className="text-xs text-ink-muted">Root: ص ل و (ṣ-l-w)</p>
+                <p className="text-xs text-ink-muted">Root: <a href="/root/Slw" className="text-emerald-700 hover:underline">ص ل و (ṣ-l-w)</a></p>
               </div>
             </div>
             <p className="text-sm text-ink-secondary">
               Rather than splitting "establish prayer" across two words and
               "the prayer" across a third — causing meaning to bleed between
               neighbours — each word receives its own precise, non-overlapping
-              gloss. The word <span className="font-medium text-ink">yaqīmūna</span> (يُقِيمُونَ)
-              carries "establish" and <span className="font-medium text-ink">aṣ-ṣalāh</span> carries
-              "the ṣalāh" — with the full verse translation providing the
+              gloss. The word <a href="/word/2:3/3" className="font-medium text-ink hover:text-gold-hover transition-colors">yaqīmūna</a> (يُقِيمُونَ)
+              carries "establish" and <a href="/word/2:3/4" className="font-medium text-ink hover:text-gold-hover transition-colors">aṣ-ṣalāh</a> carries
+              "the ṣalāh" — with the <a href="/verse/2:3" className="text-gold-hover hover:text-gold font-medium">full verse translation</a> providing the
               unified reading.
             </p>
           </Example>
