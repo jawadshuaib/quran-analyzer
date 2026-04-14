@@ -1,9 +1,12 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
 import type { SemanticSearchResponse } from './api/quran';
 import { fetchVerse, searchWords, semanticSearch } from './api/quran';
 import { verseUrl } from './utils/urls';
 import UnifiedSearch from './components/UnifiedSearch';
+import NavBar from './components/home/NavBar';
+import PageBackground from './components/home/PageBackground';
+import HomePage from './components/home/HomePage';
 import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
@@ -12,9 +15,10 @@ import SemanticSearchResults from './components/SemanticSearchResults';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 import NotFound from './components/NotFound';
+import ApiPage from './components/ApiPage';
+import MethodologyPage from './components/MethodologyPage';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 import LearningPage from './components/learning/LearningPage';
-import LearningPromo from './components/LearningPromo';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
 import SavedItemsPanel from './components/SavedItemsPanel';
@@ -57,6 +61,8 @@ function isKnownRoute(): boolean {
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
   if (/^\/settings\/?$/.test(path)) return true;
+  if (/^\/developers\/?$/.test(path)) return true;
+  if (/^\/methodology\/?$/.test(path)) return true;
   return false;
 }
 
@@ -132,12 +138,8 @@ function TopExtensionBar() {
 
 function SiteFooter() {
   return (
-    <footer className="py-6 border-t border-stone-200 text-center text-xs text-stone-400">
-      <a href="https://github.com/jawadshuaib/quran-analyzer/blob/main/API.md" target="_blank" rel="noopener noreferrer"
-         className="text-stone-500 hover:text-stone-700 underline">API Docs</a>
-      {' | '}
-      <a href="https://github.com/jawadshuaib/quran-analyzer" target="_blank" rel="noopener noreferrer"
-         className="text-stone-500 hover:text-stone-700 underline">GitHub</a>
+    <footer className="py-6 border-t border-card-border text-center text-[11.5px] text-ink-muted tracking-wide">
+      open corpus &middot; non-commercial &middot; built by and for students of the text
     </footer>
   );
 }
@@ -150,9 +152,13 @@ export default function App() {
     !isMobileUserAgent() &&
     extensionCheckDone &&
     !extensionInstalled;
+  const currentPath = window.location.pathname;
+
   if (isLearningPath()) {
     return (
       <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        <NavBar currentPath={currentPath} />
         <LearningPage />
         <SiteFooter />
         <SavedItemsPanel />
@@ -164,7 +170,8 @@ export default function App() {
   if (wordParams) {
     return (
       <div className="min-h-screen flex flex-col">
-        {showTopBar && <TopExtensionBar />}
+        <PageBackground />
+        <NavBar currentPath={currentPath} />
         <div className="flex-1">
           <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />
         </div>
@@ -178,7 +185,8 @@ export default function App() {
   if (rootBw) {
     return (
       <div className="min-h-screen flex flex-col">
-        {showTopBar && <TopExtensionBar />}
+        <PageBackground />
+        <NavBar currentPath={currentPath} />
         <RootPage rootBw={rootBw} />
         <SavedItemsPanel />
       </div>
@@ -188,16 +196,34 @@ export default function App() {
   if (isExtensionPrivacyPath()) {
     return (
       <div className="min-h-screen flex flex-col">
-        {showTopBar && <TopExtensionBar />}
+        <PageBackground />
+        <NavBar currentPath={currentPath} />
         <ExtensionPrivacyPage />
       </div>
     );
   }
 
-  if (/^\/settings\/?$/.test(window.location.pathname)) {
+  if (/^\/methodology\/?$/.test(currentPath)) {
     return (
       <div className="min-h-screen flex flex-col">
-        {showTopBar && <TopExtensionBar />}
+        <PageBackground />
+        <NavBar currentPath={currentPath} />
+        <MethodologyPage />
+        <SiteFooter />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  if (/^\/developers\/?$/.test(currentPath)) {
+    return <ApiPage />;
+  }
+
+  if (/^\/settings\/?$/.test(currentPath)) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        <NavBar currentPath={currentPath} />
         <SettingsPage />
       </div>
     );
@@ -206,7 +232,8 @@ export default function App() {
   if (!isKnownRoute()) {
     return (
       <div className="min-h-screen flex flex-col">
-        {showTopBar && <TopExtensionBar />}
+        <PageBackground />
+        <NavBar currentPath={currentPath} />
         <NotFound />
       </div>
     );
@@ -223,40 +250,8 @@ export default function App() {
   const [semanticLoading, setSemanticLoading] = useState(false);
   const [semanticError, setSemanticError] = useState('');
   const semanticRef = useRef<HTMLDivElement>(null);
-  const [showExtensionSection, setShowExtensionSection] = useState(false);
 
-  // 15 famous verses — pick 3 at random on each page load
-  const featuredVerses = useMemo<[number, number][]>(() => {
-    const all: [number, number][] = [
-      [1, 1],    // Al-Fatiha
-      [2, 255],  // Ayat al-Kursi
-      [2, 286],  // Last verse of Al-Baqarah
-      [3, 190],  // First verse on just warfare
-      [24, 35],  // Ayat an-Nur (Light verse)
-      [36, 1],   // Ya-Sin opening
-      [55, 13],  // Ar-Rahman refrain
-      [59, 22],  // Names of Allah
-      [67, 1],   // Al-Mulk opening
-      [96, 1],   // First revelation
-      [112, 1],  // Al-Ikhlas
-      [113, 1],  // Al-Falaq
-      [114, 1],  // An-Nas
-      [2, 152],  // Remember Me
-      [33, 56],  // Salawat verse
-      [13, 28],  // Hearts find rest in remembrance
-      [94, 5],   // With hardship comes ease
-      [49, 13],  // Nations and tribes
-      [21, 107], // Mercy to the worlds
-      [3, 139],  // Do not weaken
-      [18, 10],  // Companions of the Cave
-      [56, 77],  // Noble Quran
-      [39, 53],  // Do not despair of mercy
-      [31, 18],  // Luqman's advice — humility
-      [17, 1],   // Isra (Night Journey)
-    ];
-    const shuffled = [...all].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, 3);
-  }, []);
+  // featuredVerses removed — now handled by VerseOfTheDay in HomePage
 
   async function handleSearch(surah: number, ayah: number) {
     setLoading(true);
@@ -269,7 +264,7 @@ export default function App() {
     try {
       const result = await fetchVerse(surah, ayah);
       setData(result);
-      document.title = `Surah ${result.surah_name} (${surah}:${ayah}) | The Quran Explorer`;
+      document.title = `Surah ${result.surah_name} (${surah}:${ayah}) | al-nuqta`;
       // Keep URL in sync with the displayed verse
       window.history.pushState(null, '', verseUrl(surah, ayah));
     } catch (err: unknown) {
@@ -298,14 +293,12 @@ export default function App() {
     if (mobile) {
       setExtensionInstalled(false);
       setExtensionCheckDone(true);
-      setShowExtensionSection(false);
       return;
     }
     detectExtensionInstalled().then((installed) => {
       if (cancelled) return;
       setExtensionInstalled(installed);
       setExtensionCheckDone(true);
-      setShowExtensionSection(!installed);
     });
     return () => {
       cancelled = true;
@@ -337,7 +330,7 @@ export default function App() {
     try {
       const result = await semanticSearch(query, 15);
       setSemanticResults(result);
-      document.title = `Search: ${query} | The Quran Explorer`;
+      document.title = `Search: ${query} | al-nuqta`;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Semantic search failed';
       // Friendly message for 404 (endpoint not deployed yet) or network errors
@@ -365,166 +358,113 @@ export default function App() {
     }
   }
 
+  const isIdle = !data && !loading && !error && !semanticResults && !semanticLoading && !semanticError;
+
   return (
     <div className="min-h-screen flex flex-col">
+    <PageBackground />
     {showTopBar && <TopExtensionBar />}
-    <div className="mx-auto max-w-3xl px-4 py-10 flex-1 w-full">
-      <header className="mb-8 text-center">
-        <h1 className="text-3xl font-bold text-stone-800 mb-2">
-          <a href="/" className="hover:opacity-80 transition-opacity">The Quran Explorer</a>
-        </h1>
-        <p className="text-stone-500">
-          Root words, morphology, Semitic etymology, and context based translation
-        </p>
-      </header>
 
-      <div className="mb-8">
-        <UnifiedSearch
+    {/* NavBar — full-width, spans across */}
+    <NavBar currentPath={currentPath} />
+
+    {/* Homepage idle state — show the full redesigned homepage */}
+    {isIdle && (
+      <div className="flex-1">
+        <HomePage
           onNavigateVerse={handleSearch}
           onFullSemanticSearch={handleSemanticSearch}
           loading={loading}
         />
       </div>
+    )}
 
-      {(loading || semanticLoading) && (
-        <div className="flex justify-center py-12">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
-          {error}
-        </div>
-      )}
-
-      {semanticError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
-          {semanticError}
-        </div>
-      )}
-
-      {semanticResults && (
-        <div ref={semanticRef}>
-          <SemanticSearchResults
-            data={semanticResults}
-            onNavigate={handleSearch}
-            onClose={() => setSemanticResults(null)}
+    {/* Active state — searching or viewing a verse */}
+    {!isIdle && (
+      <div className="mx-auto max-w-3xl px-4 py-10 flex-1 w-full">
+        <div className="mb-8">
+          <UnifiedSearch
+            onNavigateVerse={handleSearch}
+            onFullSemanticSearch={handleSemanticSearch}
+            loading={loading}
           />
         </div>
-      )}
 
-      {data && (
-        <div className="space-y-8">
-          <VerseDisplay
-            data={data}
-            onWordSearch={handleWordSearch}
-            wordSearchLoading={wordSearchLoading}
-            onNavigate={handleSearch}
-          />
-
-          {wordSearchError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700 text-sm">
-              {wordSearchError}
-            </div>
-          )}
-
-          {wordSearchResults && (
-            <div ref={wordSearchRef}>
-              <WordSearchResults
-                data={wordSearchResults}
-                onNavigate={handleSearch}
-                onClose={() => setWordSearchResults(null)}
-              />
-            </div>
-          )}
-
-          <SurroundingContext
-            surah={data.surah}
-            ayah={data.ayah}
-            onNavigate={handleSearch}
-          />
-          <RelatedVerses
-            surah={data.surah}
-            ayah={data.ayah}
-            onNavigate={handleSearch}
-            forceCollapse={!!wordSearchResults}
-          />
-
-          <AskAssistant
-            pageType="verse"
-            pageKey={`${data.surah}:${data.ayah}`}
-            contextGatherer={() => buildVerseContext(data.surah, data.ayah)}
-          />
-        </div>
-      )}
-
-      {!data && !loading && !error && (
-        <div className="text-center text-stone-400 py-16 space-y-8">
-          <div>
-            <p className="text-lg">Try searching for a verse</p>
-            <p className="text-sm mt-1">e.g.{' '}
-              {featuredVerses.map(([s, a], i) => (
-                <span key={i}>
-                  {i > 0 && ', '}
-                  <button
-                    className="text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
-                    onClick={() => handleSearch(s, a)}
-                  >
-                    {s}:{a}
-                  </button>
-                </span>
-              ))}
-            </p>
+        {(loading || semanticLoading) && (
+          <div className="flex justify-center py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
           </div>
+        )}
 
-          <hr className="border-stone-200/60 max-w-xs mx-auto" />
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
+            {error}
+          </div>
+        )}
 
-          {showExtensionSection && (
-            <div className="mx-auto max-w-2xl rounded-xl border border-stone-200 bg-white p-4 shadow-sm text-left">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div className="flex-1">
-                  <p className="text-xs font-semibold tracking-wide text-emerald-700 uppercase">Chrome Extension</p>
-                  <h2 className="text-lg font-semibold text-stone-800 mt-1">Quran Research Tool</h2>
-                  <p className="text-sm text-stone-500 mt-1">
-                    Bring deeper analysis to the Quran without leaving your browser.
-                  </p>
-                  <ul className="mt-2 text-sm text-stone-600 list-disc pl-5 space-y-1">
-                    <li>Precise word-level analysis</li>
-                    <li>Semitic cognate and root connections</li>
-                    <li>Contextually related verses across the Quran</li>
-                  </ul>
-                  <a
-                    href={CHROME_EXTENSION_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center mt-3 rounded-md bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
-                  >
-                    Add Chrome Extension
-                  </a>
-                </div>
+        {semanticError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
+            {semanticError}
+          </div>
+        )}
 
-                <a
-                  href={CHROME_EXTENSION_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 rounded-lg overflow-hidden border border-stone-200 hover:border-emerald-300 transition-colors w-full sm:w-56"
-                >
-                  <img
-                    src="/chrome-extension-screenshot.png"
-                    alt="Quran Research Tool Chrome extension screenshot"
-                    className="w-full h-auto block"
-                    loading="lazy"
-                  />
-                </a>
+        {semanticResults && (
+          <div ref={semanticRef}>
+            <SemanticSearchResults
+              data={semanticResults}
+              onNavigate={handleSearch}
+              onClose={() => setSemanticResults(null)}
+            />
+          </div>
+        )}
+
+        {data && (
+          <div className="space-y-8">
+            <VerseDisplay
+              data={data}
+              onWordSearch={handleWordSearch}
+              wordSearchLoading={wordSearchLoading}
+              onNavigate={handleSearch}
+            />
+
+            {wordSearchError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700 text-sm">
+                {wordSearchError}
               </div>
-            </div>
-          )}
+            )}
 
-          <LearningPromo />
-        </div>
-      )}
-    </div>
+            {wordSearchResults && (
+              <div ref={wordSearchRef}>
+                <WordSearchResults
+                  data={wordSearchResults}
+                  onNavigate={handleSearch}
+                  onClose={() => setWordSearchResults(null)}
+                />
+              </div>
+            )}
+
+            <SurroundingContext
+              surah={data.surah}
+              ayah={data.ayah}
+              onNavigate={handleSearch}
+            />
+            <RelatedVerses
+              surah={data.surah}
+              ayah={data.ayah}
+              onNavigate={handleSearch}
+              forceCollapse={!!wordSearchResults}
+            />
+
+            <AskAssistant
+              pageType="verse"
+              pageKey={`${data.surah}:${data.ayah}`}
+              contextGatherer={() => buildVerseContext(data.surah, data.ayah)}
+            />
+          </div>
+        )}
+      </div>
+    )}
+
       <SiteFooter />
       <SavedItemsPanel />
     </div>

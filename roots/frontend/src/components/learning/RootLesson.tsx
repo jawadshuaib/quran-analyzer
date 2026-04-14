@@ -45,7 +45,7 @@ export default function RootLesson({ rootBw, onBack }: Props) {
       .then((d) => {
         if (!cancelled) {
           setData(d);
-          document.title = `Root ${d.root_arabic} (${d.root_buckwalter}) — ${d.unit_theme || 'Learn Quranic Arabic'} | The Quran Explorer`;
+          document.title = `Root ${d.root_arabic} (${d.root_buckwalter}) — ${d.unit_theme || 'Learn Quranic Arabic'} | al-nuqta`;
         }
       })
       .catch((e) => { if (!cancelled) setError(e.message); })

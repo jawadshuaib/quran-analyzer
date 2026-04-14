@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Static pages -->
+  <url>
+    <loc>https://al-nuqta.com/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://al-nuqta.com/methodology</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://al-nuqta.com/learning</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://al-nuqta.com/developers</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://al-nuqta.com/privacy/extension</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+
+  <!-- Key verses (most searched / famous) -->
+  <url><loc>https://al-nuqta.com/verse/1:1</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/1:2</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/1:3</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/1:4</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/1:5</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/1:6</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/1:7</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/2:255</loc><priority>0.9</priority></url>
+  <url><loc>https://al-nuqta.com/verse/2:152</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/3:139</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/13:28</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/17:1</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/18:10</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/21:107</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/24:35</loc><priority>0.9</priority></url>
+  <url><loc>https://al-nuqta.com/verse/31:18</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/36:1</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/39:53</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/49:13</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/55:13</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/56:77</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/59:22</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/67:1</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/94:5</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/verse/96:1</loc><priority>0.9</priority></url>
+  <url><loc>https://al-nuqta.com/verse/112:1</loc><priority>0.9</priority></url>
+
+  <!-- Key roots (high-frequency, commonly studied) -->
+  <url><loc>https://al-nuqta.com/root/rHm</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/Elm</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/qwl</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/Amn</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/Ebd</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/kfr</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/xlq</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/qrA</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/Slw</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/mlk</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/Hmd</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/hdy</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/nwr</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/smw</loc><priority>0.8</priority></url>
+  <url><loc>https://al-nuqta.com/root/ArD</loc><priority>0.8</priority></url>
+</urlset>

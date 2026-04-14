@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSEO } from '../hooks/useSEO';
 import {
   getApiKey,
   setApiKey,
@@ -14,8 +15,14 @@ export default function SettingsPage() {
   const [selectedModel, setSelectedModel] = useState(getModel());
   const hasKey = !!getApiKey();
 
+  useSEO({
+    title: 'Settings',
+    description: 'Configure your al-nuqta experience. Set up "Ask the Quran" with your own API key to get answers grounded in the Quran\'s text.',
+    path: '/settings',
+    noindex: true,
+  });
+
   useEffect(() => {
-    document.title = 'Settings | The Quran Explorer';
     const existing = getApiKey();
     if (existing) {
       // Show masked version
@@ -41,27 +48,41 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10">
-      <div className="mb-6">
-        <a href="/" className="text-indigo-600 hover:text-indigo-800 text-sm">
-          &larr; Back to home
-        </a>
+      <div className="text-center mb-10">
+        <p className="text-xs text-ink-muted tracking-[0.08em] uppercase mb-3.5">Settings</p>
+        <h1 className="font-serif text-2xl sm:text-[34px] font-medium tracking-tight leading-tight text-ink mb-2">
+          Configure your experience
+        </h1>
+        <p className="text-sm sm:text-[15px] text-ink-secondary leading-relaxed">
+          Personalize how al-nuqta works for you.
+        </p>
       </div>
 
-      <h1 className="text-2xl font-bold text-stone-800 mb-2">Settings</h1>
-      <p className="text-sm text-stone-500 mb-8">
-        Configure the "Ask the Quran" AI assistant.
-      </p>
+      {/* Intro */}
+      <section className="rounded-xl border border-stone-200 bg-white p-5 mb-6">
+        <h2 className="text-lg font-semibold text-stone-800 mb-1">Ask the Quran</h2>
+        <p className="text-sm text-stone-500 mb-3">
+          "Ask the Quran" lets you ask questions in plain language and get answers
+          grounded in the Quran's own text &mdash; with verse references, root word
+          analysis, and cross-references drawn from the corpus. It appears as a
+          floating button on every verse page.
+        </p>
+        <p className="text-sm text-stone-500 mb-4">
+          To power the responses, it uses Claude (by Anthropic) behind the scenes.
+          You'll need your own API key &mdash; it stays stored in your browser and is
+          never sent to our servers.
+        </p>
+      </section>
 
       {/* API Key Section */}
       <section className="rounded-xl border border-stone-200 bg-white p-5 mb-6">
-        <h2 className="text-lg font-semibold text-stone-800 mb-1">Claude API Key</h2>
+        <h2 className="text-lg font-semibold text-stone-800 mb-1">API Key</h2>
         <p className="text-sm text-stone-500 mb-4">
-          The assistant uses Claude by Anthropic to answer your questions. You need your own API key
-          — your key stays in your browser and is never sent to our servers.
+          Your key is stored locally in your browser. We never see or transmit it.
         </p>
 
         <div className="rounded-lg bg-stone-50 border border-stone-200 p-4 mb-4">
-          <h3 className="text-sm font-medium text-stone-700 mb-2">How to get your API key:</h3>
+          <h3 className="text-sm font-medium text-stone-700 mb-2">How to get a key:</h3>
           <ol className="text-sm text-stone-600 space-y-1.5 list-decimal list-inside">
             <li>
               Go to{' '}
@@ -116,7 +137,8 @@ export default function SettingsPage() {
       <section className="rounded-xl border border-stone-200 bg-white p-5 mb-6">
         <h2 className="text-lg font-semibold text-stone-800 mb-1">Model</h2>
         <p className="text-sm text-stone-500 mb-4">
-          Choose which Claude model powers the assistant.
+          Choose which model powers "Ask the Quran." Faster models cost less per question;
+          larger models give more nuanced answers.
         </p>
         <div className="space-y-2">
           {AVAILABLE_MODELS.map((m) => (

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSEO } from '../../hooks/useSEO';
 import LearningDashboard from './LearningDashboard';
 import RootLesson from './RootLesson';
 import ReviewSession from './ReviewSession';
@@ -15,6 +16,12 @@ export default function LearningPage() {
   const [view, setView] = useState<View>('dashboard');
   const [activeRootBw, setActiveRootBw] = useState<string | null>(null);
 
+  useSEO({
+    title: 'Learn Quranic Arabic Through Root Words',
+    description: 'Master Quranic vocabulary through its root words. Each root unlocks a family of words used across different verses — building both vocabulary and deeper understanding.',
+    path: '/learning',
+  });
+
   // Handle deep links to /learning/root/<rootBw> and /learning/mnemonic-sheet
   useEffect(() => {
     const rootBw = getLearningRootFromPath();
@@ -23,9 +30,9 @@ export default function LearningPage() {
       setView('lesson');
     } else if (window.location.pathname === '/learning/mnemonic-sheet') {
       setView('mnemonic-sheet');
-      document.title = 'Mnemonic Sheet — Learn Quranic Arabic | The Quran Explorer';
+      document.title = 'Mnemonic Sheet — Learn Quranic Arabic | al-nuqta';
     } else {
-      document.title = 'Learn Quranic Arabic Through Root Words | The Quran Explorer';
+      document.title = 'Learn Quranic Arabic Through Root Words | al-nuqta';
     }
 
     function handlePopState() {
@@ -56,7 +63,7 @@ export default function LearningPage() {
     setView('dashboard');
     setActiveRootBw(null);
     window.history.pushState(null, '', '/learning');
-    document.title = 'Learn Quranic Arabic Through Root Words | The Quran Explorer';
+    document.title = 'Learn Quranic Arabic Through Root Words | al-nuqta';
   }
 
   function handleStartReview() {
@@ -69,18 +76,14 @@ export default function LearningPage() {
       {/* Page header */}
       {view === 'dashboard' && (
         <div className="text-center mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-stone-800 mb-3 tracking-tight">
+          <p className="text-xs text-ink-muted tracking-[0.08em] uppercase mb-3.5">Interactive Learning</p>
+          <h1 className="font-serif text-2xl sm:text-[34px] font-medium tracking-tight leading-tight text-ink mb-2">
             Learn Quranic Arabic
           </h1>
-          <p className="text-base text-stone-500 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-[15px] text-ink-secondary leading-relaxed max-w-2xl mx-auto">
             Master vocabulary through the Quran itself. Each root unlocks a family
             of words used across different verses — building both vocabulary and deeper understanding.
           </p>
-          <div className="mt-4">
-            <a href="/" className="text-sm text-stone-400 hover:text-stone-600 underline">
-              Back to Explorer
-            </a>
-          </div>
         </div>
       )}
 

@@ -1,10 +1,21 @@
+import { useSEO } from '../hooks/useSEO';
+
 export default function ExtensionPrivacyPage() {
+  useSEO({
+    title: 'Chrome Extension Privacy Policy',
+    description: 'Privacy policy for the al-nuqta Quran Research Tool Chrome extension. No personal data collected, no tracking, fully open source.',
+    path: '/privacy/extension',
+  });
+
   return (
-    <div className="min-h-screen bg-stone-50 py-10">
-      <div className="mx-auto max-w-3xl rounded-xl border border-stone-200 bg-white px-6 py-8 shadow-sm sm:px-8">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-stone-900">Chrome Extension Privacy Policy</h1>
-          <p className="mt-2 text-sm text-stone-500">Last updated: March 8, 2026</p>
+    <div className="py-10">
+      <div className="mx-auto max-w-3xl rounded-xl border border-card-border bg-white px-6 py-8 shadow-sm sm:px-8">
+        <header className="mb-8 text-center">
+          <p className="text-xs text-ink-muted tracking-[0.08em] uppercase mb-3.5">Privacy</p>
+          <h1 className="font-serif text-[34px] font-medium tracking-tight leading-tight text-ink mb-2.5">
+            Chrome Extension Privacy Policy
+          </h1>
+          <p className="text-[15px] text-ink-secondary">Last updated: March 8, 2026</p>
         </header>
 
         <section className="mb-6 space-y-3 text-sm leading-7 text-stone-700">

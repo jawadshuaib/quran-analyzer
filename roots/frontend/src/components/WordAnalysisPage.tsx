@@ -64,7 +64,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
           (s) => s.form_buckwalter && s.pos !== 'Prefix' && s.pos !== 'Suffix' && s.pos !== 'Pronoun'
         ) ?? result.segments[0];
         const arabic = mainSeg?.form_arabic || '';
-        document.title = `Word ${arabic} \u2014 ${surah}:${ayah} Word ${pos} | The Quran Explorer`;
+        document.title = `Word ${arabic} \u2014 ${surah}:${ayah} Word ${pos} | al-nuqta`;
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load word data');
@@ -88,11 +88,6 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
           {error || 'Word not found'}
         </div>
-        <div className="mt-4 text-center">
-          <a href={verseUrl(surah, ayah)} className="text-violet-600 hover:text-violet-800 text-sm">
-            &larr; Back to verse {surah}:{ayah}
-          </a>
-        </div>
       </div>
     );
   }
@@ -111,16 +106,6 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      {/* Back link */}
-      <div className="mb-6">
-        <a
-          href={verseUrl(surah, ayah)}
-          className="text-violet-600 hover:text-violet-800 text-sm"
-        >
-          &larr; Back to verse {surah}:{ayah}
-        </a>
-      </div>
-
       {/* Header */}
       <header className="mb-8">
         <div className="flex items-center gap-4 mb-2">

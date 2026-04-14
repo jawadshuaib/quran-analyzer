@@ -2,10 +2,22 @@
 
 @theme {
   --font-arabic: "Scheherazade New", "Amiri", "Traditional Arabic", serif;
+
+  /* al-nuqta design tokens */
+  --color-cream: #FAF8F3;
+  --color-cream-dark: #F1EFE8;
+  --color-ink: #2C2C2A;
+  --color-ink-secondary: #5F5E5A;
+  --color-ink-muted: #888780;
+  --color-gold: #BA7517;
+  --color-gold-light: #FAEEDA;
+  --color-gold-dark: #633806;
+  --color-gold-hover: #854F0B;
+  --color-card-border: rgba(0, 0, 0, 0.1);
 }
 
 body {
-  @apply bg-stone-50 text-stone-900 antialiased;
+  @apply bg-cream text-ink antialiased;
   margin: 0;
   min-height: 100vh;
 }
@@ -31,6 +43,26 @@ summary {
   .rotate-y-180 {
     transform: rotateY(180deg);
   }
+}
+
+/* Chip pop-in animation */
+@keyframes chip-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@utility animate-chip-pop {
+  animation: chip-pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
 /* Print styles for mnemonic sheet */

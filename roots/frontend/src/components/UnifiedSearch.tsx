@@ -1,22 +1,41 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, type MutableRefObject } from 'react';
 import { useUnifiedSearch, resolveIndex } from '../hooks/useUnifiedSearch';
 import SearchDropdown from './unified-search/SearchDropdown';
 import { getSurahName } from '../utils/surah-names';
 import type { RootSearchResult, SemanticSearchResult } from '../api/quran';
 import type { ParsedVerseRef } from '../utils/search-classifier';
 
+/** Imperative handle to fill text into the search bar from outside */
+export interface UnifiedSearchHandle {
+  fill: (text: string) => void;
+}
+
 interface Props {
   onNavigateVerse: (surah: number, ayah: number) => void;
   onFullSemanticSearch: (query: string) => void;
   loading?: boolean;
+  /** Optional ref to expose fill() method to parent */
+  handleRef?: MutableRefObject<UnifiedSearchHandle | null>;
 }
 
 const LISTBOX_ID = 'unified-search-listbox';
 
-export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, loading }: Props) {
+export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, loading, handleRef }: Props) {
   const { state, setQuery, close, open, setActiveIndex, moveUp, moveDown } = useUnifiedSearch();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Expose fill() to parent via handleRef
+  useEffect(() => {
+    if (handleRef) {
+      handleRef.current = {
+        fill(text: string) {
+          setQuery(text);
+          inputRef.current?.focus();
+        },
+      };
+    }
+  }, [handleRef, setQuery]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -110,7 +129,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
     <div ref={wrapperRef} className="relative w-full max-w-lg mx-auto">
       <div className="relative">
         <svg
-          className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 pointer-events-none"
+          className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted pointer-events-none"
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -123,7 +142,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (state.query.trim()) open(); }}
-          placeholder='Search verse, root, or meaning'
+          placeholder='Search by verse, root, or phrase'
           role="combobox"
           aria-expanded={state.isOpen}
           aria-controls={LISTBOX_ID}
@@ -131,8 +150,9 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           aria-autocomplete="list"
           autoComplete="off"
           spellCheck={false}
-          className="w-full rounded-xl border border-stone-300 bg-white pl-10 pr-10 py-2.5 text-sm
-                     placeholder:text-stone-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 focus:outline-none"
+          className="w-full rounded-xl sm:rounded-[14px] border border-black/15 bg-white pl-10 pr-10 py-2.5 sm:py-3.5 text-sm sm:text-[17px]
+                     placeholder:text-ink-muted focus:border-gold focus:ring-[6px] focus:ring-gold/10 focus:outline-none
+                     shadow-[0_1px_2px_rgba(0,0,0,0.03),0_0_0_6px_rgba(186,117,23,0.06)]"
         />
         {anyLoading && (
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2">

@@ -31,7 +31,7 @@ export default function RootPage({ rootBw }: Props) {
     fetchRoot(rootBw)
       .then((result) => {
         setData(result);
-        document.title = `Root ${result.root_arabic} (${result.root_buckwalter}) \u2014 ${result.total_occurrences} Verses | The Quran Explorer`;
+        document.title = `Root ${result.root_arabic} (${result.root_buckwalter}) \u2014 ${result.total_occurrences} Verses | al-nuqta`;
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load root data');
@@ -92,24 +92,12 @@ export default function RootPage({ rootBw }: Props) {
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
           {error || 'Root not found'}
         </div>
-        <div className="mt-4 text-center">
-          <a href="/" className="text-indigo-600 hover:text-indigo-800 text-sm">
-            &larr; Back to search
-          </a>
-        </div>
       </div>
     );
   }
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 overflow-x-hidden">
-      {/* Back link */}
-      <div className="mb-6">
-        <a href="/" className="text-indigo-600 hover:text-indigo-800 text-sm">
-          &larr; Back to search
-        </a>
-      </div>
-
       {/* Header */}
       <header className="mb-8">
         <div className="flex items-center gap-4 mb-2">
