@@ -1,4 +1,4 @@
-"""Flask API for The Quran Explorer."""
+"""Flask API for al-nuqta."""
 
 from __future__ import annotations
 
@@ -3844,6 +3844,10 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/settings/?$", path):
         return True
+    if re.match(r"^/developers/?$", path):
+        return True
+    if re.match(r"^/methodology/?$", path):
+        return True
     return False
 
 
@@ -3852,7 +3856,7 @@ def _get_seo_meta(path: str) -> dict:
     # Extension privacy page: /privacy/extension
     if re.match(r"^/privacy/extension/?$", path):
         return {
-            "title": "Quran Research Tool Privacy Policy | The Quran Explorer",
+            "title": "Quran Research Tool Privacy Policy | al-nuqta",
             "description": "Privacy policy for the Quran Research Tool Chrome extension, including data access, usage, and retention details.",
             "og_type": "article",
             "canonical": SITE_URL + "/privacy/extension",
@@ -3886,7 +3890,7 @@ def _get_seo_meta(path: str) -> dict:
         else:
             desc_parts.append(f"Explore root words, morphology, and etymology of Quran verse {surah}:{ayah}.")
         return {
-            "title": f"Surah {name} ({surah}:{ayah}) | The Quran Explorer",
+            "title": f"Surah {name} ({surah}:{ayah}) | al-nuqta",
             "description": " \u2014 ".join(desc_parts),
             "og_type": "article",
             "canonical": f"{SITE_URL}/verse/{surah}:{ayah}",
@@ -3919,7 +3923,7 @@ def _get_seo_meta(path: str) -> dict:
             desc += f" \u2014 derivatives include {lemma_samples}"
         desc += ". Morphological breakdowns, cross-references, and Semitic cognates."
         return {
-            "title": f"{label} \u2014 {count} Verses | The Quran Explorer",
+            "title": f"{label} \u2014 {count} Verses | al-nuqta",
             "description": desc[:160],
             "og_type": "article",
             "canonical": f"{SITE_URL}/root/{quote(root_bw)}",
@@ -3950,18 +3954,38 @@ def _get_seo_meta(path: str) -> dict:
         word_label = f"{word_arabic} " if word_arabic else ""
         gloss_part = f' \u2014 "{word_gloss}"' if word_gloss else ""
         return {
-            "title": f"{word_label}Word {pos}, {name} {surah}:{ayah} | The Quran Explorer",
+            "title": f"{word_label}Word {pos}, {name} {surah}:{ayah} | al-nuqta",
             "description": f"Morphology, etymology, and AI analysis of {word_label}(word {pos}) in Surah {name} {surah}:{ayah}{gloss_part}.",
             "og_type": "article",
             "canonical": f"{SITE_URL}/word/{surah}:{ayah}/{pos}",
             "robots": "index, follow",
         }
 
+    # Methodology: /methodology
+    if re.match(r"^/methodology/?$", path):
+        return {
+            "title": "Methodology \u2014 How We Translate the Quran | al-nuqta",
+            "description": "Our translation uses three lenses: the Quran\u2019s own internal cross-references, Semitic cognate etymology across 59 languages, and morphological precision \u2014 ensuring every word is grounded in evidence.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/methodology",
+            "robots": "index, follow",
+        }
+
+    # Developers / API: /developers
+    if re.match(r"^/developers/?$", path):
+        return {
+            "title": "Public API \u2014 Build with the Quran Corpus | al-nuqta",
+            "description": "Free, open API for accessing Quranic text, morphology, root analysis, Semitic etymology, and translations. No API key required \u2014 just send a GET request.",
+            "og_type": "website",
+            "canonical": SITE_URL + "/developers",
+            "robots": "index, follow",
+        }
+
     # Home
     if path == "/":
         return {
-            "title": "The Quran Explorer",
-            "description": "Explore the Quran verse by verse \u2014 root words, morphology, Semitic etymology, cross-references, and AI-powered meanings.",
+            "title": "al-nuqta \u2014 A Root Based Translation of the Quran",
+            "description": "Explore Quranic Arabic through its root words. Trace any word back to its Semitic origins, compare cross-references across 6,236 verses, and study morphology \u2014 all grounded in the Quran\u2019s own usage.",
             "og_type": "website",
             "canonical": SITE_URL + "/",
             "robots": "index, follow",
@@ -4018,7 +4042,7 @@ def _get_seo_meta(path: str) -> dict:
 
     # Unknown page
     return {
-        "title": "Page Not Found | The Quran Explorer",
+        "title": "Page Not Found | al-nuqta",
         "description": "The requested page does not exist.",
         "og_type": "website",
         "canonical": SITE_URL + path,
@@ -4050,7 +4074,7 @@ def _build_meta_tags(meta: dict) -> str:
         f'<meta property="og:description" content="{desc_e}" />',
         f'<meta property="og:type" content="{og_type}" />',
         f'<meta property="og:url" content="{canonical_e}" />',
-        f'<meta property="og:site_name" content="The Quran Explorer" />',
+        f'<meta property="og:site_name" content="al-nuqta" />',
         f'<meta property="og:image" content="{og_image}" />',
         f'<meta property="og:locale" content="en_US" />',
         # Twitter Card
@@ -4071,7 +4095,7 @@ def _build_meta_tags(meta: dict) -> str:
             "url": canonical,
             "provider": {
                 "@type": "Organization",
-                "name": "The Quran Explorer",
+                "name": "al-nuqta",
                 "url": SITE_URL,
             },
             "educationalLevel": "Beginner",
@@ -4087,7 +4111,7 @@ def _build_meta_tags(meta: dict) -> str:
         ld = {
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "name": "The Quran Explorer",
+            "name": "al-nuqta",
             "url": SITE_URL,
             "potentialAction": {
                 "@type": "SearchAction",
@@ -4104,7 +4128,7 @@ def _build_meta_tags(meta: dict) -> str:
             "url": canonical,
             "publisher": {
                 "@type": "Organization",
-                "name": "The Quran Explorer",
+                "name": "al-nuqta",
                 "url": SITE_URL,
             },
         }
@@ -4557,7 +4581,7 @@ def _build_noscript_content(path: str) -> str:
 
     # Home page
     if path in ('', '/'):
-        parts.append('<h1>The Quran Explorer</h1>')
+        parts.append('<h1>al-nuqta</h1>')
         parts.append('<p>Explore the Quran verse by verse with root word analysis, '
                      'morphology, Semitic etymology, cross-references, and AI-powered translations.</p>')
         parts.append('<p>Search by verse reference (e.g., 2:255) or explore root words '
@@ -4604,10 +4628,10 @@ if SERVE_STATIC:
                 '<!DOCTYPE html><html><head>'
                 '<meta charset="utf-8">'
                 '<meta name="robots" content="noindex, nofollow">'
-                '<title>Page Not Found | The Quran Explorer</title>'
+                '<title>Page Not Found | al-nuqta</title>'
                 '</head><body>'
                 '<h1>404 — Page Not Found</h1>'
-                f'<p>Go to <a href="/">The Quran Explorer</a></p>'
+                f'<p>Go to <a href="/">al-nuqta</a></p>'
                 '</body></html>'
             )
             return Response(not_found_html, mimetype="text/html", status=404)
@@ -4621,7 +4645,7 @@ if SERVE_STATIC:
         html_doc = _index_html_cache
         html_doc = html_doc.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
         html_doc = html_doc.replace(
-            "<title>The Quran Explorer</title>",
+            "<title>al-nuqta</title>",
             f"<title>{html.escape(meta['title'])}</title>",
         )
         if noscript_html:
