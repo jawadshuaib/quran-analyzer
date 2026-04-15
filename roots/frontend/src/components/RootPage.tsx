@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { RootDetailData, VerseData, Word, CognateData } from '../types';
+import CognateTable from './CognateTable';
 import { fetchRoot, fetchVerse } from '../api/quran';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
 import WordTooltip from './WordTooltip';
@@ -257,37 +258,7 @@ export default function RootPage({ rootBw }: Props) {
               </span>
             </div>
 
-            {data.cognate.derivatives.length > 0 && (
-              <div className="rounded-lg border border-indigo-100 bg-white overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-indigo-50 text-indigo-600 text-xs">
-                      <th className="text-left px-2 sm:px-4 py-2 font-medium">Language</th>
-                      <th className="text-left px-2 sm:px-4 py-2 font-medium">Word</th>
-                      <th className="text-left px-2 sm:px-4 py-2 font-medium">Meaning</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.cognate.derivatives.map((d, i) => (
-                      <tr
-                        key={i}
-                        className={i % 2 === 0 ? 'bg-white' : 'bg-indigo-50/30'}
-                      >
-                        <td className="px-2 sm:px-4 py-2 text-stone-500">
-                          {d.language}
-                        </td>
-                        <td className="px-2 sm:px-4 py-2 text-stone-800 font-medium">
-                          {d.displayed_text}
-                        </td>
-                        <td className="px-2 sm:px-4 py-2 text-stone-600">
-                          {d.meaning || d.concept}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <CognateTable derivatives={data.cognate.derivatives} />
           </div>
         </section>
       )}

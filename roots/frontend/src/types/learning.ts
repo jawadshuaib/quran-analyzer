@@ -77,6 +77,9 @@ export interface RelatedRootInfo {
 
 export interface CognateDerivative {
   language: string;
+  language_family?: string;
+  date_from?: number | null;
+  date_to?: number | null;
   word: string;
   displayed_text: string;
   concept: string;

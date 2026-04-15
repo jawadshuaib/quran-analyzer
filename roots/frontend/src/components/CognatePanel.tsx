@@ -1,4 +1,5 @@
 import type { CognateData } from '../types';
+import CognateTable from './CognateTable';
 
 interface Props {
   rootArabic: string;
@@ -57,37 +58,7 @@ export default function CognatePanel({ rootArabic, rootBuckwalter, cognate, onCl
         Core concept: <span className="font-semibold">{cognate.concept}</span>
       </div>
 
-      {cognate.derivatives.length > 0 && (
-        <div className="rounded-md border border-indigo-100 bg-white overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-indigo-50 text-indigo-600 text-xs">
-                <th className="text-left px-3 py-1.5 font-medium">Language</th>
-                <th className="text-left px-3 py-1.5 font-medium">Word</th>
-                <th className="text-left px-3 py-1.5 font-medium">Meaning</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cognate.derivatives.map((d, i) => (
-                <tr
-                  key={i}
-                  className={i % 2 === 0 ? 'bg-white' : 'bg-indigo-50/30'}
-                >
-                  <td className="px-3 py-1.5 text-stone-500">
-                    {d.language}
-                  </td>
-                  <td className="px-3 py-1.5 text-stone-800 font-medium">
-                    {d.displayed_text}
-                  </td>
-                  <td className="px-3 py-1.5 text-stone-600">
-                    {d.meaning || d.concept}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <CognateTable derivatives={cognate.derivatives} />
     </div>
   );
 }

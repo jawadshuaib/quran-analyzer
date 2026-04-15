@@ -2,6 +2,7 @@ import { useState, useEffect, type ReactNode } from 'react';
 import type { WordAnalysisData } from '../types';
 import { fetchWordAnalysis } from '../api/quran';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
+import CognateTable from './CognateTable';
 import VerseRefText from './VerseRefText';
 import AskAssistant from './AskAssistant';
 import { buildWordContext } from '../utils/context-builders';
@@ -272,37 +273,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               </span>
             </div>
 
-            {data.cognate.derivatives.length > 0 && (
-              <div className="rounded-lg border border-indigo-100 bg-white overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-indigo-50 text-indigo-600 text-xs">
-                      <th className="text-left px-4 py-2 font-medium">Language</th>
-                      <th className="text-left px-4 py-2 font-medium">Word</th>
-                      <th className="text-left px-4 py-2 font-medium">Meaning</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.cognate.derivatives.map((d, i) => (
-                      <tr
-                        key={i}
-                        className={i % 2 === 0 ? 'bg-white' : 'bg-indigo-50/30'}
-                      >
-                        <td className="px-4 py-2 text-stone-500 whitespace-nowrap">
-                          {d.language}
-                        </td>
-                        <td className="px-4 py-2 text-stone-800 font-medium">
-                          {d.displayed_text}
-                        </td>
-                        <td className="px-4 py-2 text-stone-600">
-                          {d.meaning || d.concept}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <CognateTable derivatives={data.cognate.derivatives} />
           </div>
         </section>
       )}

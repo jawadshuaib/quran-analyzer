@@ -26,12 +26,11 @@ from datetime import datetime
 import requests
 
 from app import DB_PATH, _strip_bismillah, get_db
+from translate_ai import call_model
 
 # --------------- Configuration ---------------
 
-OLLAMA_CLOUD_URL = "https://ollama.com/api/chat"
-OLLAMA_LOCAL_URL = "http://localhost:11434/api/chat"
-DEFAULT_OLLAMA_MODEL = "gemma4:31b"
+DEFAULT_OLLAMA_MODEL = "minimax-m2.5:cloud"
 CLAUDE_ESCALATION_MODEL = "claude-sonnet-4-20250514"
 
 # Confidence thresholds
@@ -94,53 +93,15 @@ Include cognate evidence in your reasoning when it informs your decision."""
 
 # --------------- API helpers ---------------
 
-def get_ollama_config():
-    """Determine Ollama API URL and headers."""
-    api_key = os.environ.get("OLLAMA_API_KEY")
-    if api_key:
-        return OLLAMA_CLOUD_URL, {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-    print("  (No OLLAMA_API_KEY found, using local Ollama)")
-    return OLLAMA_LOCAL_URL, {"Content-Type": "application/json"}
-
 
 def call_ollama(model: str, system_prompt: str, user_prompt: str,
                 temperature: float = 0.2) -> tuple[str, int]:
-    """Call Ollama API (cloud or local) with streaming."""
-    api_url, headers = get_ollama_config()
-    payload = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "stream": True,
-        "options": {"temperature": temperature, "num_ctx": 32768},
-    }
+    """Call Ollama API via translate_ai.call_model (handles cloud routing)."""
     start = time.time()
-    resp = requests.post(api_url, json=payload, headers=headers,
-                         stream=True, timeout=1800)
-    resp.raise_for_status()
-
-    parts = []
-    token_count = 0
-    for line in resp.iter_lines():
-        if not line:
-            continue
-        chunk = json.loads(line)
-        text = chunk.get("message", {}).get("content", "")
-        if text:
-            parts.append(text)
-            token_count += 1
-            if token_count % 40 == 0:
-                print(".", end="", flush=True)
-        if chunk.get("done"):
-            break
-
+    text, _tokens = call_model(model, system_prompt, user_prompt,
+                               temperature=temperature)
     elapsed_ms = int((time.time() - start) * 1000)
-    return "".join(parts), elapsed_ms
+    return text, elapsed_ms
 
 
 def call_claude(system_prompt: str, user_prompt: str,
@@ -906,9 +867,6 @@ def main():
         sys.exit(1)
 
     # Check API keys
-    if not os.environ.get("OLLAMA_API_KEY"):
-        print("WARNING: No OLLAMA_API_KEY set, will try local Ollama")
-
     if not args.no_escalate and not os.environ.get("CLAUDE_API_KEY"):
         print("WARNING: No CLAUDE_API_KEY set, Claude escalation will be skipped")
 
