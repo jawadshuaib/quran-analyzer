@@ -95,6 +95,76 @@ LANGUAGE_FAMILIES = {
     "Ugaritic": "Northwest Semitic",
 }
 
+# Language → (date_from, date_to) — negative = BCE, positive = CE
+# Dates represent earliest attestation to latest use (or 2025 if still spoken)
+LANGUAGE_DATES = {
+    # East Semitic
+    "Akkadian": (-2500, 100),
+    "Amarna": (-1400, -1300),
+    "Eblaite": (-2400, -2250),
+    # Northwest Semitic
+    "Amorite": (-2000, -1500),
+    "Deir Alla": (-840, -760),
+    "Ugaritic": (-1400, -1180),
+    # Canaanite
+    "Ammonite": (-1000, -580),
+    "Canaanite": (-1500, -500),
+    "Edomite": (-900, -600),
+    "Hebrew": (-1000, 2025),
+    "Moabite": (-900, -580),
+    "Phoenician": (-1050, -150),
+    "Punic": (-800, 300),
+    # Aramaic
+    "Aramaic": (-1000, 2025),
+    "Biblical Aramaic": (-700, -200),
+    "Hatran": (-100, 300),
+    "Judaic Aramaic": (-200, 600),
+    "Mandaic": (200, 2025),
+    "Mandaic Aramaic": (200, 2025),
+    "Maʕlula": (100, 2025),
+    "Modern Aramaic": (1500, 2025),
+    "Nabataean": (-200, 300),
+    "Old Aramaic": (-1000, -700),
+    "Palmyrene": (-100, 300),
+    "Samalian": (-850, -700),
+    "Syriac": (200, 2025),
+    "Syrian Aramaic": (200, 2025),
+    # Arabic
+    "Arabic": (-100, 2025),
+    "Maltese": (1000, 2025),
+    "Modern Arabic": (1500, 2025),
+    # Ancient North Arabian
+    "Dadanitic": (-600, -100),
+    "Hasaitic": (-500, -100),
+    "Hismaic": (-400, 300),
+    "Safaitic": (-100, 400),
+    "Taymanitic": (-600, -100),
+    "Thamudic B": (-500, 200),
+    # Ancient South Arabian
+    "Epigraphic South Arabian": (-800, 600),
+    "Minaic": (-400, 200),
+    "Qatabanic": (-500, 200),
+    "Sabaic": (-1000, 600),
+    "Ḥaḍramitic": (-500, 300),
+    # Ethiopic
+    "Amharic": (1300, 2025),
+    "Argobba": (1400, 2025),
+    "East Ethiopic": (1000, 2025),
+    "Gafat": (1500, 1800),
+    "Ge'ez": (-500, 2025),
+    "Gurage": (1000, 2025),
+    "Harari": (1400, 2025),
+    "Tigre": (800, 2025),
+    "Tigrinya": (800, 2025),
+    "Wolane": (1000, 2025),
+    # Modern South Arabian (no pre-modern attestation)
+    "Harsusi": (0, 2025),
+    "Jibbali": (0, 2025),
+    "Mehri": (0, 2025),
+    "Shehri": (0, 2025),
+    "Soqotri": (0, 2025),
+}
+
 
 def create_languages_table(conn: sqlite3.Connection, dry_run: bool) -> dict:
     """Create cognate_languages table and populate it. Returns name→id map."""
@@ -117,16 +187,19 @@ def create_languages_table(conn: sqlite3.Connection, dry_run: bool) -> dict:
         CREATE TABLE cognate_languages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
-            family TEXT
+            family TEXT,
+            date_from INTEGER,
+            date_to INTEGER
         )
     """)
 
     name_to_id = {}
     for name in lang_names:
         family = LANGUAGE_FAMILIES.get(name)
+        dates = LANGUAGE_DATES.get(name, (None, None))
         conn.execute(
-            "INSERT INTO cognate_languages (name, family) VALUES (?, ?)",
-            (name, family),
+            "INSERT INTO cognate_languages (name, family, date_from, date_to) VALUES (?, ?, ?, ?)",
+            (name, family, dates[0], dates[1]),
         )
         row = conn.execute(
             "SELECT id FROM cognate_languages WHERE name = ?", (name,)
