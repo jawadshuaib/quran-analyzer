@@ -1159,8 +1159,11 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
     for root_row in root_rows:
         concepts.append(root_row["concept"])
         derivs = conn.execute(
-            "SELECT language, word, displayed_text, concept, meaning "
-            "FROM semitic_derivatives WHERE root_id = ? ORDER BY language",
+            "SELECT d.language, d.word, d.displayed_text, d.concept, d.meaning, "
+            "       cl.family AS language_family "
+            "FROM semitic_derivatives d "
+            "LEFT JOIN cognate_languages cl ON d.language_id = cl.id "
+            "WHERE d.root_id = ? ORDER BY cl.family, d.language",
             (root_row["id"],),
         ).fetchall()
         all_derivs.extend(derivs)
@@ -1172,6 +1175,7 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
         "derivatives": [
             {
                 "language": d["language"],
+                "language_family": d["language_family"],
                 "word": d["word"],
                 "displayed_text": d["displayed_text"],
                 "concept": d["concept"],
