@@ -1153,24 +1153,37 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
     if not root_rows:
         return None
 
+    # Check if cognate_languages table exists (may not on older DBs)
+    has_lang_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='cognate_languages'"
+    ).fetchone() is not None
+
     # Collect concepts and derivatives from all matching roots
     concepts = []
     all_derivs = []
     for root_row in root_rows:
         concepts.append(root_row["concept"])
-        derivs = conn.execute(
-            "SELECT d.language, d.word, d.displayed_text, d.concept, d.meaning, "
-            "       cl.family AS language_family, "
-            "       cl.date_from, cl.date_to "
-            "FROM semitic_derivatives d "
-            "LEFT JOIN cognate_languages cl ON d.language_id = cl.id "
-            "WHERE d.root_id = ? ORDER BY cl.date_from ASC, d.language",
-            (root_row["id"],),
-        ).fetchall()
+        if has_lang_table:
+            derivs = conn.execute(
+                "SELECT d.language, d.word, d.displayed_text, d.concept, d.meaning, "
+                "       cl.family AS language_family, "
+                "       cl.date_from, cl.date_to "
+                "FROM semitic_derivatives d "
+                "LEFT JOIN cognate_languages cl ON d.language_id = cl.id "
+                "WHERE d.root_id = ? ORDER BY cl.date_from ASC, d.language",
+                (root_row["id"],),
+            ).fetchall()
+        else:
+            derivs = conn.execute(
+                "SELECT language, word, displayed_text, concept, meaning "
+                "FROM semitic_derivatives WHERE root_id = ? ORDER BY language",
+                (root_row["id"],),
+            ).fetchall()
         all_derivs.extend(derivs)
 
     # Sort across all root_ids: oldest language first, then by language name
-    all_derivs.sort(key=lambda d: (d["date_from"] or 0, d["language"]))
+    if has_lang_table:
+        all_derivs.sort(key=lambda d: (d["date_from"] or 0, d["language"]))
 
     return {
         "semitic_root_id": root_rows[0]["id"],
@@ -1179,9 +1192,9 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
         "derivatives": [
             {
                 "language": d["language"],
-                "language_family": d["language_family"],
-                "date_from": d["date_from"],
-                "date_to": d["date_to"],
+                "language_family": d["language_family"] if has_lang_table else None,
+                "date_from": d["date_from"] if has_lang_table else None,
+                "date_to": d["date_to"] if has_lang_table else None,
                 "word": d["word"],
                 "displayed_text": d["displayed_text"],
                 "concept": d["concept"],
