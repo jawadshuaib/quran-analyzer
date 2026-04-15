@@ -273,7 +273,11 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               </span>
             </div>
 
-            <CognateTable derivatives={data.cognate.derivatives} />
+            <CognateTable
+              derivatives={data.cognate.derivatives}
+              rootTransliteration={data.cognate.transliteration}
+              concept={data.cognate.concept}
+            />
           </div>
         </section>
       )}

@@ -58,7 +58,11 @@ export default function CognatePanel({ rootArabic, rootBuckwalter, cognate, onCl
         Core concept: <span className="font-semibold">{cognate.concept}</span>
       </div>
 
-      <CognateTable derivatives={cognate.derivatives} />
+      <CognateTable
+        derivatives={cognate.derivatives}
+        rootTransliteration={cognate.transliteration}
+        concept={cognate.concept}
+      />
     </div>
   );
 }

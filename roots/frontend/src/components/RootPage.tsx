@@ -258,7 +258,11 @@ export default function RootPage({ rootBw }: Props) {
               </span>
             </div>
 
-            <CognateTable derivatives={data.cognate.derivatives} />
+            <CognateTable
+              derivatives={data.cognate.derivatives}
+              rootTransliteration={data.cognate.transliteration}
+              concept={data.cognate.concept}
+            />
           </div>
         </section>
       )}
