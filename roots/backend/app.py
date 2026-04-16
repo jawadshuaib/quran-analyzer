@@ -3888,7 +3888,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
-    if re.match(r"^/admin(/settings)?/?$", path):
+    if re.match(r"^/admin(/settings|/media(/recitations)?)?/?$", path):
         return True
     return False
 
@@ -4574,6 +4574,31 @@ def _ensure_admin_table():
 _ensure_admin_table()
 
 
+def _ensure_admin_media_tables():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_voices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                voice_id TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_preferences (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+_ensure_admin_media_tables()
+
+
 def _create_admin_token(user_id: int, username: str, pw_changed_at: int = 0) -> str:
     now = int(datetime.now(timezone.utc).timestamp())
     payload = {
@@ -4685,6 +4710,211 @@ def admin_change_password():
         # Return a fresh token so the user stays logged in
         new_token = _create_admin_token(user_id, request.admin_user["username"], pw_changed_at)
         return jsonify({"message": "Password changed successfully", "token": new_token})
+    finally:
+        conn.close()
+
+
+# --------------- Admin: Voices CRUD ---------------
+
+@app.route("/api/admin/voices", methods=["GET"])
+@admin_required
+def admin_list_voices():
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT id, name, voice_id, created_at FROM admin_voices ORDER BY name").fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/voices", methods=["POST"])
+@admin_required
+def admin_add_voice():
+    body = request.get_json(silent=True) or {}
+    name = body.get("name", "").strip()
+    voice_id = body.get("voice_id", "").strip()
+    if not name or not voice_id:
+        return jsonify({"error": "name and voice_id required"}), 400
+    conn = get_db()
+    try:
+        conn.execute("INSERT INTO admin_voices (name, voice_id) VALUES (?, ?)", (name, voice_id))
+        conn.commit()
+        row = conn.execute("SELECT id, name, voice_id, created_at FROM admin_voices WHERE rowid = last_insert_rowid()").fetchone()
+        return jsonify(dict(row)), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/voices/<int:voice_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_voice(voice_id):
+    conn = get_db()
+    try:
+        cur = conn.execute("DELETE FROM admin_voices WHERE id = ?", (voice_id,))
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Voice not found"}), 404
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+# --------------- Admin: Preferences ---------------
+
+@app.route("/api/admin/preferences", methods=["GET"])
+@admin_required
+def admin_get_preferences():
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT key, value FROM admin_preferences").fetchall()
+        prefs = {r["key"]: r["value"] for r in rows}
+        return jsonify(prefs)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/preferences", methods=["PUT"])
+@admin_required
+def admin_save_preferences():
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    try:
+        for k, v in body.items():
+            conn.execute(
+                "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                (str(k), str(v)),
+            )
+        conn.commit()
+        return jsonify({"message": "Saved"})
+    finally:
+        conn.close()
+
+
+# --------------- Admin: Reciters proxy (Quran.com) ---------------
+
+_reciters_cache: dict | None = None
+_reciters_cache_time: float = 0
+
+
+@app.route("/api/admin/reciters", methods=["GET"])
+@admin_required
+def admin_reciters():
+    global _reciters_cache, _reciters_cache_time
+    now = time.time()
+    if _reciters_cache and now - _reciters_cache_time < 3600:
+        return jsonify(_reciters_cache)
+    try:
+        resp = requests.get("https://api.quran.com/api/v4/resources/recitations", timeout=10)
+        resp.raise_for_status()
+        _reciters_cache = resp.json().get("recitations", [])
+        _reciters_cache_time = now
+        return jsonify(_reciters_cache)
+    except Exception as e:
+        if _reciters_cache:
+            return jsonify(_reciters_cache)
+        return jsonify({"error": f"Failed to fetch reciters: {e}"}), 502
+
+
+# --------------- Admin: Recitation preview ---------------
+
+# Map reciter_id → audio URL folder (from Quran.com)
+_RECITER_FOLDERS: dict[int, str] = {}
+
+
+def _get_reciter_folder(reciter_id: int) -> str:
+    """Get the audio folder for a reciter. Fetch from Quran.com API if not cached."""
+    if reciter_id in _RECITER_FOLDERS:
+        return _RECITER_FOLDERS[reciter_id]
+    try:
+        resp = requests.get(
+            f"https://api.quran.com/api/v4/recitations/{reciter_id}/by_ayah/1:1",
+            timeout=10,
+        )
+        resp.raise_for_status()
+        audio_files = resp.json().get("audio_files", [])
+        if audio_files:
+            url = audio_files[0]["url"]  # e.g. "Alafasy/mp3/001001.mp3"
+            # Extract folder: everything before the last "/"
+            folder = url.rsplit("/", 1)[0]
+            _RECITER_FOLDERS[reciter_id] = folder
+            return folder
+    except Exception:
+        pass
+    # Fallback for Mishari (id=7)
+    return "Alafasy/mp3"
+
+
+@app.route("/api/admin/recitation-preview", methods=["POST"])
+@admin_required
+def admin_recitation_preview():
+    body = request.get_json(silent=True) or {}
+    reciter_id = body.get("reciter_id", 7)
+    from_s = body.get("from_surah", 1)
+    from_a = body.get("from_ayah", 1)
+    to_s = body.get("to_surah", from_s)
+    to_a = body.get("to_ayah", from_a)
+
+    # Validate
+    if not (1 <= from_s <= 114 and 1 <= to_s <= 114):
+        return jsonify({"error": "Invalid surah"}), 400
+
+    folder = _get_reciter_folder(reciter_id)
+    audio_base = "https://verses.quran.com"
+
+    conn = get_db()
+    try:
+        verses = []
+        # Build list of (surah, ayah) in range
+        if from_s == to_s:
+            surah_ayahs = [(from_s, a) for a in range(from_a, to_a + 1)]
+        else:
+            # Get verse counts for surahs in range
+            surah_ayahs = []
+            for s in range(from_s, to_s + 1):
+                row = conn.execute(
+                    "SELECT MAX(ayah) as max_a FROM verses WHERE chapter = ?", (s,)
+                ).fetchone()
+                max_a = row["max_a"] if row else 0
+                start = from_a if s == from_s else 1
+                end = to_a if s == to_s else max_a
+                for a in range(start, end + 1):
+                    surah_ayahs.append((s, a))
+
+        # Limit to 30 verses
+        if len(surah_ayahs) > 30:
+            return jsonify({"error": "Maximum 30 verses per preview"}), 400
+
+        for s, a in surah_ayahs:
+            row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND ayah = ?", (s, a)
+            ).fetchone()
+            arabic = row["text_uthmani"] if row else ""
+
+            # Get translation
+            trans_row = conn.execute(
+                "SELECT translation_text FROM ai_translations WHERE chapter = ? AND verse = ?", (s, a)
+            ).fetchone()
+            if trans_row:
+                translation = trans_row["translation_text"]
+            else:
+                # Fallback to conventional translation
+                conv_row = conn.execute(
+                    "SELECT text_en FROM translations WHERE chapter = ? AND ayah = ?", (s, a)
+                ).fetchone()
+                translation = conv_row["text_en"] if conv_row else ""
+
+            audio_url = f"{audio_base}/{folder}/{s:03d}{a:03d}.mp3"
+
+            verses.append({
+                "surah": s,
+                "ayah": a,
+                "surah_name": _surah_name(s),
+                "arabic_text": arabic,
+                "translation": translation,
+                "audio_url": audio_url,
+            })
+
+        return jsonify({"verses": verses})
     finally:
         conn.close()
 

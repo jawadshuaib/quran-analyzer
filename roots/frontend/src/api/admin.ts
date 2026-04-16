@@ -53,6 +53,99 @@ export async function verifyToken(): Promise<{ username: string }> {
   return data;
 }
 
+// --------------- Voices ---------------
+
+export interface Voice {
+  id: number;
+  name: string;
+  voice_id: string;
+  created_at: string;
+}
+
+export async function getVoices(): Promise<Voice[]> {
+  const res = await authFetch(`${BASE}/voices`);
+  return res.json();
+}
+
+export async function addVoice(name: string, voiceId: string): Promise<Voice> {
+  const res = await authFetch(`${BASE}/voices`, {
+    method: 'POST',
+    body: JSON.stringify({ name, voice_id: voiceId }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to add voice');
+  return data;
+}
+
+export async function deleteVoice(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/voices/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete voice');
+  }
+}
+
+// --------------- Preferences ---------------
+
+export async function getPreferences(): Promise<Record<string, string>> {
+  const res = await authFetch(`${BASE}/preferences`);
+  return res.json();
+}
+
+export async function savePreferences(prefs: Record<string, string>): Promise<void> {
+  const res = await authFetch(`${BASE}/preferences`, {
+    method: 'PUT',
+    body: JSON.stringify(prefs),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to save preferences');
+  }
+}
+
+// --------------- Reciters ---------------
+
+export interface Reciter {
+  id: number;
+  reciter_name: string;
+  style: string | null;
+  translated_name: { name: string; language_name: string };
+}
+
+export async function getReciters(): Promise<Reciter[]> {
+  const res = await authFetch(`${BASE}/reciters`);
+  return res.json();
+}
+
+// --------------- Recitation Preview ---------------
+
+export interface PreviewVerse {
+  surah: number;
+  ayah: number;
+  surah_name: string;
+  arabic_text: string;
+  translation: string;
+  audio_url: string;
+}
+
+export async function getRecitationPreview(params: {
+  reciter_id: number;
+  from_surah: number;
+  from_ayah: number;
+  to_surah: number;
+  to_ayah: number;
+}): Promise<PreviewVerse[]> {
+  const res = await authFetch(`${BASE}/recitation-preview`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load preview');
+  return data.verses;
+}
+
+// --------------- Auth ---------------
+
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
   const res = await authFetch(`${BASE}/change-password`, {
     method: 'POST',
