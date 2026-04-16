@@ -4952,10 +4952,12 @@ os.makedirs(_GENERATED_VIDEOS_DIR, exist_ok=True)
 _FFMPEG = "ffmpeg"
 _FFPROBE = "ffprobe"
 
-# Arabic font for video text overlays
-_ARABIC_FONT = os.path.join(os.path.dirname(__file__), "data", "fonts", "Amiri-Regular.ttf")
+# Arabic font for video text overlays (Scheherazade New renders hamzat al-wasl correctly)
+_ARABIC_FONT = os.path.join(os.path.dirname(__file__), "data", "fonts", "ScheherazadeNew-Regular.ttf")
 if not os.path.isfile(_ARABIC_FONT):
-    _ARABIC_FONT = "/System/Library/Fonts/GeezaPro.ttc"  # macOS fallback
+    # Fallback chain: Amiri -> macOS GeezaPro
+    _alt = os.path.join(os.path.dirname(__file__), "data", "fonts", "Amiri-Regular.ttf")
+    _ARABIC_FONT = _alt if os.path.isfile(_alt) else "/System/Library/Fonts/GeezaPro.ttc"
 _LATIN_FONT = "/System/Library/Fonts/Helvetica.ttc"
 if not os.path.isfile(_LATIN_FONT):
     # Linux / Docker fallback
@@ -5481,18 +5483,19 @@ def _generate_video_task(video_id):
             tts_files.append(tts_path)
 
         # Step 2: Get durations and build timeline
-        # Layout: ALL recitations first (with Arabic + translation text),
-        # then ALL TTS translations at the end (audio only, no text)
+        # Layout: INTERLEAVED — recite verse → TTS voice → next verse → TTS voice
         _update_video_status(video_id, "processing", "Analyzing audio durations...")
 
         recit_durs = [_get_audio_duration(f) for f in recit_files]
         tts_durs = [_get_audio_duration(f) for f in tts_files]
 
-        # Phase 1: Recitations — Arabic text + translation shown
-        recit_timeline = []
+        # Build interleaved timeline
+        timeline = []
         current_time = 0.0
         for i in range(len(verse_data)):
-            recit_timeline.append({
+            # Recitation phase: show Arabic text + verse ref
+            timeline.append({
+                "phase": "recitation",
                 "start": current_time,
                 "dur": recit_durs[i],
                 "arabic": verse_data[i]["arabic_text"],
@@ -5500,18 +5503,26 @@ def _generate_video_task(video_id):
                 "ref": verse_data[i]["verse_ref"],
             })
             current_time += recit_durs[i]
+            # TTS phase: show translation text
+            timeline.append({
+                "phase": "tts",
+                "start": current_time,
+                "dur": tts_durs[i],
+                "arabic": verse_data[i]["arabic_text"],
+                "translation": verse_data[i]["translation"],
+                "ref": verse_data[i]["verse_ref"],
+            })
+            current_time += tts_durs[i]
 
-        # Phase 2: TTS translations — audio only, no text
-        total_duration = current_time + sum(tts_durs)
+        total_duration = current_time
 
-        # Step 3: Concatenate audio — all recitations, then all translations
+        # Step 3: Concatenate audio — interleaved: recite, tts, recite, tts
         _update_video_status(video_id, "processing", "Building audio track...")
         concat_list = os.path.join(tmpdir, "concat.txt")
         with open(concat_list, "w") as f:
-            for rp in recit_files:
-                f.write(f"file '{rp}'\n")
-            for tp in tts_files:
-                f.write(f"file '{tp}'\n")
+            for i in range(len(verse_data)):
+                f.write(f"file '{recit_files[i]}'\n")
+                f.write(f"file '{tts_files[i]}'\n")
 
         combined_audio = os.path.join(tmpdir, "combined.mp3")
         subprocess.run(
@@ -5530,7 +5541,11 @@ def _generate_video_task(video_id):
         ref_fontsize = 40 if fmt == "short" else 36
 
         # ASS colour format: &HAABBGGRR
-        # Black text: &H00000000, Semi-transparent white box: &H40FFFFFF
+        # Black text: &H00000000
+        # Box background: semi-transparent white &H30FFFFFF
+        # OutlineColour matches BackColour so outline = invisible padding around text
+        box_colour = "&H30FFFFFF"
+        text_colour = "&H00000000"
         fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
         ass_path = os.path.join(tmpdir, "subs.ass")
         with open(ass_path, "w", encoding="utf-8") as af:
@@ -5541,14 +5556,15 @@ def _generate_video_task(video_id):
 
             af.write("[V4+ Styles]\n")
             af.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-            # Ref: top-center (Alignment=8), bold, black text on white box
+            # BorderStyle=3: Outline becomes box padding, OutlineColour=box colour so padding is invisible
+            # Ref: top-center (Alignment=8), bold
             ref_margin_v = 100 if fmt == "short" else 60
-            af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},&H00000000,&H000000FF,&H00000000,&H40FFFFFF,1,0,0,0,100,100,0,0,3,0,4,8,40,40,{ref_margin_v},0\n")
-            # Arabic: center (Alignment=5), black text on white box
-            af.write(f"Style: Arabic,Amiri,{arabic_fontsize},&H00000000,&H000000FF,&H00000000,&H40FFFFFF,0,0,0,0,100,100,0,0,3,0,4,5,60,60,40,0\n")
-            # Translation: below center (Alignment=5, with MarginV offset)
-            trans_margin_v = 200 if fmt == "short" else 120
-            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},&H00000000,&H000000FF,&H00000000,&H40FFFFFF,0,0,0,0,100,100,0,0,3,0,4,2,60,60,{trans_margin_v},0\n")
+            af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},1,0,0,0,100,100,0,0,3,14,0,8,40,40,{ref_margin_v},0\n")
+            # Arabic: center (Alignment=5) — Scheherazade New for proper hamzat al-wasl
+            af.write(f"Style: Arabic,Scheherazade New,{arabic_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},0,0,0,0,100,100,0,0,3,16,0,5,60,60,40,0\n")
+            # Translation: below center (Alignment=2, bottom area)
+            trans_margin_v = 120 if fmt == "short" else 80
+            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},0,0,0,0,100,100,0,0,3,14,0,2,60,60,{trans_margin_v},0\n")
 
             af.write("\n[Events]\n")
             af.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
@@ -5562,19 +5578,22 @@ def _generate_video_task(video_id):
             def _ass_escape(text):
                 return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
 
-            # Phase 1: Recitations — show ref + Arabic + translation
-            for t in recit_timeline:
+            # Interleaved: recitation shows ref + Arabic, TTS shows translation
+            for t in timeline:
                 start = _ass_time(t["start"])
                 end = _ass_time(t["start"] + t["dur"])
                 ref = _ass_escape(t["ref"])
                 arabic = _ass_escape(t["arabic"])
                 translation = _ass_escape(t["translation"])
 
-                af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
-                af.write(f"Dialogue: 0,{start},{end},Arabic,,0,0,0,,{arabic}\n")
-                af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
-
-            # Phase 2: TTS plays — no text shown (audio only)
+                if t["phase"] == "recitation":
+                    # During recitation: show verse ref + Arabic text
+                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Arabic,,0,0,0,,{arabic}\n")
+                else:
+                    # During TTS: show verse ref + translation text
+                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
 
         # Step 5: Final render using ASS subtitles
         output_filename = f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
