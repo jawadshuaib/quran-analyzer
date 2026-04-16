@@ -28,6 +28,9 @@ COPY roots/backend/app.py ./app.py
 COPY roots/backend/api_v1.py ./api_v1.py
 COPY roots/backend/build_embeddings.py ./build_embeddings.py
 
+# Copy bundled fonts for video text overlays
+COPY roots/backend/data/fonts ./data/fonts
+
 # Copy database as seed (entrypoint copies to volume on first run)
 COPY assets/quran.db ./seed-quran.db
 

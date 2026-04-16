@@ -5449,7 +5449,8 @@ def _generate_video_task(video_id):
     tmpdir = tempfile.mkdtemp(prefix="vidgen_")
     try:
         # Step 1: Download recitation audio and collect TTS files
-        audio_segments = []
+        recit_files = []
+        tts_files = []
         for i, v in enumerate(verse_data):
             _update_video_status(video_id, "processing",
                 f"Downloading audio {i + 1}/{len(verse_data)}...")
@@ -5476,41 +5477,57 @@ def _generate_video_task(video_id):
                     error=f"TTS cache file missing for {v['verse_ref']}")
                 return
 
-            audio_segments.append((recit_path, tts_path))
+            recit_files.append(recit_path)
+            tts_files.append(tts_path)
 
         # Step 2: Get durations and build timeline
+        # New layout: ALL recitations first, then ALL translations at the end
         _update_video_status(video_id, "processing", "Analyzing audio durations...")
-        timeline = []
+
+        recit_durs = [_get_audio_duration(f) for f in recit_files]
+        tts_durs = [_get_audio_duration(f) for f in tts_files]
+
+        # Phase 1: Recitations play sequentially, Arabic text shown for each
+        recit_timeline = []
         current_time = 0.0
-        for i, (recit, tts) in enumerate(audio_segments):
-            recit_dur = _get_audio_duration(recit)
-            tts_dur = _get_audio_duration(tts)
-            timeline.append({
-                "recit_start": current_time,
-                "recit_dur": recit_dur,
-                "tts_start": current_time + recit_dur,
-                "tts_dur": tts_dur,
+        for i in range(len(verse_data)):
+            recit_timeline.append({
+                "start": current_time,
+                "dur": recit_durs[i],
                 "arabic": verse_data[i]["arabic_text"],
+                "ref": verse_data[i]["verse_ref"],
+            })
+            current_time += recit_durs[i]
+
+        recit_phase_end = current_time
+
+        # Phase 2: TTS translations play sequentially, translation text shown for each
+        tts_timeline = []
+        for i in range(len(verse_data)):
+            tts_timeline.append({
+                "start": current_time,
+                "dur": tts_durs[i],
                 "translation": verse_data[i]["translation"],
                 "ref": verse_data[i]["verse_ref"],
             })
-            current_time += recit_dur + tts_dur
+            current_time += tts_durs[i]
 
         total_duration = current_time
 
-        # Step 3: Concatenate all audio
+        # Step 3: Concatenate audio — all recitations, then all translations
         _update_video_status(video_id, "processing", "Building audio track...")
         concat_list = os.path.join(tmpdir, "concat.txt")
         with open(concat_list, "w") as f:
-            for recit, tts in audio_segments:
-                f.write(f"file '{recit}'\n")
-                f.write(f"file '{tts}'\n")
+            for rp in recit_files:
+                f.write(f"file '{rp}'\n")
+            for tp in tts_files:
+                f.write(f"file '{tp}'\n")
 
         combined_audio = os.path.join(tmpdir, "combined.mp3")
         subprocess.run(
             [_FFMPEG, "-y", "-f", "concat", "-safe", "0",
              "-i", concat_list, "-c", "copy", combined_audio],
-            check=True, capture_output=True, timeout=120,
+            capture_output=True, timeout=120,
         )
 
         # Step 4: Build drawtext filter chain
@@ -5523,53 +5540,77 @@ def _generate_video_task(video_id):
             f"crop={target_w}:{target_h}"
         )
 
-        max_chars = 40 if fmt == "short" else 70
-        arabic_fontsize = 44 if fmt == "short" else 40
-        trans_fontsize = 28 if fmt == "short" else 26
-        ref_fontsize = 24
+        # Font sizes — larger, especially Arabic
+        arabic_fontsize = 64 if fmt == "short" else 56
+        trans_fontsize = 36 if fmt == "short" else 32
+        ref_fontsize = 28 if fmt == "short" else 26
+        max_chars = 35 if fmt == "short" else 60
 
-        for t in timeline:
-            verse_start = t["recit_start"]
-            verse_end = t["tts_start"] + t["tts_dur"]
+        # Padding/box settings: semi-transparent white box behind black text
+        box_style = "box=1:boxborderw=16:boxcolor=white@0.75"
+        arabic_box_style = "box=1:boxborderw=20:boxcolor=white@0.75"
 
-            # Verse reference (top center, during entire verse)
+        # --- Phase 1: Recitation phase — show Arabic + verse ref ---
+        for t in recit_timeline:
+            verse_start = t["start"]
+            verse_end = verse_start + t["dur"]
+
+            # Verse reference (top center)
             ref_escaped = _escape_drawtext(t["ref"])
             filter_parts.append(
                 f"drawtext=text='{ref_escaped}'"
                 f":fontfile='{_LATIN_FONT}':fontsize={ref_fontsize}"
-                f":fontcolor=white:borderw=2:bordercolor=black@0.7"
-                f":x=(w-tw)/2:y=60"
+                f":fontcolor=black:{box_style}"
+                f":x=(w-tw)/2:y=80"
                 f":enable='between(t,{verse_start:.3f},{verse_end:.3f})'"
             )
 
-            # Arabic text (centered vertically, during entire verse)
+            # Arabic text (centered)
             arabic_visual = _prepare_arabic(t["arabic"])
-            arabic_escaped = _escape_drawtext(arabic_visual)
-            arabic_y = "(h/2-th-40)" if fmt == "short" else "(h/2-th-20)"
+            # Wrap Arabic if too long (roughly 30 chars for short, 50 for regular)
+            arabic_max = 30 if fmt == "short" else 50
+            arabic_lines = _wrap_text(arabic_visual, arabic_max)
+            total_arabic_h = len(arabic_lines) * (arabic_fontsize + 12)
+            for li, line in enumerate(arabic_lines):
+                line_escaped = _escape_drawtext(line)
+                line_y_offset = li * (arabic_fontsize + 12)
+                arabic_y = f"(h/2-{total_arabic_h // 2}+{line_y_offset})"
+                filter_parts.append(
+                    f"drawtext=text='{line_escaped}'"
+                    f":fontfile='{_ARABIC_FONT}':fontsize={arabic_fontsize}"
+                    f":fontcolor=black:{arabic_box_style}"
+                    f":x=(w-tw)/2:y={arabic_y}"
+                    f":enable='between(t,{verse_start:.3f},{verse_end:.3f})'"
+                )
+
+        # --- Phase 2: Translation phase — show translation + verse ref ---
+        for t in tts_timeline:
+            tts_start = t["start"]
+            tts_end = tts_start + t["dur"]
+
+            # Verse reference (top center)
+            ref_escaped = _escape_drawtext(t["ref"])
             filter_parts.append(
-                f"drawtext=text='{arabic_escaped}'"
-                f":fontfile='{_ARABIC_FONT}':fontsize={arabic_fontsize}"
-                f":fontcolor=white:borderw=3:bordercolor=black@0.7"
-                f":x=(w-tw)/2:y={arabic_y}"
-                f":enable='between(t,{verse_start:.3f},{verse_end:.3f})'"
+                f"drawtext=text='{ref_escaped}'"
+                f":fontfile='{_LATIN_FONT}':fontsize={ref_fontsize}"
+                f":fontcolor=black:{box_style}"
+                f":x=(w-tw)/2:y=80"
+                f":enable='between(t,{tts_start:.3f},{tts_end:.3f})'"
             )
 
-            # Translation text (below Arabic, during TTS phase only)
-            # Wrap long text into multiple lines
+            # Translation text (centered, wrapped)
             trans_lines = _wrap_text(t["translation"], max_chars)
+            total_trans_h = len(trans_lines) * (trans_fontsize + 10)
             for li, line in enumerate(trans_lines):
                 line_escaped = _escape_drawtext(line)
-                line_y_offset = li * (trans_fontsize + 8)
-                if fmt == "short":
-                    base_y = f"(h/2+20+{line_y_offset})"
-                else:
-                    base_y = f"(h/2+20+{line_y_offset})"
+                line_y_offset = li * (trans_fontsize + 10)
+                base_y = f"(h/2-{total_trans_h // 2}+{line_y_offset})"
                 filter_parts.append(
                     f"drawtext=text='{line_escaped}'"
                     f":fontfile='{_LATIN_FONT}':fontsize={trans_fontsize}"
-                    f":fontcolor=white:borderw=2:bordercolor=black@0.7"
+                    f":fontcolor=black:{box_style}"
                     f":x=(w-tw)/2:y={base_y}"
-                    f":enable='between(t,{t['tts_start']:.3f},{verse_end:.3f})'"
+                    f":enable='between(t,{tts_start:.3f},{tts_end:.3f})'"
                 )
 
         filter_chain = ",".join(filter_parts)
