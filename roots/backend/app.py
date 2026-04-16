@@ -3979,7 +3979,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/generate)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/music|/generate)?)?/?$", path):
         return True
     return False
 
