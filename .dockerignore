@@ -7,6 +7,7 @@ __pycache__
 node_modules
 extensions
 roots/backend/data
+!roots/backend/data/fonts
 roots/frontend/node_modules
 roots/frontend/dist
 *.md
