@@ -5588,7 +5588,7 @@ def _generate_video_task(video_id):
             af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,3,0,5,60,60,0,0\n")
             # Outro styles: positioned with \pos in events
             outro_site_fs = 90 if fmt == "short" else 72
-            outro_tag_fs = 48 if fmt == "short" else 40
+            outro_tag_fs = 54 if fmt == "short" else 44
             # Alignment=5 (center), no outline — clean white text on dark overlay
             af.write(f"Style: OutroSite,Liberation Sans,{outro_site_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0\n")
             af.write(f"Style: OutroTag,Liberation Sans,{outro_tag_fs},&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0\n")
