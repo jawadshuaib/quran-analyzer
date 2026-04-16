@@ -1,7 +1,6 @@
 import { useSEO } from '../../hooks/useSEO';
 import HeroSection from './HeroSection';
 import VerseOfTheDay from './VerseOfTheDay';
-import FeatureCards from './FeatureCards';
 import LearningPathCard from './LearningPathCard';
 import ApiCard from './ApiCard';
 
@@ -26,7 +25,6 @@ export default function HomePage({ onNavigateVerse, onFullSemanticSearch, loadin
         loading={loading}
       />
       <VerseOfTheDay onNavigate={onNavigateVerse} />
-      <FeatureCards />
       <LearningPathCard />
       <ApiCard />
     </div>
