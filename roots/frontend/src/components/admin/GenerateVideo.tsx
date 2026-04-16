@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getResources, getReciters, getTTSCache,
   startVideoGeneration, getGeneratedVideos, deleteGeneratedVideo,
-  generatedVideoDownloadUrl, resourceThumbnailUrl, getToken,
+  generatedVideoDownloadUrl, getToken,
 } from '../../api/admin';
 import type { Resource, Reciter, TTSCacheEntry, GeneratedVideo } from '../../api/admin';
 
