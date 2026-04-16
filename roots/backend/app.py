@@ -5514,15 +5514,30 @@ def _generate_video_task(video_id):
             })
             current_time += tts_durs[i]
 
-        total_duration = current_time
+        # Outro slide: 5 seconds of branding after all verses
+        outro_dur = 5.0
+        outro_start = current_time
+        total_duration = current_time + outro_dur
 
         # Step 3: Concatenate audio — interleaved: recite, tts, recite, tts
+        # Plus silent outro (generated as silent audio segment)
         _update_video_status(video_id, "processing", "Building audio track...")
+
+        # Generate silent audio for outro
+        silence_path = os.path.join(tmpdir, "silence.mp3")
+        subprocess.run(
+            [_FFMPEG, "-y", "-f", "lavfi", "-i",
+             f"anullsrc=r=44100:cl=stereo", "-t", f"{outro_dur:.3f}",
+             "-c:a", "libmp3lame", "-q:a", "9", silence_path],
+            capture_output=True, timeout=30,
+        )
+
         concat_list = os.path.join(tmpdir, "concat.txt")
         with open(concat_list, "w") as f:
             for i in range(len(verse_data)):
                 f.write(f"file '{recit_files[i]}'\n")
                 f.write(f"file '{tts_files[i]}'\n")
+            f.write(f"file '{silence_path}'\n")
 
         combined_audio = os.path.join(tmpdir, "combined.mp3")
         subprocess.run(
@@ -5571,6 +5586,12 @@ def _generate_video_task(video_id):
             af.write(f"Style: Arabic,Scheherazade New,{arabic_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,3,0,5,60,60,0,0\n")
             # Translation: center (Alignment=5), same position as Arabic
             af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,3,0,5,60,60,0,0\n")
+            # Outro styles: positioned with \pos in events
+            outro_site_fs = 64 if fmt == "short" else 54
+            outro_tag_fs = 36 if fmt == "short" else 30
+            # Alignment=5 (center), no outline — clean white text on dark overlay
+            af.write(f"Style: OutroSite,Liberation Sans,{outro_site_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0\n")
+            af.write(f"Style: OutroTag,Liberation Sans,{outro_tag_fs},&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0\n")
 
             af.write("\n[Events]\n")
             af.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
@@ -5604,6 +5625,17 @@ def _generate_video_task(video_id):
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
                     af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
 
+            # Outro slide: site name + tagline with fade-in
+            outro_s = _ass_time(outro_start)
+            outro_e = _ass_time(outro_start + outro_dur)
+            cx = target_w // 2
+            cy = target_h // 2
+            # Site name slightly above center, tagline below
+            site_y = cy - 30
+            tag_y = cy + 50
+            af.write(f"Dialogue: 0,{outro_s},{outro_e},OutroSite,,0,0,0,,{{\\fad(800,0)\\pos({cx},{site_y})}}al-nuqta.com\n")
+            af.write(f"Dialogue: 0,{outro_s},{outro_e},OutroTag,,0,0,0,,{{\\fad(1200,0)\\pos({cx},{tag_y})}}A Root Based Translation of the Quran\n")
+
         # Step 5: Build drawbox filter chain for background bands
         drawbox_parts = []
         for t in timeline:
@@ -5619,6 +5651,13 @@ def _generate_video_task(video_id):
                 f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
                 f":color=black@0.5:t=fill:enable='{enable}'"
             )
+
+        # Outro: full-screen dark overlay
+        outro_enable = f"gte(t\\,{outro_start:.3f})"
+        drawbox_parts.append(
+            f"drawbox=x=0:y=0:w=iw:h=ih"
+            f":color=black@0.75:t=fill:enable='{outro_enable}'"
+        )
 
         # Step 6: Final render — scale/crop, drawbox bands, then ASS text overlay
         output_filename = f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
