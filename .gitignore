@@ -42,6 +42,7 @@ Thumbs.db
 !.env.production.example
 
 # Secrets / certs
+**/.admin_secret
 *.pem
 *.key
 *.p12

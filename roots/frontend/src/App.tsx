@@ -22,6 +22,7 @@ import LearningPage from './components/learning/LearningPage';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
 import SavedItemsPanel from './components/SavedItemsPanel';
+import AdminPage from './components/admin/AdminPage';
 import { buildVerseContext } from './utils/context-builders';
 
 const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
@@ -63,6 +64,7 @@ function isKnownRoute(): boolean {
   if (/^\/settings\/?$/.test(path)) return true;
   if (/^\/developers\/?$/.test(path)) return true;
   if (/^\/methodology\/?$/.test(path)) return true;
+  if (/^\/admin(\/settings)?\/?$/.test(path)) return true;
   return false;
 }
 
@@ -217,6 +219,10 @@ export default function App() {
 
   if (/^\/developers\/?$/.test(currentPath)) {
     return <ApiPage />;
+  }
+
+  if (/^\/admin(\/settings)?\/?$/.test(currentPath)) {
+    return <AdminPage />;
   }
 
   if (/^\/settings\/?$/.test(currentPath)) {

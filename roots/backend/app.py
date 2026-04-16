@@ -13,6 +13,12 @@ import time
 from collections import OrderedDict, defaultdict
 from urllib.parse import quote
 
+import secrets
+from datetime import datetime, timezone
+from functools import wraps
+
+import bcrypt
+import jwt
 import numpy as np
 import requests
 from flask import Flask, Response, jsonify, redirect, request, send_from_directory
@@ -30,6 +36,17 @@ app = Flask(
     static_folder=None,  # We handle static files in the catch-all route
 )
 CORS(app)
+
+# Secret key for JWT — persisted so tokens survive restarts
+_SECRET_KEY_FILE = os.path.join(os.path.dirname(__file__), "data", ".admin_secret")
+if os.path.isfile(_SECRET_KEY_FILE):
+    with open(_SECRET_KEY_FILE) as f:
+        app.config["SECRET_KEY"] = f.read().strip()
+else:
+    app.config["SECRET_KEY"] = secrets.token_hex(32)
+    fd = os.open(_SECRET_KEY_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        f.write(app.config["SECRET_KEY"])
 
 # Register public API v1 Blueprint
 from api_v1 import v1_bp
@@ -3871,6 +3888,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
+    if re.match(r"^/admin(/settings)?/?$", path):
+        return True
     return False
 
 
@@ -4493,6 +4512,179 @@ def search_roots():
             })
 
         return jsonify(results)
+    finally:
+        conn.close()
+
+
+# --------------- Admin auth ---------------
+
+_ADMIN_JWT_EXP_HOURS = 24
+
+# Simple in-memory rate limiter for login attempts
+_login_attempts: dict[str, list[float]] = {}
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW_SECONDS = 300  # 5 minutes
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if the IP is rate-limited."""
+    now = time.time()
+    attempts = _login_attempts.get(ip, [])
+    # Prune old attempts
+    attempts = [t for t in attempts if now - t < _LOGIN_WINDOW_SECONDS]
+    _login_attempts[ip] = attempts
+    return len(attempts) >= _LOGIN_MAX_ATTEMPTS
+
+
+def _record_attempt(ip: str):
+    _login_attempts.setdefault(ip, []).append(time.time())
+
+
+def _ensure_admin_table():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                pw_changed_at INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Migration: add pw_changed_at if missing
+        cols = [r["name"] for r in conn.execute("PRAGMA table_info(admin_users)").fetchall()]
+        if "pw_changed_at" not in cols:
+            conn.execute("ALTER TABLE admin_users ADD COLUMN pw_changed_at INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+        conn.commit()
+        # Seed default admin if none exists
+        row = conn.execute("SELECT COUNT(*) FROM admin_users").fetchone()
+        if row[0] == 0:
+            default_pw = bcrypt.hashpw(b"admin", bcrypt.gensalt()).decode()
+            conn.execute(
+                "INSERT INTO admin_users (username, password_hash) VALUES (?, ?)",
+                ("admin", default_pw),
+            )
+            conn.commit()
+    finally:
+        conn.close()
+
+_ensure_admin_table()
+
+
+def _create_admin_token(user_id: int, username: str, pw_changed_at: int = 0) -> str:
+    now = int(datetime.now(timezone.utc).timestamp())
+    payload = {
+        "sub": str(user_id),
+        "username": username,
+        "exp": now + _ADMIN_JWT_EXP_HOURS * 3600,
+        "iat": now,
+        "pwc": pw_changed_at,  # invalidated when password changes
+    }
+    return jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return jsonify({"error": "Missing token"}), 401
+        token = auth_header[7:]
+        try:
+            payload = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
+
+        # Check token wasn't issued before a password change
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT pw_changed_at FROM admin_users WHERE id = ?",
+                (int(payload["sub"]),),
+            ).fetchone()
+            if not row:
+                return jsonify({"error": "User not found"}), 401
+            if payload.get("pwc", 0) < row["pw_changed_at"]:
+                return jsonify({"error": "Token invalidated by password change"}), 401
+        finally:
+            conn.close()
+
+        request.admin_user = payload
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    ip = request.remote_addr or "unknown"
+    if _check_rate_limit(ip):
+        return jsonify({"error": "Too many attempts. Try again in a few minutes."}), 429
+
+    body = request.get_json(silent=True) or {}
+    username = body.get("username", "").strip()
+    password = body.get("password", "")
+
+    if not username or not password:
+        return jsonify({"error": "Username and password required"}), 400
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, username, password_hash, pw_changed_at FROM admin_users WHERE username = ?",
+            (username,),
+        ).fetchone()
+        if not row or not bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
+            _record_attempt(ip)
+            return jsonify({"error": "Invalid credentials"}), 401
+
+        token = _create_admin_token(row["id"], row["username"], row["pw_changed_at"])
+        return jsonify({"token": token, "username": row["username"]})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/me", methods=["GET"])
+@admin_required
+def admin_me():
+    return jsonify({"username": request.admin_user["username"]})
+
+
+@app.route("/api/admin/change-password", methods=["POST"])
+@admin_required
+def admin_change_password():
+    body = request.get_json(silent=True) or {}
+    current_pw = body.get("current_password", "")
+    new_pw = body.get("new_password", "")
+
+    if not current_pw or not new_pw:
+        return jsonify({"error": "Both current and new password required"}), 400
+    if len(new_pw) < 8:
+        return jsonify({"error": "New password must be at least 8 characters"}), 400
+
+    conn = get_db()
+    try:
+        user_id = int(request.admin_user["sub"])
+        row = conn.execute(
+            "SELECT password_hash FROM admin_users WHERE id = ?", (user_id,)
+        ).fetchone()
+        if not row or not bcrypt.checkpw(current_pw.encode(), row["password_hash"].encode()):
+            return jsonify({"error": "Current password is incorrect"}), 401
+
+        new_hash = bcrypt.hashpw(new_pw.encode(), bcrypt.gensalt()).decode()
+        pw_changed_at = int(datetime.now(timezone.utc).timestamp())
+        conn.execute(
+            "UPDATE admin_users SET password_hash = ?, pw_changed_at = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (new_hash, pw_changed_at, user_id),
+        )
+        conn.commit()
+        # Return a fresh token so the user stays logged in
+        new_token = _create_admin_token(user_id, request.admin_user["username"], pw_changed_at)
+        return jsonify({"message": "Password changed successfully", "token": new_token})
     finally:
         conn.close()
 
