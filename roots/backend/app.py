@@ -5562,9 +5562,8 @@ def _generate_video_task(video_id):
             af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},1,0,0,0,100,100,0,0,3,14,0,8,40,40,{ref_margin_v},0\n")
             # Arabic: center (Alignment=5) — Scheherazade New for proper hamzat al-wasl
             af.write(f"Style: Arabic,Scheherazade New,{arabic_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},0,0,0,0,100,100,0,0,3,16,0,5,60,60,40,0\n")
-            # Translation: below center (Alignment=2, bottom area)
-            trans_margin_v = 120 if fmt == "short" else 80
-            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},0,0,0,0,100,100,0,0,3,14,0,2,60,60,{trans_margin_v},0\n")
+            # Translation: center (Alignment=5), same position as Arabic text
+            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},0,0,0,0,100,100,0,0,3,14,0,5,60,60,40,0\n")
 
             af.write("\n[Events]\n")
             af.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
@@ -5578,12 +5577,17 @@ def _generate_video_task(video_id):
             def _ass_escape(text):
                 return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
 
+            def _fix_arabic_for_ass(text):
+                """Replace U+0671 (alef wasla) with U+0627 (plain alef).
+                libass cannot render U+0671 correctly — shows square block."""
+                return text.replace("\u0671", "\u0627")
+
             # Interleaved: recitation shows ref + Arabic, TTS shows translation
             for t in timeline:
                 start = _ass_time(t["start"])
                 end = _ass_time(t["start"] + t["dur"])
                 ref = _ass_escape(t["ref"])
-                arabic = _ass_escape(t["arabic"])
+                arabic = _ass_escape(_fix_arabic_for_ass(t["arabic"]))
                 translation = _ass_escape(t["translation"])
 
                 if t["phase"] == "recitation":
