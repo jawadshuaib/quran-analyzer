@@ -5587,8 +5587,8 @@ def _generate_video_task(video_id):
             # Translation: center (Alignment=5), same position as Arabic
             af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,3,0,5,60,60,0,0\n")
             # Outro styles: positioned with \pos in events
-            outro_site_fs = 64 if fmt == "short" else 54
-            outro_tag_fs = 36 if fmt == "short" else 30
+            outro_site_fs = 90 if fmt == "short" else 72
+            outro_tag_fs = 48 if fmt == "short" else 40
             # Alignment=5 (center), no outline — clean white text on dark overlay
             af.write(f"Style: OutroSite,Liberation Sans,{outro_site_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0\n")
             af.write(f"Style: OutroTag,Liberation Sans,{outro_tag_fs},&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0\n")
@@ -5631,8 +5631,8 @@ def _generate_video_task(video_id):
             cx = target_w // 2
             cy = target_h // 2
             # Site name slightly above center, tagline below
-            site_y = cy - 30
-            tag_y = cy + 50
+            site_y = cy - 40
+            tag_y = cy + 70
             af.write(f"Dialogue: 0,{outro_s},{outro_e},OutroSite,,0,0,0,,{{\\fad(800,0)\\pos({cx},{site_y})}}al-nuqta.com\n")
             af.write(f"Dialogue: 0,{outro_s},{outro_e},OutroTag,,0,0,0,,{{\\fad(1200,0)\\pos({cx},{tag_y})}}A Root Based Translation of the Quran\n")
 
