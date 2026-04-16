@@ -8,6 +8,7 @@ import type { ParsedVerseRef } from '../utils/search-classifier';
 /** Imperative handle to fill text into the search bar from outside */
 export interface UnifiedSearchHandle {
   fill: (text: string) => void;
+  focus: () => void;
 }
 
 interface Props {
@@ -31,6 +32,9 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
       handleRef.current = {
         fill(text: string) {
           setQuery(text);
+          inputRef.current?.focus();
+        },
+        focus() {
           inputRef.current?.focus();
         },
       };

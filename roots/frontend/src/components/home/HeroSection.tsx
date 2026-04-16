@@ -28,6 +28,9 @@ export default function HeroSection({ onNavigateVerse, onFullSemanticSearch, loa
     TRY_CHIPS.forEach((_, i) => {
       timers.push(setTimeout(() => setVisibleCount(i + 1), 500 + i * 150));
     });
+    // Focus search after all chips have animated in
+    const lastChipTime = 500 + (TRY_CHIPS.length - 1) * 150;
+    timers.push(setTimeout(() => searchRef.current?.focus(), lastChipTime + 400));
     return () => timers.forEach(clearTimeout);
   }, []);
 
