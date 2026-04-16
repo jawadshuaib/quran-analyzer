@@ -33,6 +33,9 @@ server {
     listen 80;
     server_name yourdomain.com;
 
+    # Allow large file uploads (video resources up to 500MB)
+    client_max_body_size 500m;
+
     location / {
         proxy_pass http://127.0.0.1:8070;
         proxy_set_header Host $host;
