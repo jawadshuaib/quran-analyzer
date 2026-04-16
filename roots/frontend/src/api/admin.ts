@@ -233,9 +233,15 @@ export async function uploadResource(file: File): Promise<Resource> {
     window.location.href = '/admin';
     throw new Error('Session expired');
   }
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Upload failed');
-  return data;
+  const text = await res.text();
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(res.status === 413 ? 'File too large (max 500MB)' : `Upload failed (${res.status})`);
+  }
+  if (!res.ok) throw new Error((data.error as string) || 'Upload failed');
+  return data as unknown as Resource;
 }
 
 export async function deleteResource(id: number): Promise<void> {

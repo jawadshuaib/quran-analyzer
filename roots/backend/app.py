@@ -43,6 +43,7 @@ app = Flask(
     static_folder=None,  # We handle static files in the catch-all route
 )
 CORS(app)
+app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB upload limit
 
 # Secret key for JWT — persisted so tokens survive restarts
 _SECRET_KEY_FILE = os.path.join(os.path.dirname(__file__), "data", ".admin_secret")
@@ -54,6 +55,11 @@ else:
     fd = os.open(_SECRET_KEY_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as f:
         f.write(app.config["SECRET_KEY"])
+
+# Return JSON for oversized uploads instead of HTML error page
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    return jsonify({"error": "File too large (max 500MB)"}), 413
 
 # Register public API v1 Blueprint
 from api_v1 import v1_bp
