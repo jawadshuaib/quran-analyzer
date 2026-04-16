@@ -179,7 +179,9 @@ export interface TTSCacheEntry {
 
 export async function getTTSCache(): Promise<TTSCacheEntry[]> {
   const res = await authFetch(`${BASE}/tts-cache`);
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch TTS cache');
+  return data;
 }
 
 export async function deleteTTSCache(id: number): Promise<void> {

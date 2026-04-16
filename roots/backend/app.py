@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import math
@@ -4927,8 +4928,6 @@ def admin_recitation_preview():
 
 # --------------- Admin: TTS via ElevenLabs (with caching) ---------------
 
-import hashlib
-
 _TTS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "tts_cache")
 os.makedirs(_TTS_CACHE_DIR, exist_ok=True)
 
@@ -4975,26 +4974,27 @@ def admin_tts():
         return jsonify({"error": "text and voice_id required"}), 400
     if len(text) > 2000:
         return jsonify({"error": "Text too long (max 2000 chars)"}), 400
+    if not isinstance(chapter, int) or not isinstance(verse_num, int) or chapter < 1 or verse_num < 1:
+        return jsonify({"error": "Valid chapter and verse required"}), 400
 
     text_hash = _tts_hash(text, voice_id)
 
     # Check cache first
+    old_filename = None
     conn = get_db()
     try:
         cached = conn.execute(
-            "SELECT filename FROM admin_tts_cache WHERE chapter = ? AND verse = ? AND voice_id = ?",
+            "SELECT filename, text_hash FROM admin_tts_cache WHERE chapter = ? AND verse = ? AND voice_id = ?",
             (chapter, verse_num, voice_id),
         ).fetchone()
         if cached:
-            cached_path = os.path.join(_TTS_CACHE_DIR, cached["filename"])
-            if os.path.isfile(cached_path):
-                # Check if the text changed (different hash) — regenerate if so
-                hash_row = conn.execute(
-                    "SELECT text_hash FROM admin_tts_cache WHERE chapter = ? AND verse = ? AND voice_id = ?",
-                    (chapter, verse_num, voice_id),
-                ).fetchone()
-                if hash_row and hash_row["text_hash"] == text_hash:
+            if cached["text_hash"] == text_hash:
+                cached_path = os.path.join(_TTS_CACHE_DIR, cached["filename"])
+                if os.path.isfile(cached_path):
                     return send_from_directory(_TTS_CACHE_DIR, cached["filename"], mimetype="audio/mpeg")
+            else:
+                # Text changed — remember old file for cleanup
+                old_filename = cached["filename"]
     finally:
         conn.close()
 
@@ -5037,6 +5037,12 @@ def admin_tts():
         filepath = os.path.join(_TTS_CACHE_DIR, filename)
         with open(filepath, "wb") as f:
             f.write(resp.content)
+
+        # Delete old cached file if text changed
+        if old_filename and old_filename != filename:
+            old_path = os.path.join(_TTS_CACHE_DIR, old_filename)
+            if os.path.isfile(old_path):
+                os.remove(old_path)
 
         # Look up the voice name for display
         voice_name = ""

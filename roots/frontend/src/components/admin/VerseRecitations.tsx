@@ -29,8 +29,10 @@ export default function VerseRecitations() {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState('');
 
-  // TTS cache
+  // TTS cache & batch generation
   const [ttsCache, setTtsCache] = useState<TTSCacheEntry[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [genProgress, setGenProgress] = useState('');
 
   // Playback
   const [playState, setPlayState] = useState<PlayState>('idle');
@@ -135,6 +137,28 @@ export default function VerseRecitations() {
 
   // Get the ElevenLabs voice_id string for the selected voice
   const selectedVoiceElId = voices.find((v) => v.id === voiceId)?.voice_id ?? null;
+
+  // Batch-generate TTS for all preview verses without playing
+  async function generateAll() {
+    if (!selectedVoiceElId || previewVerses.length === 0) return;
+    setGenerating(true);
+    setPreviewError('');
+    for (let i = 0; i < previewVerses.length; i++) {
+      const verse = previewVerses[i];
+      if (!verse.translation) continue;
+      setGenProgress(`Generating ${i + 1} of ${previewVerses.length}...`);
+      try {
+        const url = await generateTTS(verse.translation, selectedVoiceElId, verse.surah, verse.ayah);
+        URL.revokeObjectURL(url); // we just wanted to cache it server-side
+      } catch (err) {
+        setPreviewError(`Failed on ${verse.surah}:${verse.ayah}: ${err instanceof Error ? err.message : 'TTS error'}`);
+        break;
+      }
+    }
+    setGenerating(false);
+    setGenProgress('');
+    refreshCache();
+  }
 
   const startPlayback = useCallback(async () => {
     if (previewVerses.length === 0) return;
@@ -348,6 +372,16 @@ export default function VerseRecitations() {
             )}
           </>
         )}
+
+        {previewVerses.length > 0 && selectedVoiceElId && playState === 'idle' && (
+          <button
+            onClick={generateAll}
+            disabled={generating}
+            className="px-5 py-2.5 rounded-lg bg-blue-700 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 transition-colors cursor-pointer"
+          >
+            {generating ? genProgress || 'Generating...' : 'Generate Translations'}
+          </button>
+        )}
       </div>
 
       {previewError && (
@@ -453,17 +487,25 @@ export default function VerseRecitations() {
 
 function TTSCacheRow({ entry, onDelete }: { entry: TTSCacheEntry; onDelete: (id: number) => void }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
   const [playing, setPlaying] = useState(false);
+
+  // Clean up audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+    };
+  }, []);
 
   function togglePlay() {
     if (playing && audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+      if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
       setPlaying(false);
       return;
     }
-    const audio = new Audio(ttsCacheAudioUrl(entry.id));
-    // Add auth header via fetch + blob since Audio element can't set headers
     const token = getToken();
     fetch(ttsCacheAudioUrl(entry.id), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -471,9 +513,10 @@ function TTSCacheRow({ entry, onDelete }: { entry: TTSCacheEntry; onDelete: (id:
       .then((res) => res.blob())
       .then((blob) => {
         const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
         const a = new Audio(url);
         audioRef.current = a;
-        a.onended = () => { setPlaying(false); URL.revokeObjectURL(url); };
+        a.onended = () => { setPlaying(false); URL.revokeObjectURL(url); blobUrlRef.current = null; };
         a.play();
         setPlaying(true);
       })
