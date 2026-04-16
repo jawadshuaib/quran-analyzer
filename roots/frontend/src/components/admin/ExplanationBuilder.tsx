@@ -5,7 +5,7 @@ import {
   deleteExplanation, generateClosingReflection, generateAllExplanationTTS,
   getVoices,
 } from '../../api/admin';
-import type { ExplanationSegment, ExplanationListItem, Explanation, Voice } from '../../api/admin';
+import type { ExplanationSegment, ExplanationListItem, Voice } from '../../api/admin';
 import type { SurahInfo } from '../../types';
 import SuggestRelatedModal from './SuggestRelatedModal';
 
