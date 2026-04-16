@@ -316,6 +316,20 @@ export function generatedVideoDownloadUrl(id: number): string {
   return `${BASE}/generated-videos/${id}/download`;
 }
 
+// --------------- Video Description Generation ---------------
+
+export async function generateDescription(
+  verses: { chapter: number; verse: number }[],
+): Promise<string> {
+  const res = await authFetch(`${BASE}/generate-description`, {
+    method: 'POST',
+    body: JSON.stringify({ verses }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to generate description');
+  return data.description;
+}
+
 // --------------- Moving Verse Suggestions ---------------
 
 export interface MovingVerseGroup {

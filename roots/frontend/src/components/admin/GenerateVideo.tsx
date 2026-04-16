@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   getResources, getReciters, getTTSCache,
   startVideoGeneration, getGeneratedVideos, deleteGeneratedVideo,
-  generatedVideoDownloadUrl, getToken,
+  generatedVideoDownloadUrl, getToken, generateDescription,
 } from '../../api/admin';
 import type { Resource, Reciter, TTSCacheEntry, GeneratedVideo } from '../../api/admin';
 
@@ -29,6 +29,10 @@ export default function GenerateVideo() {
   const [genError, setGenError] = useState('');
   const [videos, setVideos] = useState<GeneratedVideo[]>([]);
   const pollRef = useRef<number | null>(null);
+
+  // Description
+  const [description, setDescription] = useState('');
+  const [generatingDesc, setGeneratingDesc] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -134,6 +138,24 @@ export default function GenerateVideo() {
     }
   }
 
+  async function handleGenerateDescription() {
+    if (selectedIds.size === 0) return;
+    setGeneratingDesc(true);
+    setGenError('');
+    try {
+      const verses = ttsEntries
+        .filter((e) => selectedIds.has(e.id))
+        .sort((a, b) => a.chapter !== b.chapter ? a.chapter - b.chapter : a.verse - b.verse)
+        .map((e) => ({ chapter: e.chapter, verse: e.verse }));
+      const desc = await generateDescription(verses);
+      setDescription(desc);
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Failed to generate description');
+    } finally {
+      setGeneratingDesc(false);
+    }
+  }
+
   // Group TTS entries by surah
   const grouped = ttsEntries.reduce<Record<string, TTSCacheEntry[]>>((acc, e) => {
     const key = `${e.chapter}. ${e.surah_name}`;
@@ -227,6 +249,37 @@ export default function GenerateVideo() {
               </button>
             )}
           </div>
+
+          {/* Description */}
+          {selectedIds.size > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-stone-700">YouTube Description</label>
+                <button
+                  onClick={handleGenerateDescription}
+                  disabled={generatingDesc}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 disabled:opacity-50 cursor-pointer"
+                >
+                  {generatingDesc ? 'Generating...' : description ? 'Regenerate' : 'Generate with AI'}
+                </button>
+              </div>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Click 'Generate with AI' to create a description from the selected verses..."
+                rows={6}
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-stone-400 resize-y"
+              />
+              {description && (
+                <button
+                  onClick={() => { navigator.clipboard.writeText(description); }}
+                  className="text-xs text-stone-400 hover:text-stone-600 mt-1 cursor-pointer"
+                >
+                  Copy to clipboard
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Generate */}
           <button

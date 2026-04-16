@@ -5973,6 +5973,142 @@ def admin_download_generated_video(vid_id):
         conn.close()
 
 
+# --------------- Video Description Generation ---------------
+
+@app.route("/api/admin/generate-description", methods=["POST"])
+@admin_required
+def admin_generate_description():
+    """Generate a YouTube description for selected verses using Claude."""
+    body = request.get_json(silent=True) or {}
+    verses = body.get("verses", [])  # [{chapter, verse}, ...]
+    if not verses:
+        return jsonify({"error": "No verses provided"}), 400
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "Claude API key not configured"}), 500
+
+    conn = get_db()
+    try:
+        verse_blocks = []
+        first_ch, first_v = verses[0]["chapter"], verses[0]["verse"]
+        last_ch, last_v = verses[-1]["chapter"], verses[-1]["verse"]
+
+        for v in verses:
+            ch, vs = v["chapter"], v["verse"]
+
+            # Arabic text
+            row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (ch, vs),
+            ).fetchone()
+            arabic = row["text_uthmani"] if row else ""
+
+            # AI translation + departure notes (latest config)
+            ai = conn.execute(
+                "SELECT translation_text, departure_notes FROM ai_translations "
+                "WHERE chapter = ? AND verse = ? ORDER BY config_id DESC LIMIT 1",
+                (ch, vs),
+            ).fetchone()
+            translation = ai["translation_text"] if ai else ""
+            departure_notes = ai["departure_notes"] if ai and ai["departure_notes"] else ""
+
+            # Conventional translation for comparison
+            conv = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (ch, vs),
+            ).fetchone()
+            conventional = html.unescape(re.sub(r"<[^>]+>", "", conv["text_en"])) if conv else ""
+
+            # Word meanings with departure notes
+            words = conn.execute(
+                "SELECT word_pos, meaning_short, meaning_detailed, departure_notes, "
+                "preferred_translation, preferred_source "
+                "FROM ai_word_meanings WHERE chapter = ? AND verse = ? "
+                "ORDER BY word_pos",
+                (ch, vs),
+            ).fetchall()
+            word_insights = []
+            for w in words:
+                if w["departure_notes"]:
+                    word_insights.append(
+                        f"  Word {w['word_pos']}: \"{w['meaning_short']}\" — {w['departure_notes']}"
+                    )
+
+            block = f"Verse {ch}:{vs}\n"
+            block += f"  Arabic: {arabic}\n"
+            block += f"  Translation: {translation}\n"
+            if conventional and conventional != translation:
+                block += f"  Conventional: {conventional}\n"
+            if departure_notes:
+                block += f"  Translation notes: {departure_notes}\n"
+            if word_insights:
+                block += "  Word-level insights:\n" + "\n".join(word_insights) + "\n"
+
+            verse_blocks.append(block)
+
+        # Build link
+        link = f"https://al-nuqta.com/verse/{first_ch}:{first_v}"
+        surah_name = _surah_name(first_ch)
+        if first_ch == last_ch:
+            if first_v == last_v:
+                ref = f"{surah_name} {first_ch}:{first_v}"
+            else:
+                ref = f"{surah_name} {first_ch}:{first_v}-{last_v}"
+        else:
+            ref = f"{surah_name} {first_ch}:{first_v} - {_surah_name(last_ch)} {last_ch}:{last_v}"
+
+        prompt = (
+            f"Write a YouTube video description for a Quran recitation of {ref}.\n\n"
+            "The description should have this structure:\n"
+            f"1. Start with the verse reference link on its own line: {link}\n"
+            "2. Leave a blank line, then write a profound thought or deeper insight "
+            "inspired by these verses. This should make the viewer stop and think. "
+            "Draw on the translation notes and word-level insights when available "
+            "to surface something most people would miss. Weave these naturally into "
+            "the writing so it reads like a fluid reflection, not a linguistic breakdown.\n"
+            "3. Keep it to 2-4 short paragraphs. No hashtags, no emojis, no calls to action.\n\n"
+            "Style guidelines:\n"
+            "- Write with depth and conviction, not platitudes\n"
+            "- Avoid em dashes, they give away AI writing\n"
+            "- Avoid watered-down spiritual clichés (\"journey of faith\", \"timeless wisdom\")\n"
+            "- If a word carries unusual meaning or the translation departs from convention, "
+            "explain why in a way that feels like a discovery, not a lecture\n"
+            "- Write as someone who has genuinely pondered these verses\n\n"
+            "Here are the verses with all available context:\n\n"
+            + "\n".join(verse_blocks)
+        )
+
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": _PROXY_MODEL,
+                "max_tokens": 1024,
+                "temperature": 0.8,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=30,
+        )
+        if not resp.ok:
+            return jsonify({"error": f"Claude API error: {resp.status_code}"}), 502
+
+        result = resp.json()
+        text = result.get("content", [{}])[0].get("text", "")
+        return jsonify({"description": text.strip()})
+
+    except requests.Timeout:
+        return jsonify({"error": "Claude API timed out"}), 504
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        conn.close()
+
+
 # --------------- Moving Verse Suggestions ---------------
 
 _MOVING_VERSES_SYSTEM_PROMPT = """\
