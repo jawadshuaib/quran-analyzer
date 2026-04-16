@@ -54,6 +54,8 @@ export default function VerseRecitations() {
   // Translation editing
   const [translationEdits, setTranslationEdits] = useState<Record<string, string>>({});
   const [editingVerse, setEditingVerse] = useState<string | null>(null);
+  const translationEditsRef = useRef(translationEdits);
+  translationEditsRef.current = translationEdits;
 
   // Moving verse suggestions modal
   const [showMovingModal, setShowMovingModal] = useState(false);
@@ -197,16 +199,18 @@ export default function VerseRecitations() {
 
       // Phase 2: Translation — speak via ElevenLabs TTS or fall back to timed delay
       setCurrentPhase('translation');
-      if (selectedVoiceElId && verse.translation) {
+      const vKey = `${verse.surah}:${verse.ayah}`;
+      const transText = vKey in translationEditsRef.current ? translationEditsRef.current[vKey] : verse.translation;
+      if (selectedVoiceElId && transText) {
         try {
-          const ttsUrl = await generateTTS(verse.translation, selectedVoiceElId, verse.surah, verse.ayah);
+          const ttsUrl = await generateTTS(transText, selectedVoiceElId, verse.surah, verse.ayah);
           if (!playingRef.current) break;
           await playAudio(ttsUrl);
           URL.revokeObjectURL(ttsUrl);
           refreshCache();
         } catch {
           // TTS failed — fall back to timed delay
-          const totalMs = Math.max(2000, verse.translation.length * 40);
+          const totalMs = Math.max(2000, transText.length * 40);
           let elapsed = 0;
           const tick = 100;
           while (elapsed < totalMs && playingRef.current) {
@@ -217,7 +221,8 @@ export default function VerseRecitations() {
         }
       } else {
         // No voice selected — timed delay
-        const totalMs = Math.max(2000, verse.translation.length * 40);
+        const fallbackText = transText || verse.translation;
+        const totalMs = Math.max(2000, fallbackText.length * 40);
         let elapsed = 0;
         const tick = 100;
         while (elapsed < totalMs && playingRef.current) {
