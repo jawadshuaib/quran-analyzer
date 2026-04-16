@@ -3979,7 +3979,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/music|/generate)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation)?)?/?$", path):
         return True
     return False
 
@@ -5581,6 +5581,593 @@ def admin_music_audio(music_id):
         conn.close()
 
 
+# --------------- Admin: Verse Explanations ---------------
+
+_OPENING_PHRASE = "The Quran says"
+_TRANSITION_PHRASES = [
+    "Elsewhere the Quran says",
+    "And in another place",
+    "It also says",
+    "And again it tells us",
+    "Further it says",
+]
+
+
+def _ensure_explanation_table():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_explanations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                segments TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'draft',
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+_ensure_explanation_table()
+
+
+def _fetch_translation_for_range(conn, chapter, ayah_start, ayah_end):
+    """Fetch and concatenate English translations for a verse range."""
+    parts = []
+    for ayah in range(ayah_start, ayah_end + 1):
+        row = conn.execute(
+            "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+            (chapter, ayah),
+        ).fetchone()
+        if row:
+            text = html.unescape(re.sub(r"<[^>]+>", "", row["text_en"]))
+            parts.append(text.strip())
+    return " ".join(parts)
+
+
+def _build_explanation_segments(conn, verse_groups):
+    """Build the segments JSON array from a list of verse groups."""
+    segments = []
+    for i, vg in enumerate(verse_groups):
+        ch = vg["chapter"]
+        a_start = vg["ayah_start"]
+        a_end = vg["ayah_end"]
+        surah = _surah_name(ch)
+
+        # Transition phrase
+        if i == 0:
+            phrase = _OPENING_PHRASE
+        else:
+            phrase = _TRANSITION_PHRASES[(i - 1) % len(_TRANSITION_PHRASES)]
+        segments.append({"type": "transition", "text": phrase, "tts_filename": None})
+
+        # Verse group
+        if a_start == a_end:
+            ref = f"{surah} {ch}:{a_start}"
+        else:
+            ref = f"{surah} {ch}:{a_start}-{a_end}"
+        translation = _fetch_translation_for_range(conn, ch, a_start, a_end)
+        segments.append({
+            "type": "verses",
+            "chapter": ch,
+            "ayah_start": a_start,
+            "ayah_end": a_end,
+            "ref": ref,
+            "translation": translation,
+            "tts_filename": None,
+        })
+
+    # Closing placeholder
+    segments.append({"type": "closing", "text": "", "tts_filename": None})
+    return segments
+
+
+@app.route("/api/admin/explanations", methods=["POST"])
+@admin_required
+def admin_create_explanation():
+    """Create a new verse explanation."""
+    body = request.get_json(silent=True) or {}
+    title = body.get("title", "").strip()[:200]
+    verse_groups = body.get("verse_groups", [])
+
+    if not title:
+        return jsonify({"error": "Title required"}), 400
+    if not verse_groups or not isinstance(verse_groups, list):
+        return jsonify({"error": "At least one verse group required"}), 400
+
+    # Validate verse groups
+    for vg in verse_groups:
+        ch = vg.get("chapter")
+        a_start = vg.get("ayah_start")
+        a_end = vg.get("ayah_end")
+        if not all(isinstance(x, int) and x > 0 for x in [ch, a_start, a_end]):
+            return jsonify({"error": "Invalid verse group"}), 400
+        if a_end < a_start:
+            return jsonify({"error": "ayah_end must be >= ayah_start"}), 400
+
+    conn = get_db()
+    try:
+        segments = _build_explanation_segments(conn, verse_groups)
+        conn.execute(
+            "INSERT INTO admin_explanations (title, segments) VALUES (?, ?)",
+            (title, json.dumps(segments)),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM admin_explanations WHERE rowid = last_insert_rowid()"
+        ).fetchone()
+        result = dict(row)
+        result["segments"] = json.loads(result["segments"])
+        return jsonify(result), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/explanations", methods=["GET"])
+@admin_required
+def admin_list_explanations():
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, title, status, segments, created_at, updated_at "
+            "FROM admin_explanations ORDER BY updated_at DESC"
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            segs = json.loads(d.pop("segments"))
+            d["segment_count"] = len(segs)
+            d["verse_count"] = sum(1 for s in segs if s["type"] == "verses")
+            result.append(d)
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/explanations/<int:expl_id>", methods=["GET"])
+@admin_required
+def admin_get_explanation(expl_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM admin_explanations WHERE id = ?", (expl_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        result = dict(row)
+        result["segments"] = json.loads(result["segments"])
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/explanations/<int:expl_id>", methods=["PUT"])
+@admin_required
+def admin_update_explanation(expl_id):
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM admin_explanations WHERE id = ?", (expl_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+
+        title = body.get("title", row["title"]).strip()[:200]
+        segments = body.get("segments", json.loads(row["segments"]))
+
+        # Determine status: ready if all segments have tts_filename
+        all_have_tts = all(s.get("tts_filename") for s in segments)
+        # But closing with empty text doesn't need TTS
+        has_empty_closing = any(
+            s["type"] == "closing" and not s.get("text", "").strip() for s in segments
+        )
+        status = "ready" if all_have_tts and not has_empty_closing else "draft"
+
+        conn.execute(
+            "UPDATE admin_explanations SET title=?, segments=?, status=?, "
+            "updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (title, json.dumps(segments), status, expl_id),
+        )
+        conn.commit()
+        result = {"id": expl_id, "title": title, "segments": segments, "status": status}
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/explanations/<int:expl_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_explanation(expl_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT segments FROM admin_explanations WHERE id = ?", (expl_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        # Delete TTS files
+        segments = json.loads(row["segments"])
+        for s in segments:
+            fn = s.get("tts_filename")
+            if fn:
+                fpath = os.path.join(_TTS_CACHE_DIR, fn)
+                if os.path.isfile(fpath):
+                    os.remove(fpath)
+        conn.execute("DELETE FROM admin_explanations WHERE id = ?", (expl_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/explanation-suggest", methods=["POST"])
+@admin_required
+def admin_explanation_suggest():
+    """Suggest related verses using the IDF engine."""
+    body = request.get_json(silent=True) or {}
+    chapter = body.get("chapter")
+    ayah = body.get("ayah")
+    if not chapter or not ayah:
+        return jsonify({"error": "chapter and ayah required"}), 400
+
+    scored = _find_related_verses(chapter, ayah, limit=8)
+    conn = get_db()
+    try:
+        results = []
+        for containment, shared_weight, (s, a), shared_roots in scored:
+            row = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (s, a),
+            ).fetchone()
+            translation = ""
+            if row:
+                translation = html.unescape(re.sub(r"<[^>]+>", "", row["text_en"]))
+
+            root_details = []
+            for rbw in shared_roots:
+                arabic = _root_arabic_map.get(rbw, rbw)
+                root_details.append({"root_buckwalter": rbw, "root_arabic": arabic})
+
+            results.append({
+                "chapter": s,
+                "ayah": a,
+                "ref": f"{_surah_name(s)} {s}:{a}",
+                "translation": translation.strip(),
+                "similarity_score": round(containment, 3),
+                "shared_roots": root_details,
+            })
+        return jsonify(results)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/explanation-closing", methods=["POST"])
+@admin_required
+def admin_explanation_closing():
+    """Generate a closing reflection using Claude API."""
+    body = request.get_json(silent=True) or {}
+    segments = body.get("segments", [])
+
+    verse_segments = [s for s in segments if s.get("type") == "verses"]
+    if not verse_segments:
+        return jsonify({"error": "No verse segments provided"}), 400
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "Claude API key not configured"}), 500
+
+    # Build verse context for the prompt
+    verse_lines = []
+    for vs in verse_segments:
+        verse_lines.append(f"{vs.get('ref', '')}: {vs.get('translation', '')}")
+
+    # Fetch additional context (AI translations, departure notes) if available
+    conn = get_db()
+    try:
+        context_blocks = []
+        for vs in verse_segments:
+            ch = vs.get("chapter")
+            for ayah in range(vs.get("ayah_start", 1), vs.get("ayah_end", 1) + 1):
+                ai = conn.execute(
+                    "SELECT departure_notes FROM ai_translations "
+                    "WHERE chapter = ? AND verse = ? ORDER BY config_id DESC LIMIT 1",
+                    (ch, ayah),
+                ).fetchone()
+                if ai and ai["departure_notes"]:
+                    context_blocks.append(
+                        f"  {ch}:{ayah} notes: {ai['departure_notes']}"
+                    )
+                # Word-level insights
+                words = conn.execute(
+                    "SELECT word_pos, meaning_short, departure_notes "
+                    "FROM ai_word_meanings WHERE chapter = ? AND verse = ? "
+                    "AND departure_notes IS NOT NULL AND departure_notes != '' "
+                    "ORDER BY word_pos",
+                    (ch, ayah),
+                ).fetchall()
+                for w in words:
+                    context_blocks.append(
+                        f"  {ch}:{ayah} word {w['word_pos']} \"{w['meaning_short']}\": "
+                        f"{w['departure_notes']}"
+                    )
+    finally:
+        conn.close()
+
+    context_section = ""
+    if context_blocks:
+        context_section = (
+            "\n\nTranslation and linguistic notes (use if they add depth):\n"
+            + "\n".join(context_blocks)
+        )
+
+    prompt = (
+        "You are writing a closing reflection for a short video that presents "
+        "thematically connected Quranic verses. The video has just quoted these "
+        "verses in English:\n\n"
+        + "\n".join(verse_lines)
+        + context_section
+        + "\n\nWrite 1-2 sentences that tie these verses together into a single "
+        "insight. The reflection should be profound, almost philosophical, "
+        "revealing what these verses collectively show about the Quran's message. "
+        "If a root word or cognate connection between the verses adds genuine "
+        "depth, include it naturally.\n\n"
+        "Style: Write with conviction, as someone who has sat with these verses. "
+        "Avoid negation patterns ('not X but Y'), avoid 'merely', 'simply put'. "
+        "Avoid spiritual clichés ('timeless wisdom', 'profound reminder'). "
+        "Let the weight come from the ideas, not from announcing profundity. "
+        "No em dashes. Keep it to 1-2 sentences only."
+    )
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": _PROXY_MODEL,
+                "max_tokens": 256,
+                "temperature": 0.8,
+                "messages": [{"role": "user", "content": prompt}],
+            },
+            timeout=30,
+        )
+        if not resp.ok:
+            return jsonify({"error": f"Claude API error: {resp.status_code}"}), 502
+        result = resp.json()
+        text = result.get("content", [{}])[0].get("text", "")
+        return jsonify({"closing_text": text.strip()})
+    except requests.Timeout:
+        return jsonify({"error": "Claude API timed out"}), 504
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/admin/explanation-tts", methods=["POST"])
+@admin_required
+def admin_explanation_tts():
+    """Generate TTS for a single explanation segment."""
+    body = request.get_json(silent=True) or {}
+    expl_id = body.get("explanation_id")
+    seg_idx = body.get("segment_index")
+    text = (body.get("text") or "").strip()
+    voice_id = (body.get("voice_id") or "").strip()
+
+    if not all([expl_id, isinstance(seg_idx, int), text, voice_id]):
+        return jsonify({"error": "explanation_id, segment_index, text, voice_id required"}), 400
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT segments FROM admin_explanations WHERE id = ?", (expl_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Explanation not found"}), 404
+        segments = json.loads(row["segments"])
+        if seg_idx < 0 or seg_idx >= len(segments):
+            return jsonify({"error": "Invalid segment index"}), 400
+    finally:
+        conn.close()
+
+    # Check for existing file with same hash
+    text_hash = _tts_hash(text, voice_id)
+    filename = f"expl_{expl_id}_{seg_idx}_{text_hash}.mp3"
+    filepath = os.path.join(_TTS_CACHE_DIR, filename)
+
+    if os.path.isfile(filepath):
+        # Already exists, just update the segment reference
+        conn = get_db()
+        try:
+            segments[seg_idx]["tts_filename"] = filename
+            all_have_tts = all(s.get("tts_filename") for s in segments)
+            has_empty_closing = any(
+                s["type"] == "closing" and not s.get("text", "").strip() for s in segments
+            )
+            status = "ready" if all_have_tts and not has_empty_closing else "draft"
+            conn.execute(
+                "UPDATE admin_explanations SET segments=?, status=?, "
+                "updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (json.dumps(segments), status, expl_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return send_from_directory(_TTS_CACHE_DIR, filename, mimetype="audio/mpeg")
+
+    # Get ElevenLabs API key
+    conn = get_db()
+    try:
+        pref = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
+        ).fetchone()
+        if not pref or not pref["value"]:
+            return jsonify({"error": "ElevenLabs API key not configured"}), 400
+        api_key = pref["value"]
+    finally:
+        conn.close()
+
+    # Call ElevenLabs
+    try:
+        resp = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            headers={
+                "xi-api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg",
+            },
+            json={
+                "text": text,
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            error_msg = resp.text[:200] if resp.text else f"HTTP {resp.status_code}"
+            return jsonify({"error": f"ElevenLabs error: {error_msg}"}), 502
+
+        with open(filepath, "wb") as f:
+            f.write(resp.content)
+
+    except requests.Timeout:
+        return jsonify({"error": "ElevenLabs API timed out"}), 504
+
+    # Update segment with filename
+    conn = get_db()
+    try:
+        # Re-read in case of concurrent modification
+        row = conn.execute(
+            "SELECT segments FROM admin_explanations WHERE id = ?", (expl_id,)
+        ).fetchone()
+        segments = json.loads(row["segments"])
+        segments[seg_idx]["tts_filename"] = filename
+        all_have_tts = all(s.get("tts_filename") for s in segments)
+        has_empty_closing = any(
+            s["type"] == "closing" and not s.get("text", "").strip() for s in segments
+        )
+        status = "ready" if all_have_tts and not has_empty_closing else "draft"
+        conn.execute(
+            "UPDATE admin_explanations SET segments=?, status=?, "
+            "updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (json.dumps(segments), status, expl_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return send_from_directory(_TTS_CACHE_DIR, filename, mimetype="audio/mpeg")
+
+
+@app.route("/api/admin/explanation-generate-all-tts", methods=["POST"])
+@admin_required
+def admin_explanation_generate_all_tts():
+    """Batch-generate TTS for all segments of an explanation."""
+    body = request.get_json(silent=True) or {}
+    expl_id = body.get("explanation_id")
+    voice_id = (body.get("voice_id") or "").strip()
+
+    if not expl_id or not voice_id:
+        return jsonify({"error": "explanation_id and voice_id required"}), 400
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT segments FROM admin_explanations WHERE id = ?", (expl_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Explanation not found"}), 404
+        segments = json.loads(row["segments"])
+    finally:
+        conn.close()
+
+    # Get ElevenLabs API key
+    conn = get_db()
+    try:
+        pref = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
+        ).fetchone()
+        if not pref or not pref["value"]:
+            return jsonify({"error": "ElevenLabs API key not configured"}), 400
+        api_key = pref["value"]
+    finally:
+        conn.close()
+
+    generated = 0
+    total = len(segments)
+
+    for idx, seg in enumerate(segments):
+        text = seg.get("text") or seg.get("translation") or ""
+        text = text.strip()
+        if not text:
+            continue  # Skip empty segments (e.g. empty closing)
+        if seg.get("tts_filename"):
+            # Check if file still exists
+            if os.path.isfile(os.path.join(_TTS_CACHE_DIR, seg["tts_filename"])):
+                continue
+
+        text_hash = _tts_hash(text, voice_id)
+        filename = f"expl_{expl_id}_{idx}_{text_hash}.mp3"
+        filepath = os.path.join(_TTS_CACHE_DIR, filename)
+
+        if not os.path.isfile(filepath):
+            try:
+                resp = requests.post(
+                    f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                    headers={
+                        "xi-api-key": api_key,
+                        "Content-Type": "application/json",
+                        "Accept": "audio/mpeg",
+                    },
+                    json={
+                        "text": text,
+                        "model_id": "eleven_multilingual_v2",
+                        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+                    },
+                    timeout=30,
+                )
+                if resp.status_code != 200:
+                    return jsonify({
+                        "error": f"ElevenLabs error on segment {idx}: {resp.text[:200]}",
+                        "generated": generated,
+                    }), 502
+
+                with open(filepath, "wb") as f:
+                    f.write(resp.content)
+            except requests.Timeout:
+                return jsonify({
+                    "error": f"ElevenLabs timed out on segment {idx}",
+                    "generated": generated,
+                }), 504
+
+        segments[idx]["tts_filename"] = filename
+        generated += 1
+
+    # Update explanation
+    all_have_tts = all(s.get("tts_filename") for s in segments)
+    has_empty_closing = any(
+        s["type"] == "closing" and not s.get("text", "").strip() for s in segments
+    )
+    status = "ready" if all_have_tts and not has_empty_closing else "draft"
+
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE admin_explanations SET segments=?, status=?, "
+            "updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (json.dumps(segments), status, expl_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({"generated": generated, "total": total, "status": status})
+
+
 # --------------- Admin: Video Generation ---------------
 
 def _get_audio_duration(filepath):
@@ -6095,6 +6682,378 @@ def admin_generate_video():
 
     # Start background thread
     threading.Thread(target=_generate_video_task, args=(video_id,), daemon=True).start()
+    return jsonify({"id": video_id, "status": "pending"}), 201
+
+
+# --------------- Admin: Explanation Video Generation ---------------
+
+def _generate_explanation_video_task(video_id):
+    """Background task: generate explanation video from segments."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM admin_generated_videos WHERE id = ?", (video_id,)).fetchone()
+        if not row:
+            return
+        row = dict(row)
+    finally:
+        conn.close()
+
+    _update_video_status(video_id, "processing", "Preparing...")
+
+    verse_data = json.loads(row["verse_data"])
+    segments = verse_data.get("segments", [])
+    fmt = row["format"]
+    target_w, target_h = (1080, 1920) if fmt == "short" else (1920, 1080)
+
+    music_filename = verse_data.get("_music_filename")
+    music_path = os.path.join(_MUSIC_DIR, music_filename) if music_filename else None
+    if music_path and not os.path.isfile(music_path):
+        music_path = None
+
+    conn = get_db()
+    try:
+        resource_row = conn.execute(
+            "SELECT * FROM admin_resources WHERE id = ?", (row["resource_id"],)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not resource_row:
+        _update_video_status(video_id, "failed", error="Background video not found")
+        return
+
+    bg_path = os.path.join(_RESOURCES_DIR, resource_row["filename"])
+    if not os.path.isfile(bg_path):
+        _update_video_status(video_id, "failed", error="Background video file missing")
+        return
+
+    tmpdir = tempfile.mkdtemp(prefix="explvid_")
+    try:
+        # Step 1: Copy TTS files for each segment
+        _update_video_status(video_id, "processing", "Preparing audio files...")
+        seg_files = []
+        for i, seg in enumerate(segments):
+            fn = seg.get("tts_filename")
+            if not fn:
+                _update_video_status(video_id, "failed",
+                    error=f"Segment {i} missing TTS audio")
+                return
+            src = os.path.join(_TTS_CACHE_DIR, fn)
+            dst = os.path.join(tmpdir, f"seg_{i:03d}.mp3")
+            if not os.path.isfile(src):
+                _update_video_status(video_id, "failed",
+                    error=f"TTS file missing for segment {i}: {fn}")
+                return
+            shutil.copy2(src, dst)
+            seg_files.append(dst)
+
+        # Step 2: Build timeline with pauses between segments
+        _update_video_status(video_id, "processing", "Building timeline...")
+        seg_durs = [_get_audio_duration(f) for f in seg_files]
+
+        timeline = []
+        current_time = 0.0
+        for i, seg in enumerate(segments):
+            text = seg.get("text") or seg.get("translation") or ""
+            entry = {
+                "phase": seg["type"],  # transition, verses, closing
+                "start": current_time,
+                "dur": seg_durs[i],
+                "text": text,
+            }
+            if seg["type"] == "verses":
+                entry["ref"] = seg.get("ref", "")
+            timeline.append(entry)
+            current_time += seg_durs[i]
+
+            # Add pause after segments
+            if seg["type"] == "transition":
+                current_time += 0.3  # short pause after transition
+            elif seg["type"] == "verses":
+                current_time += 0.8  # longer pause after verses
+            # No extra pause after closing
+
+        # Outro
+        outro_dur = 5.0
+        outro_start = current_time
+        total_duration = current_time + outro_dur
+
+        # Step 3: Concatenate audio with pauses
+        _update_video_status(video_id, "processing", "Building audio track...")
+
+        # Generate silence segments
+        silence_03 = os.path.join(tmpdir, "silence_03.mp3")
+        silence_08 = os.path.join(tmpdir, "silence_08.mp3")
+        silence_outro = os.path.join(tmpdir, "silence_outro.mp3")
+        for dur, path in [(0.3, silence_03), (0.8, silence_08), (outro_dur, silence_outro)]:
+            subprocess.run(
+                [_FFMPEG, "-y", "-f", "lavfi", "-i",
+                 f"anullsrc=r=44100:cl=stereo", "-t", f"{dur:.3f}",
+                 "-c:a", "libmp3lame", "-q:a", "9", path],
+                capture_output=True, timeout=30,
+            )
+
+        concat_list = os.path.join(tmpdir, "concat.txt")
+        with open(concat_list, "w") as f:
+            for i, seg in enumerate(segments):
+                f.write(f"file '{seg_files[i]}'\n")
+                if seg["type"] == "transition":
+                    f.write(f"file '{silence_03}'\n")
+                elif seg["type"] == "verses":
+                    f.write(f"file '{silence_08}'\n")
+            f.write(f"file '{silence_outro}'\n")
+
+        combined_audio = os.path.join(tmpdir, "combined.mp3")
+        subprocess.run(
+            [_FFMPEG, "-y", "-f", "concat", "-safe", "0",
+             "-i", concat_list, "-c", "copy", combined_audio],
+            capture_output=True, timeout=120,
+        )
+
+        # Step 4: Build ASS subtitle file
+        _update_video_status(video_id, "processing", "Rendering video...")
+
+        trans_fontsize = 64 if fmt == "short" else 52
+        ref_fontsize = 62 if fmt == "short" else 52
+        text_colour = "&H00FFFFFF"
+        outline_colour = "&H50000000"
+        fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
+        ass_path = os.path.join(tmpdir, "subs.ass")
+
+        ref_band_y = 15 if fmt == "short" else 10
+        ref_band_h = 110 if fmt == "short" else 90
+        ref_margin_v = 38 if fmt == "short" else 28
+        content_band_h = 320 if fmt == "short" else 260
+        content_band_y = (target_h - content_band_h) // 2
+
+        with open(ass_path, "w", encoding="utf-8") as af:
+            af.write("[Script Info]\n")
+            af.write("ScriptType: v4.00+\n")
+            af.write(f"PlayResX: {target_w}\n")
+            af.write(f"PlayResY: {target_h}\n\n")
+
+            af.write("[V4+ Styles]\n")
+            af.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+                     "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, "
+                     "ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, "
+                     "Alignment, MarginL, MarginR, MarginV, Encoding\n")
+            af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},"
+                     f"&H000000FF,{outline_colour},&H00000000,1,0,0,0,100,100,0,0,"
+                     f"1,3,0,8,40,40,{ref_margin_v},0\n")
+            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},"
+                     f"&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,"
+                     f"1,3,0,5,60,60,0,0\n")
+            outro_site_fs = 90 if fmt == "short" else 72
+            outro_tag_fs = 54 if fmt == "short" else 44
+            af.write(f"Style: OutroSite,Liberation Sans,{outro_site_fs},&H00FFFFFF,"
+                     f"&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,"
+                     f"1,0,0,5,40,40,0,0\n")
+            af.write(f"Style: OutroTag,Liberation Sans,{outro_tag_fs},&H80FFFFFF,"
+                     f"&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,"
+                     f"1,0,0,5,40,40,0,0\n")
+
+            af.write("\n[Events]\n")
+            af.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, "
+                     "MarginV, Effect, Text\n")
+
+            def _ass_time_local(seconds):
+                h = int(seconds // 3600)
+                m = int((seconds % 3600) // 60)
+                s = seconds % 60
+                return f"{h}:{m:02d}:{s:05.2f}"
+
+            def _ass_escape_local(text):
+                return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+
+            for t in timeline:
+                start = _ass_time_local(t["start"])
+                end = _ass_time_local(t["start"] + t["dur"])
+                text = _ass_escape_local(t["text"])
+
+                if t["phase"] == "verses":
+                    ref = _ass_escape_local(t.get("ref", ""))
+                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{text}\n")
+                else:
+                    # transition or closing: just centered text
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{text}\n")
+
+            # Outro
+            outro_s = _ass_time_local(outro_start)
+            outro_e = _ass_time_local(outro_start + outro_dur)
+            cx = target_w // 2
+            cy = target_h // 2
+            site_y = cy - 40
+            tag_y = cy + 70
+            af.write(f"Dialogue: 0,{outro_s},{outro_e},OutroSite,,0,0,0,,"
+                     f"{{\\fad(800,0)\\pos({cx},{site_y})}}al-nuqta.com\n")
+            af.write(f"Dialogue: 0,{outro_s},{outro_e},OutroTag,,0,0,0,,"
+                     f"{{\\fad(1200,0)\\pos({cx},{tag_y})}}A Root Based Translation of the Quran\n")
+
+        # Step 5: Drawbox filters
+        drawbox_parts = []
+        for t in timeline:
+            s, e = t["start"], t["start"] + t["dur"]
+            enable = f"between(t\\,{s:.3f}\\,{e:.3f})"
+            # Content band always visible during speech
+            drawbox_parts.append(
+                f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
+                f":color=black@0.5:t=fill:enable='{enable}'"
+            )
+            # Ref band only during verses
+            if t["phase"] == "verses":
+                drawbox_parts.append(
+                    f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
+                    f":color=black@0.5:t=fill:enable='{enable}'"
+                )
+
+        outro_enable = f"gte(t\\,{outro_start:.3f})"
+        drawbox_parts.append(
+            f"drawbox=x=0:y=0:w=iw:h=ih"
+            f":color=black@0.75:t=fill:enable='{outro_enable}'"
+        )
+
+        # Step 6: Final render
+        output_filename = f"expl_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
+        output_path = os.path.join(_GENERATED_VIDEOS_DIR, output_filename)
+
+        vf_parts = [
+            f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase",
+            f"crop={target_w}:{target_h}",
+        ] + drawbox_parts + [
+            f"ass={ass_path}:fontsdir={fonts_dir}",
+        ]
+        vf = ",".join(vf_parts)
+
+        render_timeout = max(600, int(total_duration * 10))
+
+        if music_path:
+            af_mix = (
+                f"[1:a]volume=1.0[voice];"
+                f"[2:a]volume=0.15[music];"
+                f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3[aout]"
+            )
+            cmd = [
+                _FFMPEG, "-y",
+                "-stream_loop", "-1", "-i", bg_path,
+                "-i", combined_audio,
+                "-stream_loop", "-1", "-i", music_path,
+                "-vf", vf,
+                "-filter_complex", af_mix,
+                "-t", f"{total_duration:.3f}",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+                "-c:a", "aac", "-b:a", "192k",
+                "-map", "0:v:0", "-map", "[aout]",
+                "-movflags", "+faststart",
+                output_path,
+            ]
+        else:
+            cmd = [
+                _FFMPEG, "-y",
+                "-stream_loop", "-1", "-i", bg_path,
+                "-i", combined_audio,
+                "-vf", vf,
+                "-t", f"{total_duration:.3f}",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+                "-c:a", "aac", "-b:a", "192k",
+                "-map", "0:v:0", "-map", "1:a:0",
+                "-movflags", "+faststart",
+                output_path,
+            ]
+
+        result = subprocess.run(cmd, capture_output=True, timeout=render_timeout)
+        if result.returncode != 0:
+            stderr = result.stderr.decode(errors="replace")[:500] if result.stderr else "Unknown error"
+            _update_video_status(video_id, "failed", error=f"ffmpeg error: {stderr}")
+            return
+
+        file_size = os.path.getsize(output_path)
+        conn2 = get_db()
+        try:
+            conn2.execute(
+                """UPDATE admin_generated_videos
+                   SET status='complete', filename=?, file_size=?,
+                       completed_at=CURRENT_TIMESTAMP, progress='Done'
+                   WHERE id = ?""",
+                (output_filename, file_size, video_id),
+            )
+            conn2.commit()
+        finally:
+            conn2.close()
+
+    except subprocess.TimeoutExpired:
+        _update_video_status(video_id, "failed", error="Video generation timed out")
+    except Exception as e:
+        _update_video_status(video_id, "failed", error=str(e)[:500])
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+@app.route("/api/admin/generate-explanation-video", methods=["POST"])
+@admin_required
+def admin_generate_explanation_video():
+    """Start explanation video generation in a background thread."""
+    body = request.get_json(silent=True) or {}
+    expl_id = body.get("explanation_id")
+    fmt = body.get("format", "")
+    resource_id = body.get("resource_id")
+    music_id = body.get("music_id")
+
+    if not isinstance(expl_id, int) or expl_id <= 0:
+        return jsonify({"error": "Valid explanation_id required"}), 400
+    if fmt not in ("short", "regular"):
+        return jsonify({"error": "Format must be 'short' or 'regular'"}), 400
+    if not isinstance(resource_id, int) or resource_id <= 0:
+        return jsonify({"error": "Valid resource_id required"}), 400
+
+    conn = get_db()
+    try:
+        # Check concurrent limit
+        active = conn.execute(
+            "SELECT COUNT(*) FROM admin_generated_videos WHERE status IN ('pending','processing')"
+        ).fetchone()[0]
+        if active >= 2:
+            return jsonify({"error": "Too many videos generating. Please wait."}), 429
+
+        # Validate explanation
+        expl = conn.execute(
+            "SELECT * FROM admin_explanations WHERE id = ?", (expl_id,)
+        ).fetchone()
+        if not expl:
+            return jsonify({"error": "Explanation not found"}), 404
+        if expl["status"] != "ready":
+            return jsonify({"error": "Explanation TTS not complete. Generate all TTS first."}), 400
+
+        # Validate resource
+        res_row = conn.execute("SELECT id FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
+        if not res_row:
+            return jsonify({"error": "Resource not found"}), 404
+
+        # Validate music if provided
+        music_filename = None
+        if music_id:
+            music_row = conn.execute("SELECT filename FROM admin_music WHERE id = ?", (music_id,)).fetchone()
+            if not music_row:
+                return jsonify({"error": "Music track not found"}), 404
+            music_filename = music_row["filename"]
+
+        segments = json.loads(expl["segments"])
+        verse_data = {"segments": segments}
+        if music_filename:
+            verse_data["_music_filename"] = music_filename
+
+        title = expl["title"]
+        conn.execute(
+            """INSERT INTO admin_generated_videos (title, format, resource_id, reciter_id, verse_data, status)
+               VALUES (?, ?, ?, 0, ?, 'pending')""",
+            (title, fmt, resource_id, json.dumps(verse_data)),
+        )
+        conn.commit()
+        video_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    finally:
+        conn.close()
+
+    threading.Thread(target=_generate_explanation_video_task, args=(video_id,), daemon=True).start()
     return jsonify({"id": video_id, "status": "pending"}), 201
 
 

@@ -41,6 +41,24 @@ export default function AdminMedia() {
             Combine background video, recitation, and translation into a final video.
           </p>
         </a>
+        <a
+          href="/admin/media/explanations"
+          className="block p-5 rounded-xl border border-stone-200 bg-white hover:border-stone-400 hover:shadow-sm transition-all"
+        >
+          <h2 className="font-semibold text-stone-800 mb-1">Verse Explanations</h2>
+          <p className="text-sm text-stone-500">
+            Curate thematic verse groups with transitions and closing reflections.
+          </p>
+        </a>
+        <a
+          href="/admin/media/generate-explanation"
+          className="block p-5 rounded-xl border border-stone-200 bg-white hover:border-stone-400 hover:shadow-sm transition-all"
+        >
+          <h2 className="font-semibold text-stone-800 mb-1">Generate Explanation Video</h2>
+          <p className="text-sm text-stone-500">
+            Create videos from saved verse explanations with background and music.
+          </p>
+        </a>
       </div>
     </div>
   );

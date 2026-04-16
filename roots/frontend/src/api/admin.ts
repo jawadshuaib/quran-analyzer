@@ -412,6 +412,148 @@ export async function getMovingVerseSuggestion(
   return data;
 }
 
+// --------------- Verse Explanations ---------------
+
+export interface ExplanationSegment {
+  type: 'transition' | 'verses' | 'closing';
+  text?: string;
+  translation?: string;
+  chapter?: number;
+  ayah_start?: number;
+  ayah_end?: number;
+  ref?: string;
+  tts_filename?: string | null;
+}
+
+export interface Explanation {
+  id: number;
+  title: string;
+  segments: ExplanationSegment[];
+  status: 'draft' | 'ready';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExplanationListItem {
+  id: number;
+  title: string;
+  status: 'draft' | 'ready';
+  segment_count: number;
+  verse_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RelatedVerse {
+  chapter: number;
+  ayah: number;
+  ref: string;
+  translation: string;
+  similarity_score: number;
+  shared_roots: { root_buckwalter: string; root_arabic: string }[];
+}
+
+export async function createExplanation(
+  title: string,
+  verse_groups: { chapter: number; ayah_start: number; ayah_end: number }[],
+): Promise<Explanation> {
+  const res = await authFetch(`${BASE}/explanations`, {
+    method: 'POST',
+    body: JSON.stringify({ title, verse_groups }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create explanation');
+  return data;
+}
+
+export async function getExplanations(): Promise<ExplanationListItem[]> {
+  const res = await authFetch(`${BASE}/explanations`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch explanations');
+  return data;
+}
+
+export async function getExplanation(id: number): Promise<Explanation> {
+  const res = await authFetch(`${BASE}/explanations/${id}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch explanation');
+  return data;
+}
+
+export async function updateExplanation(
+  id: number,
+  updates: { title?: string; segments?: ExplanationSegment[] },
+): Promise<Explanation> {
+  const res = await authFetch(`${BASE}/explanations/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update explanation');
+  return data;
+}
+
+export async function deleteExplanation(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/explanations/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete');
+  }
+}
+
+export async function suggestRelatedVerses(
+  chapter: number,
+  ayah: number,
+): Promise<RelatedVerse[]> {
+  const res = await authFetch(`${BASE}/explanation-suggest`, {
+    method: 'POST',
+    body: JSON.stringify({ chapter, ayah }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to get suggestions');
+  return data;
+}
+
+export async function generateClosingReflection(
+  segments: ExplanationSegment[],
+): Promise<string> {
+  const res = await authFetch(`${BASE}/explanation-closing`, {
+    method: 'POST',
+    body: JSON.stringify({ segments }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to generate closing');
+  return data.closing_text;
+}
+
+export async function generateAllExplanationTTS(
+  explanation_id: number,
+  voice_id: string,
+): Promise<{ generated: number; total: number; status: string }> {
+  const res = await authFetch(`${BASE}/explanation-generate-all-tts`, {
+    method: 'POST',
+    body: JSON.stringify({ explanation_id, voice_id }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to generate TTS');
+  return data;
+}
+
+export async function startExplanationVideoGeneration(params: {
+  explanation_id: number;
+  format: 'short' | 'regular';
+  resource_id: number;
+  music_id?: number;
+}): Promise<{ id: number; status: string }> {
+  const res = await authFetch(`${BASE}/generate-explanation-video`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to start generation');
+  return data;
+}
+
 // --------------- Auth ---------------
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
