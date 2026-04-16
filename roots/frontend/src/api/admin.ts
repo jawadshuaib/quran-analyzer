@@ -114,7 +114,9 @@ export interface Reciter {
 
 export async function getReciters(): Promise<Reciter[]> {
   const res = await authFetch(`${BASE}/reciters`);
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch reciters');
+  return data;
 }
 
 // --------------- Recitation Preview ---------------

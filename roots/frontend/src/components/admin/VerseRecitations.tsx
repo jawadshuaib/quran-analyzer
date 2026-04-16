@@ -34,6 +34,8 @@ export default function VerseRecitations() {
   const [currentPhase, setCurrentPhase] = useState<'recitation' | 'translation'>('recitation');
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const playingRef = useRef(false); // tracks if we should keep playing
+  const pausedRef = useRef(false);  // tracks pause state for translation phase
+  const translationTimerRef = useRef<number | null>(null); // cancellable translation delay
 
   // Load initial data
   useEffect(() => {
@@ -98,9 +100,14 @@ export default function VerseRecitations() {
   // Playback controls
   const stopPlayback = useCallback(() => {
     playingRef.current = false;
+    pausedRef.current = false;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+    }
+    if (translationTimerRef.current) {
+      clearTimeout(translationTimerRef.current);
+      translationTimerRef.current = null;
     }
     setPlayState('idle');
     setCurrentIdx(-1);
@@ -138,8 +145,17 @@ export default function VerseRecitations() {
 
       // Phase 2: Translation (pause to show translation — TTS will go here later)
       setCurrentPhase('translation');
-      // For now, wait 2 seconds per translation line (TTS placeholder)
-      await new Promise((r) => setTimeout(r, Math.max(2000, verse.translation.length * 40)));
+      // Cancellable delay that respects pause and stop
+      {
+        const totalMs = Math.max(2000, verse.translation.length * 40);
+        let elapsed = 0;
+        const tick = 100;
+        while (elapsed < totalMs && playingRef.current) {
+          if (!pausedRef.current) elapsed += tick;
+          await new Promise((r) => { translationTimerRef.current = window.setTimeout(r, tick); });
+          translationTimerRef.current = null;
+        }
+      }
       if (!playingRef.current) break;
     }
 
@@ -151,12 +167,13 @@ export default function VerseRecitations() {
   }, [previewVerses, playAudio]);
 
   const togglePause = useCallback(() => {
-    if (!audioRef.current) return;
     if (playState === 'playing') {
-      audioRef.current.pause();
+      pausedRef.current = true;
+      if (audioRef.current) audioRef.current.pause();
       setPlayState('paused');
     } else if (playState === 'paused') {
-      audioRef.current.play();
+      pausedRef.current = false;
+      if (audioRef.current) audioRef.current.play();
       setPlayState('playing');
     }
   }, [playState]);

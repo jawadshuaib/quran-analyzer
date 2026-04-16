@@ -4529,6 +4529,11 @@ _LOGIN_WINDOW_SECONDS = 300  # 5 minutes
 def _check_rate_limit(ip: str) -> bool:
     """Return True if the IP is rate-limited."""
     now = time.time()
+    # Periodically purge stale IPs to prevent unbounded growth
+    if len(_login_attempts) > 1000:
+        stale = [k for k, v in _login_attempts.items() if not v or now - v[-1] > _LOGIN_WINDOW_SECONDS]
+        for k in stale:
+            del _login_attempts[k]
     attempts = _login_attempts.get(ip, [])
     # Prune old attempts
     attempts = [t for t in attempts if now - t < _LOGIN_WINDOW_SECONDS]
@@ -4731,8 +4736,8 @@ def admin_list_voices():
 @admin_required
 def admin_add_voice():
     body = request.get_json(silent=True) or {}
-    name = body.get("name", "").strip()
-    voice_id = body.get("voice_id", "").strip()
+    name = body.get("name", "").strip()[:100]
+    voice_id = body.get("voice_id", "").strip()[:100]
     if not name or not voice_id:
         return jsonify({"error": "name and voice_id required"}), 400
     conn = get_db()
@@ -4888,20 +4893,21 @@ def admin_recitation_preview():
             row = conn.execute(
                 "SELECT text_uthmani FROM verses WHERE chapter = ? AND ayah = ?", (s, a)
             ).fetchone()
-            arabic = row["text_uthmani"] if row else ""
+            arabic = _strip_bismillah(row["text_uthmani"], s, a) if row else ""
 
-            # Get translation
+            # Get translation (AI preferred, conventional fallback with HTML stripped)
             trans_row = conn.execute(
                 "SELECT translation_text FROM ai_translations WHERE chapter = ? AND verse = ?", (s, a)
             ).fetchone()
             if trans_row:
                 translation = trans_row["translation_text"]
             else:
-                # Fallback to conventional translation
                 conv_row = conn.execute(
                     "SELECT text_en FROM translations WHERE chapter = ? AND ayah = ?", (s, a)
                 ).fetchone()
-                translation = conv_row["text_en"] if conv_row else ""
+                raw = conv_row["text_en"] if conv_row else ""
+                # Strip HTML tags and decode entities from conventional translations
+                translation = html.unescape(re.sub(r"<[^>]+>", "", raw))
 
             audio_url = f"{audio_base}/{folder}/{s:03d}{a:03d}.mp3"
 
