@@ -196,6 +196,112 @@ export function ttsCacheAudioUrl(id: number): string {
   return `${BASE}/tts-cache/${id}/audio`;
 }
 
+// --------------- Resources ---------------
+
+export interface Resource {
+  id: number;
+  original_name: string;
+  filename: string;
+  file_size: number;
+  duration_seconds: number | null;
+  width: number | null;
+  height: number | null;
+  created_at: string;
+}
+
+export async function getResources(): Promise<Resource[]> {
+  const res = await authFetch(`${BASE}/resources`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch resources');
+  return data;
+}
+
+export async function uploadResource(file: File): Promise<Resource> {
+  const formData = new FormData();
+  formData.append('video', file);
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  // Do NOT set Content-Type — browser sets multipart/form-data with boundary
+  const res = await fetch(`${BASE}/resources`, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  if (res.status === 401) {
+    clearToken();
+    window.location.href = '/admin';
+    throw new Error('Session expired');
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  return data;
+}
+
+export async function deleteResource(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/resources/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete resource');
+  }
+}
+
+export function resourceThumbnailUrl(id: number): string {
+  return `${BASE}/resources/${id}/thumbnail`;
+}
+
+// --------------- Video Generation ---------------
+
+export interface GeneratedVideo {
+  id: number;
+  title: string;
+  format: string;
+  resource_id: number;
+  reciter_id: number;
+  status: string;
+  progress: string;
+  filename: string | null;
+  file_size: number | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function startVideoGeneration(params: {
+  title: string;
+  format: 'short' | 'regular';
+  resource_id: number;
+  reciter_id: number;
+  verses: Array<{ chapter: number; verse: number; tts_cache_id: number }>;
+}): Promise<{ id: number; status: string }> {
+  const res = await authFetch(`${BASE}/generate-video`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to start generation');
+  return data;
+}
+
+export async function getGeneratedVideos(): Promise<GeneratedVideo[]> {
+  const res = await authFetch(`${BASE}/generated-videos`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch videos');
+  return data;
+}
+
+export async function deleteGeneratedVideo(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/generated-videos/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete video');
+  }
+}
+
+export function generatedVideoDownloadUrl(id: number): string {
+  return `${BASE}/generated-videos/${id}/download`;
+}
+
 // --------------- Auth ---------------
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {

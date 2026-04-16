@@ -4,12 +4,16 @@ import AdminLogin from './AdminLogin';
 import AdminSettings from './AdminSettings';
 import AdminMedia from './AdminMedia';
 import VerseRecitations from './VerseRecitations';
+import AdminResources from './AdminResources';
+import GenerateVideo from './GenerateVideo';
 
-type AdminRoute = 'dashboard' | 'settings' | 'media' | 'recitations';
+type AdminRoute = 'dashboard' | 'settings' | 'media' | 'recitations' | 'resources' | 'generate';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
   if (/^\/admin\/media\/recitations\/?$/.test(path)) return 'recitations';
+  if (/^\/admin\/media\/resources\/?$/.test(path)) return 'resources';
+  if (/^\/admin\/media\/generate\/?$/.test(path)) return 'generate';
   if (/^\/admin\/media\/?$/.test(path)) return 'media';
   if (/^\/admin\/settings\/?$/.test(path)) return 'settings';
   return 'dashboard';
@@ -73,7 +77,7 @@ export default function AdminPage() {
             </a>
             <a
               href="/admin/media"
-              className={`text-sm ${route === 'media' || route === 'recitations' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+              className={`text-sm ${route === 'media' || route === 'recitations' || route === 'resources' || route === 'generate' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
             >
               Media
             </a>
@@ -97,12 +101,16 @@ export default function AdminPage() {
       </nav>
 
       {/* Breadcrumbs for nested routes */}
-      {route === 'recitations' && (
+      {(route === 'recitations' || route === 'resources' || route === 'generate') && (
         <div className="max-w-5xl mx-auto px-4 py-2">
           <div className="flex items-center gap-1.5 text-xs text-stone-400">
             <a href="/admin/media" className="hover:text-stone-600">Media</a>
             <span>/</span>
-            <span className="text-stone-600">Verse Recitations</span>
+            <span className="text-stone-600">
+              {route === 'recitations' && 'Verse Recitations'}
+              {route === 'resources' && 'Background Videos'}
+              {route === 'generate' && 'Generate Video'}
+            </span>
           </div>
         </div>
       )}
@@ -118,6 +126,8 @@ export default function AdminPage() {
         {route === 'settings' && <AdminSettings />}
         {route === 'media' && <AdminMedia />}
         {route === 'recitations' && <VerseRecitations />}
+        {route === 'resources' && <AdminResources />}
+        {route === 'generate' && <GenerateVideo />}
       </div>
     </div>
   );

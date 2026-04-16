@@ -21,6 +21,10 @@ roots/backend/data/starling_semitic.json
 # TTS cache (generated audio files)
 roots/backend/data/tts_cache/
 
+# Video resources and generated videos
+roots/backend/data/resources/
+roots/backend/data/generated_videos/
+
 # Batch API files (large JSONL request/result/error files + state)
 roots/backend/batch_files/
 roots/backend/.word_batch_state.json

@@ -64,7 +64,7 @@ function isKnownRoute(): boolean {
   if (/^\/settings\/?$/.test(path)) return true;
   if (/^\/developers\/?$/.test(path)) return true;
   if (/^\/methodology\/?$/.test(path)) return true;
-  if (/^\/admin(\/settings|\/media(\/recitations)?)?\/?$/.test(path)) return true;
+  if (/^\/admin(\/settings|\/media(\/recitations|\/resources|\/generate)?)?\/?$/.test(path)) return true;
   return false;
 }
 
@@ -221,7 +221,7 @@ export default function App() {
     return <ApiPage />;
   }
 
-  if (/^\/admin(\/settings|\/media(\/recitations)?)?\/?$/.test(currentPath)) {
+  if (/^\/admin(\/settings|\/media(\/recitations|\/resources|\/generate)?)?\/?$/.test(currentPath)) {
     return <AdminPage />;
   }
 

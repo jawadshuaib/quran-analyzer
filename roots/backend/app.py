@@ -8,13 +8,19 @@ import json
 import math
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
+import tempfile
 import threading
 import time
+import uuid
 from collections import OrderedDict, defaultdict
 from urllib.parse import quote
 
+import arabic_reshaper
 import secrets
+from bidi.algorithm import get_display
 from datetime import datetime, timezone
 from functools import wraps
 
@@ -3889,7 +3895,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/media(/recitations)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/generate)?)?/?$", path):
         return True
     return False
 
@@ -4931,6 +4937,21 @@ def admin_recitation_preview():
 _TTS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "tts_cache")
 os.makedirs(_TTS_CACHE_DIR, exist_ok=True)
 
+_RESOURCES_DIR = os.path.join(os.path.dirname(__file__), "data", "resources")
+os.makedirs(_RESOURCES_DIR, exist_ok=True)
+
+_GENERATED_VIDEOS_DIR = os.path.join(os.path.dirname(__file__), "data", "generated_videos")
+os.makedirs(_GENERATED_VIDEOS_DIR, exist_ok=True)
+
+_FFMPEG = "ffmpeg"
+_FFPROBE = "ffprobe"
+
+# Arabic font for video text overlays
+_ARABIC_FONT = os.path.join(os.path.dirname(__file__), "data", "fonts", "Amiri-Regular.ttf")
+if not os.path.isfile(_ARABIC_FONT):
+    _ARABIC_FONT = "/System/Library/Fonts/GeezaPro.ttc"  # macOS fallback
+_LATIN_FONT = "/System/Library/Fonts/Helvetica.ttc"
+
 
 def _ensure_tts_cache_table():
     conn = get_db()
@@ -5133,6 +5154,575 @@ def admin_tts_cache_audio(cache_id):
         if not os.path.isfile(filepath):
             return jsonify({"error": "Audio file missing"}), 404
         return send_from_directory(_TTS_CACHE_DIR, row["filename"], mimetype="audio/mpeg")
+    finally:
+        conn.close()
+
+
+# --------------- Admin: Resources (background videos) ---------------
+
+def _ensure_resource_tables():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_resources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_name TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                duration_seconds REAL,
+                width INTEGER,
+                height INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_generated_videos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                format TEXT NOT NULL,
+                resource_id INTEGER REFERENCES admin_resources(id),
+                reciter_id INTEGER NOT NULL,
+                verse_data TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                progress TEXT DEFAULT '',
+                filename TEXT,
+                file_size INTEGER,
+                error_message TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                completed_at TEXT
+            )
+        """)
+        conn.commit()
+        # On startup: reset stuck jobs
+        conn.execute(
+            "UPDATE admin_generated_videos SET status='failed', error_message='Server restarted' "
+            "WHERE status IN ('pending','processing')"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+_ensure_resource_tables()
+
+
+def _probe_video(filepath):
+    """Extract duration, width, height from a video file using ffprobe."""
+    result = subprocess.run(
+        [_FFPROBE, "-v", "quiet", "-print_format", "json",
+         "-show_format", "-show_streams", filepath],
+        capture_output=True, text=True, timeout=30
+    )
+    info = json.loads(result.stdout)
+    video_stream = next(
+        (s for s in info.get("streams", []) if s.get("codec_type") == "video"), None
+    )
+    duration = float(info.get("format", {}).get("duration", 0))
+    width = int(video_stream["width"]) if video_stream else None
+    height = int(video_stream["height"]) if video_stream else None
+    return duration, width, height
+
+
+_ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".webm"}
+
+
+@app.route("/api/admin/resources", methods=["POST"])
+@admin_required
+def admin_upload_resource():
+    """Upload a background video file."""
+    if request.content_length and request.content_length > 500 * 1024 * 1024:
+        return jsonify({"error": "File too large (max 500MB)"}), 413
+
+    file = request.files.get("video")
+    if not file or not file.filename:
+        return jsonify({"error": "No video file provided"}), 400
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in _ALLOWED_VIDEO_EXTS:
+        return jsonify({"error": f"Invalid file type. Allowed: {', '.join(_ALLOWED_VIDEO_EXTS)}"}), 400
+
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(_RESOURCES_DIR, filename)
+    file.save(filepath)
+
+    file_size = os.path.getsize(filepath)
+    try:
+        duration, width, height = _probe_video(filepath)
+    except Exception:
+        duration, width, height = None, None, None
+
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO admin_resources (original_name, filename, file_size, duration_seconds, width, height)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (file.filename, filename, file_size, duration, width, height),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM admin_resources WHERE rowid = last_insert_rowid()"
+        ).fetchone()
+        return jsonify(dict(row)), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/resources", methods=["GET"])
+@admin_required
+def admin_list_resources():
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM admin_resources ORDER BY created_at DESC"
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/resources/<int:resource_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_resource(resource_id):
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT filename FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        # Delete file and thumbnail
+        filepath = os.path.join(_RESOURCES_DIR, row["filename"])
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+        thumb = filepath + ".thumb.jpg"
+        if os.path.isfile(thumb):
+            os.remove(thumb)
+        conn.execute("DELETE FROM admin_resources WHERE id = ?", (resource_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/resources/<int:resource_id>/thumbnail", methods=["GET"])
+@admin_required
+def admin_resource_thumbnail(resource_id):
+    """Generate and serve a thumbnail for a resource video."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT filename FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        filepath = os.path.join(_RESOURCES_DIR, row["filename"])
+        thumb_path = filepath + ".thumb.jpg"
+        if not os.path.isfile(thumb_path):
+            try:
+                subprocess.run(
+                    [_FFMPEG, "-y", "-i", filepath, "-ss", "1", "-vframes", "1",
+                     "-vf", "scale=320:-1", thumb_path],
+                    capture_output=True, timeout=15, check=True,
+                )
+            except Exception:
+                return jsonify({"error": "Failed to generate thumbnail"}), 500
+        return send_from_directory(_RESOURCES_DIR, row["filename"] + ".thumb.jpg", mimetype="image/jpeg")
+    finally:
+        conn.close()
+
+
+# --------------- Admin: Video Generation ---------------
+
+def _get_audio_duration(filepath):
+    """Get duration of an audio file in seconds using ffprobe."""
+    result = subprocess.run(
+        [_FFPROBE, "-v", "quiet", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", filepath],
+        capture_output=True, text=True, timeout=15
+    )
+    return float(result.stdout.strip())
+
+
+def _escape_drawtext(text):
+    """Escape text for ffmpeg drawtext filter."""
+    text = text.replace("\\", "\\\\")
+    text = text.replace("'", "\u2019")  # replace with smart quote to avoid escaping issues
+    text = text.replace(":", "\\:")
+    text = text.replace("%", "%%")
+    text = text.replace("\n", "")
+    return text
+
+
+def _prepare_arabic(text):
+    """Reshape and reorder Arabic text for ffmpeg drawtext (RTL → visual order)."""
+    reshaped = arabic_reshaper.reshape(text)
+    return get_display(reshaped)
+
+
+def _wrap_text(text, max_chars):
+    """Wrap text to max_chars per line, splitting on word boundaries."""
+    words = text.split()
+    lines = []
+    current = ""
+    for word in words:
+        if current and len(current) + 1 + len(word) > max_chars:
+            lines.append(current)
+            current = word
+        else:
+            current = f"{current} {word}" if current else word
+    if current:
+        lines.append(current)
+    return lines
+
+
+def _update_video_status(video_id, status, progress="", error=""):
+    conn = get_db()
+    try:
+        if error:
+            conn.execute(
+                "UPDATE admin_generated_videos SET status=?, progress=?, error_message=? WHERE id=?",
+                (status, progress, error, video_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE admin_generated_videos SET status=?, progress=? WHERE id=?",
+                (status, progress, video_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _generate_video_task(video_id):
+    """Background task: combine background video + recitation + TTS into final video."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM admin_generated_videos WHERE id = ?", (video_id,)).fetchone()
+        if not row:
+            return
+        row = dict(row)
+    finally:
+        conn.close()
+
+    _update_video_status(video_id, "processing", "Preparing...")
+
+    verse_data = json.loads(row["verse_data"])
+    fmt = row["format"]
+    target_w, target_h = (1080, 1920) if fmt == "short" else (1920, 1080)
+
+    conn = get_db()
+    try:
+        resource_row = conn.execute(
+            "SELECT * FROM admin_resources WHERE id = ?", (row["resource_id"],)
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not resource_row:
+        _update_video_status(video_id, "failed", error="Background video not found")
+        return
+
+    bg_path = os.path.join(_RESOURCES_DIR, resource_row["filename"])
+    if not os.path.isfile(bg_path):
+        _update_video_status(video_id, "failed", error="Background video file missing")
+        return
+
+    tmpdir = tempfile.mkdtemp(prefix="vidgen_")
+    try:
+        # Step 1: Download recitation audio and collect TTS files
+        audio_segments = []
+        for i, v in enumerate(verse_data):
+            _update_video_status(video_id, "processing",
+                f"Downloading audio {i + 1}/{len(verse_data)}...")
+
+            # Download recitation from Quran.com
+            recit_path = os.path.join(tmpdir, f"recit_{i:03d}.mp3")
+            try:
+                resp = requests.get(v["audio_url"], timeout=30)
+                resp.raise_for_status()
+                with open(recit_path, "wb") as f:
+                    f.write(resp.content)
+            except Exception as e:
+                _update_video_status(video_id, "failed",
+                    error=f"Failed to download recitation for {v['verse_ref']}: {e}")
+                return
+
+            # Copy TTS from cache
+            tts_src = os.path.join(_TTS_CACHE_DIR, v["tts_filename"])
+            tts_path = os.path.join(tmpdir, f"tts_{i:03d}.mp3")
+            if os.path.isfile(tts_src):
+                shutil.copy2(tts_src, tts_path)
+            else:
+                _update_video_status(video_id, "failed",
+                    error=f"TTS cache file missing for {v['verse_ref']}")
+                return
+
+            audio_segments.append((recit_path, tts_path))
+
+        # Step 2: Get durations and build timeline
+        _update_video_status(video_id, "processing", "Analyzing audio durations...")
+        timeline = []
+        current_time = 0.0
+        for i, (recit, tts) in enumerate(audio_segments):
+            recit_dur = _get_audio_duration(recit)
+            tts_dur = _get_audio_duration(tts)
+            timeline.append({
+                "recit_start": current_time,
+                "recit_dur": recit_dur,
+                "tts_start": current_time + recit_dur,
+                "tts_dur": tts_dur,
+                "arabic": verse_data[i]["arabic_text"],
+                "translation": verse_data[i]["translation"],
+                "ref": verse_data[i]["verse_ref"],
+            })
+            current_time += recit_dur + tts_dur
+
+        total_duration = current_time
+
+        # Step 3: Concatenate all audio
+        _update_video_status(video_id, "processing", "Building audio track...")
+        concat_list = os.path.join(tmpdir, "concat.txt")
+        with open(concat_list, "w") as f:
+            for recit, tts in audio_segments:
+                f.write(f"file '{recit}'\n")
+                f.write(f"file '{tts}'\n")
+
+        combined_audio = os.path.join(tmpdir, "combined.mp3")
+        subprocess.run(
+            [_FFMPEG, "-y", "-f", "concat", "-safe", "0",
+             "-i", concat_list, "-c", "copy", combined_audio],
+            check=True, capture_output=True, timeout=120,
+        )
+
+        # Step 4: Build drawtext filter chain
+        _update_video_status(video_id, "processing", "Rendering video...")
+        filter_parts = []
+
+        # Scale and crop background to target resolution
+        filter_parts.append(
+            f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
+            f"crop={target_w}:{target_h}"
+        )
+
+        max_chars = 40 if fmt == "short" else 70
+        arabic_fontsize = 44 if fmt == "short" else 40
+        trans_fontsize = 28 if fmt == "short" else 26
+        ref_fontsize = 24
+
+        for t in timeline:
+            verse_start = t["recit_start"]
+            verse_end = t["tts_start"] + t["tts_dur"]
+
+            # Verse reference (top center, during entire verse)
+            ref_escaped = _escape_drawtext(t["ref"])
+            filter_parts.append(
+                f"drawtext=text='{ref_escaped}'"
+                f":fontfile='{_LATIN_FONT}':fontsize={ref_fontsize}"
+                f":fontcolor=white:borderw=2:bordercolor=black@0.7"
+                f":x=(w-tw)/2:y=60"
+                f":enable='between(t,{verse_start:.3f},{verse_end:.3f})'"
+            )
+
+            # Arabic text (centered vertically, during entire verse)
+            arabic_visual = _prepare_arabic(t["arabic"])
+            arabic_escaped = _escape_drawtext(arabic_visual)
+            arabic_y = "(h/2-th-40)" if fmt == "short" else "(h/2-th-20)"
+            filter_parts.append(
+                f"drawtext=text='{arabic_escaped}'"
+                f":fontfile='{_ARABIC_FONT}':fontsize={arabic_fontsize}"
+                f":fontcolor=white:borderw=3:bordercolor=black@0.7"
+                f":x=(w-tw)/2:y={arabic_y}"
+                f":enable='between(t,{verse_start:.3f},{verse_end:.3f})'"
+            )
+
+            # Translation text (below Arabic, during TTS phase only)
+            # Wrap long text into multiple lines
+            trans_lines = _wrap_text(t["translation"], max_chars)
+            for li, line in enumerate(trans_lines):
+                line_escaped = _escape_drawtext(line)
+                line_y_offset = li * (trans_fontsize + 8)
+                if fmt == "short":
+                    base_y = f"(h/2+20+{line_y_offset})"
+                else:
+                    base_y = f"(h/2+20+{line_y_offset})"
+                filter_parts.append(
+                    f"drawtext=text='{line_escaped}'"
+                    f":fontfile='{_LATIN_FONT}':fontsize={trans_fontsize}"
+                    f":fontcolor=white:borderw=2:bordercolor=black@0.7"
+                    f":x=(w-tw)/2:y={base_y}"
+                    f":enable='between(t,{t['tts_start']:.3f},{verse_end:.3f})'"
+                )
+
+        filter_chain = ",".join(filter_parts)
+
+        # Step 5: Final render
+        output_filename = f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
+        output_path = os.path.join(_GENERATED_VIDEOS_DIR, output_filename)
+
+        render_timeout = max(600, int(total_duration * 10))
+        cmd = [
+            _FFMPEG, "-y",
+            "-stream_loop", "-1",
+            "-i", bg_path,
+            "-i", combined_audio,
+            "-vf", filter_chain,
+            "-t", f"{total_duration:.3f}",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+            "-c:a", "aac", "-b:a", "192k",
+            "-map", "0:v:0", "-map", "1:a:0",
+            "-movflags", "+faststart",
+            output_path,
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, timeout=render_timeout)
+        if result.returncode != 0:
+            stderr = result.stderr.decode(errors="replace")[:500] if result.stderr else "Unknown error"
+            _update_video_status(video_id, "failed", error=f"ffmpeg error: {stderr}")
+            return
+
+        file_size = os.path.getsize(output_path)
+        conn2 = get_db()
+        try:
+            conn2.execute(
+                """UPDATE admin_generated_videos
+                   SET status='complete', filename=?, file_size=?,
+                       completed_at=CURRENT_TIMESTAMP, progress='Done'
+                   WHERE id = ?""",
+                (output_filename, file_size, video_id),
+            )
+            conn2.commit()
+        finally:
+            conn2.close()
+
+    except subprocess.TimeoutExpired:
+        _update_video_status(video_id, "failed", error="Video generation timed out")
+    except Exception as e:
+        _update_video_status(video_id, "failed", error=str(e)[:500])
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+@app.route("/api/admin/generate-video", methods=["POST"])
+@admin_required
+def admin_generate_video():
+    """Start video generation in a background thread."""
+    body = request.get_json(silent=True) or {}
+    title = body.get("title", "").strip()[:200]
+    fmt = body.get("format", "")
+    resource_id = body.get("resource_id")
+    reciter_id = body.get("reciter_id")
+    verses = body.get("verses", [])
+
+    if not title:
+        return jsonify({"error": "Title required"}), 400
+    if fmt not in ("short", "regular"):
+        return jsonify({"error": "Format must be 'short' or 'regular'"}), 400
+    if not resource_id or not reciter_id:
+        return jsonify({"error": "Resource and reciter required"}), 400
+    if not verses or not isinstance(verses, list):
+        return jsonify({"error": "At least one verse required"}), 400
+
+    # Check concurrent generation limit
+    conn = get_db()
+    try:
+        active = conn.execute(
+            "SELECT COUNT(*) FROM admin_generated_videos WHERE status IN ('pending','processing')"
+        ).fetchone()[0]
+        if active >= 2:
+            return jsonify({"error": "Too many videos generating. Please wait."}), 429
+
+        # Validate resource exists
+        res_row = conn.execute("SELECT id FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
+        if not res_row:
+            return jsonify({"error": "Resource not found"}), 404
+
+        # Build verse_data from TTS cache entries
+        folder = _get_reciter_folder(reciter_id)
+        audio_base = "https://verses.quran.com"
+        verse_data = []
+        for v in verses:
+            cache_id = v.get("tts_cache_id")
+            cache_row = conn.execute(
+                "SELECT * FROM admin_tts_cache WHERE id = ?", (cache_id,)
+            ).fetchone()
+            if not cache_row:
+                return jsonify({"error": f"TTS cache entry {cache_id} not found"}), 404
+
+            ch, vs = cache_row["chapter"], cache_row["verse"]
+            # Get Arabic text
+            verse_row = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?", (ch, vs)
+            ).fetchone()
+            arabic = _strip_bismillah(verse_row["text_uthmani"], ch, vs) if verse_row else ""
+
+            verse_data.append({
+                "chapter": ch,
+                "verse": vs,
+                "verse_ref": f"{_surah_name(ch)} {ch}:{vs}",
+                "arabic_text": arabic,
+                "translation": cache_row["translation_text"],
+                "tts_filename": cache_row["filename"],
+                "audio_url": f"{audio_base}/{folder}/{ch:03d}{vs:03d}.mp3",
+            })
+
+        conn.execute(
+            """INSERT INTO admin_generated_videos (title, format, resource_id, reciter_id, verse_data, status)
+               VALUES (?, ?, ?, ?, ?, 'pending')""",
+            (title, fmt, resource_id, reciter_id, json.dumps(verse_data)),
+        )
+        conn.commit()
+        video_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    finally:
+        conn.close()
+
+    # Start background thread
+    threading.Thread(target=_generate_video_task, args=(video_id,), daemon=True).start()
+    return jsonify({"id": video_id, "status": "pending"}), 201
+
+
+@app.route("/api/admin/generated-videos", methods=["GET"])
+@admin_required
+def admin_list_generated_videos():
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM admin_generated_videos ORDER BY created_at DESC"
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/generated-videos/<int:vid_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_generated_video(vid_id):
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT filename FROM admin_generated_videos WHERE id = ?", (vid_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        if row["filename"]:
+            filepath = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
+            if os.path.isfile(filepath):
+                os.remove(filepath)
+        conn.execute("DELETE FROM admin_generated_videos WHERE id = ?", (vid_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/generated-videos/<int:vid_id>/download", methods=["GET"])
+@admin_required
+def admin_download_generated_video(vid_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT filename, title FROM admin_generated_videos WHERE id = ? AND status = 'complete'",
+            (vid_id,),
+        ).fetchone()
+        if not row or not row["filename"]:
+            return jsonify({"error": "Video not found or not ready"}), 404
+        return send_from_directory(
+            _GENERATED_VIDEOS_DIR, row["filename"],
+            mimetype="video/mp4", as_attachment=True,
+            download_name=f"{row['title']}.mp4",
+        )
     finally:
         conn.close()
 

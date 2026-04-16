@@ -6,3 +6,5 @@ numpy>=1.24.0
 sentence-transformers>=3.0.0
 bcrypt>=4.0.0
 PyJWT>=2.8.0
+arabic-reshaper>=3.0.0
+python-bidi>=0.6.0
