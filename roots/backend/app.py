@@ -4877,7 +4877,7 @@ def admin_recitation_preview():
             surah_ayahs = []
             for s in range(from_s, to_s + 1):
                 row = conn.execute(
-                    "SELECT MAX(ayah) as max_a FROM verses WHERE chapter = ?", (s,)
+                    "SELECT MAX(verse) as max_a FROM verses WHERE chapter = ?", (s,)
                 ).fetchone()
                 max_a = row["max_a"] if row else 0
                 start = from_a if s == from_s else 1
@@ -4891,7 +4891,7 @@ def admin_recitation_preview():
 
         for s, a in surah_ayahs:
             row = conn.execute(
-                "SELECT text_uthmani FROM verses WHERE chapter = ? AND ayah = ?", (s, a)
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?", (s, a)
             ).fetchone()
             arabic = _strip_bismillah(row["text_uthmani"], s, a) if row else ""
 
@@ -4903,7 +4903,7 @@ def admin_recitation_preview():
                 translation = trans_row["translation_text"]
             else:
                 conv_row = conn.execute(
-                    "SELECT text_en FROM translations WHERE chapter = ? AND ayah = ?", (s, a)
+                    "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?", (s, a)
                 ).fetchone()
                 raw = conv_row["text_en"] if conv_row else ""
                 # Strip HTML tags and decode entities from conventional translations
