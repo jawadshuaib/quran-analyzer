@@ -198,6 +198,22 @@ export function ttsCacheAudioUrl(id: number): string {
   return `${BASE}/tts-cache/${id}/audio`;
 }
 
+export interface StaleTTSEntry {
+  id: number;
+  chapter: number;
+  verse: number;
+  surah_name: string;
+  cached_text: string;
+  latest_text: string;
+}
+
+export async function getStaleTTSCache(): Promise<StaleTTSEntry[]> {
+  const res = await authFetch(`${BASE}/tts-cache/stale`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to check stale entries');
+  return data;
+}
+
 // --------------- Resources ---------------
 
 export interface Resource {

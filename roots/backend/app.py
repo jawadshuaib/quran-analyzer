@@ -4908,9 +4908,9 @@ def admin_recitation_preview():
             ).fetchone()
             arabic = _strip_bismillah(row["text_uthmani"], s, a) if row else ""
 
-            # Get translation (AI preferred, conventional fallback with HTML stripped)
+            # Get translation (latest AI preferred, conventional fallback with HTML stripped)
             trans_row = conn.execute(
-                "SELECT translation_text FROM ai_translations WHERE chapter = ? AND verse = ?", (s, a)
+                "SELECT translation_text FROM ai_translations WHERE chapter = ? AND verse = ? ORDER BY config_id DESC LIMIT 1", (s, a)
             ).fetchone()
             if trans_row:
                 translation = trans_row["translation_text"]
@@ -5135,6 +5135,41 @@ def admin_tts_cache_list():
             d["surah_name"] = _surah_name(r["chapter"])
             result.append(d)
         return jsonify(result)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/tts-cache/stale", methods=["GET"])
+@admin_required
+def admin_tts_cache_stale():
+    """Check which TTS cache entries have outdated translations.
+
+    Compares cached translation_text against the latest AI translation
+    for each verse. Returns entries where they differ.
+    """
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT id, chapter, verse, translation_text FROM admin_tts_cache"
+        ).fetchall()
+        stale = []
+        for r in rows:
+            latest = conn.execute(
+                "SELECT translation_text FROM ai_translations WHERE chapter = ? AND verse = ? ORDER BY config_id DESC LIMIT 1",
+                (r["chapter"], r["verse"]),
+            ).fetchone()
+            if not latest:
+                continue
+            if latest["translation_text"].strip() != r["translation_text"].strip():
+                stale.append({
+                    "id": r["id"],
+                    "chapter": r["chapter"],
+                    "verse": r["verse"],
+                    "surah_name": _surah_name(r["chapter"]),
+                    "cached_text": r["translation_text"],
+                    "latest_text": latest["translation_text"],
+                })
+        return jsonify(stale)
     finally:
         conn.close()
 

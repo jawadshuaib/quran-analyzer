@@ -4,8 +4,9 @@ import {
   getReciters, getVoices, getPreferences, savePreferences,
   getRecitationPreview, generateTTS,
   getTTSCache, deleteTTSCache, ttsCacheAudioUrl, getToken,
+  getStaleTTSCache,
 } from '../../api/admin';
-import type { Reciter, Voice, PreviewVerse, TTSCacheEntry } from '../../api/admin';
+import type { Reciter, Voice, PreviewVerse, TTSCacheEntry, StaleTTSEntry } from '../../api/admin';
 import type { SurahInfo } from '../../types';
 
 type PlayState = 'idle' | 'playing' | 'paused';
@@ -33,6 +34,12 @@ export default function VerseRecitations() {
   const [ttsCache, setTtsCache] = useState<TTSCacheEntry[]>([]);
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState('');
+
+  // Stale translation detection
+  const [staleEntries, setStaleEntries] = useState<StaleTTSEntry[]>([]);
+  const [checkingStale, setCheckingStale] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState('');
 
   // Playback
   const [playState, setPlayState] = useState<PlayState>('idle');
@@ -231,6 +238,43 @@ export default function VerseRecitations() {
       setPlayState('playing');
     }
   }, [playState]);
+
+  // Check for stale TTS entries
+  async function checkStale() {
+    setCheckingStale(true);
+    try {
+      const stale = await getStaleTTSCache();
+      setStaleEntries(stale);
+    } catch {
+      setStaleEntries([]);
+    } finally {
+      setCheckingStale(false);
+    }
+  }
+
+  // Regenerate stale entries: delete old, generate new with latest translation
+  async function refreshStale() {
+    if (!selectedVoiceElId || staleEntries.length === 0) return;
+    setRefreshing(true);
+    for (let i = 0; i < staleEntries.length; i++) {
+      const entry = staleEntries[i];
+      setRefreshProgress(`Refreshing ${i + 1} of ${staleEntries.length}...`);
+      try {
+        // Delete old cached entry
+        await deleteTTSCache(entry.id);
+        // Generate new TTS with latest translation text
+        const url = await generateTTS(entry.latest_text, selectedVoiceElId, entry.chapter, entry.verse);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        setPreviewError(`Failed on ${entry.chapter}:${entry.verse}: ${err instanceof Error ? err.message : 'error'}`);
+        break;
+      }
+    }
+    setRefreshing(false);
+    setRefreshProgress('');
+    setStaleEntries([]);
+    refreshCache();
+  }
 
   const reciterLabel = (r: Reciter) =>
     r.style ? `${r.reciter_name} (${r.style})` : r.reciter_name;
@@ -456,10 +500,51 @@ export default function VerseRecitations() {
       {/* Cached TTS table */}
       {ttsCache.length > 0 && (
         <div className="mt-10">
-          <h2 className="text-lg font-semibold text-stone-800 mb-3">Generated Translations</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-stone-800">Generated Translations</h2>
+            <button
+              onClick={checkStale}
+              disabled={checkingStale || refreshing}
+              className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-xs font-medium hover:bg-amber-200 disabled:opacity-50 transition-colors cursor-pointer"
+            >
+              {checkingStale ? 'Checking...' : 'Check for Updates'}
+            </button>
+          </div>
           <p className="text-xs text-stone-400 mb-4">
             {ttsCache.length} cached — these will be reused on playback instead of calling ElevenLabs again.
           </p>
+
+          {/* Stale entries alert */}
+          {staleEntries.length > 0 && (
+            <div className="mb-4 border border-amber-200 bg-amber-50 rounded-lg p-4">
+              <p className="text-sm font-medium text-amber-800 mb-2">
+                {staleEntries.length} translation{staleEntries.length > 1 ? 's have' : ' has'} been updated since the audio was generated:
+              </p>
+              <ul className="text-xs text-amber-700 space-y-2 mb-3">
+                {staleEntries.map((e) => (
+                  <li key={e.id} className="border-l-2 border-amber-300 pl-3">
+                    <span className="font-medium">{e.surah_name} {e.chapter}:{e.verse}</span>
+                    <div className="text-amber-600 line-through">{e.cached_text}</div>
+                    <div className="text-emerald-700">{e.latest_text}</div>
+                  </li>
+                ))}
+              </ul>
+              {selectedVoiceElId ? (
+                <button
+                  onClick={refreshStale}
+                  disabled={refreshing}
+                  className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-medium hover:bg-amber-500 disabled:opacity-50 transition-colors cursor-pointer"
+                >
+                  {refreshing ? refreshProgress || 'Refreshing...' : `Regenerate ${staleEntries.length} Translation${staleEntries.length > 1 ? 's' : ''}`}
+                </button>
+              ) : (
+                <p className="text-xs text-amber-600">Select a voice above to regenerate.</p>
+              )}
+            </div>
+          )}
+          {staleEntries.length === 0 && checkingStale === false && ttsCache.length > 0 && (
+            <></>
+          )}
           <div className="border border-stone-200 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 text-stone-500 text-xs">
