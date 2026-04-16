@@ -10,8 +10,9 @@ RUN npm run build
 FROM python:3.12-slim
 WORKDIR /app
 
-# Install system deps for potential native packages
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+# Install system deps: curl, ffmpeg (video generation), fonts (text overlays)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ffmpeg fonts-liberation fonts-dejavu-core && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python deps (CPU-only torch to keep image small)
@@ -46,4 +47,4 @@ RUN mkdir -p /app/data
 EXPOSE 8000
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "--timeout", "120"]
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "--timeout", "300"]
