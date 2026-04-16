@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  getResources, getReciters, getTTSCache,
+  getResources, getReciters, getTTSCache, getMusicTracks,
   startVideoGeneration, getGeneratedVideos, deleteGeneratedVideo,
   generatedVideoDownloadUrl, getToken, generateDescription,
 } from '../../api/admin';
-import type { Resource, Reciter, TTSCacheEntry, GeneratedVideo } from '../../api/admin';
+import type { Resource, Reciter, TTSCacheEntry, GeneratedVideo, MusicTrack } from '../../api/admin';
 
 function formatBytes(bytes: number): string {
   if (!bytes) return '--';
@@ -20,6 +20,8 @@ export default function GenerateVideo() {
   const [reciters, setReciters] = useState<Reciter[]>([]);
   const [reciterId, setReciterId] = useState(7);
   const [ttsEntries, setTtsEntries] = useState<TTSCacheEntry[]>([]);
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
+  const [musicId, setMusicId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [title, setTitle] = useState('');
   const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
@@ -40,6 +42,7 @@ export default function GenerateVideo() {
     getResources().then((r) => { setResources(r); if (r.length > 0) setResourceId(r[0].id); }).catch(() => {});
     getReciters().then(setReciters).catch(() => {});
     getTTSCache().then(setTtsEntries).catch(() => {});
+    getMusicTracks().then(setMusicTracks).catch(() => {});
     getGeneratedVideos().then(setVideos).catch(() => {});
   }, []);
 
@@ -120,6 +123,7 @@ export default function GenerateVideo() {
         reciter_id: reciterId,
         verses,
         english_only: englishOnly || undefined,
+        music_id: musicId || undefined,
       });
       const vids = await getGeneratedVideos();
       setVideos(vids);
@@ -245,6 +249,27 @@ export default function GenerateVideo() {
               </select>
             </div>
           )}
+
+          {/* Background Music */}
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1">Background Music</label>
+            {musicTracks.length === 0 ? (
+              <p className="text-sm text-stone-400">
+                No tracks uploaded. <a href="/admin/media/music" className="text-blue-500 hover:underline">Upload one</a>.
+              </p>
+            ) : (
+              <select
+                value={musicId ?? ''}
+                onChange={(e) => setMusicId(e.target.value ? Number(e.target.value) : null)}
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-400"
+              >
+                <option value="">None</option>
+                {musicTracks.map((t) => (
+                  <option key={t.id} value={t.id}>{t.original_name}</option>
+                ))}
+              </select>
+            )}
+          </div>
 
           {/* Title */}
           <div>

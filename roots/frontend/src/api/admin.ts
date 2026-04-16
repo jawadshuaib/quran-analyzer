@@ -264,6 +264,54 @@ export function resourceThumbnailUrl(id: number): string {
   return `${BASE}/resources/${id}/thumbnail`;
 }
 
+// --------------- Background Music ---------------
+
+export interface MusicTrack {
+  id: number;
+  original_name: string;
+  filename: string;
+  file_size: number;
+  duration_seconds: number | null;
+  created_at: string;
+}
+
+export async function getMusicTracks(): Promise<MusicTrack[]> {
+  const res = await authFetch(`${BASE}/music`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch music');
+  return data;
+}
+
+export async function uploadMusicTrack(file: File): Promise<MusicTrack> {
+  const formData = new FormData();
+  formData.append('audio', file);
+  const res = await authFetch(`${BASE}/music`, {
+    method: 'POST',
+    body: formData,
+  });
+  const text = await res.text();
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(res.status === 413 ? 'File too large' : `Upload failed (${res.status})`);
+  }
+  if (!res.ok) throw new Error((data.error as string) || 'Upload failed');
+  return data as unknown as MusicTrack;
+}
+
+export async function deleteMusicTrack(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/music/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete');
+  }
+}
+
+export function musicAudioUrl(id: number): string {
+  return `${BASE}/music/${id}/audio`;
+}
+
 // --------------- Video Generation ---------------
 
 export interface GeneratedVideo {
@@ -288,6 +336,7 @@ export async function startVideoGeneration(params: {
   reciter_id: number;
   verses: Array<{ chapter: number; verse: number; tts_cache_id: number }>;
   english_only?: boolean;
+  music_id?: number;
 }): Promise<{ id: number; status: string }> {
   const res = await authFetch(`${BASE}/generate-video`, {
     method: 'POST',

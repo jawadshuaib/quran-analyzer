@@ -24,6 +24,15 @@ export default function AdminMedia() {
           </p>
         </a>
         <a
+          href="/admin/media/music"
+          className="block p-5 rounded-xl border border-stone-200 bg-white hover:border-stone-400 hover:shadow-sm transition-all"
+        >
+          <h2 className="font-semibold text-stone-800 mb-1">Background Music</h2>
+          <p className="text-sm text-stone-500">
+            Upload audio tracks to use as subtle background music in videos.
+          </p>
+        </a>
+        <a
           href="/admin/media/generate"
           className="block p-5 rounded-xl border border-stone-200 bg-white hover:border-stone-400 hover:shadow-sm transition-all"
         >

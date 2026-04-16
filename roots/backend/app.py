@@ -28,7 +28,7 @@ import bcrypt
 import jwt
 import numpy as np
 import requests
-from flask import Flask, Response, jsonify, redirect, request, send_from_directory
+from flask import Flask, Response, jsonify, redirect, request, send_file, send_from_directory
 from flask_cors import CORS
 
 # Bump this when mnemonic images are regenerated to bust browser caches
@@ -5029,6 +5029,9 @@ os.makedirs(_RESOURCES_DIR, exist_ok=True)
 _GENERATED_VIDEOS_DIR = os.path.join(os.path.dirname(__file__), "data", "generated_videos")
 os.makedirs(_GENERATED_VIDEOS_DIR, exist_ok=True)
 
+_MUSIC_DIR = os.path.join(os.path.dirname(__file__), "data", "music")
+os.makedirs(_MUSIC_DIR, exist_ok=True)
+
 _FFMPEG = "ffmpeg"
 _FFPROBE = "ffprobe"
 
@@ -5338,6 +5341,26 @@ def _ensure_resource_tables():
 _ensure_resource_tables()
 
 
+def _ensure_music_table():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_music (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                original_name TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                file_size INTEGER NOT NULL,
+                duration_seconds REAL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+_ensure_music_table()
+
+
 def _probe_video(filepath):
     """Extract duration, width, height from a video file using ffprobe."""
     result = subprocess.run(
@@ -5467,6 +5490,97 @@ def admin_resource_thumbnail(resource_id):
         conn.close()
 
 
+# --------------- Admin: Background Music ---------------
+
+_ALLOWED_AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac"}
+
+
+@app.route("/api/admin/music", methods=["POST"])
+@admin_required
+def admin_upload_music():
+    """Upload a background music track."""
+    file = request.files.get("audio")
+    if not file or not file.filename:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in _ALLOWED_AUDIO_EXTS:
+        return jsonify({"error": f"Invalid file type. Allowed: {', '.join(_ALLOWED_AUDIO_EXTS)}"}), 400
+
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(_MUSIC_DIR, filename)
+    file.save(filepath)
+
+    file_size = os.path.getsize(filepath)
+    try:
+        duration = _get_audio_duration(filepath)
+    except Exception:
+        duration = None
+
+    conn = get_db()
+    try:
+        conn.execute(
+            """INSERT INTO admin_music (original_name, filename, file_size, duration_seconds)
+               VALUES (?, ?, ?, ?)""",
+            (file.filename, filename, file_size, duration),
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT * FROM admin_music WHERE rowid = last_insert_rowid()"
+        ).fetchone()
+        return jsonify(dict(row)), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/music", methods=["GET"])
+@admin_required
+def admin_list_music():
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM admin_music ORDER BY created_at DESC"
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/music/<int:music_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_music(music_id):
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT filename FROM admin_music WHERE id = ?", (music_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        filepath = os.path.join(_MUSIC_DIR, row["filename"])
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+        conn.execute("DELETE FROM admin_music WHERE id = ?", (music_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/music/<int:music_id>/audio", methods=["GET"])
+@admin_required
+def admin_music_audio(music_id):
+    """Stream a music file for preview playback."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT filename FROM admin_music WHERE id = ?", (music_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        filepath = os.path.join(_MUSIC_DIR, row["filename"])
+        if not os.path.isfile(filepath):
+            return jsonify({"error": "File missing"}), 404
+        return send_file(filepath)
+    finally:
+        conn.close()
+
+
 # --------------- Admin: Video Generation ---------------
 
 def _get_audio_duration(filepath):
@@ -5564,6 +5678,10 @@ def _generate_video_task(video_id):
         return
 
     english_only = verse_data[0].get("english_only", False) if verse_data else False
+    music_filename = verse_data[0].get("_music_filename") if verse_data else None
+    music_path = os.path.join(_MUSIC_DIR, music_filename) if music_filename else None
+    if music_path and not os.path.isfile(music_path):
+        music_path = None  # silently skip if file was deleted
 
     tmpdir = tempfile.mkdtemp(prefix="vidgen_")
     try:
@@ -5683,7 +5801,7 @@ def _generate_video_task(video_id):
         # Font sizes
         arabic_fontsize = 96 if fmt == "short" else 78
         trans_fontsize = 64 if fmt == "short" else 52
-        ref_fontsize = 42 if fmt == "short" else 36
+        ref_fontsize = 62 if fmt == "short" else 52
 
         # ASS colours: white text, semi-transparent dark outline for readability
         # BorderStyle=1 (outline), no box background — drawbox provides the band
@@ -5695,8 +5813,8 @@ def _generate_video_task(video_id):
         # Band positions for drawbox filters
         # Ref band: top of frame
         ref_band_y = 15 if fmt == "short" else 10
-        ref_band_h = 80 if fmt == "short" else 65
-        ref_margin_v = 30 if fmt == "short" else 20
+        ref_band_h = 110 if fmt == "short" else 90
+        ref_margin_v = 38 if fmt == "short" else 28
         # Content band: vertically centered
         content_band_h = 320 if fmt == "short" else 260
         content_band_y = (target_h - content_band_h) // 2
@@ -5813,19 +5931,45 @@ def _generate_video_task(video_id):
         vf = ",".join(vf_parts)
 
         render_timeout = max(600, int(total_duration * 10))
-        cmd = [
-            _FFMPEG, "-y",
-            "-stream_loop", "-1",
-            "-i", bg_path,
-            "-i", combined_audio,
-            "-vf", vf,
-            "-t", f"{total_duration:.3f}",
-            "-c:v", "libx264", "-preset", "medium", "-crf", "23",
-            "-c:a", "aac", "-b:a", "192k",
-            "-map", "0:v:0", "-map", "1:a:0",
-            "-movflags", "+faststart",
-            output_path,
-        ]
+
+        if music_path:
+            # Mix voice audio (input 1) with background music (input 2, looped, low volume)
+            # Voice at full volume, music at ~15% for subtle background
+            af_mix = (
+                f"[1:a]volume=1.0[voice];"
+                f"[2:a]volume=0.15[music];"
+                f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3[aout]"
+            )
+            cmd = [
+                _FFMPEG, "-y",
+                "-stream_loop", "-1",
+                "-i", bg_path,
+                "-i", combined_audio,
+                "-stream_loop", "-1",
+                "-i", music_path,
+                "-vf", vf,
+                "-filter_complex", af_mix,
+                "-t", f"{total_duration:.3f}",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+                "-c:a", "aac", "-b:a", "192k",
+                "-map", "0:v:0", "-map", "[aout]",
+                "-movflags", "+faststart",
+                output_path,
+            ]
+        else:
+            cmd = [
+                _FFMPEG, "-y",
+                "-stream_loop", "-1",
+                "-i", bg_path,
+                "-i", combined_audio,
+                "-vf", vf,
+                "-t", f"{total_duration:.3f}",
+                "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+                "-c:a", "aac", "-b:a", "192k",
+                "-map", "0:v:0", "-map", "1:a:0",
+                "-movflags", "+faststart",
+                output_path,
+            ]
 
         result = subprocess.run(cmd, capture_output=True, timeout=render_timeout)
         if result.returncode != 0:
@@ -5866,6 +6010,7 @@ def admin_generate_video():
     reciter_id = body.get("reciter_id")
     verses = body.get("verses", [])
     english_only = bool(body.get("english_only", False))
+    music_id = body.get("music_id")  # optional
 
     if not title:
         return jsonify({"error": "Title required"}), 400
@@ -5893,6 +6038,14 @@ def admin_generate_video():
         res_row = conn.execute("SELECT id FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
         if not res_row:
             return jsonify({"error": "Resource not found"}), 404
+
+        # Validate music if provided
+        music_filename = None
+        if music_id:
+            music_row = conn.execute("SELECT filename FROM admin_music WHERE id = ?", (music_id,)).fetchone()
+            if not music_row:
+                return jsonify({"error": "Music track not found"}), 404
+            music_filename = music_row["filename"]
 
         # Build verse_data from TTS cache entries
         folder = _get_reciter_folder(reciter_id) if not english_only else None
@@ -5925,6 +6078,10 @@ def admin_generate_video():
             if not english_only:
                 entry["audio_url"] = f"{audio_base}/{folder}/{ch:03d}{vs:03d}.mp3"
             verse_data.append(entry)
+
+        # Store music filename as metadata in the first entry
+        if music_filename and verse_data:
+            verse_data[0]["_music_filename"] = music_filename
 
         conn.execute(
             """INSERT INTO admin_generated_videos (title, format, resource_id, reciter_id, verse_data, status)
