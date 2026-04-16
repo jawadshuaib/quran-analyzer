@@ -5481,13 +5481,14 @@ def _generate_video_task(video_id):
             tts_files.append(tts_path)
 
         # Step 2: Get durations and build timeline
-        # New layout: ALL recitations first, then ALL translations at the end
+        # Layout: ALL recitations first (with Arabic + translation text),
+        # then ALL TTS translations at the end (audio only, no text)
         _update_video_status(video_id, "processing", "Analyzing audio durations...")
 
         recit_durs = [_get_audio_duration(f) for f in recit_files]
         tts_durs = [_get_audio_duration(f) for f in tts_files]
 
-        # Phase 1: Recitations play sequentially, Arabic text shown for each
+        # Phase 1: Recitations — Arabic text + translation shown
         recit_timeline = []
         current_time = 0.0
         for i in range(len(verse_data)):
@@ -5495,24 +5496,13 @@ def _generate_video_task(video_id):
                 "start": current_time,
                 "dur": recit_durs[i],
                 "arabic": verse_data[i]["arabic_text"],
+                "translation": verse_data[i]["translation"],
                 "ref": verse_data[i]["verse_ref"],
             })
             current_time += recit_durs[i]
 
-        recit_phase_end = current_time
-
-        # Phase 2: TTS translations play sequentially, translation text shown for each
-        tts_timeline = []
-        for i in range(len(verse_data)):
-            tts_timeline.append({
-                "start": current_time,
-                "dur": tts_durs[i],
-                "translation": verse_data[i]["translation"],
-                "ref": verse_data[i]["verse_ref"],
-            })
-            current_time += tts_durs[i]
-
-        total_duration = current_time
+        # Phase 2: TTS translations — audio only, no text
+        total_duration = current_time + sum(tts_durs)
 
         # Step 3: Concatenate audio — all recitations, then all translations
         _update_video_status(video_id, "processing", "Building audio track...")
@@ -5530,94 +5520,72 @@ def _generate_video_task(video_id):
             capture_output=True, timeout=120,
         )
 
-        # Step 4: Build drawtext filter chain
+        # Step 4: Build ASS subtitle file for text overlays
+        # Using libass for proper Arabic rendering (RTL, ligatures, diacritics)
         _update_video_status(video_id, "processing", "Rendering video...")
-        filter_parts = []
 
-        # Scale and crop background to target resolution
-        filter_parts.append(
-            f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
-            f"crop={target_w}:{target_h}"
-        )
+        # Font sizes
+        arabic_fontsize = 80 if fmt == "short" else 68
+        trans_fontsize = 44 if fmt == "short" else 40
+        ref_fontsize = 40 if fmt == "short" else 36
 
-        # Font sizes — larger, especially Arabic
-        arabic_fontsize = 64 if fmt == "short" else 56
-        trans_fontsize = 36 if fmt == "short" else 32
-        ref_fontsize = 28 if fmt == "short" else 26
-        max_chars = 35 if fmt == "short" else 60
+        # ASS colour format: &HAABBGGRR
+        # Black text: &H00000000, Semi-transparent white box: &H40FFFFFF
+        fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
+        ass_path = os.path.join(tmpdir, "subs.ass")
+        with open(ass_path, "w", encoding="utf-8") as af:
+            af.write("[Script Info]\n")
+            af.write("ScriptType: v4.00+\n")
+            af.write(f"PlayResX: {target_w}\n")
+            af.write(f"PlayResY: {target_h}\n\n")
 
-        # Padding/box settings: semi-transparent white box behind black text
-        box_style = "box=1:boxborderw=16:boxcolor=white@0.75"
-        arabic_box_style = "box=1:boxborderw=20:boxcolor=white@0.75"
+            af.write("[V4+ Styles]\n")
+            af.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
+            # Ref: top-center (Alignment=8), bold, black text on white box
+            ref_margin_v = 100 if fmt == "short" else 60
+            af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},&H00000000,&H000000FF,&H00000000,&H40FFFFFF,1,0,0,0,100,100,0,0,3,0,4,8,40,40,{ref_margin_v},0\n")
+            # Arabic: center (Alignment=5), black text on white box
+            af.write(f"Style: Arabic,Amiri,{arabic_fontsize},&H00000000,&H000000FF,&H00000000,&H40FFFFFF,0,0,0,0,100,100,0,0,3,0,4,5,60,60,40,0\n")
+            # Translation: below center (Alignment=5, with MarginV offset)
+            trans_margin_v = 200 if fmt == "short" else 120
+            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},&H00000000,&H000000FF,&H00000000,&H40FFFFFF,0,0,0,0,100,100,0,0,3,0,4,2,60,60,{trans_margin_v},0\n")
 
-        # --- Phase 1: Recitation phase — show Arabic + verse ref ---
-        for t in recit_timeline:
-            verse_start = t["start"]
-            verse_end = verse_start + t["dur"]
+            af.write("\n[Events]\n")
+            af.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
 
-            # Verse reference (top center)
-            ref_escaped = _escape_drawtext(t["ref"])
-            filter_parts.append(
-                f"drawtext=text='{ref_escaped}'"
-                f":fontfile='{_LATIN_FONT}':fontsize={ref_fontsize}"
-                f":fontcolor=black:{box_style}"
-                f":x=(w-tw)/2:y=80"
-                f":enable='between(t,{verse_start:.3f},{verse_end:.3f})'"
-            )
+            def _ass_time(seconds):
+                h = int(seconds // 3600)
+                m = int((seconds % 3600) // 60)
+                s = seconds % 60
+                return f"{h}:{m:02d}:{s:05.2f}"
 
-            # Arabic text (centered)
-            arabic_visual = _prepare_arabic(t["arabic"])
-            # Wrap Arabic if too long (roughly 30 chars for short, 50 for regular)
-            arabic_max = 30 if fmt == "short" else 50
-            arabic_lines = _wrap_text(arabic_visual, arabic_max)
-            total_arabic_h = len(arabic_lines) * (arabic_fontsize + 12)
-            for li, line in enumerate(arabic_lines):
-                line_escaped = _escape_drawtext(line)
-                line_y_offset = li * (arabic_fontsize + 12)
-                arabic_y = f"(h/2-{total_arabic_h // 2}+{line_y_offset})"
-                filter_parts.append(
-                    f"drawtext=text='{line_escaped}'"
-                    f":fontfile='{_ARABIC_FONT}':fontsize={arabic_fontsize}"
-                    f":fontcolor=black:{arabic_box_style}"
-                    f":x=(w-tw)/2:y={arabic_y}"
-                    f":enable='between(t,{verse_start:.3f},{verse_end:.3f})'"
-                )
+            def _ass_escape(text):
+                return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
 
-        # --- Phase 2: Translation phase — show translation + verse ref ---
-        for t in tts_timeline:
-            tts_start = t["start"]
-            tts_end = tts_start + t["dur"]
+            # Phase 1: Recitations — show ref + Arabic + translation
+            for t in recit_timeline:
+                start = _ass_time(t["start"])
+                end = _ass_time(t["start"] + t["dur"])
+                ref = _ass_escape(t["ref"])
+                arabic = _ass_escape(t["arabic"])
+                translation = _ass_escape(t["translation"])
 
-            # Verse reference (top center)
-            ref_escaped = _escape_drawtext(t["ref"])
-            filter_parts.append(
-                f"drawtext=text='{ref_escaped}'"
-                f":fontfile='{_LATIN_FONT}':fontsize={ref_fontsize}"
-                f":fontcolor=black:{box_style}"
-                f":x=(w-tw)/2:y=80"
-                f":enable='between(t,{tts_start:.3f},{tts_end:.3f})'"
-            )
+                af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
+                af.write(f"Dialogue: 0,{start},{end},Arabic,,0,0,0,,{arabic}\n")
+                af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
 
-            # Translation text (centered, wrapped)
-            trans_lines = _wrap_text(t["translation"], max_chars)
-            total_trans_h = len(trans_lines) * (trans_fontsize + 10)
-            for li, line in enumerate(trans_lines):
-                line_escaped = _escape_drawtext(line)
-                line_y_offset = li * (trans_fontsize + 10)
-                base_y = f"(h/2-{total_trans_h // 2}+{line_y_offset})"
-                filter_parts.append(
-                    f"drawtext=text='{line_escaped}'"
-                    f":fontfile='{_LATIN_FONT}':fontsize={trans_fontsize}"
-                    f":fontcolor=black:{box_style}"
-                    f":x=(w-tw)/2:y={base_y}"
-                    f":enable='between(t,{tts_start:.3f},{tts_end:.3f})'"
-                )
+            # Phase 2: TTS plays — no text shown (audio only)
 
-        filter_chain = ",".join(filter_parts)
-
-        # Step 5: Final render
+        # Step 5: Final render using ASS subtitles
         output_filename = f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
         output_path = os.path.join(_GENERATED_VIDEOS_DIR, output_filename)
+
+        # Video filter: scale/crop background, then overlay ASS subtitles
+        vf = (
+            f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
+            f"crop={target_w}:{target_h},"
+            f"ass={ass_path}:fontsdir={fonts_dir}"
+        )
 
         render_timeout = max(600, int(total_duration * 10))
         cmd = [
@@ -5625,7 +5593,7 @@ def _generate_video_task(video_id):
             "-stream_loop", "-1",
             "-i", bg_path,
             "-i", combined_audio,
-            "-vf", filter_chain,
+            "-vf", vf,
             "-t", f"{total_duration:.3f}",
             "-c:v", "libx264", "-preset", "medium", "-crf", "23",
             "-c:a", "aac", "-b:a", "192k",
