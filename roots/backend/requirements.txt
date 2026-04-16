@@ -4,3 +4,5 @@ requests==2.32.3
 beautifulsoup4==4.12.3
 numpy>=1.24.0
 sentence-transformers>=3.0.0
+bcrypt>=4.0.0
+PyJWT>=2.8.0
