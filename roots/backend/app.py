@@ -4957,6 +4957,16 @@ _ARABIC_FONT = os.path.join(os.path.dirname(__file__), "data", "fonts", "Amiri-R
 if not os.path.isfile(_ARABIC_FONT):
     _ARABIC_FONT = "/System/Library/Fonts/GeezaPro.ttc"  # macOS fallback
 _LATIN_FONT = "/System/Library/Fonts/Helvetica.ttc"
+if not os.path.isfile(_LATIN_FONT):
+    # Linux / Docker fallback
+    for _lf in [
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/TTF/DejaVuSans.ttf",
+    ]:
+        if os.path.isfile(_lf):
+            _LATIN_FONT = _lf
+            break
 
 
 def _ensure_tts_cache_table():
@@ -5218,13 +5228,18 @@ def _probe_video(filepath):
          "-show_format", "-show_streams", filepath],
         capture_output=True, text=True, timeout=30
     )
-    info = json.loads(result.stdout)
+    if result.returncode != 0:
+        return None, None, None
+    try:
+        info = json.loads(result.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return None, None, None
     video_stream = next(
         (s for s in info.get("streams", []) if s.get("codec_type") == "video"), None
     )
-    duration = float(info.get("format", {}).get("duration", 0))
-    width = int(video_stream["width"]) if video_stream else None
-    height = int(video_stream["height"]) if video_stream else None
+    duration = float(info.get("format", {}).get("duration", 0)) or None
+    width = int(video_stream.get("width")) if video_stream and video_stream.get("width") else None
+    height = int(video_stream.get("height")) if video_stream and video_stream.get("height") else None
     return duration, width, height
 
 
@@ -5235,9 +5250,6 @@ _ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".webm"}
 @admin_required
 def admin_upload_resource():
     """Upload a background video file."""
-    if request.content_length and request.content_length > 500 * 1024 * 1024:
-        return jsonify({"error": "File too large (max 500MB)"}), 413
-
     file = request.files.get("video")
     if not file or not file.filename:
         return jsonify({"error": "No video file provided"}), 400
@@ -5317,15 +5329,21 @@ def admin_resource_thumbnail(resource_id):
         if not row:
             return jsonify({"error": "Not found"}), 404
         filepath = os.path.join(_RESOURCES_DIR, row["filename"])
+        if not os.path.isfile(filepath):
+            return jsonify({"error": "Resource video file not found on disk"}), 404
         thumb_path = filepath + ".thumb.jpg"
         if not os.path.isfile(thumb_path):
             try:
-                subprocess.run(
+                result = subprocess.run(
                     [_FFMPEG, "-y", "-i", filepath, "-ss", "1", "-vframes", "1",
                      "-vf", "scale=320:-1", thumb_path],
-                    capture_output=True, timeout=15, check=True,
+                    capture_output=True, timeout=15,
                 )
+                if result.returncode != 0 or not os.path.isfile(thumb_path):
+                    return jsonify({"error": "Failed to generate thumbnail"}), 500
             except Exception:
+                if os.path.isfile(thumb_path):
+                    os.remove(thumb_path)
                 return jsonify({"error": "Failed to generate thumbnail"}), 500
         return send_from_directory(_RESOURCES_DIR, row["filename"] + ".thumb.jpg", mimetype="image/jpeg")
     finally:
@@ -5618,10 +5636,14 @@ def admin_generate_video():
         return jsonify({"error": "Title required"}), 400
     if fmt not in ("short", "regular"):
         return jsonify({"error": "Format must be 'short' or 'regular'"}), 400
-    if not resource_id or not reciter_id:
-        return jsonify({"error": "Resource and reciter required"}), 400
+    if not isinstance(resource_id, int) or resource_id <= 0:
+        return jsonify({"error": "Valid resource_id required"}), 400
+    if not isinstance(reciter_id, int) or reciter_id <= 0:
+        return jsonify({"error": "Valid reciter_id required"}), 400
     if not verses or not isinstance(verses, list):
         return jsonify({"error": "At least one verse required"}), 400
+    if not all(isinstance(v, dict) for v in verses):
+        return jsonify({"error": "Each verse must be an object"}), 400
 
     # Check concurrent generation limit
     conn = get_db()
@@ -5724,6 +5746,8 @@ def admin_download_generated_video(vid_id):
         ).fetchone()
         if not row or not row["filename"]:
             return jsonify({"error": "Video not found or not ready"}), 404
+        if not os.path.isfile(os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])):
+            return jsonify({"error": "Video file missing from disk"}), 404
         return send_from_directory(
             _GENERATED_VIDEOS_DIR, row["filename"],
             mimetype="video/mp4", as_attachment=True,

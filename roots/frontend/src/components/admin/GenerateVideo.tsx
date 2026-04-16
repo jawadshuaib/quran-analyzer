@@ -22,6 +22,7 @@ export default function GenerateVideo() {
   const [ttsEntries, setTtsEntries] = useState<TTSCacheEntry[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [title, setTitle] = useState('');
+  const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
 
   // Generation
   const [generating, setGenerating] = useState(false);
@@ -79,8 +80,9 @@ export default function GenerateVideo() {
     setSelectedIds(new Set());
   }
 
-  // Auto-generate title from selection
+  // Auto-generate title from selection (only if not manually edited)
   useEffect(() => {
+    if (titleManuallyEdited) return;
     if (selectedIds.size === 0) { setTitle(''); return; }
     const selected = ttsEntries.filter((e) => selectedIds.has(e.id)).sort((a, b) =>
       a.chapter !== b.chapter ? a.chapter - b.chapter : a.verse - b.verse
@@ -95,7 +97,7 @@ export default function GenerateVideo() {
     } else {
       setTitle(`${first.surah_name} ${first.chapter}:${first.verse} - ${last.surah_name} ${last.chapter}:${last.verse}`);
     }
-  }, [selectedIds, ttsEntries]);
+  }, [selectedIds, ttsEntries, titleManuallyEdited]);
 
   async function handleGenerate() {
     if (!resourceId || selectedIds.size === 0) return;
@@ -127,8 +129,8 @@ export default function GenerateVideo() {
     try {
       await deleteGeneratedVideo(id);
       setVideos((prev) => prev.filter((v) => v.id !== id));
-    } catch {
-      // ignore
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
 
@@ -212,10 +214,18 @@ export default function GenerateVideo() {
             <input
               type="text"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => { setTitle(e.target.value); setTitleManuallyEdited(true); }}
               placeholder="Auto-generated from selection..."
               className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
             />
+            {titleManuallyEdited && (
+              <button
+                onClick={() => { setTitleManuallyEdited(false); }}
+                className="text-xs text-blue-500 hover:underline mt-1 cursor-pointer"
+              >
+                Reset to auto-title
+              </button>
+            )}
           </div>
 
           {/* Generate */}
@@ -319,21 +329,28 @@ export default function GenerateVideo() {
 }
 
 function VideoRow({ video, onDelete }: { video: GeneratedVideo; onDelete: (id: number) => void }) {
-  function handleDownload() {
-    const token = getToken();
-    // Need auth header for download — use fetch + blob
-    fetch(generatedVideoDownloadUrl(video.id), {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${video.title}.mp4`;
-        a.click();
-        URL.revokeObjectURL(url);
+  const [downloadError, setDownloadError] = useState('');
+
+  async function handleDownload() {
+    setDownloadError('');
+    try {
+      const token = getToken();
+      const res = await fetch(generatedVideoDownloadUrl(video.id), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Sanitize title for filename
+      const safeName = video.title.replace(/[^\w\s.-]/g, '').trim() || 'video';
+      a.download = `${safeName}.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Download failed');
+    }
   }
 
   const statusColor = {
@@ -353,6 +370,9 @@ function VideoRow({ video, onDelete }: { video: GeneratedVideo; onDelete: (id: n
           <span className="block text-xs text-red-400 mt-0.5 max-w-xs truncate" title={video.error_message}>
             {video.error_message}
           </span>
+        )}
+        {downloadError && (
+          <span className="block text-xs text-red-400 mt-0.5">{downloadError}</span>
         )}
       </td>
       <td className="px-3 py-2 text-stone-400">{video.file_size ? formatBytes(video.file_size) : '--'}</td>

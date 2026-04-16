@@ -19,8 +19,10 @@ export function isLoggedIn(): boolean {
 
 async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
+  const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    // Don't set Content-Type for FormData — browser sets multipart boundary automatically
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(options.headers as Record<string, string> || {}),
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -219,20 +221,10 @@ export async function getResources(): Promise<Resource[]> {
 export async function uploadResource(file: File): Promise<Resource> {
   const formData = new FormData();
   formData.append('video', file);
-  const token = getToken();
-  const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  // Do NOT set Content-Type — browser sets multipart/form-data with boundary
-  const res = await fetch(`${BASE}/resources`, {
+  const res = await authFetch(`${BASE}/resources`, {
     method: 'POST',
-    headers,
     body: formData,
   });
-  if (res.status === 401) {
-    clearToken();
-    window.location.href = '/admin';
-    throw new Error('Session expired');
-  }
   const text = await res.text();
   let data: Record<string, unknown>;
   try {

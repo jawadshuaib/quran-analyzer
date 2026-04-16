@@ -19,6 +19,7 @@ export default function AdminResources() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -33,20 +34,22 @@ export default function AdminResources() {
     try {
       const resource = await uploadResource(file);
       setResources((prev) => [resource, ...prev]);
+      // Only clear file input on success so user can retry on failure
+      if (fileRef.current) fileRef.current.value = '';
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
   async function handleDelete(id: number) {
+    setDeleteError('');
     try {
       await deleteResource(id);
       setResources((prev) => prev.filter((r) => r.id !== id));
-    } catch {
-      // ignore
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Delete failed');
     }
   }
 
@@ -73,6 +76,11 @@ export default function AdminResources() {
             {uploadError}
           </div>
         )}
+        {deleteError && (
+          <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 max-w-md">
+            {deleteError}
+          </div>
+        )}
       </div>
 
       {/* Resource grid */}
@@ -91,15 +99,27 @@ export default function AdminResources() {
 
 function ResourceCard({ resource, onDelete }: { resource: Resource; onDelete: (id: number) => void }) {
   const [thumbSrc, setThumbSrc] = useState<string | null>(null);
+  const [thumbError, setThumbError] = useState(false);
 
   useEffect(() => {
+    let revoke: string | null = null;
     const token = getToken();
     fetch(resourceThumbnailUrl(resource.id), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
-      .then((res) => res.blob())
-      .then((blob) => setThumbSrc(URL.createObjectURL(blob)))
-      .catch(() => {});
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed');
+        return res.blob();
+      })
+      .then((blob) => {
+        revoke = URL.createObjectURL(blob);
+        setThumbSrc(revoke);
+      })
+      .catch(() => setThumbError(true));
+
+    return () => {
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
   }, [resource.id]);
 
   return (
@@ -108,6 +128,8 @@ function ResourceCard({ resource, onDelete }: { resource: Resource; onDelete: (i
       <div className="aspect-video bg-stone-100 flex items-center justify-center">
         {thumbSrc ? (
           <img src={thumbSrc} alt={resource.original_name} className="w-full h-full object-cover" />
+        ) : thumbError ? (
+          <span className="text-xs text-stone-400">No preview</span>
         ) : (
           <span className="text-xs text-stone-300">Loading...</span>
         )}
