@@ -118,9 +118,69 @@ except Exception as e:
 " 2>&1
 fi
 
+# Back up all admin tables (preferences, voices, users, tts_cache, resources, generated_videos)
+if [ -f /app/data/quran.db ]; then
+  echo "Backing up admin tables..."
+  python3 -c "
+import sqlite3, os
+src = '/app/data/quran.db'
+bak = '/tmp/admin_backup.db'
+try:
+    conn = sqlite3.connect(src)
+    tables = [r[0] for r in conn.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'admin_%'\").fetchall()]
+    if tables:
+        bak_conn = sqlite3.connect(bak)
+        for tbl in tables:
+            schema = conn.execute(f\"SELECT sql FROM sqlite_master WHERE type='table' AND name='{tbl}'\").fetchone()
+            if schema and schema[0]:
+                bak_conn.execute(schema[0])
+                rows = conn.execute(f'SELECT * FROM {tbl}').fetchall()
+                if rows:
+                    placeholders = ','.join(['?'] * len(rows[0]))
+                    bak_conn.executemany(f'INSERT INTO {tbl} VALUES ({placeholders})', rows)
+                    print(f'  Backed up {len(rows)} rows from {tbl}')
+        bak_conn.commit()
+        bak_conn.close()
+    else:
+        print('  No admin tables found')
+    conn.close()
+except Exception as e:
+    print(f'  Admin backup warning: {e}')
+" 2>&1
+fi
+
 # Always deploy the latest database from the image
 echo "Deploying latest database..."
 cp /app/seed-quran.db /app/data/quran.db
+
+# Restore admin tables into the fresh database
+if [ -f /tmp/admin_backup.db ]; then
+  echo "Restoring admin tables..."
+  python3 -c "
+import sqlite3, os
+bak = '/tmp/admin_backup.db'
+dst = '/app/data/quran.db'
+try:
+    bak_conn = sqlite3.connect(bak)
+    tables = [r[0] for r in bak_conn.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'admin_%'\").fetchall()]
+    dst_conn = sqlite3.connect(dst)
+    for tbl in tables:
+        schema = bak_conn.execute(f\"SELECT sql FROM sqlite_master WHERE type='table' AND name='{tbl}'\").fetchone()
+        if schema and schema[0]:
+            dst_conn.execute(schema[0])
+            rows = bak_conn.execute(f'SELECT * FROM {tbl}').fetchall()
+            if rows:
+                placeholders = ','.join(['?'] * len(rows[0]))
+                dst_conn.executemany(f'INSERT OR REPLACE INTO {tbl} VALUES ({placeholders})', rows)
+                print(f'  Restored {len(rows)} rows to {tbl}')
+    dst_conn.commit()
+    dst_conn.close()
+    bak_conn.close()
+    os.remove(bak)
+except Exception as e:
+    print(f'  Admin restore warning: {e}')
+" 2>&1
+fi
 
 # Restore assistant conversations into the fresh database
 if [ -f /tmp/assistant_backup.db ]; then
