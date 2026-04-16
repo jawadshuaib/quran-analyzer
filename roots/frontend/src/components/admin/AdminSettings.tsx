@@ -7,6 +7,8 @@ export default function AdminSettings() {
     <div className="space-y-10">
       <ChangePasswordSection />
       <hr className="border-stone-200" />
+      <ClaudeApiSection />
+      <hr className="border-stone-200" />
       <ElevenLabsSection />
     </div>
   );
@@ -54,6 +56,77 @@ function ChangePasswordSection() {
           {loading ? 'Changing...' : 'Change password'}
         </button>
       </form>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Claude API Configuration                                          */
+/* ------------------------------------------------------------------ */
+
+function ClaudeApiSection() {
+  const [apiKey, setApiKey] = useState('');
+  const [masked, setMasked] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    getPreferences().then((prefs) => {
+      if (prefs.claude_api_key) setApiKey(prefs.claude_api_key);
+    });
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg('');
+    try {
+      await savePreferences({ claude_api_key: apiKey });
+      setMsg('Saved');
+      setTimeout(() => setMsg(''), 2000);
+    } catch {
+      setMsg('Failed to save');
+    } finally { setSaving(false); }
+  }
+
+  const displayKey = masked && apiKey.length > 4
+    ? '\u2022'.repeat(apiKey.length - 4) + apiKey.slice(-4)
+    : apiKey;
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold text-stone-800 mb-1">Claude API</h2>
+      <p className="text-sm text-stone-500 mb-4">Used for verse suggestions and AI features</p>
+
+      <div className="max-w-md">
+        <label className="block text-sm font-medium text-stone-700 mb-1">API Key</label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={masked ? displayKey : apiKey}
+              onChange={(e) => { setApiKey(e.target.value); setMasked(false); }}
+              onFocus={() => setMasked(false)}
+              className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+              placeholder="sk-ant-..."
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setMasked(!masked)}
+            className="px-2 text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
+          >
+            {masked ? 'Show' : 'Hide'}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-3 py-2 rounded-lg bg-stone-800 text-white text-sm hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? '...' : 'Save'}
+          </button>
+        </div>
+        {msg && <p className="text-xs text-stone-500 mt-1">{msg}</p>}
+      </div>
     </div>
   );
 }

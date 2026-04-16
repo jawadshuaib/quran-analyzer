@@ -689,6 +689,46 @@ except Exception as e:
     print(f"WARNING: verse_themes table setup failed: {e}")
 
 
+def _ensure_moving_verse_groups_table():
+    """Create the moving_verse_groups table for caching AI-suggested verse groups."""
+    for _attempt in range(5):
+        try:
+            conn = sqlite3.connect(DB_PATH, timeout=60)
+            conn.row_factory = sqlite3.Row
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS moving_verse_groups (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chapter INTEGER NOT NULL,
+                    verse_start INTEGER NOT NULL,
+                    verse_end INTEGER NOT NULL,
+                    emotional_score REAL NOT NULL,
+                    category TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    reasoning TEXT NOT NULL,
+                    translation_snippet TEXT,
+                    used INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE (chapter, verse_start, verse_end)
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_mvg_score
+                ON moving_verse_groups (emotional_score DESC)
+            """)
+            conn.commit()
+            conn.close()
+            return
+        except sqlite3.OperationalError:
+            time.sleep(3)
+    print("WARNING: Could not create moving_verse_groups table (DB locked).")
+
+
+try:
+    _ensure_moving_verse_groups_table()
+except Exception as e:
+    print(f"WARNING: moving_verse_groups table setup failed: {e}")
+
+
 # --------------- Lemma-Based IDF-Weighted Containment Engine ---------------
 
 ROOT_DISCOUNT = 0.5  # Root-only matches get half credit vs lemma matches
@@ -1242,7 +1282,45 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
 _FREE_QUESTION_LIMIT = 3
 _PROXY_MODEL = "claude-sonnet-4-20250514"
 _MODERATION_MODEL = "claude-haiku-4-20250414"
-_CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "")
+_CLAUDE_API_KEY_ENV = os.environ.get("CLAUDE_API_KEY", "")
+_CLAUDE_API_KEY = _CLAUDE_API_KEY_ENV  # backward-compat alias for CLI scripts
+
+
+_claude_key_cache: dict = {"key": None, "ts": 0.0}
+
+
+def _get_claude_api_key() -> str:
+    """Get Claude API key: prefer admin_preferences, fall back to env var.
+
+    Caches the DB lookup for 60 seconds to avoid per-request queries.
+    """
+    now = time.time()
+    if _claude_key_cache["key"] is not None and now - _claude_key_cache["ts"] < 60:
+        return _claude_key_cache["key"]
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT value FROM admin_preferences WHERE key = 'claude_api_key'"
+            ).fetchone()
+            if row and row["value"]:
+                _claude_key_cache["key"] = row["value"]
+                _claude_key_cache["ts"] = now
+                return row["value"]
+        finally:
+            conn.close()
+    except Exception:
+        pass
+    result = _CLAUDE_API_KEY_ENV
+    _claude_key_cache["key"] = result
+    _claude_key_cache["ts"] = now
+    return result
+
+
+def _invalidate_claude_key_cache():
+    """Clear the cached Claude API key (call after saving preferences)."""
+    _claude_key_cache["key"] = None
+    _claude_key_cache["ts"] = 0.0
 
 
 def _moderate_question(question: str) -> dict:
@@ -1251,7 +1329,7 @@ def _moderate_question(question: str) -> dict:
     Returns {"approved": bool, "reworded": str, "reason": str|None}.
     Falls back to approving the raw question if the API key is missing or the call fails.
     """
-    if not _CLAUDE_API_KEY:
+    if not _get_claude_api_key():
         return {"approved": True, "reworded": question, "reason": None}
 
     prompt = (
@@ -1279,7 +1357,7 @@ def _moderate_question(question: str) -> dict:
             "https://api.anthropic.com/v1/messages",
             headers={
                 "Content-Type": "application/json",
-                "x-api-key": _CLAUDE_API_KEY,
+                "x-api-key": _get_claude_api_key(),
                 "anthropic-version": "2023-06-01",
             },
             json={
@@ -1321,7 +1399,7 @@ def _synthesize_questions(questions: list) -> str:
     if len(questions) <= 1:
         return questions[0] if questions else ""
 
-    if not _CLAUDE_API_KEY:
+    if not _get_claude_api_key():
         return "; ".join(questions)
 
     numbered = "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
@@ -1341,7 +1419,7 @@ def _synthesize_questions(questions: list) -> str:
             "https://api.anthropic.com/v1/messages",
             headers={
                 "Content-Type": "application/json",
-                "x-api-key": _CLAUDE_API_KEY,
+                "x-api-key": _get_claude_api_key(),
                 "anthropic-version": "2023-06-01",
             },
             json={
@@ -1420,7 +1498,7 @@ def _evaluate_insight(conversation_id: int, chapter: int, verse: int,
     Runs in a background thread. All results (including rejections and errors)
     are logged to insight_evolution_log. Never raises exceptions to the caller.
     """
-    if not _CLAUDE_API_KEY:
+    if not _get_claude_api_key():
         return
 
     try:
@@ -1495,7 +1573,7 @@ def _evaluate_insight(conversation_id: int, chapter: int, verse: int,
                 "https://api.anthropic.com/v1/messages",
                 headers={
                     "Content-Type": "application/json",
-                    "x-api-key": _CLAUDE_API_KEY,
+                    "x-api-key": _get_claude_api_key(),
                     "anthropic-version": "2023-06-01",
                 },
                 json={
@@ -1681,7 +1759,7 @@ def _evaluate_insight(conversation_id: int, chapter: int, verse: int,
 def _trigger_insight_evaluation(conversation_id: int, chapter_verse: str,
                                 question: str, answer: str) -> None:
     """Fire-and-forget background evaluation of a Q&A for novel insights."""
-    if not _CLAUDE_API_KEY:
+    if not _get_claude_api_key():
         return
 
     parts = chapter_verse.split(":")
@@ -1724,7 +1802,7 @@ def get_assistant_usage():
 @app.route("/api/assistant/ask", methods=["POST"])
 def proxy_assistant_ask():
     """Stream a Claude response using the server's API key (free tier)."""
-    if not _CLAUDE_API_KEY:
+    if not _get_claude_api_key():
         return jsonify({"error": "Assistant not configured on this server"}), 503
 
     data = request.get_json(force=True)
@@ -1779,7 +1857,7 @@ def proxy_assistant_ask():
                 "https://api.anthropic.com/v1/messages",
                 headers={
                     "Content-Type": "application/json",
-                    "x-api-key": _CLAUDE_API_KEY,
+                    "x-api-key": _get_claude_api_key(),
                     "anthropic-version": "2023-06-01",
                 },
                 json={
@@ -4803,6 +4881,8 @@ def admin_save_preferences():
                 (str(k), str(v)),
             )
         conn.commit()
+        if "claude_api_key" in body:
+            _invalidate_claude_key_cache()
         return jsonify({"message": "Saved"})
     finally:
         conn.close()
@@ -5881,6 +5961,293 @@ def admin_download_generated_video(vid_id):
             mimetype="video/mp4", as_attachment=True,
             download_name=f"{row['title']}.mp4",
         )
+    finally:
+        conn.close()
+
+
+# --------------- Moving Verse Suggestions ---------------
+
+_MOVING_VERSES_SYSTEM_PROMPT = """\
+You are a Quranic content curator for YouTube Shorts. Identify groups of 2-5 \
+consecutive verses that are emotionally moving and meaningful as standalone clips.
+
+Selection criteria:
+- Emotional resonance: verses that evoke awe, hope, mercy, grief, humility, \
+gratitude, or spiritual awakening
+- Narrative completeness: the group conveys a complete thought or mini-story
+- Universal appeal: resonates with a broad audience, not just scholars
+- Poetic beauty: rhetorical power, imagery, parallelism
+- Standalone clarity: a viewer seeing only these verses understands the message
+
+AVOID selecting:
+- Legal or jurisprudence verses (inheritance, dietary laws, etc.)
+- Verses that require extensive context to understand
+- Groups where emotional impact comes from only one verse (padding)
+- Purely repetitive sections with no buildup
+
+Categories (assign exactly one per group):
+- "awe" — Divine majesty, creation, cosmic scale
+- "mercy" — Divine compassion, forgiveness, tenderness
+- "hope" — Promise, comfort, reassurance
+- "grief" — Loss, regret, the human condition
+- "warning" — Accountability, consequences, urgency
+- "gratitude" — Blessings, reflection, thankfulness
+- "devotion" — Love of God, worship, spiritual longing
+- "justice" — Fairness, standing for truth, protecting the weak
+
+Return ONLY a JSON array. Each element must have:
+- "chapter": integer (surah number)
+- "verse_start": integer (first verse)
+- "verse_end": integer (last verse)
+- "score": float 0.0-1.0 (emotional impact — use 0.8+ sparingly)
+- "category": one of the categories above
+- "title": a short evocative English title (3-8 words)
+- "reasoning": 1-2 sentences explaining the emotional power
+
+Return an empty array [] if no group in the given surahs qualifies.
+Aim for quality over quantity — typically 1-3 groups per surah.\
+"""
+
+# Surahs often known for emotional/spiritual content (used for weighting)
+_PRIORITY_SURAHS = [
+    1, 2, 3, 12, 14, 17, 18, 19, 20, 21, 23, 25, 26, 29, 31, 33, 35, 36,
+    37, 39, 40, 41, 42, 43, 44, 50, 51, 53, 54, 55, 56, 57, 59, 67, 73,
+    74, 75, 76, 77, 78, 79, 81, 82, 84, 86, 87, 89, 90, 91, 93, 94, 95,
+    99, 100, 101, 102, 103, 112, 113, 114,
+]
+
+
+def _fetch_surah_text_for_suggestion(conn, surah: int) -> str:
+    """Build verse text block for a surah (Arabic + best English translation)."""
+    rows = conn.execute(
+        "SELECT v.verse, v.text_uthmani, t.text_en "
+        "FROM verses v "
+        "LEFT JOIN translations t ON v.chapter = t.chapter AND v.verse = t.verse "
+        "WHERE v.chapter = ? ORDER BY v.verse",
+        (surah,),
+    ).fetchall()
+
+    lines = []
+    for r in rows:
+        arabic = _strip_bismillah(r["text_uthmani"], surah, r["verse"])
+        # Prefer AI translation (latest config), fall back to conventional
+        ai_row = conn.execute(
+            "SELECT translation_text FROM ai_translations "
+            "WHERE chapter = ? AND verse = ? ORDER BY config_id DESC LIMIT 1",
+            (surah, r["verse"]),
+        ).fetchone()
+        if ai_row:
+            english = ai_row["translation_text"]
+        else:
+            raw = r["text_en"] or ""
+            english = html.unescape(re.sub(r"<[^>]+>", "", raw))
+        lines.append(f"Verse {r['verse']}:\n  Arabic: {arabic}\n  English: {english}")
+
+    name = _surah_name(surah)
+    return f"## Surah {surah}: {name}\nTotal verses: {len(rows)}\n\n" + "\n\n".join(lines)
+
+
+def _build_translation_snippet(conn, chapter: int, vs: int, ve: int) -> str:
+    """Concatenate English translations for a verse range."""
+    parts = []
+    for v in range(vs, ve + 1):
+        ai_row = conn.execute(
+            "SELECT translation_text FROM ai_translations "
+            "WHERE chapter = ? AND verse = ? ORDER BY config_id DESC LIMIT 1",
+            (chapter, v),
+        ).fetchone()
+        if ai_row:
+            parts.append(ai_row["translation_text"])
+        else:
+            conv = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (chapter, v),
+            ).fetchone()
+            raw = conv["text_en"] if conv else ""
+            parts.append(html.unescape(re.sub(r"<[^>]+>", "", raw)))
+    return " ".join(parts)
+
+
+def _parse_moving_groups_response(raw: str) -> list:
+    """Parse JSON array from Claude response."""
+    cleaned = re.sub(r"```json\s*", "", raw)
+    cleaned = re.sub(r"```\s*", "", cleaned)
+    cleaned = cleaned.strip()
+    start = cleaned.find("[")
+    end = cleaned.rfind("]")
+    if start == -1 or end == -1:
+        raise ValueError(f"No JSON array found in response: {cleaned[:200]}")
+    return json.loads(cleaned[start:end + 1])
+
+
+@app.route("/api/admin/moving-verse-suggestions", methods=["POST"])
+@admin_required
+def admin_moving_verse_suggestion():
+    """Return an emotionally moving verse group suggestion.
+
+    Tries cached unused suggestions first; calls Claude API if cache is empty.
+    """
+    data = request.get_json(silent=True) or {}
+    category = data.get("category")
+    exclude_ids = data.get("exclude_ids", [])
+
+    conn = get_db()
+    try:
+        # --- Try serving from cache ---
+        where_parts = ["used = 0"]
+        params: list = []
+        if category:
+            where_parts.append("category = ?")
+            params.append(category)
+        if exclude_ids:
+            placeholders = ",".join("?" * len(exclude_ids))
+            where_parts.append(f"id NOT IN ({placeholders})")
+            params.extend(exclude_ids)
+
+        where_sql = " AND ".join(where_parts)
+        cached = conn.execute(
+            f"SELECT * FROM moving_verse_groups WHERE {where_sql} ORDER BY RANDOM() LIMIT 1",
+            params,
+        ).fetchone()
+
+        if cached:
+            remaining = conn.execute(
+                f"SELECT COUNT(*) as cnt FROM moving_verse_groups WHERE {where_sql}",
+                params,
+            ).fetchone()["cnt"] - 1
+            return jsonify({
+                "id": cached["id"],
+                "chapter": cached["chapter"],
+                "verse_start": cached["verse_start"],
+                "verse_end": cached["verse_end"],
+                "surah_name": _surah_name(cached["chapter"]),
+                "emotional_score": cached["emotional_score"],
+                "category": cached["category"],
+                "title": cached["title"],
+                "reasoning": cached["reasoning"],
+                "translation_snippet": cached["translation_snippet"],
+                "remaining_count": max(0, remaining),
+            })
+
+        # --- No cached suggestions — call Claude API ---
+        if not _get_claude_api_key():
+            return jsonify({"error": "Claude API key not configured"}), 500
+
+        # Pick surahs to analyze — prefer ones not yet covered
+        covered = {
+            r["chapter"]
+            for r in conn.execute("SELECT DISTINCT chapter FROM moving_verse_groups").fetchall()
+        }
+        uncovered_priority = [s for s in _PRIORITY_SURAHS if s not in covered]
+        uncovered_other = [s for s in range(1, 115) if s not in covered and s not in _PRIORITY_SURAHS]
+
+        import random as _rand
+        if uncovered_priority:
+            sample_pool = uncovered_priority
+        elif uncovered_other:
+            sample_pool = uncovered_other
+        else:
+            # All surahs covered — pick random ones for fresh suggestions
+            sample_pool = list(range(1, 115))
+
+        chosen = _rand.sample(sample_pool, min(5, len(sample_pool)))
+
+        # Build prompt with verse text from chosen surahs
+        surah_blocks = []
+        for s in chosen:
+            surah_blocks.append(_fetch_surah_text_for_suggestion(conn, s))
+
+        user_prompt = (
+            "Identify the most emotionally moving groups of consecutive verses "
+            "from the following surahs. Return 1-3 groups per surah.\n\n"
+            + "\n\n---\n\n".join(surah_blocks)
+        )
+
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": _get_claude_api_key(),
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 4096,
+                "temperature": 0.7,
+                "system": _MOVING_VERSES_SYSTEM_PROMPT,
+                "messages": [{"role": "user", "content": user_prompt}],
+            },
+            timeout=60,
+        )
+        if not resp.ok:
+            return jsonify({"error": f"Claude API error: {resp.status_code}"}), 502
+
+        body = resp.json()
+        text = body.get("content", [{}])[0].get("text", "")
+        groups = _parse_moving_groups_response(text)
+
+        if not isinstance(groups, list):
+            return jsonify({"error": "Invalid response from Claude"}), 502
+
+        # Validate and insert
+        inserted_ids = []
+        for g in groups:
+            ch = g.get("chapter")
+            vs = g.get("verse_start")
+            ve = g.get("verse_end")
+            if not all(isinstance(x, int) for x in [ch, vs, ve]):
+                continue
+            if ch < 1 or ch > 114 or vs < 1 or ve < vs:
+                continue
+            if ve - vs + 1 > 5 or ve - vs + 1 < 2:
+                continue
+            score = max(0.0, min(1.0, float(g.get("score", 0.5))))
+            cat = g.get("category", "awe")
+            title = g.get("title", "Untitled")[:200]
+            reasoning = g.get("reasoning", "")[:1000]
+            snippet = _build_translation_snippet(conn, ch, vs, ve)
+
+            try:
+                cur = conn.execute(
+                    "INSERT OR IGNORE INTO moving_verse_groups "
+                    "(chapter, verse_start, verse_end, emotional_score, category, "
+                    "title, reasoning, translation_snippet) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (ch, vs, ve, score, cat, title, reasoning, snippet),
+                )
+                if cur.lastrowid:
+                    inserted_ids.append(cur.lastrowid)
+            except Exception:
+                pass
+
+        conn.commit()
+
+        if not inserted_ids:
+            return jsonify({"error": "No valid suggestions found. Try again."}), 404
+
+        # Return the first newly inserted suggestion
+        row = conn.execute(
+            "SELECT * FROM moving_verse_groups WHERE id = ?", (inserted_ids[0],)
+        ).fetchone()
+        remaining = len(inserted_ids) - 1
+        return jsonify({
+            "id": row["id"],
+            "chapter": row["chapter"],
+            "verse_start": row["verse_start"],
+            "verse_end": row["verse_end"],
+            "surah_name": _surah_name(row["chapter"]),
+            "emotional_score": row["emotional_score"],
+            "category": row["category"],
+            "title": row["title"],
+            "reasoning": row["reasoning"],
+            "translation_snippet": row["translation_snippet"],
+            "remaining_count": remaining,
+        })
+
+    except requests.Timeout:
+        return jsonify({"error": "Claude API timed out — try again"}), 504
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
     finally:
         conn.close()
 

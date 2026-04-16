@@ -316,6 +316,38 @@ export function generatedVideoDownloadUrl(id: number): string {
   return `${BASE}/generated-videos/${id}/download`;
 }
 
+// --------------- Moving Verse Suggestions ---------------
+
+export interface MovingVerseGroup {
+  id: number;
+  chapter: number;
+  verse_start: number;
+  verse_end: number;
+  surah_name: string;
+  emotional_score: number;
+  category: string;
+  title: string;
+  reasoning: string;
+  translation_snippet: string;
+  remaining_count: number;
+}
+
+export async function getMovingVerseSuggestion(
+  excludeIds?: number[],
+  category?: string,
+): Promise<MovingVerseGroup> {
+  const body: Record<string, unknown> = {};
+  if (excludeIds?.length) body.exclude_ids = excludeIds;
+  if (category) body.category = category;
+  const res = await authFetch(`${BASE}/moving-verse-suggestions`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch suggestion');
+  return data;
+}
+
 // --------------- Auth ---------------
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {

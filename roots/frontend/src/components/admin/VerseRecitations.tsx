@@ -8,6 +8,7 @@ import {
 } from '../../api/admin';
 import type { Reciter, Voice, PreviewVerse, TTSCacheEntry, StaleTTSEntry } from '../../api/admin';
 import type { SurahInfo } from '../../types';
+import MovingVersesModal from './MovingVersesModal';
 
 type PlayState = 'idle' | 'playing' | 'paused';
 
@@ -49,6 +50,9 @@ export default function VerseRecitations() {
   const playingRef = useRef(false); // tracks if we should keep playing
   const pausedRef = useRef(false);  // tracks pause state for translation phase
   const translationTimerRef = useRef<number | null>(null); // cancellable translation delay
+
+  // Moving verse suggestions modal
+  const [showMovingModal, setShowMovingModal] = useState(false);
 
   // Load initial data
   const refreshCache = useCallback(() => {
@@ -276,6 +280,14 @@ export default function VerseRecitations() {
     refreshCache();
   }
 
+  function handleMovingVerseSelect(chapter: number, verseStart: number, verseEnd: number) {
+    setFromSurah(chapter);
+    setFromAyah(verseStart);
+    setToSurah(chapter);
+    setToAyah(verseEnd);
+    setShowMovingModal(false);
+  }
+
   const reciterLabel = (r: Reciter) =>
     r.style ? `${r.reciter_name} (${r.style})` : r.reciter_name;
 
@@ -387,6 +399,12 @@ export default function VerseRecitations() {
           className="px-5 py-2.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 transition-colors cursor-pointer"
         >
           {loadingPreview ? 'Loading...' : 'Load Preview'}
+        </button>
+        <button
+          onClick={() => setShowMovingModal(true)}
+          className="px-5 py-2.5 rounded-lg bg-indigo-700 text-white text-sm font-medium hover:bg-indigo-600 transition-colors cursor-pointer"
+        >
+          Suggest Verses
         </button>
 
         {previewVerses.length > 0 && (
@@ -565,6 +583,13 @@ export default function VerseRecitations() {
             </table>
           </div>
         </div>
+      )}
+
+      {showMovingModal && (
+        <MovingVersesModal
+          onClose={() => setShowMovingModal(false)}
+          onSelect={handleMovingVerseSelect}
+        />
       )}
     </div>
   );
