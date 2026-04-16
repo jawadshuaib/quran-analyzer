@@ -5563,26 +5563,30 @@ def _generate_video_task(video_id):
         _update_video_status(video_id, "failed", error="Background video file missing")
         return
 
+    english_only = verse_data[0].get("english_only", False) if verse_data else False
+
     tmpdir = tempfile.mkdtemp(prefix="vidgen_")
     try:
-        # Step 1: Download recitation audio and collect TTS files
+        # Step 1: Download recitation audio (if not english_only) and collect TTS files
         recit_files = []
         tts_files = []
         for i, v in enumerate(verse_data):
             _update_video_status(video_id, "processing",
-                f"Downloading audio {i + 1}/{len(verse_data)}...")
+                f"{'Preparing' if english_only else 'Downloading'} audio {i + 1}/{len(verse_data)}...")
 
-            # Download recitation from Quran.com
-            recit_path = os.path.join(tmpdir, f"recit_{i:03d}.mp3")
-            try:
-                resp = requests.get(v["audio_url"], timeout=30)
-                resp.raise_for_status()
-                with open(recit_path, "wb") as f:
-                    f.write(resp.content)
-            except Exception as e:
-                _update_video_status(video_id, "failed",
-                    error=f"Failed to download recitation for {v['verse_ref']}: {e}")
-                return
+            if not english_only:
+                # Download recitation from Quran.com
+                recit_path = os.path.join(tmpdir, f"recit_{i:03d}.mp3")
+                try:
+                    resp = requests.get(v["audio_url"], timeout=30)
+                    resp.raise_for_status()
+                    with open(recit_path, "wb") as f:
+                        f.write(resp.content)
+                except Exception as e:
+                    _update_video_status(video_id, "failed",
+                        error=f"Failed to download recitation for {v['verse_ref']}: {e}")
+                    return
+                recit_files.append(recit_path)
 
             # Copy TTS from cache
             tts_src = os.path.join(_TTS_CACHE_DIR, v["tts_filename"])
@@ -5593,41 +5597,50 @@ def _generate_video_task(video_id):
                 _update_video_status(video_id, "failed",
                     error=f"TTS cache file missing for {v['verse_ref']}")
                 return
-
-            recit_files.append(recit_path)
             tts_files.append(tts_path)
 
         # Step 2: Get durations and build timeline
-        # Layout: INTERLEAVED — recite verse → TTS voice → next verse → TTS voice
         _update_video_status(video_id, "processing", "Analyzing audio durations...")
 
-        recit_durs = [_get_audio_duration(f) for f in recit_files]
         tts_durs = [_get_audio_duration(f) for f in tts_files]
 
-        # Build interleaved timeline
         timeline = []
         current_time = 0.0
-        for i in range(len(verse_data)):
-            # Recitation phase: show Arabic text + verse ref
-            timeline.append({
-                "phase": "recitation",
-                "start": current_time,
-                "dur": recit_durs[i],
-                "arabic": verse_data[i]["arabic_text"],
-                "translation": verse_data[i]["translation"],
-                "ref": verse_data[i]["verse_ref"],
-            })
-            current_time += recit_durs[i]
-            # TTS phase: show translation text
-            timeline.append({
-                "phase": "tts",
-                "start": current_time,
-                "dur": tts_durs[i],
-                "arabic": verse_data[i]["arabic_text"],
-                "translation": verse_data[i]["translation"],
-                "ref": verse_data[i]["verse_ref"],
-            })
-            current_time += tts_durs[i]
+
+        if english_only:
+            # English-only: just TTS phases, no recitation
+            for i in range(len(verse_data)):
+                timeline.append({
+                    "phase": "tts",
+                    "start": current_time,
+                    "dur": tts_durs[i],
+                    "arabic": verse_data[i]["arabic_text"],
+                    "translation": verse_data[i]["translation"],
+                    "ref": verse_data[i]["verse_ref"],
+                })
+                current_time += tts_durs[i]
+        else:
+            # Interleaved: recite verse → TTS voice → next verse → TTS voice
+            recit_durs = [_get_audio_duration(f) for f in recit_files]
+            for i in range(len(verse_data)):
+                timeline.append({
+                    "phase": "recitation",
+                    "start": current_time,
+                    "dur": recit_durs[i],
+                    "arabic": verse_data[i]["arabic_text"],
+                    "translation": verse_data[i]["translation"],
+                    "ref": verse_data[i]["verse_ref"],
+                })
+                current_time += recit_durs[i]
+                timeline.append({
+                    "phase": "tts",
+                    "start": current_time,
+                    "dur": tts_durs[i],
+                    "arabic": verse_data[i]["arabic_text"],
+                    "translation": verse_data[i]["translation"],
+                    "ref": verse_data[i]["verse_ref"],
+                })
+                current_time += tts_durs[i]
 
         # Outro slide: 5 seconds of branding after all verses
         outro_dur = 5.0
@@ -5650,7 +5663,8 @@ def _generate_video_task(video_id):
         concat_list = os.path.join(tmpdir, "concat.txt")
         with open(concat_list, "w") as f:
             for i in range(len(verse_data)):
-                f.write(f"file '{recit_files[i]}'\n")
+                if not english_only:
+                    f.write(f"file '{recit_files[i]}'\n")
                 f.write(f"file '{tts_files[i]}'\n")
             f.write(f"file '{silence_path}'\n")
 
@@ -5738,10 +5752,14 @@ def _generate_video_task(video_id):
                 start = _ass_time(t["start"])
                 end = _ass_time(t["start"] + t["dur"])
                 ref = _ass_escape(t["ref"])
-                arabic = _ass_escape(_fix_arabic_for_ass(t["arabic"]))
                 translation = _ass_escape(t["translation"])
 
-                if t["phase"] == "recitation":
+                if english_only:
+                    # English-only: always show ref + translation (no Arabic)
+                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
+                elif t["phase"] == "recitation":
+                    arabic = _ass_escape(_fix_arabic_for_ass(t["arabic"]))
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
                     af.write(f"Dialogue: 0,{start},{end},Arabic,,0,0,0,,{arabic}\n")
                 else:
@@ -5847,6 +5865,7 @@ def admin_generate_video():
     resource_id = body.get("resource_id")
     reciter_id = body.get("reciter_id")
     verses = body.get("verses", [])
+    english_only = bool(body.get("english_only", False))
 
     if not title:
         return jsonify({"error": "Title required"}), 400
@@ -5854,7 +5873,7 @@ def admin_generate_video():
         return jsonify({"error": "Format must be 'short' or 'regular'"}), 400
     if not isinstance(resource_id, int) or resource_id <= 0:
         return jsonify({"error": "Valid resource_id required"}), 400
-    if not isinstance(reciter_id, int) or reciter_id <= 0:
+    if not english_only and (not isinstance(reciter_id, int) or reciter_id <= 0):
         return jsonify({"error": "Valid reciter_id required"}), 400
     if not verses or not isinstance(verses, list):
         return jsonify({"error": "At least one verse required"}), 400
@@ -5876,7 +5895,7 @@ def admin_generate_video():
             return jsonify({"error": "Resource not found"}), 404
 
         # Build verse_data from TTS cache entries
-        folder = _get_reciter_folder(reciter_id)
+        folder = _get_reciter_folder(reciter_id) if not english_only else None
         audio_base = "https://verses.quran.com"
         verse_data = []
         for v in verses:
@@ -5888,21 +5907,24 @@ def admin_generate_video():
                 return jsonify({"error": f"TTS cache entry {cache_id} not found"}), 404
 
             ch, vs = cache_row["chapter"], cache_row["verse"]
-            # Get Arabic text
+            # Get Arabic text (still needed for reference even in english_only)
             verse_row = conn.execute(
                 "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?", (ch, vs)
             ).fetchone()
             arabic = _strip_bismillah(verse_row["text_uthmani"], ch, vs) if verse_row else ""
 
-            verse_data.append({
+            entry = {
                 "chapter": ch,
                 "verse": vs,
                 "verse_ref": f"{_surah_name(ch)} {ch}:{vs}",
                 "arabic_text": arabic,
                 "translation": cache_row["translation_text"],
                 "tts_filename": cache_row["filename"],
-                "audio_url": f"{audio_base}/{folder}/{ch:03d}{vs:03d}.mp3",
-            })
+                "english_only": english_only,
+            }
+            if not english_only:
+                entry["audio_url"] = f"{audio_base}/{folder}/{ch:03d}{vs:03d}.mp3"
+            verse_data.append(entry)
 
         conn.execute(
             """INSERT INTO admin_generated_videos (title, format, resource_id, reciter_id, verse_data, status)

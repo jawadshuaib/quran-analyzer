@@ -23,6 +23,7 @@ export default function GenerateVideo() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [title, setTitle] = useState('');
   const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
+  const [englishOnly, setEnglishOnly] = useState(false);
 
   // Generation
   const [generating, setGenerating] = useState(false);
@@ -118,6 +119,7 @@ export default function GenerateVideo() {
         resource_id: resourceId,
         reciter_id: reciterId,
         verses,
+        english_only: englishOnly || undefined,
       });
       const vids = await getGeneratedVideos();
       setVideos(vids);
@@ -196,6 +198,18 @@ export default function GenerateVideo() {
             </div>
           </div>
 
+          {/* English Only */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={englishOnly}
+              onChange={(e) => setEnglishOnly(e.target.checked)}
+              className="rounded border-stone-300"
+            />
+            <span className="text-sm text-stone-700">English only</span>
+            <span className="text-xs text-stone-400">(no Arabic recitation or text)</span>
+          </label>
+
           {/* Background */}
           <div>
             <label className="block text-sm font-medium text-stone-700 mb-1">Background Video</label>
@@ -217,18 +231,20 @@ export default function GenerateVideo() {
           </div>
 
           {/* Reciter */}
-          <div>
-            <label className="block text-sm font-medium text-stone-700 mb-1">Reciter</label>
-            <select
-              value={reciterId}
-              onChange={(e) => setReciterId(Number(e.target.value))}
-              className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-400"
-            >
-              {reciters.map((r) => (
-                <option key={r.id} value={r.id}>{reciterLabel(r)}</option>
-              ))}
-            </select>
-          </div>
+          {!englishOnly && (
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Reciter</label>
+              <select
+                value={reciterId}
+                onChange={(e) => setReciterId(Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-400"
+              >
+                {reciters.map((r) => (
+                  <option key={r.id} value={r.id}>{reciterLabel(r)}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Title */}
           <div>

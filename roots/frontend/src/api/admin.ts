@@ -287,6 +287,7 @@ export async function startVideoGeneration(params: {
   resource_id: number;
   reciter_id: number;
   verses: Array<{ chapter: number; verse: number; tts_cache_id: number }>;
+  english_only?: boolean;
 }): Promise<{ id: number; status: string }> {
   const res = await authFetch(`${BASE}/generate-video`, {
     method: 'POST',
