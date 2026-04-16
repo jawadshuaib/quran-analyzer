@@ -5207,7 +5207,7 @@ def admin_tts_cache_list():
     try:
         rows = conn.execute(
             """SELECT id, chapter, verse, voice_id, voice_name, translation_text, filename, created_at
-               FROM admin_tts_cache ORDER BY chapter, verse"""
+               FROM admin_tts_cache ORDER BY created_at DESC"""
         ).fetchall()
         result = []
         for r in rows:
@@ -5667,8 +5667,8 @@ def _generate_video_task(video_id):
         _update_video_status(video_id, "processing", "Rendering video...")
 
         # Font sizes
-        arabic_fontsize = 82 if fmt == "short" else 68
-        trans_fontsize = 56 if fmt == "short" else 46
+        arabic_fontsize = 96 if fmt == "short" else 78
+        trans_fontsize = 64 if fmt == "short" else 52
         ref_fontsize = 42 if fmt == "short" else 36
 
         # ASS colours: white text, semi-transparent dark outline for readability
@@ -5684,7 +5684,7 @@ def _generate_video_task(video_id):
         ref_band_h = 80 if fmt == "short" else 65
         ref_margin_v = 30 if fmt == "short" else 20
         # Content band: vertically centered
-        content_band_h = 250 if fmt == "short" else 200
+        content_band_h = 320 if fmt == "short" else 260
         content_band_y = (target_h - content_band_h) // 2
 
         with open(ass_path, "w", encoding="utf-8") as af:
@@ -5721,9 +5721,17 @@ def _generate_video_task(video_id):
                 return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
 
             def _fix_arabic_for_ass(text):
-                """Replace U+0671 (alef wasla) with U+0627 (plain alef).
-                libass cannot render U+0671 correctly — shows square block."""
-                return text.replace("\u0671", "\u0627")
+                """Fix Arabic text for libass rendering.
+
+                - Replace U+0671 (alef wasla) with U+0627 (plain alef)
+                - Strip Uthmani-specific marks that libass renders as squares:
+                  U+0653 maddah above, U+0654 hamza above,
+                  U+0670 superscript alef,
+                  U+06D6-U+06ED (small high/low marks, Quranic annotations)
+                """
+                text = text.replace("\u0671", "\u0627")
+                text = re.sub(r"[\u0653\u0654\u0670\u06d6-\u06ed]", "", text)
+                return text
 
             # Interleaved: recitation shows ref + Arabic, TTS shows translation
             for t in timeline:
