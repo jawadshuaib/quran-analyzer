@@ -51,6 +51,10 @@ export default function VerseRecitations() {
   const pausedRef = useRef(false);  // tracks pause state for translation phase
   const translationTimerRef = useRef<number | null>(null); // cancellable translation delay
 
+  // Translation editing
+  const [translationEdits, setTranslationEdits] = useState<Record<string, string>>({});
+  const [editingVerse, setEditingVerse] = useState<string | null>(null);
+
   // Moving verse suggestions modal
   const [showMovingModal, setShowMovingModal] = useState(false);
 
@@ -156,10 +160,11 @@ export default function VerseRecitations() {
     setPreviewError('');
     for (let i = 0; i < previewVerses.length; i++) {
       const verse = previewVerses[i];
-      if (!verse.translation) continue;
+      const text = getTranslation(verse);
+      if (!text) continue;
       setGenProgress(`Generating ${i + 1} of ${previewVerses.length}...`);
       try {
-        const url = await generateTTS(verse.translation, selectedVoiceElId, verse.surah, verse.ayah);
+        const url = await generateTTS(text, selectedVoiceElId, verse.surah, verse.ayah);
         URL.revokeObjectURL(url); // we just wanted to cache it server-side
       } catch (err) {
         setPreviewError(`Failed on ${verse.surah}:${verse.ayah}: ${err instanceof Error ? err.message : 'TTS error'}`);
@@ -278,6 +283,11 @@ export default function VerseRecitations() {
     setRefreshProgress('');
     setStaleEntries([]);
     refreshCache();
+  }
+
+  function getTranslation(verse: PreviewVerse): string {
+    const key = `${verse.surah}:${verse.ayah}`;
+    return key in translationEdits ? translationEdits[key] : verse.translation;
   }
 
   function handleMovingVerseSelect(chapter: number, verseStart: number, verseEnd: number) {
@@ -500,15 +510,78 @@ export default function VerseRecitations() {
                 </p>
 
                 {/* Translation */}
-                <p
-                  className={`text-sm leading-relaxed transition-all duration-500 ${
-                    showTranslation
-                      ? 'text-blue-800 font-medium opacity-100'
-                      : 'text-stone-500 opacity-70'
-                  }`}
-                >
-                  {verse.translation}
-                </p>
+                {(() => {
+                  const vKey = `${verse.surah}:${verse.ayah}`;
+                  const isEditing = editingVerse === vKey;
+                  const displayText = getTranslation(verse);
+                  const isEdited = vKey in translationEdits;
+                  return (
+                    <div>
+                      {isEditing ? (
+                        <div className="space-y-2">
+                          <textarea
+                            value={displayText}
+                            onChange={(e) => setTranslationEdits(prev => ({ ...prev, [vKey]: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg border border-indigo-300 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-y min-h-[60px]"
+                            rows={3}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setEditingVerse(null)}
+                              className="text-xs px-3 py-1 rounded bg-indigo-600 text-white hover:bg-indigo-500 cursor-pointer"
+                            >
+                              Done
+                            </button>
+                            {isEdited && (
+                              <button
+                                onClick={() => {
+                                  setTranslationEdits(prev => {
+                                    const next = { ...prev };
+                                    delete next[vKey];
+                                    return next;
+                                  });
+                                  setEditingVerse(null);
+                                }}
+                                className="text-xs px-3 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 cursor-pointer"
+                              >
+                                Reset
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="group flex items-start gap-2">
+                          <p
+                            className={`flex-1 text-sm leading-relaxed transition-all duration-500 ${
+                              showTranslation
+                                ? 'text-blue-800 font-medium opacity-100'
+                                : isEdited
+                                  ? 'text-indigo-700 opacity-90'
+                                  : 'text-stone-500 opacity-70'
+                            }`}
+                          >
+                            {displayText}
+                            {isEdited && <span className="ml-1 text-xs text-indigo-400">(edited)</span>}
+                          </p>
+                          <button
+                            onClick={() => {
+                              if (!isEdited) {
+                                setTranslationEdits(prev => ({ ...prev, [vKey]: verse.translation }));
+                              }
+                              setEditingVerse(vKey);
+                            }}
+                            className="mt-0.5 p-1 rounded text-stone-300 hover:text-stone-600 hover:bg-stone-100 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                            title="Edit translation"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
