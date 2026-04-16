@@ -4925,6 +4925,66 @@ def admin_recitation_preview():
         conn.close()
 
 
+# --------------- Admin: TTS via ElevenLabs ---------------
+
+@app.route("/api/admin/tts", methods=["POST"])
+@admin_required
+def admin_tts():
+    """Generate speech from text using ElevenLabs and return MP3 audio."""
+    body = request.get_json(silent=True) or {}
+    text = body.get("text", "").strip()
+    voice_id = body.get("voice_id", "").strip()
+
+    if not text or not voice_id:
+        return jsonify({"error": "text and voice_id required"}), 400
+    if len(text) > 2000:
+        return jsonify({"error": "Text too long (max 2000 chars)"}), 400
+
+    # Get ElevenLabs API key from preferences
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
+        ).fetchone()
+        if not row or not row["value"]:
+            return jsonify({"error": "ElevenLabs API key not configured. Add it in Settings."}), 400
+        api_key = row["value"]
+    finally:
+        conn.close()
+
+    try:
+        resp = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            headers={
+                "xi-api-key": api_key,
+                "Content-Type": "application/json",
+                "Accept": "audio/mpeg",
+            },
+            json={
+                "text": text,
+                "model_id": "eleven_multilingual_v2",
+                "voice_settings": {
+                    "stability": 0.5,
+                    "similarity_boost": 0.75,
+                },
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            error_msg = resp.text[:200] if resp.text else f"HTTP {resp.status_code}"
+            return jsonify({"error": f"ElevenLabs error: {error_msg}"}), 502
+
+        return Response(
+            resp.content,
+            mimetype="audio/mpeg",
+            headers={"Content-Disposition": "inline"},
+        )
+    except requests.Timeout:
+        return jsonify({"error": "ElevenLabs request timed out"}), 504
+    except Exception as e:
+        return jsonify({"error": f"TTS failed: {e}"}), 500
+
+
 # --------------- Legacy redirect ---------------
 
 @app.before_request

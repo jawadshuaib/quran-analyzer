@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchSurahs } from '../../api/quran';
 import {
   getReciters, getVoices, getPreferences, savePreferences,
-  getRecitationPreview,
+  getRecitationPreview, generateTTS,
 } from '../../api/admin';
 import type { Reciter, Voice, PreviewVerse } from '../../api/admin';
 import type { SurahInfo } from '../../types';
@@ -124,6 +124,9 @@ export default function VerseRecitations() {
     });
   }, []);
 
+  // Get the ElevenLabs voice_id string for the selected voice
+  const selectedVoiceElId = voices.find((v) => v.id === voiceId)?.voice_id ?? null;
+
   const startPlayback = useCallback(async () => {
     if (previewVerses.length === 0) return;
     playingRef.current = true;
@@ -143,10 +146,27 @@ export default function VerseRecitations() {
       }
       if (!playingRef.current) break;
 
-      // Phase 2: Translation (pause to show translation — TTS will go here later)
+      // Phase 2: Translation — speak via ElevenLabs TTS or fall back to timed delay
       setCurrentPhase('translation');
-      // Cancellable delay that respects pause and stop
-      {
+      if (selectedVoiceElId && verse.translation) {
+        try {
+          const ttsUrl = await generateTTS(verse.translation, selectedVoiceElId);
+          if (!playingRef.current) break;
+          await playAudio(ttsUrl);
+          URL.revokeObjectURL(ttsUrl);
+        } catch {
+          // TTS failed — fall back to timed delay
+          const totalMs = Math.max(2000, verse.translation.length * 40);
+          let elapsed = 0;
+          const tick = 100;
+          while (elapsed < totalMs && playingRef.current) {
+            if (!pausedRef.current) elapsed += tick;
+            await new Promise((r) => { translationTimerRef.current = window.setTimeout(r, tick); });
+            translationTimerRef.current = null;
+          }
+        }
+      } else {
+        // No voice selected — timed delay
         const totalMs = Math.max(2000, verse.translation.length * 40);
         let elapsed = 0;
         const tick = 100;
@@ -164,7 +184,7 @@ export default function VerseRecitations() {
       setCurrentIdx(-1);
       playingRef.current = false;
     }
-  }, [previewVerses, playAudio]);
+  }, [previewVerses, playAudio, selectedVoiceElId]);
 
   const togglePause = useCallback(() => {
     if (playState === 'playing') {

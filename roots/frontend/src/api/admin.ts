@@ -146,6 +146,21 @@ export async function getRecitationPreview(params: {
   return data.verses;
 }
 
+// --------------- TTS ---------------
+
+export async function generateTTS(text: string, voiceId: string): Promise<string> {
+  const res = await authFetch(`${BASE}/tts`, {
+    method: 'POST',
+    body: JSON.stringify({ text, voice_id: voiceId }),
+  });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'TTS failed');
+  }
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
+
 // --------------- Auth ---------------
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
