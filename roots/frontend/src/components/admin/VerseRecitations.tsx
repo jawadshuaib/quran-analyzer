@@ -3,8 +3,9 @@ import { fetchSurahs } from '../../api/quran';
 import {
   getReciters, getVoices, getPreferences, savePreferences,
   getRecitationPreview, generateTTS,
+  getTTSCache, deleteTTSCache, ttsCacheAudioUrl, getToken,
 } from '../../api/admin';
-import type { Reciter, Voice, PreviewVerse } from '../../api/admin';
+import type { Reciter, Voice, PreviewVerse, TTSCacheEntry } from '../../api/admin';
 import type { SurahInfo } from '../../types';
 
 type PlayState = 'idle' | 'playing' | 'paused';
@@ -28,6 +29,9 @@ export default function VerseRecitations() {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [previewError, setPreviewError] = useState('');
 
+  // TTS cache
+  const [ttsCache, setTtsCache] = useState<TTSCacheEntry[]>([]);
+
   // Playback
   const [playState, setPlayState] = useState<PlayState>('idle');
   const [currentIdx, setCurrentIdx] = useState(-1);
@@ -38,10 +42,15 @@ export default function VerseRecitations() {
   const translationTimerRef = useRef<number | null>(null); // cancellable translation delay
 
   // Load initial data
+  const refreshCache = useCallback(() => {
+    getTTSCache().then(setTtsCache).catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchSurahs().then(setSurahs);
     getReciters().then(setReciters).catch(() => {});
     getVoices().then(setVoices).catch(() => {});
+    refreshCache();
     getPreferences().then((prefs) => {
       if (prefs.last_reciter_id) setReciterId(Number(prefs.last_reciter_id));
       if (prefs.last_voice_id) setVoiceId(Number(prefs.last_voice_id));
@@ -150,10 +159,11 @@ export default function VerseRecitations() {
       setCurrentPhase('translation');
       if (selectedVoiceElId && verse.translation) {
         try {
-          const ttsUrl = await generateTTS(verse.translation, selectedVoiceElId);
+          const ttsUrl = await generateTTS(verse.translation, selectedVoiceElId, verse.surah, verse.ayah);
           if (!playingRef.current) break;
           await playAudio(ttsUrl);
           URL.revokeObjectURL(ttsUrl);
+          refreshCache();
         } catch {
           // TTS failed — fall back to timed delay
           const totalMs = Math.max(2000, verse.translation.length * 40);
@@ -184,7 +194,7 @@ export default function VerseRecitations() {
       setCurrentIdx(-1);
       playingRef.current = false;
     }
-  }, [previewVerses, playAudio, selectedVoiceElId]);
+  }, [previewVerses, playAudio, selectedVoiceElId, refreshCache]);
 
   const togglePause = useCallback(() => {
     if (playState === 'playing') {
@@ -408,6 +418,97 @@ export default function VerseRecitations() {
           })}
         </div>
       )}
+
+      {/* Cached TTS table */}
+      {ttsCache.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-lg font-semibold text-stone-800 mb-3">Generated Translations</h2>
+          <p className="text-xs text-stone-400 mb-4">
+            {ttsCache.length} cached — these will be reused on playback instead of calling ElevenLabs again.
+          </p>
+          <div className="border border-stone-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-stone-500 text-xs">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Verse</th>
+                  <th className="text-left px-3 py-2 font-medium">Translation</th>
+                  <th className="text-left px-3 py-2 font-medium">Voice</th>
+                  <th className="px-3 py-2 font-medium w-24">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ttsCache.map((entry) => (
+                  <TTSCacheRow key={entry.id} entry={entry} onDelete={(id) => {
+                    deleteTTSCache(id).then(refreshCache).catch(() => {});
+                  }} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function TTSCacheRow({ entry, onDelete }: { entry: TTSCacheEntry; onDelete: (id: number) => void }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+
+  function togglePlay() {
+    if (playing && audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+      setPlaying(false);
+      return;
+    }
+    const audio = new Audio(ttsCacheAudioUrl(entry.id));
+    // Add auth header via fetch + blob since Audio element can't set headers
+    const token = getToken();
+    fetch(ttsCacheAudioUrl(entry.id), {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = new Audio(url);
+        audioRef.current = a;
+        a.onended = () => { setPlaying(false); URL.revokeObjectURL(url); };
+        a.play();
+        setPlaying(true);
+      })
+      .catch(() => setPlaying(false));
+  }
+
+  const truncated = entry.translation_text.length > 80
+    ? entry.translation_text.slice(0, 80) + '...'
+    : entry.translation_text;
+
+  return (
+    <tr className="border-t border-stone-100">
+      <td className="px-3 py-2 text-stone-800 whitespace-nowrap">
+        {entry.surah_name} {entry.chapter}:{entry.verse}
+      </td>
+      <td className="px-3 py-2 text-stone-600 max-w-xs" title={entry.translation_text}>
+        {truncated}
+      </td>
+      <td className="px-3 py-2 text-stone-500 whitespace-nowrap">
+        {entry.voice_name || entry.voice_id.slice(0, 8)}
+      </td>
+      <td className="px-3 py-2 text-right whitespace-nowrap">
+        <button
+          onClick={togglePlay}
+          className="text-xs text-blue-500 hover:text-blue-700 mr-2 cursor-pointer"
+        >
+          {playing ? 'Stop' : 'Play'}
+        </button>
+        <button
+          onClick={() => onDelete(entry.id)}
+          className="text-xs text-red-400 hover:text-red-600 cursor-pointer"
+        >
+          Delete
+        </button>
+      </td>
+    </tr>
   );
 }

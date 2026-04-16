@@ -4925,20 +4925,78 @@ def admin_recitation_preview():
         conn.close()
 
 
-# --------------- Admin: TTS via ElevenLabs ---------------
+# --------------- Admin: TTS via ElevenLabs (with caching) ---------------
+
+import hashlib
+
+_TTS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "data", "tts_cache")
+os.makedirs(_TTS_CACHE_DIR, exist_ok=True)
+
+
+def _ensure_tts_cache_table():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_tts_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                voice_id TEXT NOT NULL,
+                voice_name TEXT NOT NULL DEFAULT '',
+                text_hash TEXT NOT NULL,
+                translation_text TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(chapter, verse, voice_id)
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+_ensure_tts_cache_table()
+
+
+def _tts_hash(text: str, voice_id: str) -> str:
+    return hashlib.sha256(f"{voice_id}:{text}".encode()).hexdigest()[:16]
+
 
 @app.route("/api/admin/tts", methods=["POST"])
 @admin_required
 def admin_tts():
-    """Generate speech from text using ElevenLabs and return MP3 audio."""
+    """Generate speech from text using ElevenLabs, cache the result, return MP3."""
     body = request.get_json(silent=True) or {}
     text = body.get("text", "").strip()
     voice_id = body.get("voice_id", "").strip()
+    chapter = body.get("chapter", 0)
+    verse_num = body.get("verse", 0)
 
     if not text or not voice_id:
         return jsonify({"error": "text and voice_id required"}), 400
     if len(text) > 2000:
         return jsonify({"error": "Text too long (max 2000 chars)"}), 400
+
+    text_hash = _tts_hash(text, voice_id)
+
+    # Check cache first
+    conn = get_db()
+    try:
+        cached = conn.execute(
+            "SELECT filename FROM admin_tts_cache WHERE chapter = ? AND verse = ? AND voice_id = ?",
+            (chapter, verse_num, voice_id),
+        ).fetchone()
+        if cached:
+            cached_path = os.path.join(_TTS_CACHE_DIR, cached["filename"])
+            if os.path.isfile(cached_path):
+                # Check if the text changed (different hash) — regenerate if so
+                hash_row = conn.execute(
+                    "SELECT text_hash FROM admin_tts_cache WHERE chapter = ? AND verse = ? AND voice_id = ?",
+                    (chapter, verse_num, voice_id),
+                ).fetchone()
+                if hash_row and hash_row["text_hash"] == text_hash:
+                    return send_from_directory(_TTS_CACHE_DIR, cached["filename"], mimetype="audio/mpeg")
+    finally:
+        conn.close()
 
     # Get ElevenLabs API key from preferences
     conn = get_db()
@@ -4974,6 +5032,37 @@ def admin_tts():
             error_msg = resp.text[:200] if resp.text else f"HTTP {resp.status_code}"
             return jsonify({"error": f"ElevenLabs error: {error_msg}"}), 502
 
+        # Save to disk
+        filename = f"{chapter:03d}{verse_num:03d}_{text_hash}.mp3"
+        filepath = os.path.join(_TTS_CACHE_DIR, filename)
+        with open(filepath, "wb") as f:
+            f.write(resp.content)
+
+        # Look up the voice name for display
+        voice_name = ""
+        conn = get_db()
+        try:
+            vrow = conn.execute(
+                "SELECT name FROM admin_voices WHERE voice_id = ?", (voice_id,)
+            ).fetchone()
+            if vrow:
+                voice_name = vrow["name"]
+        finally:
+            conn.close()
+
+        # Upsert cache record
+        conn = get_db()
+        try:
+            conn.execute(
+                """INSERT OR REPLACE INTO admin_tts_cache
+                   (chapter, verse, voice_id, voice_name, text_hash, translation_text, filename, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)""",
+                (chapter, verse_num, voice_id, voice_name, text_hash, text, filename),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
         return Response(
             resp.content,
             mimetype="audio/mpeg",
@@ -4983,6 +5072,63 @@ def admin_tts():
         return jsonify({"error": "ElevenLabs request timed out"}), 504
     except Exception as e:
         return jsonify({"error": f"TTS failed: {e}"}), 500
+
+
+@app.route("/api/admin/tts-cache", methods=["GET"])
+@admin_required
+def admin_tts_cache_list():
+    """List all cached TTS audio entries."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """SELECT id, chapter, verse, voice_id, voice_name, translation_text, filename, created_at
+               FROM admin_tts_cache ORDER BY chapter, verse"""
+        ).fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["surah_name"] = _surah_name(r["chapter"])
+            result.append(d)
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/tts-cache/<int:cache_id>", methods=["DELETE"])
+@admin_required
+def admin_tts_cache_delete(cache_id):
+    """Delete a cached TTS entry and its file."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT filename FROM admin_tts_cache WHERE id = ?", (cache_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        # Delete file
+        filepath = os.path.join(_TTS_CACHE_DIR, row["filename"])
+        if os.path.isfile(filepath):
+            os.remove(filepath)
+        conn.execute("DELETE FROM admin_tts_cache WHERE id = ?", (cache_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/tts-cache/<int:cache_id>/audio", methods=["GET"])
+@admin_required
+def admin_tts_cache_audio(cache_id):
+    """Serve a cached TTS audio file."""
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT filename FROM admin_tts_cache WHERE id = ?", (cache_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        filepath = os.path.join(_TTS_CACHE_DIR, row["filename"])
+        if not os.path.isfile(filepath):
+            return jsonify({"error": "Audio file missing"}), 404
+        return send_from_directory(_TTS_CACHE_DIR, row["filename"], mimetype="audio/mpeg")
+    finally:
+        conn.close()
 
 
 # --------------- Legacy redirect ---------------

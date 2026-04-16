@@ -148,10 +148,12 @@ export async function getRecitationPreview(params: {
 
 // --------------- TTS ---------------
 
-export async function generateTTS(text: string, voiceId: string): Promise<string> {
+export async function generateTTS(
+  text: string, voiceId: string, chapter: number, verse: number,
+): Promise<string> {
   const res = await authFetch(`${BASE}/tts`, {
     method: 'POST',
-    body: JSON.stringify({ text, voice_id: voiceId }),
+    body: JSON.stringify({ text, voice_id: voiceId, chapter, verse }),
   });
   if (!res.ok) {
     const data = await res.json();
@@ -159,6 +161,37 @@ export async function generateTTS(text: string, voiceId: string): Promise<string
   }
   const blob = await res.blob();
   return URL.createObjectURL(blob);
+}
+
+// --------------- TTS Cache ---------------
+
+export interface TTSCacheEntry {
+  id: number;
+  chapter: number;
+  verse: number;
+  voice_id: string;
+  voice_name: string;
+  surah_name: string;
+  translation_text: string;
+  filename: string;
+  created_at: string;
+}
+
+export async function getTTSCache(): Promise<TTSCacheEntry[]> {
+  const res = await authFetch(`${BASE}/tts-cache`);
+  return res.json();
+}
+
+export async function deleteTTSCache(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/tts-cache/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete');
+  }
+}
+
+export function ttsCacheAudioUrl(id: number): string {
+  return `${BASE}/tts-cache/${id}/audio`;
 }
 
 // --------------- Auth ---------------
