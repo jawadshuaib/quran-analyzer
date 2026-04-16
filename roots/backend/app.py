@@ -5532,22 +5532,31 @@ def _generate_video_task(video_id):
         )
 
         # Step 4: Build ASS subtitle file for text overlays
-        # Using libass for proper Arabic rendering (RTL, ligatures, diacritics)
+        # White text with dark outline on dark semi-transparent bands (drawbox).
+        # libass handles Arabic RTL/ligatures/diacritics natively.
         _update_video_status(video_id, "processing", "Rendering video...")
 
         # Font sizes
-        arabic_fontsize = 80 if fmt == "short" else 68
-        trans_fontsize = 44 if fmt == "short" else 40
-        ref_fontsize = 40 if fmt == "short" else 36
+        arabic_fontsize = 82 if fmt == "short" else 68
+        trans_fontsize = 56 if fmt == "short" else 46
+        ref_fontsize = 42 if fmt == "short" else 36
 
-        # ASS colour format: &HAABBGGRR
-        # Black text: &H00000000
-        # Box background: semi-transparent white &H30FFFFFF
-        # OutlineColour matches BackColour so outline = invisible padding around text
-        box_colour = "&H30FFFFFF"
-        text_colour = "&H00000000"
+        # ASS colours: white text, semi-transparent dark outline for readability
+        # BorderStyle=1 (outline), no box background — drawbox provides the band
+        text_colour = "&H00FFFFFF"
+        outline_colour = "&H50000000"
         fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
         ass_path = os.path.join(tmpdir, "subs.ass")
+
+        # Band positions for drawbox filters
+        # Ref band: top of frame
+        ref_band_y = 15 if fmt == "short" else 10
+        ref_band_h = 80 if fmt == "short" else 65
+        ref_margin_v = 30 if fmt == "short" else 20
+        # Content band: vertically centered
+        content_band_h = 250 if fmt == "short" else 200
+        content_band_y = (target_h - content_band_h) // 2
+
         with open(ass_path, "w", encoding="utf-8") as af:
             af.write("[Script Info]\n")
             af.write("ScriptType: v4.00+\n")
@@ -5556,14 +5565,12 @@ def _generate_video_task(video_id):
 
             af.write("[V4+ Styles]\n")
             af.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-            # BorderStyle=3: Outline becomes box padding, OutlineColour=box colour so padding is invisible
-            # Ref: top-center (Alignment=8), bold
-            ref_margin_v = 100 if fmt == "short" else 60
-            af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},1,0,0,0,100,100,0,0,3,14,0,8,40,40,{ref_margin_v},0\n")
-            # Arabic: center (Alignment=5) — Scheherazade New for proper hamzat al-wasl
-            af.write(f"Style: Arabic,Scheherazade New,{arabic_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},0,0,0,0,100,100,0,0,3,16,0,5,60,60,40,0\n")
-            # Translation: center (Alignment=5), same position as Arabic text
-            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{box_colour},{box_colour},0,0,0,0,100,100,0,0,3,14,0,5,60,60,40,0\n")
+            # Ref: top-center (Alignment=8), bold, white text
+            af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,1,0,0,0,100,100,0,0,1,3,0,8,40,40,{ref_margin_v},0\n")
+            # Arabic: center (Alignment=5), Scheherazade New, white text
+            af.write(f"Style: Arabic,Scheherazade New,{arabic_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,3,0,5,60,60,0,0\n")
+            # Translation: center (Alignment=5), same position as Arabic
+            af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,3,0,5,60,60,0,0\n")
 
             af.write("\n[Events]\n")
             af.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
@@ -5591,24 +5598,39 @@ def _generate_video_task(video_id):
                 translation = _ass_escape(t["translation"])
 
                 if t["phase"] == "recitation":
-                    # During recitation: show verse ref + Arabic text
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
                     af.write(f"Dialogue: 0,{start},{end},Arabic,,0,0,0,,{arabic}\n")
                 else:
-                    # During TTS: show verse ref + translation text
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
                     af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
 
-        # Step 5: Final render using ASS subtitles
+        # Step 5: Build drawbox filter chain for background bands
+        drawbox_parts = []
+        for t in timeline:
+            s, e = t["start"], t["start"] + t["dur"]
+            enable = f"between(t\\,{s:.3f}\\,{e:.3f})"
+            # Ref band (top)
+            drawbox_parts.append(
+                f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
+                f":color=black@0.5:t=fill:enable='{enable}'"
+            )
+            # Content band (center)
+            drawbox_parts.append(
+                f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
+                f":color=black@0.5:t=fill:enable='{enable}'"
+            )
+
+        # Step 6: Final render — scale/crop, drawbox bands, then ASS text overlay
         output_filename = f"video_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
         output_path = os.path.join(_GENERATED_VIDEOS_DIR, output_filename)
 
-        # Video filter: scale/crop background, then overlay ASS subtitles
-        vf = (
-            f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase,"
-            f"crop={target_w}:{target_h},"
-            f"ass={ass_path}:fontsdir={fonts_dir}"
-        )
+        vf_parts = [
+            f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase",
+            f"crop={target_w}:{target_h}",
+        ] + drawbox_parts + [
+            f"ass={ass_path}:fontsdir={fonts_dir}",
+        ]
+        vf = ",".join(vf_parts)
 
         render_timeout = max(600, int(total_duration * 10))
         cmd = [
