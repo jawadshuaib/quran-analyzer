@@ -6420,7 +6420,11 @@ def _generate_video_task(video_id):
         ref_band_h = 110 if fmt == "short" else 90
         ref_margin_v = 38 if fmt == "short" else 28
         # Content band: vertically centered
-        content_band_h = 320 if fmt == "short" else 260
+        # Taller band when showing Arabic + Translation together
+        if arabic_only:
+            content_band_h = 520 if fmt == "short" else 420
+        else:
+            content_band_h = 380 if fmt == "short" else 310
         content_band_y = (target_h - content_band_h) // 2
 
         with open(ass_path, "w", encoding="utf-8") as af:
@@ -6476,16 +6480,23 @@ def _generate_video_task(video_id):
                 ref = _ass_escape(t["ref"])
                 translation = _ass_escape(t["translation"])
 
+                cx = target_w // 2
+                band_cy = content_band_y + content_band_h // 2
+
                 if english_only:
                     # English-only: always show ref + translation (no Arabic)
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
                     af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
                 elif arabic_only:
-                    # Arabic-only: show ref + Arabic text + translation subtitles
+                    # Arabic-only: Arabic in upper third, translation in lower third
                     arabic = _ass_escape(_fix_arabic_for_ass(t["arabic"]))
+                    ar_y = band_cy - (content_band_h // 4)
+                    tr_y = band_cy + (content_band_h // 4)
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
-                    af.write(f"Dialogue: 0,{start},{end},Arabic,,0,0,0,,{arabic}\n")
-                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{translation}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Arabic,,0,0,0,,"
+                             f"{{\\pos({cx},{ar_y})}}{arabic}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,"
+                             f"{{\\pos({cx},{tr_y})}}{translation}\n")
                 elif t["phase"] == "recitation":
                     arabic = _ass_escape(_fix_arabic_for_ass(t["arabic"]))
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
@@ -6876,7 +6887,7 @@ def _generate_explanation_video_task(video_id):
         fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
         ass_path = os.path.join(tmpdir, "subs.ass")
 
-        content_band_h = 320 if fmt == "short" else 260
+        content_band_h = 380 if fmt == "short" else 310
         content_band_y = (target_h - content_band_h) // 2
         # Ref band sits directly below the content band
         ref_band_h = 110 if fmt == "short" else 90
