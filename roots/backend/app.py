@@ -6525,7 +6525,7 @@ def _generate_video_task(video_id):
             af_mix = (
                 f"[1:a]volume=1.0[voice];"
                 f"[2:a]volume=0.04,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
-                f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3[aout]"
+                f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3:normalize=0[aout]"
             )
             cmd = [
                 _FFMPEG, "-y",
@@ -6849,11 +6849,13 @@ def _generate_explanation_video_task(video_id):
         fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
         ass_path = os.path.join(tmpdir, "subs.ass")
 
-        ref_band_y = 15 if fmt == "short" else 10
-        ref_band_h = 110 if fmt == "short" else 90
-        ref_margin_v = 38 if fmt == "short" else 28
         content_band_h = 320 if fmt == "short" else 260
         content_band_y = (target_h - content_band_h) // 2
+        # Ref band sits directly below the content band
+        ref_band_h = 110 if fmt == "short" else 90
+        ref_band_y = content_band_y + content_band_h
+        # MarginV from bottom = distance from screen bottom to ref band area
+        ref_margin_v = target_h - ref_band_y - ref_band_h + 20
 
         with open(ass_path, "w", encoding="utf-8") as af:
             af.write("[Script Info]\n")
@@ -6868,7 +6870,7 @@ def _generate_explanation_video_task(video_id):
                      "Alignment, MarginL, MarginR, MarginV, Encoding\n")
             af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},"
                      f"&H000000FF,{outline_colour},&H00000000,1,0,0,0,100,100,0,0,"
-                     f"1,3,0,8,40,40,{ref_margin_v},0\n")
+                     f"1,3,0,2,40,40,{ref_margin_v},0\n")
             af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},"
                      f"&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,"
                      f"1,3,0,5,60,60,0,0\n")
@@ -6958,7 +6960,7 @@ def _generate_explanation_video_task(video_id):
             af_mix = (
                 f"[1:a]volume=1.0[voice];"
                 f"[2:a]volume=0.04,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
-                f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3[aout]"
+                f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3:normalize=0[aout]"
             )
             cmd = [
                 _FFMPEG, "-y",

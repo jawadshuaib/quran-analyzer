@@ -270,7 +270,7 @@ export default function GenerateExplanationVideo() {
                     <td className="px-4 py-2 text-stone-500">{v.format}</td>
                     <td className="px-4 py-2">
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
-                        v.status === 'done' ? 'bg-green-100 text-green-700' :
+                        v.status === 'complete' ? 'bg-green-100 text-green-700' :
                         v.status === 'error' ? 'bg-red-100 text-red-700' :
                         'bg-amber-100 text-amber-700'
                       }`}>
@@ -285,7 +285,7 @@ export default function GenerateExplanationVideo() {
                       {new Date(v.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-2 text-right space-x-2">
-                      {v.status === 'done' && v.filename && (
+                      {v.status === 'complete' && v.filename && (
                         <a
                           href={`${generatedVideoDownloadUrl(v.id)}?token=${getToken()}`}
                           className="text-xs text-blue-600 hover:underline"

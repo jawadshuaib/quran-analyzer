@@ -36,7 +36,7 @@ export default function AdminMedia() {
           href="/admin/media/generate"
           className="block p-5 rounded-xl border border-stone-200 bg-white hover:border-stone-400 hover:shadow-sm transition-all"
         >
-          <h2 className="font-semibold text-stone-800 mb-1">Generate Video</h2>
+          <h2 className="font-semibold text-stone-800 mb-1">Generate Verse Recitation Video</h2>
           <p className="text-sm text-stone-500">
             Combine background video, recitation, and translation into a final video.
           </p>

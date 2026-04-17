@@ -116,7 +116,7 @@ export default function AdminPage() {
               {route === 'recitations' && 'Verse Recitations'}
               {route === 'resources' && 'Background Videos'}
               {route === 'music' && 'Background Music'}
-              {route === 'generate' && 'Generate Video'}
+              {route === 'generate' && 'Generate Verse Recitation Video'}
               {route === 'explanations' && 'Verse Explanations'}
               {route === 'generate-explanation' && 'Generate Explanation Video'}
             </span>
