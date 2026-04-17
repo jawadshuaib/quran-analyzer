@@ -6524,7 +6524,7 @@ def _generate_video_task(video_id):
             # Voice at full volume, music at ~4% so narrator is clearly heard
             af_mix = (
                 f"[1:a]volume=1.0[voice];"
-                f"[2:a]volume=0.04,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
+                f"[2:a]volume=0.01,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
                 f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3:normalize=0[aout]"
             )
             cmd = [
@@ -6935,10 +6935,23 @@ def _generate_explanation_video_task(video_id):
                 f":color=black@0.5:t=fill:enable='{enable}'"
             )
 
-        outro_enable = f"gte(t\\,{outro_start:.3f})"
+        # Outro: fade-in dark overlay over 1.5s (stepped opacity 0 → 0.75)
+        fade_dur = 1.5
+        fade_steps = 10
+        step_dur = fade_dur / fade_steps
+        for s in range(fade_steps):
+            t_s = outro_start + s * step_dur
+            t_e = outro_start + (s + 1) * step_dur
+            alpha = 0.75 * (s + 1) / fade_steps
+            drawbox_parts.append(
+                f"drawbox=x=0:y=0:w=iw:h=ih"
+                f":color=black@{alpha:.3f}:t=fill"
+                f":enable='between(t\\,{t_s:.3f}\\,{t_e:.3f})'"
+            )
         drawbox_parts.append(
             f"drawbox=x=0:y=0:w=iw:h=ih"
-            f":color=black@0.75:t=fill:enable='{outro_enable}'"
+            f":color=black@0.75:t=fill"
+            f":enable='gte(t\\,{outro_start + fade_dur:.3f})'"
         )
 
         # Step 6: Final render
@@ -6959,7 +6972,7 @@ def _generate_explanation_video_task(video_id):
             # Voice at full volume, music at ~4% so narrator is clearly heard
             af_mix = (
                 f"[1:a]volume=1.0[voice];"
-                f"[2:a]volume=0.04,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
+                f"[2:a]volume=0.01,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
                 f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3:normalize=0[aout]"
             )
             cmd = [

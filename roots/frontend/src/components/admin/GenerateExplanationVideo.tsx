@@ -83,6 +83,26 @@ export default function GenerateExplanationVideo() {
     }
   }
 
+  async function handleDownloadVideo(v: GeneratedVideo) {
+    try {
+      const token = getToken();
+      const res = await fetch(generatedVideoDownloadUrl(v.id), {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const safeName = v.title.replace(/[^\w\s.-]/g, '').trim() || 'video';
+      a.download = `${safeName}.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Download failed');
+    }
+  }
+
   async function handleDeleteVideo(id: number) {
     try {
       await deleteGeneratedVideo(id);
@@ -286,13 +306,12 @@ export default function GenerateExplanationVideo() {
                     </td>
                     <td className="px-4 py-2 text-right space-x-2">
                       {v.status === 'complete' && v.filename && (
-                        <a
-                          href={`${generatedVideoDownloadUrl(v.id)}?token=${getToken()}`}
-                          className="text-xs text-blue-600 hover:underline"
-                          download
+                        <button
+                          onClick={() => handleDownloadVideo(v)}
+                          className="text-xs text-blue-600 hover:underline cursor-pointer"
                         >
                           Download
-                        </a>
+                        </button>
                       )}
                       <button
                         onClick={() => handleDeleteVideo(v.id)}
