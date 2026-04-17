@@ -25,7 +25,7 @@ export default function GenerateVideo() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [title, setTitle] = useState('');
   const [titleManuallyEdited, setTitleManuallyEdited] = useState(false);
-  const [englishOnly, setEnglishOnly] = useState(false);
+  const [audioMode, setAudioMode] = useState<'arabic_and_english' | 'english_only' | 'arabic_only'>('arabic_and_english');
 
   // Generation
   const [generating, setGenerating] = useState(false);
@@ -122,7 +122,8 @@ export default function GenerateVideo() {
         resource_id: resourceId,
         reciter_id: reciterId,
         verses,
-        english_only: englishOnly || undefined,
+        english_only: audioMode === 'english_only' || undefined,
+        arabic_only: audioMode === 'arabic_only' || undefined,
         music_id: musicId || undefined,
       });
       const vids = await getGeneratedVideos();
@@ -202,17 +203,30 @@ export default function GenerateVideo() {
             </div>
           </div>
 
-          {/* English Only */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={englishOnly}
-              onChange={(e) => setEnglishOnly(e.target.checked)}
-              className="rounded border-stone-300"
-            />
-            <span className="text-sm text-stone-700">English only</span>
-            <span className="text-xs text-stone-400">(no Arabic recitation or text)</span>
-          </label>
+          {/* Audio Mode */}
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-2">Audio Mode</label>
+            <div className="flex gap-2">
+              {([
+                { value: 'arabic_and_english', label: 'Arabic & English', desc: 'Recitation + spoken translation' },
+                { value: 'arabic_only', label: 'Arabic Only', desc: 'Recitation only, subtitles shown' },
+                { value: 'english_only', label: 'English Only', desc: 'Spoken translation, no Arabic' },
+              ] as const).map((m) => (
+                <button
+                  key={m.value}
+                  onClick={() => setAudioMode(m.value)}
+                  className={`flex-1 px-3 py-2.5 rounded-lg border text-sm font-medium transition-colors cursor-pointer ${
+                    audioMode === m.value
+                      ? 'border-stone-800 bg-stone-800 text-white'
+                      : 'border-stone-300 bg-white text-stone-600 hover:border-stone-400'
+                  }`}
+                >
+                  {m.label}
+                  <span className="block text-xs font-normal mt-0.5 opacity-70">{m.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Background */}
           <div>
@@ -235,7 +249,7 @@ export default function GenerateVideo() {
           </div>
 
           {/* Reciter */}
-          {!englishOnly && (
+          {audioMode !== 'english_only' && (
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Reciter</label>
               <select
