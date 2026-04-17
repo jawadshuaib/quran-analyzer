@@ -180,6 +180,12 @@ export default function ExplanationBuilder() {
     setSegments(newSegments);
   }
 
+  function handleTranslationEdit(segIdx: number, text: string) {
+    const newSegments = [...segments];
+    newSegments[segIdx] = { ...newSegments[segIdx], translation: text, tts_filename: null };
+    setSegments(newSegments);
+  }
+
   function handleClosingEdit(text: string) {
     const newSegments = segments.map((s) =>
       s.type === 'closing' ? { ...s, text, tts_filename: null } : s
@@ -350,9 +356,12 @@ export default function ExplanationBuilder() {
                           </button>
                         </div>
                       </div>
-                      <p className="text-sm text-stone-500 leading-relaxed">
-                        {seg.translation}
-                      </p>
+                      <textarea
+                        value={seg.translation || ''}
+                        onChange={(e) => handleTranslationEdit(idx, e.target.value)}
+                        rows={2}
+                        className="w-full px-2 py-1.5 rounded border border-stone-200 text-sm text-stone-500 leading-relaxed focus:outline-none focus:ring-1 focus:ring-stone-400 resize-y"
+                      />
                     </div>
                   );
                 }
