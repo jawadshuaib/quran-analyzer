@@ -150,7 +150,6 @@ export default function App() {
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [extensionCheckDone, setExtensionCheckDone] = useState(false);
   const showTopBar =
-    window.location.pathname !== '/' &&
     !isMobileUserAgent() &&
     extensionCheckDone &&
     !extensionInstalled;
@@ -160,6 +159,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
+        {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <LearningPage />
         <SiteFooter />
@@ -173,6 +173,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
+        {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <div className="flex-1">
           <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />
@@ -188,6 +189,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
+        {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <RootPage rootBw={rootBw} />
         <SavedItemsPanel />
@@ -199,6 +201,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
+        {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <ExtensionPrivacyPage />
       </div>
@@ -209,6 +212,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
+        {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <MethodologyPage />
         <SiteFooter />
@@ -229,6 +233,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
+        {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <SettingsPage />
       </div>
@@ -239,6 +244,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
+        {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <NotFound />
       </div>
