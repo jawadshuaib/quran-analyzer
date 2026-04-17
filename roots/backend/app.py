@@ -5918,7 +5918,8 @@ def admin_explanation_closing():
         "Avoid negation patterns ('not X but Y'), avoid 'merely', 'simply put'. "
         "Avoid spiritual clichés ('timeless wisdom', 'profound reminder'). "
         "Let the weight come from the ideas, not from announcing profundity. "
-        "No em dashes. Keep it to 1-2 sentences only."
+        "No em dashes. STRICT LIMIT: the entire response must be under 165 "
+        "characters including spaces. Keep it to 1-2 short sentences."
     )
 
     try:
@@ -6903,8 +6904,8 @@ def _generate_explanation_video_task(video_id):
 
                 if t["phase"] == "verses":
                     ref = _ass_escape_local(t.get("ref", ""))
-                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
-                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{text}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{{\\fad(600,0)}}{ref}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{{\\fad(600,0)}}{text}\n")
                 # transitions and closing are spoken only — no subtitle text
 
             # Outro
@@ -6920,19 +6921,38 @@ def _generate_explanation_video_task(video_id):
                      f"{{\\fad(1200,0)\\pos({cx},{tag_y})}}A Root Based Translation of the Quran\n")
 
         # Step 5: Drawbox filters — only show bands during verse segments
+        # Fade-in bands over 0.6s to match subtitle fade
+        band_fade_dur = 0.6
+        band_fade_steps = 6
+        band_step_dur = band_fade_dur / band_fade_steps
         drawbox_parts = []
         for t in timeline:
             if t["phase"] != "verses":
                 continue  # transitions are spoken only, no visual overlay
             s, e = t["start"], t["start"] + t["dur"]
-            enable = f"between(t\\,{s:.3f}\\,{e:.3f})"
+            # Stepped fade-in for bands
+            for step in range(band_fade_steps):
+                t_s = s + step * band_step_dur
+                t_e = s + (step + 1) * band_step_dur
+                alpha = 0.5 * (step + 1) / band_fade_steps
+                step_en = f"between(t\\,{t_s:.3f}\\,{t_e:.3f})"
+                drawbox_parts.append(
+                    f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
+                    f":color=black@{alpha:.3f}:t=fill:enable='{step_en}'"
+                )
+                drawbox_parts.append(
+                    f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
+                    f":color=black@{alpha:.3f}:t=fill:enable='{step_en}'"
+                )
+            # Hold at full opacity after fade
+            hold_en = f"between(t\\,{s + band_fade_dur:.3f}\\,{e:.3f})"
             drawbox_parts.append(
                 f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
-                f":color=black@0.5:t=fill:enable='{enable}'"
+                f":color=black@0.5:t=fill:enable='{hold_en}'"
             )
             drawbox_parts.append(
                 f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
-                f":color=black@0.5:t=fill:enable='{enable}'"
+                f":color=black@0.5:t=fill:enable='{hold_en}'"
             )
 
         # Outro: fade-in dark overlay over 1.5s (stepped opacity 0 → 0.75)
