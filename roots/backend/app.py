@@ -6520,11 +6520,11 @@ def _generate_video_task(video_id):
         render_timeout = max(600, int(total_duration * 10))
 
         if music_path:
-            # Mix voice audio (input 1) with background music (input 2, looped, low volume)
-            # Voice at full volume, music at ~15% for subtle background
+            # Mix voice audio (input 1) with background music (input 2, low volume)
+            # Voice at full volume, music at ~4% so narrator is clearly heard
             af_mix = (
                 f"[1:a]volume=1.0[voice];"
-                f"[2:a]volume=0.15[music];"
+                f"[2:a]volume=0.04,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
                 f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3[aout]"
             )
             cmd = [
@@ -6532,7 +6532,6 @@ def _generate_video_task(video_id):
                 "-stream_loop", "-1",
                 "-i", bg_path,
                 "-i", combined_audio,
-                "-stream_loop", "-1",
                 "-i", music_path,
                 "-vf", vf,
                 "-filter_complex", af_mix,
@@ -6752,11 +6751,15 @@ def _generate_explanation_video_task(video_id):
         seg_durs = [_get_audio_duration(f) for f in seg_files]
 
         timeline = []
+        closing_seg_index = None  # track closing segment to overlay on outro
         current_time = 0.0
         for i, seg in enumerate(segments):
+            if seg["type"] == "closing":
+                closing_seg_index = i
+                continue  # closing audio plays during outro, not here
             text = seg.get("text") or seg.get("translation") or ""
             entry = {
-                "phase": seg["type"],  # transition, verses, closing
+                "phase": seg["type"],  # transition, verses
                 "start": current_time,
                 "dur": seg_durs[i],
                 "text": text,
@@ -6771,21 +6774,20 @@ def _generate_explanation_video_task(video_id):
                 current_time += 0.3  # short pause after transition
             elif seg["type"] == "verses":
                 current_time += 0.8  # longer pause after verses
-            # No extra pause after closing
 
-        # Outro
-        outro_dur = 5.0
+        # Outro — duration is the longer of 5s or the closing audio
+        closing_dur = seg_durs[closing_seg_index] if closing_seg_index is not None else 0
+        outro_dur = max(5.0, closing_dur + 1.0)  # +1s padding after closing speech
         outro_start = current_time
         total_duration = current_time + outro_dur
 
         # Step 3: Concatenate audio with pauses
         _update_video_status(video_id, "processing", "Building audio track...")
 
-        # Generate silence segments
+        # Generate silence segments for pauses between segments
         silence_03 = os.path.join(tmpdir, "silence_03.mp3")
         silence_08 = os.path.join(tmpdir, "silence_08.mp3")
-        silence_outro = os.path.join(tmpdir, "silence_outro.mp3")
-        for dur, path in [(0.3, silence_03), (0.8, silence_08), (outro_dur, silence_outro)]:
+        for dur, path in [(0.3, silence_03), (0.8, silence_08)]:
             subprocess.run(
                 [_FFMPEG, "-y", "-f", "lavfi", "-i",
                  f"anullsrc=r=44100:cl=stereo", "-t", f"{dur:.3f}",
@@ -6793,15 +6795,42 @@ def _generate_explanation_video_task(video_id):
                 capture_output=True, timeout=30,
             )
 
+        # Generate outro silence (length of full outro)
+        silence_outro = os.path.join(tmpdir, "silence_outro.mp3")
+        subprocess.run(
+            [_FFMPEG, "-y", "-f", "lavfi", "-i",
+             f"anullsrc=r=44100:cl=stereo", "-t", f"{outro_dur:.3f}",
+             "-c:a", "libmp3lame", "-q:a", "9", silence_outro],
+            capture_output=True, timeout=30,
+        )
+
+        # If we have closing audio, overlay it onto the outro silence
+        if closing_seg_index is not None:
+            outro_audio = os.path.join(tmpdir, "outro_with_closing.mp3")
+            subprocess.run(
+                [_FFMPEG, "-y",
+                 "-i", silence_outro,
+                 "-i", seg_files[closing_seg_index],
+                 "-filter_complex",
+                 "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[out]",
+                 "-map", "[out]", "-c:a", "libmp3lame", "-q:a", "2",
+                 outro_audio],
+                capture_output=True, timeout=60,
+            )
+        else:
+            outro_audio = silence_outro
+
         concat_list = os.path.join(tmpdir, "concat.txt")
         with open(concat_list, "w") as f:
             for i, seg in enumerate(segments):
+                if seg["type"] == "closing":
+                    continue  # closing audio is in the outro
                 f.write(f"file '{seg_files[i]}'\n")
                 if seg["type"] == "transition":
                     f.write(f"file '{silence_03}'\n")
                 elif seg["type"] == "verses":
                     f.write(f"file '{silence_08}'\n")
-            f.write(f"file '{silence_outro}'\n")
+            f.write(f"file '{outro_audio}'\n")
 
         combined_audio = os.path.join(tmpdir, "combined.mp3")
         subprocess.run(
@@ -6874,9 +6903,7 @@ def _generate_explanation_video_task(video_id):
                     ref = _ass_escape_local(t.get("ref", ""))
                     af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{ref}\n")
                     af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{text}\n")
-                else:
-                    # transition or closing: just centered text
-                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{text}\n")
+                # transitions and closing are spoken only — no subtitle text
 
             # Outro
             outro_s = _ass_time_local(outro_start)
@@ -6890,22 +6917,21 @@ def _generate_explanation_video_task(video_id):
             af.write(f"Dialogue: 0,{outro_s},{outro_e},OutroTag,,0,0,0,,"
                      f"{{\\fad(1200,0)\\pos({cx},{tag_y})}}A Root Based Translation of the Quran\n")
 
-        # Step 5: Drawbox filters
+        # Step 5: Drawbox filters — only show bands during verse segments
         drawbox_parts = []
         for t in timeline:
+            if t["phase"] != "verses":
+                continue  # transitions are spoken only, no visual overlay
             s, e = t["start"], t["start"] + t["dur"]
             enable = f"between(t\\,{s:.3f}\\,{e:.3f})"
-            # Content band always visible during speech
             drawbox_parts.append(
                 f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
                 f":color=black@0.5:t=fill:enable='{enable}'"
             )
-            # Ref band only during verses
-            if t["phase"] == "verses":
-                drawbox_parts.append(
-                    f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
-                    f":color=black@0.5:t=fill:enable='{enable}'"
-                )
+            drawbox_parts.append(
+                f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
+                f":color=black@0.5:t=fill:enable='{enable}'"
+            )
 
         outro_enable = f"gte(t\\,{outro_start:.3f})"
         drawbox_parts.append(
@@ -6928,16 +6954,17 @@ def _generate_explanation_video_task(video_id):
         render_timeout = max(600, int(total_duration * 10))
 
         if music_path:
+            # Voice at full volume, music at ~4% so narrator is clearly heard
             af_mix = (
                 f"[1:a]volume=1.0[voice];"
-                f"[2:a]volume=0.15[music];"
+                f"[2:a]volume=0.04,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
                 f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3[aout]"
             )
             cmd = [
                 _FFMPEG, "-y",
                 "-stream_loop", "-1", "-i", bg_path,
                 "-i", combined_audio,
-                "-stream_loop", "-1", "-i", music_path,
+                "-i", music_path,
                 "-vf", vf,
                 "-filter_complex", af_mix,
                 "-t", f"{total_duration:.3f}",
