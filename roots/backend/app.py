@@ -8296,10 +8296,7 @@ def _pipeline_generate_task(video_id):
                 if not translation:
                     continue
                 translation = html.unescape(re.sub(r"<[^>]+>", "", translation))
-                sname_row = conn.execute(
-                    "SELECT DISTINCT name FROM quran_text WHERE sura = ?", (ch,)
-                ).fetchone()
-                surah_name = sname_row["name"] if sname_row else f"Surah {ch}"
+                surah_name = _surah_name(ch)
                 verse_data.append({
                     "chapter": ch,
                     "verse": vs,
