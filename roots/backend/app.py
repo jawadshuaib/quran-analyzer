@@ -8097,14 +8097,29 @@ def _generate_youtube_metadata(verse_data):
     finally:
         conn.close()
 
-    # Build verse refs string
-    refs = [f"{v['chapter']}:{v['verse']}" for v in verse_data]
-    ref_string = ", ".join(refs)
+    # Build verse refs string — prefer compact range format for consecutive passages
+    if not verse_data:
+        ref_string = ""
+    else:
+        chapters = {v["chapter"] for v in verse_data}
+        verses_sorted = sorted(v["verse"] for v in verse_data)
+        is_consecutive = (
+            len(chapters) == 1
+            and verses_sorted == list(range(verses_sorted[0], verses_sorted[-1] + 1))
+        )
+        if is_consecutive:
+            ch = verse_data[0]["chapter"]
+            if verses_sorted[0] == verses_sorted[-1]:
+                ref_string = f"{ch}:{verses_sorted[0]}"
+            else:
+                ref_string = f"{ch}:{verses_sorted[0]}-{verses_sorted[-1]}"
+        else:
+            ref_string = ", ".join(f"{v['chapter']}:{v['verse']}" for v in verse_data)
 
-    # Build verse block for prompt
+    # Build verse block for prompt — show each verse individually so the LLM sees the full text
     verse_lines = []
     for v in verse_data:
-        verse_lines.append(f"- {v['ref']}: \"{v['polished_text']}\"")
+        verse_lines.append(f"- {v['chapter']}:{v['verse']}: \"{v['polished_text']}\"")
     verse_block = "\n".join(verse_lines)
 
     prompt = (
@@ -8187,15 +8202,32 @@ def _pipeline_generate_task(video_id):
                 _update_pipeline_video_status(video_id, "failed", error="Pipeline not found")
                 return
 
-            # Gather used verses across ALL completed runs of this pipeline
+            # Gather used passage ranges across ALL completed runs of this pipeline
             used_rows = conn.execute(
                 "SELECT verse_data FROM admin_pipeline_videos WHERE pipeline_id = ? AND status = 'complete'",
                 (pipeline["id"],),
             ).fetchall()
-            used_verses = set()
+            used_ranges = []
             for ur in used_rows:
-                for v in json.loads(ur["verse_data"] or "[]"):
-                    used_verses.add(f"{v['chapter']}:{v['verse']}")
+                try:
+                    vs_list = json.loads(ur["verse_data"] or "[]")
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                if not vs_list:
+                    continue
+                # Group verses by chapter to handle legacy multi-surah videos
+                by_ch = {}
+                for v in vs_list:
+                    ch = v.get("chapter")
+                    vs = v.get("verse")
+                    if ch and vs:
+                        by_ch.setdefault(ch, []).append(vs)
+                for ch, verses in by_ch.items():
+                    vs_min, vs_max = min(verses), max(verses)
+                    if vs_min == vs_max:
+                        used_ranges.append(f"{ch}:{vs_min}")
+                    else:
+                        used_ranges.append(f"{ch}:{vs_min}-{vs_max}")
 
             resource = conn.execute("SELECT * FROM admin_resources WHERE id = ?", (pipeline["resource_id"],)).fetchone()
             music_filename = None
@@ -8227,22 +8259,21 @@ def _pipeline_generate_task(video_id):
             _update_pipeline_video_status(video_id, "failed", error="Claude API key not configured")
             return
 
-        used_list = ", ".join(sorted(used_verses)) if used_verses else "None yet"
+        used_list = ", ".join(sorted(set(used_ranges))) if used_ranges else "None yet"
 
         select_prompt = (
-            "You are selecting Quranic verses for a YouTube Shorts video (under 60 seconds of spoken content).\n"
-            "Pick 3 to 5 verses that will provoke deep thought or stir emotion in Muslim viewers.\n\n"
+            "You are selecting a Quranic passage for a YouTube Shorts video (under 60 seconds of spoken content).\n"
+            "Pick ONE continuous passage of 3 to 8 consecutive verses from a SINGLE surah.\n\n"
             "Guidelines:\n"
-            "- Choose verses with intellectual depth or emotional resonance\n"
+            "- The passage must form a cohesive unit — a complete thought, argument, or narrative arc\n"
+            "- Choose passages with intellectual depth or emotional resonance\n"
             "- The verses will be spoken in English only — Arabic poetic qualities don't matter\n"
-            "- Pick verses from DIFFERENT surahs to showcase the Quran's breadth\n"
-            "- Avoid the most overused verses (Ayat al-Kursi, last 3 surahs, Al-Fatiha, etc.)\n"
-            "- There should be a loose thematic thread connecting the verses\n"
-            "- Prefer shorter verses — combined spoken length should be roughly 30-45 seconds\n"
-            "- Choose verses that stand well on their own without extensive context\n\n"
-            f"Previously used verses (DO NOT repeat any of these): {used_list}\n\n"
-            "Return ONLY a valid JSON array, nothing else:\n"
-            '[{"chapter": <int>, "verse": <int>}, ...]'
+            "- Avoid the most overused passages (Ayat al-Kursi, last 3 surahs, Al-Fatiha, etc.)\n"
+            "- Prefer shorter verses — total spoken length should be roughly 30-45 seconds\n"
+            "- Pick verses that build on each other — don't just pick one famous verse and pad around it\n\n"
+            f"Previously used passages (DO NOT repeat or overlap with these): {used_list}\n\n"
+            "Return ONLY a valid JSON object, nothing else:\n"
+            '{"chapter": <int>, "ayah_start": <int>, "ayah_end": <int>}'
         )
 
         resp = requests.post(
@@ -8265,42 +8296,52 @@ def _pipeline_generate_task(video_id):
             return
 
         resp_text = resp.json()["content"][0]["text"].strip()
-        match = re.search(r"\[.*\]", resp_text, re.DOTALL)
+        match = re.search(r"\{.*\}", resp_text, re.DOTALL)
         if not match:
-            _update_pipeline_video_status(video_id, "failed", error="Could not parse verse selection from AI")
+            _update_pipeline_video_status(video_id, "failed", error="Could not parse passage selection from AI")
             return
 
         try:
-            selected_verses = json.loads(match.group())
+            selection = json.loads(match.group())
         except json.JSONDecodeError as je:
-            _update_pipeline_video_status(video_id, "failed", error=f"AI returned invalid JSON for verse selection: {je}")
+            _update_pipeline_video_status(video_id, "failed", error=f"AI returned invalid JSON for passage selection: {je}")
             return
 
-        # Deduplicate verses (Claude may repeat)
-        seen = set()
-        deduped = []
-        for sv in selected_verses:
-            key = (int(sv["chapter"]), int(sv["verse"]))
-            if key not in seen:
-                seen.add(key)
-                deduped.append(sv)
-        selected_verses = deduped
+        try:
+            chapter = int(selection["chapter"])
+            ayah_start = int(selection["ayah_start"])
+            ayah_end = int(selection["ayah_end"])
+        except (KeyError, TypeError, ValueError):
+            _update_pipeline_video_status(video_id, "failed", error="Missing chapter/ayah_start/ayah_end in AI response")
+            return
+
+        if ayah_end < ayah_start:
+            ayah_start, ayah_end = ayah_end, ayah_start
+        # Safety cap: no more than 8 verses to keep the short under time budget
+        if ayah_end - ayah_start + 1 > 8:
+            ayah_end = ayah_start + 7
 
         # ---- 3. Fetch translations ----
+        surah_name = _surah_name(chapter)
+        passage_ref = (
+            f"{surah_name} {chapter}:{ayah_start}"
+            if ayah_start == ayah_end
+            else f"{surah_name} {chapter}:{ayah_start}-{ayah_end}"
+        )
+
         conn = get_db()
         try:
             verse_data = []
-            for sv in selected_verses:
-                ch, vs = int(sv["chapter"]), int(sv["verse"])
-                translation = _best_translation(conn, ch, vs)
+            for vs in range(ayah_start, ayah_end + 1):
+                translation = _best_translation(conn, chapter, vs)
                 if not translation:
                     continue
                 translation = html.unescape(re.sub(r"<[^>]+>", "", translation))
-                surah_name = _surah_name(ch)
                 verse_data.append({
-                    "chapter": ch,
+                    "chapter": chapter,
                     "verse": vs,
-                    "ref": f"{surah_name} {ch}:{vs}",
+                    "ref": passage_ref,
+                    "passage_ref": passage_ref,
                     "original_translation": translation,
                     "polished_text": "",
                     "tts_filename": None,
@@ -8309,7 +8350,7 @@ def _pipeline_generate_task(video_id):
             conn.close()
 
         if not verse_data:
-            _update_pipeline_video_status(video_id, "failed", error="No valid verses found")
+            _update_pipeline_video_status(video_id, "failed", error=f"No translations found for {passage_ref}")
             return
 
         # ---- 4. Polish translations via Claude ----
@@ -8321,11 +8362,12 @@ def _pipeline_generate_task(video_id):
         ]
 
         polish_prompt = (
-            "You are preparing Quranic verse translations for spoken delivery in a YouTube Short.\n"
-            "Polish each translation for natural, impactful spoken delivery.\n\n"
+            "You are preparing a Quranic passage for spoken delivery in a YouTube Short.\n"
+            f"This is a continuous passage from {passage_ref}. Polish each verse for natural spoken delivery.\n"
+            "They'll be read as one flowing passage with brief pauses between verses.\n\n"
             "Rules:\n"
             "- Remove brackets, parentheses, footnote markers, editorial additions like [O Prophet], and superscript numbers\n"
-            "- Make the text flow naturally for spoken English\n"
+            "- Make the text flow naturally for spoken English, and flow naturally from one verse to the next\n"
             "- Do NOT substantially change the meaning — polish for delivery, not reinterpretation\n"
             "- Make it smooth and impactful — imagine someone speaking to an audience with gravitas\n"
             "- Keep it concise — every word should earn its place\n"
@@ -8545,13 +8587,18 @@ def _pipeline_generate_task(video_id):
                 def _esc(text):
                     return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
 
+                # One ref line spans the whole passage; text changes per verse
+                if timeline:
+                    passage_start = _at(timeline[0]["start"])
+                    passage_end = _at(timeline[-1]["start"] + timeline[-1]["dur"])
+                    ref_str = _esc(verse_data[0]["ref"])
+                    af.write(f"Dialogue: 0,{passage_start},{passage_end},Ref,,0,0,0,,{{\\fad(600,600)}}{ref_str}\n")
+
                 for entry in timeline:
                     start = _at(entry["start"])
                     end = _at(entry["start"] + entry["dur"])
-                    ref = _esc(entry["ref"])
                     text = _esc(entry["text"])
-                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{{\\fad(600,0)}}{ref}\n")
-                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{{\\fad(600,0)}}{text}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{{\\fad(300,0)}}{text}\n")
 
                 # Outro
                 os_str = _at(outro_start)
@@ -8567,13 +8614,19 @@ def _pipeline_generate_task(video_id):
             drawbox_parts = []
 
             if show_bands:
+                # Ref band: one box spanning the whole passage
+                if timeline:
+                    ref_s = timeline[0]["start"]
+                    ref_e = timeline[-1]["start"] + timeline[-1]["dur"]
+                    ref_enable = f"between(t\\,{ref_s:.3f}\\,{ref_e:.3f})"
+                    drawbox_parts.append(
+                        f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
+                        f":color=black@0.5:t=fill:enable='{ref_enable}'"
+                    )
+                # Content band: one box per verse (matches text changes)
                 for entry in timeline:
                     s, e = entry["start"], entry["start"] + entry["dur"]
                     enable = f"between(t\\,{s:.3f}\\,{e:.3f})"
-                    drawbox_parts.append(
-                        f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
-                        f":color=black@0.5:t=fill:enable='{enable}'"
-                    )
                     drawbox_parts.append(
                         f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
                         f":color=black@0.5:t=fill:enable='{enable}'"

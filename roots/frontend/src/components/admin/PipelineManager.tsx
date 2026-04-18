@@ -488,7 +488,7 @@ function VideoCard({
           )}
           {verses.length > 0 && (
             <span className="text-xs text-stone-400 truncate">
-              {verses.map((v) => v.ref).join(' | ')}
+              {Array.from(new Set(verses.map((v) => v.ref))).join(' | ')}
             </span>
           )}
         </div>
@@ -551,16 +551,27 @@ function VideoCard({
         </div>
       )}
 
-      {expanded && verses.length > 0 && (
-        <div className="mt-3 border-t border-stone-100 pt-3 space-y-2">
-          {verses.map((v, i) => (
-            <div key={i} className="text-xs">
-              <span className="font-medium text-stone-600">{v.ref}</span>
-              <p className="text-stone-400 mt-0.5">{v.polished_text || v.original_translation}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      {expanded && verses.length > 0 && (() => {
+        const uniqueRefs = Array.from(new Set(verses.map((v) => v.ref)));
+        const passageMode = uniqueRefs.length === 1;
+        return (
+          <div className="mt-3 border-t border-stone-100 pt-3 space-y-2">
+            {passageMode && (
+              <div className="text-xs font-medium text-stone-600">{uniqueRefs[0]}</div>
+            )}
+            {verses.map((v, i) => (
+              <div key={i} className="text-xs">
+                {passageMode ? (
+                  <span className="font-medium text-stone-500">v{v.verse}</span>
+                ) : (
+                  <span className="font-medium text-stone-600">{v.ref}</span>
+                )}
+                <p className="text-stone-400 mt-0.5">{v.polished_text || v.original_translation}</p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       <div className="mt-2 text-[10px] text-stone-300">
         {new Date(video.created_at).toLocaleString()}
