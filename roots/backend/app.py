@@ -7877,12 +7877,9 @@ def admin_delete_pipeline(pipeline_id):
         row = conn.execute("SELECT id FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
         if not row:
             return jsonify({"error": "Not found"}), 404
-        videos = conn.execute("SELECT filename FROM admin_pipeline_videos WHERE pipeline_id = ?", (pipeline_id,)).fetchall()
+        videos = conn.execute("SELECT * FROM admin_pipeline_videos WHERE pipeline_id = ?", (pipeline_id,)).fetchall()
         for v in videos:
-            if v["filename"]:
-                fp = os.path.join(_GENERATED_VIDEOS_DIR, v["filename"])
-                if os.path.isfile(fp):
-                    os.remove(fp)
+            _cleanup_pipeline_video_files(v)
         conn.execute("DELETE FROM admin_pipeline_videos WHERE pipeline_id = ?", (pipeline_id,))
         conn.execute("DELETE FROM admin_pipelines WHERE id = ?", (pipeline_id,))
         conn.commit()
@@ -7942,6 +7939,24 @@ def admin_list_pipeline_videos():
         conn.close()
 
 
+def _cleanup_pipeline_video_files(row):
+    """Remove the rendered video and TTS files for a pipeline video row."""
+    if row["filename"]:
+        fp = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
+        if os.path.isfile(fp):
+            os.remove(fp)
+    # Clean up TTS files stored in verse_data
+    try:
+        for v in json.loads(row["verse_data"] or "[]"):
+            tts = v.get("tts_filename")
+            if tts:
+                tp = os.path.join(_TTS_CACHE_DIR, tts)
+                if os.path.isfile(tp):
+                    os.remove(tp)
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+
 @app.route("/api/admin/pipeline-videos/<int:video_id>", methods=["DELETE"])
 @admin_required
 def admin_delete_pipeline_video(video_id):
@@ -7950,10 +7965,7 @@ def admin_delete_pipeline_video(video_id):
         row = conn.execute("SELECT * FROM admin_pipeline_videos WHERE id = ?", (video_id,)).fetchone()
         if not row:
             return jsonify({"error": "Not found"}), 404
-        if row["filename"]:
-            fp = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
-            if os.path.isfile(fp):
-                os.remove(fp)
+        _cleanup_pipeline_video_files(row)
         conn.execute("DELETE FROM admin_pipeline_videos WHERE id = ?", (video_id,))
         conn.commit()
         return jsonify({"message": "Deleted"})
@@ -8081,7 +8093,21 @@ def _pipeline_generate_task(video_id):
             _update_pipeline_video_status(video_id, "failed", error="Could not parse verse selection from AI")
             return
 
-        selected_verses = json.loads(match.group())
+        try:
+            selected_verses = json.loads(match.group())
+        except json.JSONDecodeError as je:
+            _update_pipeline_video_status(video_id, "failed", error=f"AI returned invalid JSON for verse selection: {je}")
+            return
+
+        # Deduplicate verses (Claude may repeat)
+        seen = set()
+        deduped = []
+        for sv in selected_verses:
+            key = (int(sv["chapter"]), int(sv["verse"]))
+            if key not in seen:
+                seen.add(key)
+                deduped.append(sv)
+        selected_verses = deduped
 
         # ---- 3. Fetch translations ----
         conn = get_db()
@@ -8160,7 +8186,11 @@ def _pipeline_generate_task(video_id):
             _update_pipeline_video_status(video_id, "failed", error="Could not parse polished text from AI")
             return
 
-        polished = json.loads(match.group())
+        try:
+            polished = json.loads(match.group())
+        except json.JSONDecodeError as je:
+            _update_pipeline_video_status(video_id, "failed", error=f"AI returned invalid JSON for polishing: {je}")
+            return
         polished_map = {(p["chapter"], p["verse"]): p["polished"] for p in polished}
 
         for v in verse_data:
@@ -8317,7 +8347,8 @@ def _pipeline_generate_task(video_id):
                 af.write("[Script Info]\n")
                 af.write("ScriptType: v4.00+\n")
                 af.write(f"PlayResX: {target_w}\n")
-                af.write(f"PlayResY: {target_h}\n\n")
+                af.write(f"PlayResY: {target_h}\n")
+                af.write("ScaledBorderAndShadow: yes\n\n")
 
                 af.write("[V4+ Styles]\n")
                 af.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")

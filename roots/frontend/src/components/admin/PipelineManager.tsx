@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getPipelines, createPipeline, deletePipeline,
+  getPipelines, createPipeline, updatePipeline, deletePipeline,
   generatePipelineVideo, getPipelineVideos, deletePipelineVideo,
   pipelineVideoDownloadUrl, getResources, getMusicTracks, getVoices, getToken,
 } from '../../api/admin';
@@ -53,6 +53,7 @@ export default function PipelineManager() {
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   // Videos
   const [videos, setVideos] = useState<PipelineVideo[]>([]);
@@ -107,10 +108,19 @@ export default function PipelineManager() {
     setFormError('');
   }
 
+  const hasActiveVideo = videos.some((v) =>
+    ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering'].includes(v.status)
+  );
+
+  function validateForm(): boolean {
+    if (!formName.trim()) { setFormError('Name is required'); return false; }
+    if (!formResourceId) { setFormError('Background video is required'); return false; }
+    if (!formVoiceId) { setFormError('Voice is required'); return false; }
+    return true;
+  }
+
   async function handleCreate() {
-    if (!formName.trim()) { setFormError('Name is required'); return; }
-    if (!formResourceId) { setFormError('Background video is required'); return; }
-    if (!formVoiceId) { setFormError('Voice is required'); return; }
+    if (!validateForm()) return;
     setSaving(true);
     setFormError('');
     try {
@@ -132,14 +142,49 @@ export default function PipelineManager() {
     }
   }
 
+  function handleEdit(pipe: Pipeline) {
+    setEditingId(pipe.id);
+    setFormName(pipe.name);
+    setFormResourceId(pipe.resource_id);
+    setFormVoiceId(pipe.voice_id);
+    setFormShowBands(!!pipe.show_bands);
+    setFormMusicId(pipe.music_id || '');
+    setFormError('');
+    setShowCreate(false);
+  }
+
+  async function handleSaveEdit() {
+    if (!editingId || !validateForm()) return;
+    setSaving(true);
+    setFormError('');
+    try {
+      const updated = await updatePipeline(editingId, {
+        name: formName.trim(),
+        resource_id: formResourceId as number,
+        voice_id: formVoiceId,
+        show_bands: formShowBands,
+        music_id: formMusicId ? (formMusicId as number) : null,
+      });
+      setPipelines((prev) => prev.map((p) => p.id === editingId ? { ...p, ...updated } : p));
+      setEditingId(null);
+      resetForm();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to update');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete(id: number) {
     try {
       await deletePipeline(id);
-      setPipelines((prev) => prev.filter((p) => p.id !== id));
-      if (selectedId === id) {
-        const remaining = pipelines.filter((p) => p.id !== id);
-        setSelectedId(remaining.length > 0 ? remaining[0].id : null);
-      }
+      setPipelines((prev) => {
+        const remaining = prev.filter((p) => p.id !== id);
+        if (selectedId === id) {
+          setSelectedId(remaining.length > 0 ? remaining[0].id : null);
+        }
+        return remaining;
+      });
     } catch { /* ignore */ }
   }
 
@@ -221,10 +266,10 @@ export default function PipelineManager() {
         </div>
       )}
 
-      {/* Create form */}
-      {showCreate && (
+      {/* Create / Edit form */}
+      {(showCreate || editingId) && (
         <div className="rounded-xl border border-stone-200 bg-white p-6 mb-8">
-          <h2 className="font-semibold text-stone-800 mb-4">Create New Pipeline</h2>
+          <h2 className="font-semibold text-stone-800 mb-4">{editingId ? 'Edit Pipeline' : 'Create New Pipeline'}</h2>
           <div className="space-y-4 max-w-lg">
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Pipeline Name</label>
@@ -291,14 +336,14 @@ export default function PipelineManager() {
             )}
             <div className="flex gap-2">
               <button
-                onClick={handleCreate}
+                onClick={editingId ? handleSaveEdit : handleCreate}
                 disabled={saving}
                 className="px-5 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 transition-colors cursor-pointer disabled:opacity-50"
               >
-                {saving ? 'Creating...' : 'Create Pipeline'}
+                {saving ? 'Saving...' : editingId ? 'Save Changes' : 'Create Pipeline'}
               </button>
               <button
-                onClick={() => setShowCreate(false)}
+                onClick={() => { setShowCreate(false); setEditingId(null); resetForm(); }}
                 className="px-4 py-2 rounded-lg text-sm text-stone-500 hover:text-stone-700 cursor-pointer"
               >
                 Cancel
@@ -309,7 +354,7 @@ export default function PipelineManager() {
       )}
 
       {/* Selected pipeline details */}
-      {selected && !showCreate && (
+      {selected && !showCreate && !editingId && (
         <div>
           {/* Config summary */}
           <div className="rounded-xl border border-stone-200 bg-white p-6 mb-6">
@@ -323,22 +368,30 @@ export default function PipelineManager() {
                   <span>Bands: {selected.show_bands ? 'On' : 'Off'}</span>
                 </div>
               </div>
-              <button
-                onClick={() => handleDelete(selected.id)}
-                className="text-xs text-red-400 hover:text-red-600 cursor-pointer"
-              >
-                Delete Pipeline
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleEdit(selected)}
+                  className="text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(selected.id)}
+                  className="text-xs text-red-400 hover:text-red-600 cursor-pointer"
+                >
+                  Delete
+                </button>
+              </div>
             </div>
 
             {/* Generate button */}
             <div className="mt-6 flex items-center gap-4">
               <button
                 onClick={handleGenerate}
-                disabled={generating}
+                disabled={generating || hasActiveVideo}
                 className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {generating ? 'Starting...' : 'Create Video for English Pipeline'}
+                {generating ? 'Starting...' : hasActiveVideo ? 'Video in progress...' : 'Create Video for English Pipeline'}
               </button>
               {genError && <p className="text-sm text-red-600">{genError}</p>}
             </div>
