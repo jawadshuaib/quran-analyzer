@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getResources, uploadResource, deleteResource, resourceThumbnailUrl, getToken } from '../../api/admin';
+import { getResources, uploadResource, deleteResource, updateResource, resourceThumbnailUrl, getToken } from '../../api/admin';
 import type { Resource } from '../../api/admin';
 
 function formatBytes(bytes: number): string {
@@ -90,16 +90,19 @@ export default function AdminResources() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {resources.map((r) => (
-          <ResourceCard key={r.id} resource={r} onDelete={handleDelete} />
+          <ResourceCard key={r.id} resource={r} onDelete={handleDelete} onUpdate={(updated) => setResources((prev) => prev.map((p) => p.id === updated.id ? updated : p))} />
         ))}
       </div>
     </div>
   );
 }
 
-function ResourceCard({ resource, onDelete }: { resource: Resource; onDelete: (id: number) => void }) {
+function ResourceCard({ resource, onDelete, onUpdate }: { resource: Resource; onDelete: (id: number) => void; onUpdate: (r: Resource) => void }) {
   const [thumbSrc, setThumbSrc] = useState<string | null>(null);
   const [thumbError, setThumbError] = useState(false);
+  const [desc, setDesc] = useState(resource.description || '');
+  const [saving, setSaving] = useState(false);
+  const dirty = desc !== (resource.description || '');
 
   useEffect(() => {
     let revoke: string | null = null;
@@ -122,6 +125,15 @@ function ResourceCard({ resource, onDelete }: { resource: Resource; onDelete: (i
     };
   }, [resource.id]);
 
+  async function handleSaveDesc() {
+    setSaving(true);
+    try {
+      const updated = await updateResource(resource.id, desc);
+      onUpdate(updated);
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  }
+
   return (
     <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
       {/* Thumbnail */}
@@ -143,6 +155,20 @@ function ResourceCard({ resource, onDelete }: { resource: Resource; onDelete: (i
           <span>{formatDuration(resource.duration_seconds)}</span>
           {resource.width && resource.height && <span>{resource.width}x{resource.height}</span>}
           <span>{formatBytes(resource.file_size)}</span>
+        </div>
+        {/* Description */}
+        <div className="mt-2">
+          <input
+            type="text"
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+            onBlur={() => { if (dirty) handleSaveDesc(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && dirty) handleSaveDesc(); }}
+            placeholder="Add a description..."
+            maxLength={500}
+            className="w-full text-xs text-stone-600 border border-stone-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-stone-400 placeholder:text-stone-300"
+          />
+          {saving && <span className="text-[10px] text-stone-400 mt-0.5 block">Saving...</span>}
         </div>
         <button
           onClick={() => onDelete(resource.id)}

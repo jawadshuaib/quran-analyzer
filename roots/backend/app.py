@@ -5329,6 +5329,11 @@ def _ensure_resource_tables():
             )
         """)
         conn.commit()
+        # Add description column if missing
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(admin_resources)").fetchall()]
+        if "description" not in cols:
+            conn.execute("ALTER TABLE admin_resources ADD COLUMN description TEXT DEFAULT ''")
+            conn.commit()
         # On startup: reset stuck jobs
         conn.execute(
             "UPDATE admin_generated_videos SET status='failed', error_message='Server restarted' "
@@ -5355,6 +5360,11 @@ def _ensure_music_table():
             )
         """)
         conn.commit()
+        # Add description column if missing
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(admin_music)").fetchall()]
+        if "description" not in cols:
+            conn.execute("ALTER TABLE admin_music ADD COLUMN description TEXT DEFAULT ''")
+            conn.commit()
     finally:
         conn.close()
 
@@ -5455,6 +5465,24 @@ def admin_delete_resource(resource_id):
         conn.execute("DELETE FROM admin_resources WHERE id = ?", (resource_id,))
         conn.commit()
         return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/resources/<int:resource_id>", methods=["PUT"])
+@admin_required
+def admin_update_resource(resource_id):
+    body = request.get_json(silent=True) or {}
+    description = body.get("description", "").strip()[:500]
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT id FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        conn.execute("UPDATE admin_resources SET description = ? WHERE id = ?", (description, resource_id))
+        conn.commit()
+        updated = conn.execute("SELECT * FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
+        return jsonify(dict(updated))
     finally:
         conn.close()
 
@@ -5560,6 +5588,24 @@ def admin_delete_music(music_id):
         conn.execute("DELETE FROM admin_music WHERE id = ?", (music_id,))
         conn.commit()
         return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/music/<int:music_id>", methods=["PUT"])
+@admin_required
+def admin_update_music(music_id):
+    body = request.get_json(silent=True) or {}
+    description = body.get("description", "").strip()[:500]
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT id FROM admin_music WHERE id = ?", (music_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        conn.execute("UPDATE admin_music SET description = ? WHERE id = ?", (description, music_id))
+        conn.commit()
+        updated = conn.execute("SELECT * FROM admin_music WHERE id = ?", (music_id,)).fetchone()
+        return jsonify(dict(updated))
     finally:
         conn.close()
 

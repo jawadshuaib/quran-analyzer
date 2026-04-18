@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getMusicTracks, uploadMusicTrack, deleteMusicTrack, musicAudioUrl, getToken } from '../../api/admin';
+import { getMusicTracks, uploadMusicTrack, deleteMusicTrack, updateMusicTrack, musicAudioUrl, getToken } from '../../api/admin';
 import type { MusicTrack } from '../../api/admin';
 
 function formatBytes(bytes: number): string {
@@ -89,15 +89,18 @@ export default function AdminMusic() {
 
       <div className="space-y-3 max-w-2xl">
         {tracks.map((t) => (
-          <MusicCard key={t.id} track={t} onDelete={handleDelete} />
+          <MusicCard key={t.id} track={t} onDelete={handleDelete} onUpdate={(updated) => setTracks((prev) => prev.map((p) => p.id === updated.id ? updated : p))} />
         ))}
       </div>
     </div>
   );
 }
 
-function MusicCard({ track, onDelete }: { track: MusicTrack; onDelete: (id: number) => void }) {
+function MusicCard({ track, onDelete, onUpdate }: { track: MusicTrack; onDelete: (id: number) => void; onUpdate: (t: MusicTrack) => void }) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [desc, setDesc] = useState(track.description || '');
+  const [saving, setSaving] = useState(false);
+  const dirty = desc !== (track.description || '');
 
   function handlePlay() {
     if (audioUrl) {
@@ -116,37 +119,62 @@ function MusicCard({ track, onDelete }: { track: MusicTrack; onDelete: (id: numb
       .catch(() => {});
   }
 
+  async function handleSaveDesc() {
+    setSaving(true);
+    try {
+      const updated = await updateMusicTrack(track.id, desc);
+      onUpdate(updated);
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  }
+
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-stone-200 bg-white p-4">
-      <button
-        onClick={handlePlay}
-        className="flex-shrink-0 w-10 h-10 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
-        title={audioUrl ? 'Stop' : 'Preview'}
-      >
-        {audioUrl ? (
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
-        ) : (
-          <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        )}
-      </button>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-stone-800 truncate" title={track.original_name}>
-          {track.original_name}
-        </p>
-        <div className="flex items-center gap-3 mt-0.5 text-xs text-stone-400">
-          <span>{formatDuration(track.duration_seconds)}</span>
-          <span>{formatBytes(track.file_size)}</span>
+    <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handlePlay}
+          className="flex-shrink-0 w-10 h-10 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 transition-colors cursor-pointer"
+          title={audioUrl ? 'Stop' : 'Preview'}
+        >
+          {audioUrl ? (
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          ) : (
+            <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          )}
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-stone-800 truncate" title={track.original_name}>
+            {track.original_name}
+          </p>
+          <div className="flex items-center gap-3 mt-0.5 text-xs text-stone-400">
+            <span>{formatDuration(track.duration_seconds)}</span>
+            <span>{formatBytes(track.file_size)}</span>
+          </div>
         </div>
+        <button
+          onClick={() => onDelete(track.id)}
+          className="text-xs text-red-400 hover:text-red-600 cursor-pointer flex-shrink-0"
+        >
+          Delete
+        </button>
+        {audioUrl && (
+          <audio src={audioUrl} autoPlay onEnded={() => setAudioUrl(null)} className="hidden" />
+        )}
       </div>
-      <button
-        onClick={() => onDelete(track.id)}
-        className="text-xs text-red-400 hover:text-red-600 cursor-pointer flex-shrink-0"
-      >
-        Delete
-      </button>
-      {audioUrl && (
-        <audio src={audioUrl} autoPlay onEnded={() => setAudioUrl(null)} className="hidden" />
-      )}
+      {/* Description */}
+      <div className="mt-2">
+        <input
+          type="text"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+          onBlur={() => { if (dirty) handleSaveDesc(); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && dirty) handleSaveDesc(); }}
+          placeholder="Add a description..."
+          maxLength={500}
+          className="w-full text-xs text-stone-600 border border-stone-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-stone-400 placeholder:text-stone-300"
+        />
+        {saving && <span className="text-[10px] text-stone-400 mt-0.5 block">Saving...</span>}
+      </div>
     </div>
   );
 }

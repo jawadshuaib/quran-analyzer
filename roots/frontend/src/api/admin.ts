@@ -224,6 +224,7 @@ export interface Resource {
   duration_seconds: number | null;
   width: number | null;
   height: number | null;
+  description?: string;
   created_at: string;
 }
 
@@ -260,6 +261,16 @@ export async function deleteResource(id: number): Promise<void> {
   }
 }
 
+export async function updateResource(id: number, description: string): Promise<Resource> {
+  const res = await authFetch(`${BASE}/resources/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ description }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update resource');
+  return data;
+}
+
 export function resourceThumbnailUrl(id: number): string {
   return `${BASE}/resources/${id}/thumbnail`;
 }
@@ -272,6 +283,7 @@ export interface MusicTrack {
   filename: string;
   file_size: number;
   duration_seconds: number | null;
+  description?: string;
   created_at: string;
 }
 
@@ -306,6 +318,16 @@ export async function deleteMusicTrack(id: number): Promise<void> {
     const data = await res.json();
     throw new Error(data.error || 'Failed to delete');
   }
+}
+
+export async function updateMusicTrack(id: number, description: string): Promise<MusicTrack> {
+  const res = await authFetch(`${BASE}/music/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ description }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update music track');
+  return data;
 }
 
 export function musicAudioUrl(id: number): string {
