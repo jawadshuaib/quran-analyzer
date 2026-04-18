@@ -10,6 +10,8 @@ export default function AdminSettings() {
       <ClaudeApiSection />
       <hr className="border-stone-200" />
       <ElevenLabsSection />
+      <hr className="border-stone-200" />
+      <OllamaSection />
     </div>
   );
 }
@@ -292,6 +294,114 @@ function ElevenLabsSection() {
         </button>
       </form>
       {voiceError && <p className="text-xs text-red-500 mt-2">{voiceError}</p>}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Ollama Configuration                                              */
+/* ------------------------------------------------------------------ */
+
+function OllamaSection() {
+  const [baseUrl, setBaseUrl] = useState('');
+  const [model, setModel] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [masked, setMasked] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    getPreferences().then((prefs) => {
+      if (prefs.ollama_base_url) setBaseUrl(prefs.ollama_base_url);
+      if (prefs.ollama_model) setModel(prefs.ollama_model);
+      if (prefs.ollama_api_key) setApiKey(prefs.ollama_api_key);
+    });
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg('');
+    try {
+      await savePreferences({
+        ollama_base_url: baseUrl,
+        ollama_model: model,
+        ollama_api_key: apiKey,
+      });
+      setMsg('Saved');
+      setTimeout(() => setMsg(''), 2000);
+    } catch {
+      setMsg('Failed to save');
+    } finally { setSaving(false); }
+  }
+
+  const displayKey = masked && apiKey.length > 4
+    ? '\u2022'.repeat(apiKey.length - 4) + apiKey.slice(-4)
+    : apiKey;
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold text-stone-800 mb-1">Ollama</h2>
+      <p className="text-sm text-stone-500 mb-4">Used for generating YouTube titles and descriptions after pipeline videos</p>
+
+      <div className="max-w-md space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Base URL</label>
+          <input
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="http://localhost:11434"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Model</label>
+          <input
+            type="text"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="e.g. qwen3:14b"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">API Key <span className="font-normal text-stone-400">(optional, for cloud providers)</span></label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={masked ? displayKey : apiKey}
+                onChange={(e) => { setApiKey(e.target.value); setMasked(false); }}
+                onFocus={() => setMasked(false)}
+                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+                placeholder="Bearer token (if needed)"
+              />
+            </div>
+            {apiKey && (
+              <button
+                type="button"
+                onClick={() => setMasked(!masked)}
+                className="px-2 text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
+              >
+                {masked ? 'Show' : 'Hide'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {msg && <span className="text-xs text-stone-500">{msg}</span>}
+        </div>
+      </div>
     </div>
   );
 }

@@ -7734,10 +7734,17 @@ def _ensure_pipeline_tables():
             )
         """)
         conn.commit()
+        # Add youtube metadata columns (idempotent migration)
+        for col in ("youtube_title", "youtube_description"):
+            try:
+                conn.execute(f"ALTER TABLE admin_pipeline_videos ADD COLUMN {col} TEXT")
+                conn.commit()
+            except Exception:
+                pass
         # Reset stuck jobs on startup
         conn.execute(
             "UPDATE admin_pipeline_videos SET status='failed', error_message='Server restarted' "
-            "WHERE status IN ('pending','selecting_verses','polishing','generating_tts','rendering')"
+            "WHERE status IN ('pending','selecting_verses','polishing','generating_tts','rendering','generating_metadata')"
         )
         conn.commit()
     finally:
@@ -7993,6 +8000,176 @@ def admin_download_pipeline_video(video_id):
         )
     finally:
         conn.close()
+
+
+def _gather_verse_root_insights(conn, verse_data):
+    """Gather root word connections and cognate data for a set of verses."""
+    if not verse_data or len(verse_data) < 2:
+        return ""
+
+    # Get roots for each verse from the IDF engine
+    verse_root_map = {}
+    for v in verse_data:
+        key = (v["chapter"], v["verse"])
+        roots = _verse_roots.get(key, set())
+        if roots:
+            verse_root_map[key] = roots
+
+    if len(verse_root_map) < 2:
+        return ""
+
+    # Find roots shared across any two verses
+    all_keys = list(verse_root_map.keys())
+    shared_roots = set()
+    for i in range(len(all_keys)):
+        for j in range(i + 1, len(all_keys)):
+            common = verse_root_map[all_keys[i]] & verse_root_map[all_keys[j]]
+            shared_roots.update(common)
+
+    if not shared_roots:
+        return ""
+
+    # Rank by IDF (rarer roots = more interesting connections)
+    ranked = sorted(shared_roots, key=lambda r: _root_idf.get(r, 0), reverse=True)
+    top_roots = ranked[:5]
+
+    insights = []
+    for root_bw in top_roots:
+        arabic = _root_arabic_map.get(root_bw, "")
+        containing = [k for k in all_keys if root_bw in verse_root_map.get(k, set())]
+        refs = [f"{ch}:{vs}" for ch, vs in containing]
+
+        # Root meaning from AI table
+        meaning = None
+        try:
+            row = conn.execute(
+                "SELECT primary_meaning FROM ai_root_meanings WHERE root_buckwalter = ? "
+                "ORDER BY config_id DESC LIMIT 1",
+                (root_bw,),
+            ).fetchone()
+            if row:
+                meaning = row["primary_meaning"]
+        except Exception:
+            pass
+
+        # Cognate data
+        cognate_note = ""
+        try:
+            cognate = _get_cognate(conn, root_bw)
+            if cognate and cognate.get("concepts"):
+                concepts = cognate["concepts"]
+                if concepts:
+                    cognate_note = f" (Semitic root concept: {concepts[0]})"
+        except Exception:
+            pass
+
+        line = f"Root '{arabic}' ({root_bw})"
+        if meaning:
+            line += f" meaning '{meaning}'"
+        line += f" appears in verses {', '.join(refs)}"
+        if cognate_note:
+            line += cognate_note
+        insights.append(line)
+
+    return "\n".join(insights)
+
+
+def _generate_youtube_metadata(verse_data):
+    """Generate YouTube title and description via Ollama, enriched with root insights."""
+    conn = get_db()
+    try:
+        # Load Ollama settings from preferences
+        prefs = {}
+        for row in conn.execute(
+            "SELECT key, value FROM admin_preferences WHERE key LIKE 'ollama_%'"
+        ).fetchall():
+            prefs[row["key"]] = row["value"]
+
+        base_url = (prefs.get("ollama_base_url") or "http://localhost:11434").rstrip("/")
+        model = prefs.get("ollama_model") or ""
+        api_key = prefs.get("ollama_api_key") or ""
+
+        if not model:
+            return ("", "")
+
+        # Gather root word insights
+        root_insights = _gather_verse_root_insights(conn, verse_data)
+    finally:
+        conn.close()
+
+    # Build verse refs string
+    refs = [f"{v['chapter']}:{v['verse']}" for v in verse_data]
+    ref_string = ", ".join(refs)
+
+    # Build verse block for prompt
+    verse_lines = []
+    for v in verse_data:
+        verse_lines.append(f"- {v['ref']}: \"{v['polished_text']}\"")
+    verse_block = "\n".join(verse_lines)
+
+    prompt = (
+        f"Generate a YouTube Shorts title and description for a Quran video featuring these verses:\n\n"
+        f"{verse_block}\n\n"
+    )
+
+    if root_insights:
+        prompt += f"Linguistic connections between these verses:\n{root_insights}\n\n"
+
+    prompt += (
+        f"TITLE RULES:\n"
+        f"- Must start with: \"{ref_string} | \"\n"
+        f"- After the pipe, add a short compelling phrase (4-8 words)\n"
+        f"- Total must be under 80 characters\n"
+        f"- No emojis\n\n"
+        f"DESCRIPTION RULES:\n"
+        f"- 1-2 sentences only\n"
+        f"- Be specific to these verses, not generic\n"
+        f"- If the root word data reveals an interesting connection, weave it in naturally\n"
+        f"- Sound human — like a thoughtful person wrote it, not AI\n"
+        f"- No hashtags, no \"In this video\", no calls to action\n\n"
+        f"Return ONLY valid JSON, nothing else:\n"
+        f"{{\"title\": \"...\", \"description\": \"...\"}}"
+    )
+
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    resp = requests.post(
+        f"{base_url}/api/chat",
+        headers=headers,
+        json={
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+        },
+        timeout=120,
+    )
+
+    if resp.status_code != 200:
+        raise RuntimeError(f"Ollama API error: {resp.status_code}")
+
+    content = resp.json().get("message", {}).get("content", "")
+
+    # Strip markdown code blocks and think blocks
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+    content = re.sub(r"^```(?:json)?\s*\n?", "", content.strip())
+    content = re.sub(r"\n?```\s*$", "", content.strip())
+
+    # Parse JSON
+    match = re.search(r"\{.*\}", content, re.DOTALL)
+    if not match:
+        raise RuntimeError("Could not parse metadata JSON from Ollama response")
+
+    try:
+        meta = json.loads(match.group())
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON from Ollama: {e}")
+
+    title = (meta.get("title") or "").strip()
+    description = (meta.get("description") or "").strip()
+
+    return (title, description)
 
 
 def _pipeline_generate_task(video_id):
@@ -8479,14 +8656,24 @@ def _pipeline_generate_task(video_id):
                 return
 
             file_size = os.path.getsize(output_path)
+
+            # ---- 7. Generate YouTube title & description via Ollama ----
+            yt_title, yt_desc = "", ""
+            try:
+                _update_pipeline_video_status(video_id, "generating_metadata", "Generating YouTube metadata...")
+                yt_title, yt_desc = _generate_youtube_metadata(verse_data)
+            except Exception as e:
+                print(f"WARNING: YouTube metadata generation failed for video {video_id}: {e}")
+
             conn2 = get_db()
             try:
                 conn2.execute(
                     """UPDATE admin_pipeline_videos
                        SET status='complete', filename=?, file_size=?,
+                           youtube_title=?, youtube_description=?,
                            completed_at=CURRENT_TIMESTAMP, progress='Done'
                        WHERE id = ?""",
-                    (output_filename, file_size, video_id),
+                    (output_filename, file_size, yt_title or None, yt_desc or None, video_id),
                 )
                 conn2.commit()
             finally:

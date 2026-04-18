@@ -601,6 +601,8 @@ export interface PipelineVideo {
   filename: string | null;
   file_size: number | null;
   error_message: string | null;
+  youtube_title: string | null;
+  youtube_description: string | null;
   created_at: string;
   completed_at: string | null;
 }

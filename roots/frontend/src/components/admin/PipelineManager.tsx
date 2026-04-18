@@ -19,6 +19,7 @@ function statusLabel(status: string): { text: string; color: string } {
     case 'polishing': return { text: 'Polishing', color: 'bg-violet-50 text-violet-600' };
     case 'generating_tts': return { text: 'Generating Audio', color: 'bg-amber-50 text-amber-600' };
     case 'rendering': return { text: 'Rendering', color: 'bg-indigo-50 text-indigo-600' };
+    case 'generating_metadata': return { text: 'Generating Metadata', color: 'bg-teal-50 text-teal-600' };
     case 'complete': return { text: 'Complete', color: 'bg-emerald-50 text-emerald-600' };
     case 'failed': return { text: 'Failed', color: 'bg-red-50 text-red-600' };
     default: return { text: status, color: 'bg-stone-100 text-stone-600' };
@@ -92,7 +93,7 @@ export default function PipelineManager() {
   // Poll for active videos
   useEffect(() => {
     const hasActive = videos.some((v) =>
-      ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering'].includes(v.status)
+      ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering', 'generating_metadata'].includes(v.status)
     );
     if (!hasActive) return;
     const timer = setInterval(loadVideos, 3000);
@@ -109,7 +110,7 @@ export default function PipelineManager() {
   }
 
   const hasActiveVideo = videos.some((v) =>
-    ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering'].includes(v.status)
+    ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering', 'generating_metadata'].includes(v.status)
   );
 
   function validateForm(): boolean {
@@ -433,6 +434,27 @@ export default function PipelineManager() {
   );
 }
 
+function CopyButton({ text, label }: { text: string; label: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="text-[10px] text-stone-400 hover:text-stone-600 cursor-pointer flex-shrink-0"
+      title={`Copy ${label}`}
+    >
+      {copied ? 'Copied!' : 'Copy'}
+    </button>
+  );
+}
+
 function VideoCard({
   video,
   onDelete,
@@ -449,7 +471,7 @@ function VideoCard({
     catch { return []; }
   })();
 
-  const isActive = ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering'].includes(video.status);
+  const isActive = ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering', 'generating_metadata'].includes(video.status);
 
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-4">
@@ -503,6 +525,30 @@ function VideoCard({
 
       {video.error_message && (
         <p className="mt-2 text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{video.error_message}</p>
+      )}
+
+      {/* YouTube metadata */}
+      {video.status === 'complete' && (video.youtube_title || video.youtube_description) && (
+        <div className="mt-3 border-t border-stone-100 pt-3 space-y-2">
+          {video.youtube_title && (
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-stone-400">Title</span>
+                <p className="text-sm text-stone-700 mt-0.5">{video.youtube_title}</p>
+              </div>
+              <CopyButton text={video.youtube_title} label="title" />
+            </div>
+          )}
+          {video.youtube_description && (
+            <div className="flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-stone-400">Description</span>
+                <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">{video.youtube_description}</p>
+              </div>
+              <CopyButton text={video.youtube_description} label="description" />
+            </div>
+          )}
+        </div>
       )}
 
       {expanded && verses.length > 0 && (
