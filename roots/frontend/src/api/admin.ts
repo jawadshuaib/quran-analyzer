@@ -577,6 +577,115 @@ export async function startExplanationVideoGeneration(params: {
   return data;
 }
 
+// --------------- Pipelines ---------------
+
+export interface Pipeline {
+  id: number;
+  name: string;
+  language: string;
+  resource_id: number;
+  voice_id: string;
+  show_bands: number;
+  music_id: number | null;
+  video_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PipelineVideo {
+  id: number;
+  pipeline_id: number;
+  verse_data: string;
+  status: string;
+  progress: string;
+  filename: string | null;
+  file_size: number | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function createPipeline(params: {
+  name: string;
+  resource_id: number;
+  voice_id: string;
+  show_bands: boolean;
+  music_id?: number | null;
+}): Promise<Pipeline> {
+  const res = await authFetch(`${BASE}/pipelines`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create pipeline');
+  return data;
+}
+
+export async function getPipelines(): Promise<Pipeline[]> {
+  const res = await authFetch(`${BASE}/pipelines`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pipelines');
+  return data;
+}
+
+export async function getPipeline(id: number): Promise<Pipeline> {
+  const res = await authFetch(`${BASE}/pipelines/${id}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pipeline');
+  return data;
+}
+
+export async function updatePipeline(id: number, params: {
+  name?: string;
+  resource_id?: number;
+  voice_id?: string;
+  show_bands?: boolean;
+  music_id?: number | null;
+}): Promise<Pipeline> {
+  const res = await authFetch(`${BASE}/pipelines/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update pipeline');
+  return data;
+}
+
+export async function deletePipeline(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/pipelines/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete pipeline');
+  }
+}
+
+export async function generatePipelineVideo(pipelineId: number): Promise<{ id: number; status: string }> {
+  const res = await authFetch(`${BASE}/pipelines/${pipelineId}/generate`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to start generation');
+  return data;
+}
+
+export async function getPipelineVideos(pipelineId?: number): Promise<PipelineVideo[]> {
+  const url = pipelineId ? `${BASE}/pipeline-videos?pipeline_id=${pipelineId}` : `${BASE}/pipeline-videos`;
+  const res = await authFetch(url);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pipeline videos');
+  return data;
+}
+
+export async function deletePipelineVideo(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/pipeline-videos/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json();
+    throw new Error(data.error || 'Failed to delete');
+  }
+}
+
+export function pipelineVideoDownloadUrl(id: number): string {
+  return `${BASE}/pipeline-videos/${id}/download`;
+}
+
 // --------------- Auth ---------------
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {

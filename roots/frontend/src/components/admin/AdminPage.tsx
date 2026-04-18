@@ -9,8 +9,9 @@ import GenerateVideo from './GenerateVideo';
 import AdminMusic from './AdminMusic';
 import ExplanationBuilder from './ExplanationBuilder';
 import GenerateExplanationVideo from './GenerateExplanationVideo';
+import PipelineManager from './PipelineManager';
 
-type AdminRoute = 'dashboard' | 'settings' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation';
+type AdminRoute = 'dashboard' | 'settings' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -20,6 +21,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/media\/generate\/?$/.test(path)) return 'generate';
   if (/^\/admin\/media\/explanations\/?$/.test(path)) return 'explanations';
   if (/^\/admin\/media\/generate-explanation\/?$/.test(path)) return 'generate-explanation';
+  if (/^\/admin\/media\/pipelines\/?$/.test(path)) return 'pipelines';
   if (/^\/admin\/media\/?$/.test(path)) return 'media';
   if (/^\/admin\/settings\/?$/.test(path)) return 'settings';
   return 'dashboard';
@@ -83,7 +85,7 @@ export default function AdminPage() {
             </a>
             <a
               href="/admin/media"
-              className={`text-sm ${route === 'media' || route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+              className={`text-sm ${route === 'media' || route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation' || route === 'pipelines' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
             >
               Media
             </a>
@@ -107,7 +109,7 @@ export default function AdminPage() {
       </nav>
 
       {/* Breadcrumbs for nested routes */}
-      {(route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation') && (
+      {(route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation' || route === 'pipelines') && (
         <div className="max-w-5xl mx-auto px-4 py-2">
           <div className="flex items-center gap-1.5 text-xs text-stone-400">
             <a href="/admin/media" className="hover:text-stone-600">Media</a>
@@ -119,6 +121,7 @@ export default function AdminPage() {
               {route === 'generate' && 'Generate Verse Recitation Video'}
               {route === 'explanations' && 'Verse Explanations'}
               {route === 'generate-explanation' && 'Generate Explanation Video'}
+              {route === 'pipelines' && 'Pipelines'}
             </span>
           </div>
         </div>
@@ -140,6 +143,7 @@ export default function AdminPage() {
         {route === 'generate' && <GenerateVideo />}
         {route === 'explanations' && <ExplanationBuilder />}
         {route === 'generate-explanation' && <GenerateExplanationVideo />}
+        {route === 'pipelines' && <PipelineManager />}
       </div>
     </div>
   );

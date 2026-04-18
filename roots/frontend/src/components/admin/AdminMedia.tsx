@@ -34,7 +34,7 @@ export default function AdminMedia() {
 
       {/* Verse Explanations */}
       <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Verse Explanations</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <a href="/admin/media/explanations" className={card}>
           <h3 className="font-semibold text-stone-800 mb-1">Verse Explanations</h3>
           <p className="text-sm text-stone-500">Curate thematic verse groups with transitions and closing reflections.</p>
@@ -43,6 +43,19 @@ export default function AdminMedia() {
           <h3 className="font-semibold text-stone-800 mb-1">Generate Explanation Video</h3>
           <p className="text-sm text-stone-500">Create videos from saved verse explanations with background and music.</p>
         </a>
+      </div>
+
+      {/* Pipelines */}
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Pipelines</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <a href="/admin/media/pipelines" className={card}>
+          <h3 className="font-semibold text-stone-800 mb-1">English Pipeline</h3>
+          <p className="text-sm text-stone-500">One-click automated video generation for YouTube Shorts with AI-selected verses.</p>
+        </a>
+        <div className={`${card} opacity-40 cursor-not-allowed`}>
+          <h3 className="font-semibold text-stone-800 mb-1">Arabic Pipeline</h3>
+          <p className="text-sm text-stone-500">Coming soon.</p>
+        </div>
       </div>
     </div>
   );

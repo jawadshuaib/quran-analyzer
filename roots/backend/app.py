@@ -3979,7 +3979,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
 
@@ -7699,6 +7699,775 @@ def admin_moving_verse_suggestion():
         return jsonify({"error": str(exc)}), 500
     finally:
         conn.close()
+
+
+# --------------- Admin: Pipelines ---------------
+
+def _ensure_pipeline_tables():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_pipelines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                language TEXT NOT NULL DEFAULT 'english',
+                resource_id INTEGER NOT NULL,
+                voice_id TEXT NOT NULL,
+                show_bands INTEGER NOT NULL DEFAULT 1,
+                music_id INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_pipeline_videos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pipeline_id INTEGER NOT NULL REFERENCES admin_pipelines(id),
+                verse_data TEXT NOT NULL DEFAULT '[]',
+                status TEXT NOT NULL DEFAULT 'pending',
+                progress TEXT DEFAULT '',
+                filename TEXT,
+                file_size INTEGER,
+                error_message TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                completed_at TEXT
+            )
+        """)
+        conn.commit()
+        # Reset stuck jobs on startup
+        conn.execute(
+            "UPDATE admin_pipeline_videos SET status='failed', error_message='Server restarted' "
+            "WHERE status IN ('pending','selecting_verses','polishing','generating_tts','rendering')"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+try:
+    _ensure_pipeline_tables()
+except Exception as e:
+    print(f"WARNING: pipeline tables setup failed: {e}")
+
+
+def _update_pipeline_video_status(video_id, status, progress="", error=""):
+    conn = get_db()
+    try:
+        if error:
+            conn.execute(
+                "UPDATE admin_pipeline_videos SET status=?, progress=?, error_message=? WHERE id=?",
+                (status, progress, error, video_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE admin_pipeline_videos SET status=?, progress=? WHERE id=?",
+                (status, progress, video_id),
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipelines", methods=["POST"])
+@admin_required
+def admin_create_pipeline():
+    body = request.get_json(silent=True) or {}
+    name = (body.get("name") or "").strip()[:200]
+    resource_id = body.get("resource_id")
+    voice_id = (body.get("voice_id") or "").strip()
+    show_bands = bool(body.get("show_bands", True))
+    music_id = body.get("music_id")
+
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
+    if not resource_id:
+        return jsonify({"error": "Background video is required"}), 400
+    if not voice_id:
+        return jsonify({"error": "Voice is required"}), 400
+
+    conn = get_db()
+    try:
+        res = conn.execute("SELECT id FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
+        if not res:
+            return jsonify({"error": "Background video not found"}), 404
+        if music_id:
+            mus = conn.execute("SELECT id FROM admin_music WHERE id = ?", (music_id,)).fetchone()
+            if not mus:
+                return jsonify({"error": "Music track not found"}), 404
+
+        cur = conn.execute(
+            "INSERT INTO admin_pipelines (name, language, resource_id, voice_id, show_bands, music_id) VALUES (?, 'english', ?, ?, ?, ?)",
+            (name, resource_id, voice_id, 1 if show_bands else 0, music_id),
+        )
+        conn.commit()
+        pipeline = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return jsonify(dict(pipeline)), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipelines", methods=["GET"])
+@admin_required
+def admin_list_pipelines():
+    conn = get_db()
+    try:
+        rows = conn.execute("SELECT * FROM admin_pipelines ORDER BY created_at DESC").fetchall()
+        result = []
+        for r in rows:
+            d = dict(r)
+            count = conn.execute(
+                "SELECT COUNT(*) as c FROM admin_pipeline_videos WHERE pipeline_id = ?", (r["id"],)
+            ).fetchone()["c"]
+            d["video_count"] = count
+            result.append(d)
+        return jsonify(result)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipelines/<int:pipeline_id>", methods=["GET"])
+@admin_required
+def admin_get_pipeline(pipeline_id):
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        d = dict(row)
+        d["video_count"] = conn.execute(
+            "SELECT COUNT(*) as c FROM admin_pipeline_videos WHERE pipeline_id = ?", (pipeline_id,)
+        ).fetchone()["c"]
+        return jsonify(d)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipelines/<int:pipeline_id>", methods=["PUT"])
+@admin_required
+def admin_update_pipeline(pipeline_id):
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+
+        name = (body.get("name") or row["name"]).strip()[:200]
+        resource_id = body.get("resource_id", row["resource_id"])
+        voice_id = (body.get("voice_id") or row["voice_id"]).strip()
+        show_bands = body.get("show_bands", bool(row["show_bands"]))
+        music_id = body.get("music_id", row["music_id"])
+
+        conn.execute(
+            "UPDATE admin_pipelines SET name=?, resource_id=?, voice_id=?, show_bands=?, music_id=?, updated_at=datetime('now') WHERE id=?",
+            (name, resource_id, voice_id, 1 if show_bands else 0, music_id, pipeline_id),
+        )
+        conn.commit()
+        updated = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
+        return jsonify(dict(updated))
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipelines/<int:pipeline_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_pipeline(pipeline_id):
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT id FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        videos = conn.execute("SELECT filename FROM admin_pipeline_videos WHERE pipeline_id = ?", (pipeline_id,)).fetchall()
+        for v in videos:
+            if v["filename"]:
+                fp = os.path.join(_GENERATED_VIDEOS_DIR, v["filename"])
+                if os.path.isfile(fp):
+                    os.remove(fp)
+        conn.execute("DELETE FROM admin_pipeline_videos WHERE pipeline_id = ?", (pipeline_id,))
+        conn.execute("DELETE FROM admin_pipelines WHERE id = ?", (pipeline_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipelines/<int:pipeline_id>/generate", methods=["POST"])
+@admin_required
+def admin_pipeline_generate(pipeline_id):
+    conn = get_db()
+    try:
+        pipeline = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
+        if not pipeline:
+            return jsonify({"error": "Pipeline not found"}), 404
+
+        active = conn.execute(
+            "SELECT COUNT(*) as c FROM admin_pipeline_videos "
+            "WHERE status IN ('pending','selecting_verses','polishing','generating_tts','rendering')"
+        ).fetchone()["c"]
+        if active >= 2:
+            return jsonify({"error": "Too many videos generating. Please wait."}), 429
+
+        cur = conn.execute(
+            "INSERT INTO admin_pipeline_videos (pipeline_id, status) VALUES (?, 'pending')",
+            (pipeline_id,),
+        )
+        conn.commit()
+        video_id = cur.lastrowid
+
+        t = threading.Thread(target=_pipeline_generate_task, args=(video_id,), daemon=True)
+        t.start()
+
+        return jsonify({"id": video_id, "status": "pending"}), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipeline-videos", methods=["GET"])
+@admin_required
+def admin_list_pipeline_videos():
+    pipeline_id = request.args.get("pipeline_id", type=int)
+    conn = get_db()
+    try:
+        if pipeline_id:
+            rows = conn.execute(
+                "SELECT * FROM admin_pipeline_videos WHERE pipeline_id = ? ORDER BY created_at DESC",
+                (pipeline_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM admin_pipeline_videos ORDER BY created_at DESC"
+            ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipeline-videos/<int:video_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_pipeline_video(video_id):
+    conn = get_db()
+    try:
+        row = conn.execute("SELECT * FROM admin_pipeline_videos WHERE id = ?", (video_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "Not found"}), 404
+        if row["filename"]:
+            fp = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
+            if os.path.isfile(fp):
+                os.remove(fp)
+        conn.execute("DELETE FROM admin_pipeline_videos WHERE id = ?", (video_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipeline-videos/<int:video_id>/download", methods=["GET"])
+@admin_required
+def admin_download_pipeline_video(video_id):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM admin_pipeline_videos WHERE id = ? AND status = 'complete'", (video_id,)
+        ).fetchone()
+        if not row or not row["filename"]:
+            return jsonify({"error": "Video not available"}), 404
+        filepath = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
+        if not os.path.isfile(filepath):
+            return jsonify({"error": "File missing"}), 404
+        return send_from_directory(
+            _GENERATED_VIDEOS_DIR, row["filename"],
+            mimetype="video/mp4", as_attachment=True,
+            download_name=f"pipeline_{video_id}.mp4",
+        )
+    finally:
+        conn.close()
+
+
+def _pipeline_generate_task(video_id):
+    """Background task: AI-select verses, polish, TTS, render video."""
+
+    try:
+        # ---- 1. Load pipeline config ----
+        conn = get_db()
+        try:
+            vid_row = conn.execute("SELECT * FROM admin_pipeline_videos WHERE id = ?", (video_id,)).fetchone()
+            if not vid_row:
+                return
+            pipeline = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (vid_row["pipeline_id"],)).fetchone()
+            if not pipeline:
+                _update_pipeline_video_status(video_id, "failed", error="Pipeline not found")
+                return
+
+            # Gather used verses across ALL completed runs of this pipeline
+            used_rows = conn.execute(
+                "SELECT verse_data FROM admin_pipeline_videos WHERE pipeline_id = ? AND status = 'complete'",
+                (pipeline["id"],),
+            ).fetchall()
+            used_verses = set()
+            for ur in used_rows:
+                for v in json.loads(ur["verse_data"] or "[]"):
+                    used_verses.add(f"{v['chapter']}:{v['verse']}")
+
+            resource = conn.execute("SELECT * FROM admin_resources WHERE id = ?", (pipeline["resource_id"],)).fetchone()
+            music_filename = None
+            if pipeline["music_id"]:
+                music_row = conn.execute("SELECT filename FROM admin_music WHERE id = ?", (pipeline["music_id"],)).fetchone()
+                if music_row:
+                    music_filename = music_row["filename"]
+        finally:
+            conn.close()
+
+        if not resource:
+            _update_pipeline_video_status(video_id, "failed", error="Background video not found")
+            return
+
+        bg_path = os.path.join(_RESOURCES_DIR, resource["filename"])
+        if not os.path.isfile(bg_path):
+            _update_pipeline_video_status(video_id, "failed", error="Background video file missing")
+            return
+
+        music_path = os.path.join(_MUSIC_DIR, music_filename) if music_filename else None
+        if music_path and not os.path.isfile(music_path):
+            music_path = None
+
+        # ---- 2. Select verses via Claude ----
+        _update_pipeline_video_status(video_id, "selecting_verses", "AI is selecting verses...")
+
+        api_key = _get_claude_api_key()
+        if not api_key:
+            _update_pipeline_video_status(video_id, "failed", error="Claude API key not configured")
+            return
+
+        used_list = ", ".join(sorted(used_verses)) if used_verses else "None yet"
+
+        select_prompt = (
+            "You are selecting Quranic verses for a YouTube Shorts video (under 60 seconds of spoken content).\n"
+            "Pick 3 to 5 verses that will provoke deep thought or stir emotion in Muslim viewers.\n\n"
+            "Guidelines:\n"
+            "- Choose verses with intellectual depth or emotional resonance\n"
+            "- The verses will be spoken in English only — Arabic poetic qualities don't matter\n"
+            "- Pick verses from DIFFERENT surahs to showcase the Quran's breadth\n"
+            "- Avoid the most overused verses (Ayat al-Kursi, last 3 surahs, Al-Fatiha, etc.)\n"
+            "- There should be a loose thematic thread connecting the verses\n"
+            "- Prefer shorter verses — combined spoken length should be roughly 30-45 seconds\n"
+            "- Choose verses that stand well on their own without extensive context\n\n"
+            f"Previously used verses (DO NOT repeat any of these): {used_list}\n\n"
+            "Return ONLY a valid JSON array, nothing else:\n"
+            '[{"chapter": <int>, "verse": <int>}, ...]'
+        )
+
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 500,
+                "messages": [{"role": "user", "content": select_prompt}],
+            },
+            timeout=30,
+        )
+
+        if resp.status_code != 200:
+            _update_pipeline_video_status(video_id, "failed", error=f"Claude API error: {resp.status_code}")
+            return
+
+        resp_text = resp.json()["content"][0]["text"].strip()
+        match = re.search(r"\[.*\]", resp_text, re.DOTALL)
+        if not match:
+            _update_pipeline_video_status(video_id, "failed", error="Could not parse verse selection from AI")
+            return
+
+        selected_verses = json.loads(match.group())
+
+        # ---- 3. Fetch translations ----
+        conn = get_db()
+        try:
+            verse_data = []
+            for sv in selected_verses:
+                ch, vs = int(sv["chapter"]), int(sv["verse"])
+                translation = _best_translation(conn, ch, vs)
+                if not translation:
+                    continue
+                translation = html.unescape(re.sub(r"<[^>]+>", "", translation))
+                sname_row = conn.execute(
+                    "SELECT DISTINCT name FROM quran_text WHERE sura = ?", (ch,)
+                ).fetchone()
+                surah_name = sname_row["name"] if sname_row else f"Surah {ch}"
+                verse_data.append({
+                    "chapter": ch,
+                    "verse": vs,
+                    "ref": f"{surah_name} {ch}:{vs}",
+                    "original_translation": translation,
+                    "polished_text": "",
+                    "tts_filename": None,
+                })
+        finally:
+            conn.close()
+
+        if not verse_data:
+            _update_pipeline_video_status(video_id, "failed", error="No valid verses found")
+            return
+
+        # ---- 4. Polish translations via Claude ----
+        _update_pipeline_video_status(video_id, "polishing", "Polishing translations for spoken delivery...")
+
+        verses_for_polish = [
+            {"chapter": v["chapter"], "verse": v["verse"], "ref": v["ref"], "translation": v["original_translation"]}
+            for v in verse_data
+        ]
+
+        polish_prompt = (
+            "You are preparing Quranic verse translations for spoken delivery in a YouTube Short.\n"
+            "Polish each translation for natural, impactful spoken delivery.\n\n"
+            "Rules:\n"
+            "- Remove brackets, parentheses, footnote markers, editorial additions like [O Prophet], and superscript numbers\n"
+            "- Make the text flow naturally for spoken English\n"
+            "- Do NOT substantially change the meaning — polish for delivery, not reinterpretation\n"
+            "- Make it smooth and impactful — imagine someone speaking to an audience with gravitas\n"
+            "- Keep it concise — every word should earn its place\n"
+            "- Preserve the word 'Allah' if present in the original\n\n"
+            f"Verses to polish:\n{json.dumps(verses_for_polish, indent=2)}\n\n"
+            "Return ONLY a valid JSON array with the polished text, nothing else:\n"
+            '[{"chapter": <int>, "verse": <int>, "polished": "<polished text>"}, ...]'
+        )
+
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": "claude-sonnet-4-20250514",
+                "max_tokens": 2000,
+                "messages": [{"role": "user", "content": polish_prompt}],
+            },
+            timeout=30,
+        )
+
+        if resp.status_code != 200:
+            _update_pipeline_video_status(video_id, "failed", error=f"Claude polishing error: {resp.status_code}")
+            return
+
+        resp_text = resp.json()["content"][0]["text"].strip()
+        match = re.search(r"\[.*\]", resp_text, re.DOTALL)
+        if not match:
+            _update_pipeline_video_status(video_id, "failed", error="Could not parse polished text from AI")
+            return
+
+        polished = json.loads(match.group())
+        polished_map = {(p["chapter"], p["verse"]): p["polished"] for p in polished}
+
+        for v in verse_data:
+            key = (v["chapter"], v["verse"])
+            v["polished_text"] = polished_map.get(key, v["original_translation"])
+
+        # Save verse_data progress
+        conn = get_db()
+        try:
+            conn.execute("UPDATE admin_pipeline_videos SET verse_data = ? WHERE id = ?", (json.dumps(verse_data), video_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+        # ---- 5. Generate TTS via ElevenLabs ----
+        _update_pipeline_video_status(video_id, "generating_tts", "Generating voice audio...")
+
+        conn = get_db()
+        try:
+            pref = conn.execute("SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'").fetchone()
+            eleven_key = pref["value"] if pref else os.environ.get("ELEVENLABS_API_KEY", "")
+        finally:
+            conn.close()
+
+        if not eleven_key:
+            _update_pipeline_video_status(video_id, "failed", error="ElevenLabs API key not configured")
+            return
+
+        voice_id = pipeline["voice_id"]
+
+        for i, v in enumerate(verse_data):
+            text = v["polished_text"]
+            text_hash = hashlib.sha256(f"{voice_id}:{text}".encode()).hexdigest()[:16]
+            filename = f"pipe_{video_id}_{i}_{text_hash}.mp3"
+            filepath = os.path.join(_TTS_CACHE_DIR, filename)
+
+            tts_resp = requests.post(
+                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                headers={
+                    "xi-api-key": eleven_key,
+                    "Content-Type": "application/json",
+                    "Accept": "audio/mpeg",
+                },
+                json={
+                    "text": text,
+                    "model_id": "eleven_multilingual_v2",
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+                },
+                timeout=60,
+            )
+
+            if tts_resp.status_code != 200:
+                _update_pipeline_video_status(video_id, "failed", error=f"TTS failed for {v['ref']}: {tts_resp.status_code}")
+                return
+
+            with open(filepath, "wb") as f:
+                f.write(tts_resp.content)
+
+            v["tts_filename"] = filename
+            _update_pipeline_video_status(video_id, "generating_tts", f"Generated audio {i + 1}/{len(verse_data)}")
+
+        # Save verse_data with TTS filenames
+        conn = get_db()
+        try:
+            conn.execute("UPDATE admin_pipeline_videos SET verse_data = ? WHERE id = ?", (json.dumps(verse_data), video_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+        # ---- 6. Render video ----
+        _update_pipeline_video_status(video_id, "rendering", "Rendering video...")
+
+        tmpdir = tempfile.mkdtemp(prefix="pipeline_")
+        try:
+            target_w, target_h = 1080, 1920  # Always short (vertical) for YouTube Shorts
+            show_bands = bool(pipeline["show_bands"])
+
+            # -- Audio assembly --
+            audio_segments = []
+            timeline = []
+            t = 0.0
+
+            for i, v in enumerate(verse_data):
+                tts_src = os.path.join(_TTS_CACHE_DIR, v["tts_filename"])
+                tts_local = os.path.join(tmpdir, f"tts_{i}.mp3")
+                shutil.copy2(tts_src, tts_local)
+                dur = _get_audio_duration(tts_local)
+
+                audio_segments.append(tts_local)
+                timeline.append({
+                    "start": t,
+                    "dur": dur,
+                    "ref": v["ref"],
+                    "text": v["polished_text"],
+                })
+                t += dur
+
+                # Add 0.5s silence between verses
+                if i < len(verse_data) - 1:
+                    sil = os.path.join(tmpdir, f"silence_{i}.mp3")
+                    subprocess.run(
+                        [_FFMPEG, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+                         "-t", "0.5", "-c:a", "libmp3lame", "-q:a", "9", sil],
+                        capture_output=True, timeout=10,
+                    )
+                    audio_segments.append(sil)
+                    t += 0.5
+
+            # Outro
+            outro_dur = 5.0
+            outro_start = t
+            total_duration = t + outro_dur
+
+            outro_sil = os.path.join(tmpdir, "outro_silence.mp3")
+            subprocess.run(
+                [_FFMPEG, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+                 "-t", str(outro_dur), "-c:a", "libmp3lame", "-q:a", "9", outro_sil],
+                capture_output=True, timeout=10,
+            )
+            audio_segments.append(outro_sil)
+
+            # Concatenate all audio
+            concat_list = os.path.join(tmpdir, "concat.txt")
+            with open(concat_list, "w") as f:
+                for af in audio_segments:
+                    f.write(f"file '{af}'\n")
+
+            combined_audio = os.path.join(tmpdir, "combined.mp3")
+            subprocess.run(
+                [_FFMPEG, "-y", "-f", "concat", "-safe", "0",
+                 "-i", concat_list, "-c", "copy", combined_audio],
+                capture_output=True, timeout=120,
+            )
+
+            # -- ASS subtitle file --
+            ref_fontsize = 62
+            trans_fontsize = 64
+            text_colour = "&H00FFFFFF"
+            outline_colour = "&H50000000"
+            fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
+            ass_path = os.path.join(tmpdir, "subs.ass")
+
+            ref_band_y = 15
+            ref_band_h = 110
+            ref_margin_v = 38
+            content_band_h = 380
+            content_band_y = (target_h - content_band_h) // 2
+
+            # Outline weight: heavier when no bands for readability
+            ref_outline = 5 if not show_bands else 3
+            trans_outline = 5 if not show_bands else 3
+
+            with open(ass_path, "w", encoding="utf-8") as af:
+                af.write("[Script Info]\n")
+                af.write("ScriptType: v4.00+\n")
+                af.write(f"PlayResX: {target_w}\n")
+                af.write(f"PlayResY: {target_h}\n\n")
+
+                af.write("[V4+ Styles]\n")
+                af.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
+                af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,1,0,0,0,100,100,0,0,1,{ref_outline},0,8,40,40,{ref_margin_v},0\n")
+                af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,{trans_outline},0,5,60,60,0,0\n")
+                outro_site_fs = 90
+                outro_tag_fs = 54
+                af.write(f"Style: OutroSite,Liberation Sans,{outro_site_fs},&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0\n")
+                af.write(f"Style: OutroTag,Liberation Sans,{outro_tag_fs},&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0\n")
+
+                af.write("\n[Events]\n")
+                af.write("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
+
+                def _at(seconds):
+                    h = int(seconds // 3600)
+                    m = int((seconds % 3600) // 60)
+                    s = seconds % 60
+                    return f"{h}:{m:02d}:{s:05.2f}"
+
+                def _esc(text):
+                    return text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+
+                for entry in timeline:
+                    start = _at(entry["start"])
+                    end = _at(entry["start"] + entry["dur"])
+                    ref = _esc(entry["ref"])
+                    text = _esc(entry["text"])
+                    af.write(f"Dialogue: 0,{start},{end},Ref,,0,0,0,,{{\\fad(600,0)}}{ref}\n")
+                    af.write(f"Dialogue: 0,{start},{end},Trans,,0,0,0,,{{\\fad(600,0)}}{text}\n")
+
+                # Outro
+                os_str = _at(outro_start)
+                oe_str = _at(outro_start + outro_dur)
+                cx = target_w // 2
+                cy = target_h // 2
+                site_y = cy - 40
+                tag_y = cy + 70
+                af.write(f"Dialogue: 0,{os_str},{oe_str},OutroSite,,0,0,0,,{{\\fad(800,0)\\pos({cx},{site_y})}}al-nuqta.com\n")
+                af.write(f"Dialogue: 0,{os_str},{oe_str},OutroTag,,0,0,0,,{{\\fad(1200,0)\\pos({cx},{tag_y})}}A Root Based Translation of the Quran\n")
+
+            # -- Drawbox filter chain --
+            drawbox_parts = []
+
+            if show_bands:
+                for entry in timeline:
+                    s, e = entry["start"], entry["start"] + entry["dur"]
+                    enable = f"between(t\\,{s:.3f}\\,{e:.3f})"
+                    drawbox_parts.append(
+                        f"drawbox=x=0:y={ref_band_y}:w=iw:h={ref_band_h}"
+                        f":color=black@0.5:t=fill:enable='{enable}'"
+                    )
+                    drawbox_parts.append(
+                        f"drawbox=x=0:y={content_band_y}:w=iw:h={content_band_h}"
+                        f":color=black@0.5:t=fill:enable='{enable}'"
+                    )
+
+            # Outro: fade-in dark overlay over 1.5s (stepped opacity 0 -> 0.75)
+            fade_dur = 1.5
+            fade_steps = 10
+            step_dur = fade_dur / fade_steps
+            for s in range(fade_steps):
+                t_s = outro_start + s * step_dur
+                t_e = outro_start + (s + 1) * step_dur
+                alpha = 0.75 * (s + 1) / fade_steps
+                drawbox_parts.append(
+                    f"drawbox=x=0:y=0:w=iw:h=ih"
+                    f":color=black@{alpha:.3f}:t=fill"
+                    f":enable='between(t\\,{t_s:.3f}\\,{t_e:.3f})'"
+                )
+            drawbox_parts.append(
+                f"drawbox=x=0:y=0:w=iw:h=ih"
+                f":color=black@0.75:t=fill"
+                f":enable='gte(t\\,{outro_start + fade_dur:.3f})'"
+            )
+
+            # -- FFmpeg render --
+            output_filename = f"pipeline_{video_id}_{uuid.uuid4().hex[:8]}.mp4"
+            output_path = os.path.join(_GENERATED_VIDEOS_DIR, output_filename)
+
+            vf_parts = [
+                f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase",
+                f"crop={target_w}:{target_h}",
+            ] + drawbox_parts + [
+                f"ass={ass_path}:fontsdir={fonts_dir}",
+            ]
+            vf = ",".join(vf_parts)
+
+            render_timeout = max(600, int(total_duration * 10))
+
+            if music_path:
+                af_mix = (
+                    f"[1:a]volume=1.0[voice];"
+                    f"[2:a]volume=0.01,afade=t=out:st={max(0, total_duration - 5):.3f}:d=5[music];"
+                    f"[voice][music]amix=inputs=2:duration=first:dropout_transition=3:normalize=0[aout]"
+                )
+                cmd = [
+                    _FFMPEG, "-y",
+                    "-stream_loop", "-1", "-i", bg_path,
+                    "-i", combined_audio,
+                    "-i", music_path,
+                    "-vf", vf,
+                    "-filter_complex", af_mix,
+                    "-t", f"{total_duration:.3f}",
+                    "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+                    "-c:a", "aac", "-b:a", "192k",
+                    "-map", "0:v:0", "-map", "[aout]",
+                    "-movflags", "+faststart",
+                    output_path,
+                ]
+            else:
+                cmd = [
+                    _FFMPEG, "-y",
+                    "-stream_loop", "-1", "-i", bg_path,
+                    "-i", combined_audio,
+                    "-vf", vf,
+                    "-t", f"{total_duration:.3f}",
+                    "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+                    "-c:a", "aac", "-b:a", "192k",
+                    "-map", "0:v:0", "-map", "1:a:0",
+                    "-movflags", "+faststart",
+                    output_path,
+                ]
+
+            result = subprocess.run(cmd, capture_output=True, timeout=render_timeout)
+            if result.returncode != 0:
+                stderr = result.stderr.decode(errors="replace")[:500] if result.stderr else "Unknown error"
+                _update_pipeline_video_status(video_id, "failed", error=f"ffmpeg error: {stderr}")
+                return
+
+            file_size = os.path.getsize(output_path)
+            conn2 = get_db()
+            try:
+                conn2.execute(
+                    """UPDATE admin_pipeline_videos
+                       SET status='complete', filename=?, file_size=?,
+                           completed_at=CURRENT_TIMESTAMP, progress='Done'
+                       WHERE id = ?""",
+                    (output_filename, file_size, video_id),
+                )
+                conn2.commit()
+            finally:
+                conn2.close()
+
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)
+
+    except subprocess.TimeoutExpired:
+        _update_pipeline_video_status(video_id, "failed", error="Video generation timed out")
+    except Exception as e:
+        _update_pipeline_video_status(video_id, "failed", error=str(e)[:500])
 
 
 # --------------- Legacy redirect ---------------
