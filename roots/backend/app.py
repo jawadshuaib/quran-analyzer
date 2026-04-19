@@ -8471,8 +8471,11 @@ def _pipeline_generate_task(video_id):
                 timeout=60,
             )
 
-        # Intro: spoken "The Quran says" before any verse text appears
-        intro_text = "The Quran says"
+        # Intro: spoken "The Quran says" before any verse text appears.
+        # Phonetic spelling ("Koraan") because ElevenLabs mispronounces "Quran"
+        # (often as "KWOR-an"). The text is never shown on screen — only spoken —
+        # so the spelling only needs to produce the right sound ("kor-AAN").
+        intro_text = "The Koraan says"
         intro_hash = hashlib.sha256(f"{voice_id}:intro:{intro_text}".encode()).hexdigest()[:16]
         intro_filename = f"pipe_{video_id}_intro_{intro_hash}.mp3"
         intro_filepath = os.path.join(_TTS_CACHE_DIR, intro_filename)
