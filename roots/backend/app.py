@@ -8203,9 +8203,12 @@ def _pipeline_generate_task(video_id):
                 _update_pipeline_video_status(video_id, "failed", error="Pipeline not found")
                 return
 
-            # Gather used passage ranges across ALL completed runs of this pipeline
+            # Gather used passage ranges from the last 30 days of completed runs.
+            # Anything older is eligible to be picked again.
             used_rows = conn.execute(
-                "SELECT verse_data FROM admin_pipeline_videos WHERE pipeline_id = ? AND status = 'complete'",
+                "SELECT verse_data FROM admin_pipeline_videos "
+                "WHERE pipeline_id = ? AND status = 'complete' "
+                "AND created_at >= datetime('now', '-30 days')",
                 (pipeline["id"],),
             ).fetchall()
             used_ranges = []
