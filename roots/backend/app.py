@@ -7955,11 +7955,12 @@ def _cleanup_pipeline_video_files(row):
     # Clean up TTS files stored in verse_data
     try:
         for v in json.loads(row["verse_data"] or "[]"):
-            tts = v.get("tts_filename")
-            if tts:
-                tp = os.path.join(_TTS_CACHE_DIR, tts)
-                if os.path.isfile(tp):
-                    os.remove(tp)
+            for key in ("tts_filename", "intro_tts_filename"):
+                tts = v.get(key)
+                if tts:
+                    tp = os.path.join(_TTS_CACHE_DIR, tts)
+                    if os.path.isfile(tp):
+                        os.remove(tp)
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -8264,13 +8265,27 @@ def _pipeline_generate_task(video_id):
         select_prompt = (
             "You are selecting a Quranic passage for a YouTube Shorts video (under 60 seconds of spoken content).\n"
             "Pick ONE continuous passage of 3 to 8 consecutive verses from a SINGLE surah.\n\n"
-            "Guidelines:\n"
-            "- The passage must form a cohesive unit — a complete thought, argument, or narrative arc\n"
-            "- Choose passages with intellectual depth or emotional resonance\n"
-            "- The verses will be spoken in English only — Arabic poetic qualities don't matter\n"
-            "- Avoid the most overused passages (Ayat al-Kursi, last 3 surahs, Al-Fatiha, etc.)\n"
-            "- Prefer shorter verses — total spoken length should be roughly 30-45 seconds\n"
-            "- Pick verses that build on each other — don't just pick one famous verse and pad around it\n\n"
+            "HIGHEST PRIORITY — the passage must be BOTH:\n"
+            "  (a) Intellectually thought-provoking: contains paradox, a challenging question, a reversal of\n"
+            "      expectation, or a profound argument that makes the listener reconsider something\n"
+            "  (b) Emotionally striking: provokes awe, dread, grief, wonder, shame, or shock — not\n"
+            "      merely peaceful or comforting\n\n"
+            "REJECT passages that are:\n"
+            "- Merely descriptive of Paradise or rewards without tension\n"
+            "- Calmly reassuring (e.g. 89:27-30 — too gentle, no bite)\n"
+            "- Purely legal/procedural without emotional force\n"
+            "- One famous line padded with filler verses\n\n"
+            "Good targets include (but aren't limited to):\n"
+            "- Human ingratitude, the absurdity of idolatry, the shock of resurrection\n"
+            "- The silence before Judgment, the weight of an atom of good or evil\n"
+            "- The blindness of the arrogant, the fragility of life, the deception of wealth\n"
+            "- Direct challenges to the listener ('Have you seen...', 'What will make you know...')\n\n"
+            "Other constraints:\n"
+            "- Must form a cohesive unit — a complete thought, argument, or narrative arc\n"
+            "- Will be spoken in English only — Arabic poetic qualities don't matter\n"
+            "- Avoid the most overused passages (Ayat al-Kursi, last 3 surahs, Al-Fatiha)\n"
+            "- Prefer shorter verses — total spoken length roughly 30-45 seconds\n"
+            "- Verses should build on each other, not just pad one famous line\n\n"
             f"Previously used passages (DO NOT repeat or overlap with these): {used_list}\n\n"
             "Return ONLY a valid JSON object, nothing else:\n"
             '{"chapter": <int>, "ayah_start": <int>, "ayah_end": <int>}'
@@ -8437,13 +8452,8 @@ def _pipeline_generate_task(video_id):
 
         voice_id = pipeline["voice_id"]
 
-        for i, v in enumerate(verse_data):
-            text = v["polished_text"]
-            text_hash = hashlib.sha256(f"{voice_id}:{text}".encode()).hexdigest()[:16]
-            filename = f"pipe_{video_id}_{i}_{text_hash}.mp3"
-            filepath = os.path.join(_TTS_CACHE_DIR, filename)
-
-            tts_resp = requests.post(
+        def _call_elevenlabs(text_to_speak):
+            return requests.post(
                 f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
                 headers={
                     "xi-api-key": eleven_key,
@@ -8451,12 +8461,37 @@ def _pipeline_generate_task(video_id):
                     "Accept": "audio/mpeg",
                 },
                 json={
-                    "text": text,
+                    "text": text_to_speak,
                     "model_id": "eleven_multilingual_v2",
                     "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
                 },
                 timeout=60,
             )
+
+        # Intro: spoken "The Quran says" before any verse text appears
+        intro_text = "The Quran says"
+        intro_hash = hashlib.sha256(f"{voice_id}:intro:{intro_text}".encode()).hexdigest()[:16]
+        intro_filename = f"pipe_{video_id}_intro_{intro_hash}.mp3"
+        intro_filepath = os.path.join(_TTS_CACHE_DIR, intro_filename)
+
+        intro_resp = _call_elevenlabs(intro_text)
+        if intro_resp.status_code != 200:
+            _update_pipeline_video_status(video_id, "failed", error=f"Intro TTS failed: {intro_resp.status_code}")
+            return
+        with open(intro_filepath, "wb") as f:
+            f.write(intro_resp.content)
+
+        # Stash intro filename on the first verse for cleanup tracking
+        if verse_data:
+            verse_data[0]["intro_tts_filename"] = intro_filename
+
+        for i, v in enumerate(verse_data):
+            text = v["polished_text"]
+            text_hash = hashlib.sha256(f"{voice_id}:{text}".encode()).hexdigest()[:16]
+            filename = f"pipe_{video_id}_{i}_{text_hash}.mp3"
+            filepath = os.path.join(_TTS_CACHE_DIR, filename)
+
+            tts_resp = _call_elevenlabs(text)
 
             if tts_resp.status_code != 200:
                 _update_pipeline_video_status(video_id, "failed", error=f"TTS failed for {v['ref']}: {tts_resp.status_code}")
@@ -8488,6 +8523,26 @@ def _pipeline_generate_task(video_id):
             audio_segments = []
             timeline = []
             t = 0.0
+
+            # Intro: spoken "The Quran says" + brief pause, no subtitles
+            intro_fname = verse_data[0].get("intro_tts_filename") if verse_data else None
+            if intro_fname:
+                intro_src = os.path.join(_TTS_CACHE_DIR, intro_fname)
+                if os.path.isfile(intro_src):
+                    intro_local = os.path.join(tmpdir, "intro.mp3")
+                    shutil.copy2(intro_src, intro_local)
+                    intro_dur = _get_audio_duration(intro_local)
+                    audio_segments.append(intro_local)
+                    t += intro_dur
+
+                    intro_pause = os.path.join(tmpdir, "intro_pause.mp3")
+                    subprocess.run(
+                        [_FFMPEG, "-y", "-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo",
+                         "-t", "0.7", "-c:a", "libmp3lame", "-q:a", "9", intro_pause],
+                        capture_output=True, timeout=10,
+                    )
+                    audio_segments.append(intro_pause)
+                    t += 0.7
 
             for i, v in enumerate(verse_data):
                 tts_src = os.path.join(_TTS_CACHE_DIR, v["tts_filename"])
@@ -8542,16 +8597,19 @@ def _pipeline_generate_task(video_id):
             )
 
             # -- ASS subtitle file --
-            ref_fontsize = 62
+            ref_fontsize = 82
             trans_fontsize = 64
             text_colour = "&H00FFFFFF"
             outline_colour = "&H50000000"
             fonts_dir = os.path.join(os.path.dirname(__file__), "data", "fonts")
             ass_path = os.path.join(tmpdir, "subs.ass")
 
-            ref_band_y = 15
-            ref_band_h = 110
-            ref_margin_v = 38
+            # Ref band at bottom of frame
+            ref_band_h = 170
+            ref_band_y = 1650
+            # Alignment 2 (bottom center): MarginV = pixels from bottom to bottom of text
+            # Band occupies y=1650..1820; center band at y=1735, so MarginV ≈ 1920-1735 = 185
+            ref_margin_v = 180
             content_band_h = 380
             content_band_y = (target_h - content_band_h) // 2
 
@@ -8568,7 +8626,7 @@ def _pipeline_generate_task(video_id):
 
                 af.write("[V4+ Styles]\n")
                 af.write("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
-                af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,1,0,0,0,100,100,0,0,1,{ref_outline},0,8,40,40,{ref_margin_v},0\n")
+                af.write(f"Style: Ref,Liberation Sans,{ref_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,1,0,0,0,100,100,0,0,1,{ref_outline},0,2,40,40,{ref_margin_v},0\n")
                 af.write(f"Style: Trans,Liberation Sans,{trans_fontsize},{text_colour},&H000000FF,{outline_colour},&H00000000,0,0,0,0,100,100,0,0,1,{trans_outline},0,5,60,60,0,0\n")
                 outro_site_fs = 90
                 outro_tag_fs = 54
