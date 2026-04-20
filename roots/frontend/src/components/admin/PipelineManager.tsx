@@ -189,12 +189,80 @@ export default function PipelineManager() {
     } catch { /* ignore */ }
   }
 
+  // Manual generation form state
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualRange, setManualRange] = useState('');
+  const [manualTitle, setManualTitle] = useState('');
+  const [manualDescription, setManualDescription] = useState('');
+  const [manualError, setManualError] = useState('');
+
+  function parseVerseRange(input: string): { chapter: number; ayah_start: number; ayah_end: number } | null {
+    const trimmed = input.trim();
+    const rangeMatch = trimmed.match(/^(\d+)\s*:\s*(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+      const chapter = parseInt(rangeMatch[1]);
+      const start = parseInt(rangeMatch[2]);
+      const end = parseInt(rangeMatch[3]);
+      if (chapter >= 1 && chapter <= 114 && start >= 1 && end >= start) {
+        return { chapter, ayah_start: start, ayah_end: end };
+      }
+      return null;
+    }
+    const singleMatch = trimmed.match(/^(\d+)\s*:\s*(\d+)$/);
+    if (singleMatch) {
+      const chapter = parseInt(singleMatch[1]);
+      const ayah = parseInt(singleMatch[2]);
+      if (chapter >= 1 && chapter <= 114 && ayah >= 1) {
+        return { chapter, ayah_start: ayah, ayah_end: ayah };
+      }
+      return null;
+    }
+    return null;
+  }
+
   async function handleGenerate() {
     if (!selectedId) return;
     setGenerating(true);
     setGenError('');
     try {
       await generatePipelineVideo(selectedId);
+      loadVideos();
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  async function handleManualGenerate() {
+    if (!selectedId) return;
+    setManualError('');
+
+    const parsed = parseVerseRange(manualRange);
+    if (!parsed) {
+      setManualError('Invalid verse range. Use format "102:1-8" or "102:3".');
+      return;
+    }
+    if (!manualTitle.trim()) {
+      setManualError('Title is required');
+      return;
+    }
+
+    setGenerating(true);
+    setGenError('');
+    try {
+      await generatePipelineVideo(selectedId, {
+        chapter: parsed.chapter,
+        ayah_start: parsed.ayah_start,
+        ayah_end: parsed.ayah_end,
+        youtube_title: manualTitle.trim(),
+        youtube_description: manualDescription.trim(),
+      });
+      // Reset form
+      setManualRange('');
+      setManualTitle('');
+      setManualDescription('');
+      setShowManualForm(false);
       loadVideos();
     } catch (err) {
       setGenError(err instanceof Error ? err.message : 'Generation failed');
@@ -385,16 +453,73 @@ export default function PipelineManager() {
               </div>
             </div>
 
-            {/* Generate button */}
-            <div className="mt-6 flex items-center gap-4">
-              <button
-                onClick={handleGenerate}
-                disabled={generating || hasActiveVideo}
-                className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {generating ? 'Starting...' : hasActiveVideo ? 'Video in progress...' : 'Create Video for English Pipeline'}
-              </button>
-              {genError && <p className="text-sm text-red-600">{genError}</p>}
+            {/* Generate buttons */}
+            <div className="mt-6 space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleGenerate}
+                  disabled={generating || hasActiveVideo || showManualForm}
+                  className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {generating && !showManualForm ? 'Starting...' : hasActiveVideo ? 'Video in progress...' : 'Auto Pick Verses for Pipeline'}
+                </button>
+                <button
+                  onClick={() => { setShowManualForm(!showManualForm); setManualError(''); }}
+                  disabled={generating || hasActiveVideo}
+                  className="px-6 py-3 rounded-xl border border-stone-300 bg-white text-stone-700 font-semibold text-sm hover:bg-stone-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {showManualForm ? 'Cancel Manual Selection' : 'Manually Pick Verses for Pipeline'}
+                </button>
+                {genError && <p className="text-sm text-red-600">{genError}</p>}
+              </div>
+
+              {showManualForm && (
+                <div className="mt-2 rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-stone-600 mb-1">Verse range</label>
+                    <input
+                      type="text"
+                      value={manualRange}
+                      onChange={(e) => setManualRange(e.target.value)}
+                      placeholder="e.g. 102:1-8"
+                      className="w-full max-w-xs px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                    <p className="mt-1 text-xs text-stone-400">Format: <code>surah:start-end</code> or <code>surah:ayah</code> for a single verse.</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-stone-600 mb-1">YouTube title</label>
+                    <input
+                      type="text"
+                      value={manualTitle}
+                      onChange={(e) => setManualTitle(e.target.value)}
+                      placeholder="e.g. 102:1-8 | The Rivalry That Destroys You"
+                      className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-stone-600 mb-1">YouTube description</label>
+                    <textarea
+                      value={manualDescription}
+                      onChange={(e) => setManualDescription(e.target.value)}
+                      placeholder="Brief, thoughtful description..."
+                      rows={3}
+                      className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-y"
+                    />
+                  </div>
+                  {manualError && (
+                    <p className="text-sm text-red-600">{manualError}</p>
+                  )}
+                  <div className="flex items-center gap-3 pt-1">
+                    <button
+                      onClick={handleManualGenerate}
+                      disabled={generating || hasActiveVideo}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {generating ? 'Starting...' : 'Generate Video'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

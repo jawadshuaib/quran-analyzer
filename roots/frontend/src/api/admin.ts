@@ -661,8 +661,22 @@ export async function deletePipeline(id: number): Promise<void> {
   }
 }
 
-export async function generatePipelineVideo(pipelineId: number): Promise<{ id: number; status: string }> {
-  const res = await authFetch(`${BASE}/pipelines/${pipelineId}/generate`, { method: 'POST' });
+export interface ManualGenerateParams {
+  chapter?: number;
+  ayah_start?: number;
+  ayah_end?: number;
+  youtube_title?: string;
+  youtube_description?: string;
+}
+
+export async function generatePipelineVideo(
+  pipelineId: number,
+  manual?: ManualGenerateParams,
+): Promise<{ id: number; status: string }> {
+  const res = await authFetch(`${BASE}/pipelines/${pipelineId}/generate`, {
+    method: 'POST',
+    body: JSON.stringify(manual || {}),
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to start generation');
   return data;

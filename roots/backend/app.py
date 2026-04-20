@@ -7734,10 +7734,16 @@ def _ensure_pipeline_tables():
             )
         """)
         conn.commit()
-        # Add youtube metadata columns (idempotent migration)
-        for col in ("youtube_title", "youtube_description"):
+        # Add youtube metadata + manual override columns (idempotent migration)
+        for col, coltype in (
+            ("youtube_title", "TEXT"),
+            ("youtube_description", "TEXT"),
+            ("manual_chapter", "INTEGER"),
+            ("manual_ayah_start", "INTEGER"),
+            ("manual_ayah_end", "INTEGER"),
+        ):
             try:
-                conn.execute(f"ALTER TABLE admin_pipeline_videos ADD COLUMN {col} TEXT")
+                conn.execute(f"ALTER TABLE admin_pipeline_videos ADD COLUMN {col} {coltype}")
                 conn.commit()
             except Exception:
                 pass
@@ -7898,6 +7904,30 @@ def admin_delete_pipeline(pipeline_id):
 @app.route("/api/admin/pipelines/<int:pipeline_id>/generate", methods=["POST"])
 @admin_required
 def admin_pipeline_generate(pipeline_id):
+    body = request.get_json(silent=True) or {}
+
+    # Optional manual overrides
+    manual_chapter = body.get("chapter")
+    manual_ayah_start = body.get("ayah_start")
+    manual_ayah_end = body.get("ayah_end")
+    manual_title = (body.get("youtube_title") or "").strip() or None
+    manual_description = (body.get("youtube_description") or "").strip() or None
+
+    # Validate verse range if any manual verse field is provided
+    if any(x is not None for x in (manual_chapter, manual_ayah_start, manual_ayah_end)):
+        try:
+            manual_chapter = int(manual_chapter)
+            manual_ayah_start = int(manual_ayah_start)
+            manual_ayah_end = int(manual_ayah_end)
+        except (TypeError, ValueError):
+            return jsonify({"error": "chapter, ayah_start, ayah_end must all be integers"}), 400
+        if not (1 <= manual_chapter <= 114):
+            return jsonify({"error": "chapter must be between 1 and 114"}), 400
+        if manual_ayah_start < 1 or manual_ayah_end < manual_ayah_start:
+            return jsonify({"error": "invalid ayah range"}), 400
+        if manual_ayah_end - manual_ayah_start + 1 > 20:
+            return jsonify({"error": "range too large (max 20 verses)"}), 400
+
     conn = get_db()
     try:
         pipeline = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
@@ -7906,14 +7936,18 @@ def admin_pipeline_generate(pipeline_id):
 
         active = conn.execute(
             "SELECT COUNT(*) as c FROM admin_pipeline_videos "
-            "WHERE status IN ('pending','selecting_verses','polishing','generating_tts','rendering')"
+            "WHERE status IN ('pending','selecting_verses','polishing','generating_tts','rendering','generating_metadata')"
         ).fetchone()["c"]
         if active >= 2:
             return jsonify({"error": "Too many videos generating. Please wait."}), 429
 
         cur = conn.execute(
-            "INSERT INTO admin_pipeline_videos (pipeline_id, status) VALUES (?, 'pending')",
-            (pipeline_id,),
+            "INSERT INTO admin_pipeline_videos "
+            "(pipeline_id, status, manual_chapter, manual_ayah_start, manual_ayah_end, "
+            " youtube_title, youtube_description) "
+            "VALUES (?, 'pending', ?, ?, ?, ?, ?)",
+            (pipeline_id, manual_chapter, manual_ayah_start, manual_ayah_end,
+             manual_title, manual_description),
         )
         conn.commit()
         video_id = cur.lastrowid
@@ -8255,89 +8289,106 @@ def _pipeline_generate_task(video_id):
         if music_path and not os.path.isfile(music_path):
             music_path = None
 
-        # ---- 2. Select verses via Claude ----
-        _update_pipeline_video_status(video_id, "selecting_verses", "AI is selecting verses...")
+        # ---- 2. Select verses (Claude, unless manually overridden) ----
+        manual_ch = vid_row["manual_chapter"] if "manual_chapter" in vid_row.keys() else None
+        manual_start = vid_row["manual_ayah_start"] if "manual_ayah_start" in vid_row.keys() else None
+        manual_end = vid_row["manual_ayah_end"] if "manual_ayah_end" in vid_row.keys() else None
+        is_manual_selection = manual_ch is not None and manual_start is not None and manual_end is not None
 
+        # Claude API key only needed for auto-select / polish steps
         api_key = _get_claude_api_key()
-        if not api_key:
-            _update_pipeline_video_status(video_id, "failed", error="Claude API key not configured")
-            return
 
-        used_list = ", ".join(sorted(set(used_ranges))) if used_ranges else "None yet"
+        if is_manual_selection:
+            chapter = int(manual_ch)
+            ayah_start = int(manual_start)
+            ayah_end = int(manual_end)
+            _update_pipeline_video_status(
+                video_id, "selecting_verses",
+                f"Using manual selection {chapter}:{ayah_start}-{ayah_end}",
+            )
+        else:
+            _update_pipeline_video_status(video_id, "selecting_verses", "AI is selecting verses...")
 
-        select_prompt = (
-            "You are selecting a Quranic passage for a YouTube Shorts video (under 60 seconds of spoken content).\n"
-            "Pick ONE continuous passage of 3 to 8 consecutive verses from a SINGLE surah.\n\n"
-            "HIGHEST PRIORITY — the passage must be BOTH:\n"
-            "  (a) Intellectually thought-provoking: contains paradox, a challenging question, a reversal of\n"
-            "      expectation, or a profound argument that makes the listener reconsider something\n"
-            "  (b) Emotionally striking: provokes awe, dread, grief, wonder, shame, or shock — not\n"
-            "      merely peaceful or comforting\n\n"
-            "REJECT passages that are:\n"
-            "- Merely descriptive of Paradise or rewards without tension\n"
-            "- Calmly reassuring (e.g. 89:27-30 — too gentle, no bite)\n"
-            "- Purely legal/procedural without emotional force\n"
-            "- One famous line padded with filler verses\n\n"
-            "Good targets include (but aren't limited to):\n"
-            "- Human ingratitude, the absurdity of idolatry, the shock of resurrection\n"
-            "- The silence before Judgment, the weight of an atom of good or evil\n"
-            "- The blindness of the arrogant, the fragility of life, the deception of wealth\n"
-            "- Direct challenges to the listener ('Have you seen...', 'What will make you know...')\n\n"
-            "Other constraints:\n"
-            "- Must form a cohesive unit — a complete thought, argument, or narrative arc\n"
-            "- Will be spoken in English only — Arabic poetic qualities don't matter\n"
-            "- Avoid the most overused passages (Ayat al-Kursi, last 3 surahs, Al-Fatiha)\n"
-            "- Prefer shorter verses — total spoken length roughly 30-45 seconds\n"
-            "- Verses should build on each other, not just pad one famous line\n\n"
-            f"Previously used passages (DO NOT repeat or overlap with these): {used_list}\n\n"
-            "Return ONLY a valid JSON object, nothing else:\n"
-            '{"chapter": <int>, "ayah_start": <int>, "ayah_end": <int>}'
-        )
+            if not api_key:
+                _update_pipeline_video_status(video_id, "failed", error="Claude API key not configured")
+                return
 
-        resp = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "Content-Type": "application/json",
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-            },
-            json={
-                "model": "claude-sonnet-4-20250514",
-                "max_tokens": 500,
-                "messages": [{"role": "user", "content": select_prompt}],
-            },
-            timeout=30,
-        )
+        if not is_manual_selection:
+            used_list = ", ".join(sorted(set(used_ranges))) if used_ranges else "None yet"
 
-        if resp.status_code != 200:
-            _update_pipeline_video_status(video_id, "failed", error=f"Claude API error: {resp.status_code}")
-            return
+            select_prompt = (
+                "You are selecting a Quranic passage for a YouTube Shorts video (under 60 seconds of spoken content).\n"
+                "Pick ONE continuous passage of 3 to 8 consecutive verses from a SINGLE surah.\n\n"
+                "HIGHEST PRIORITY — the passage must be BOTH:\n"
+                "  (a) Intellectually thought-provoking: contains paradox, a challenging question, a reversal of\n"
+                "      expectation, or a profound argument that makes the listener reconsider something\n"
+                "  (b) Emotionally striking: provokes awe, dread, grief, wonder, shame, or shock — not\n"
+                "      merely peaceful or comforting\n\n"
+                "REJECT passages that are:\n"
+                "- Merely descriptive of Paradise or rewards without tension\n"
+                "- Calmly reassuring (e.g. 89:27-30 — too gentle, no bite)\n"
+                "- Purely legal/procedural without emotional force\n"
+                "- One famous line padded with filler verses\n\n"
+                "Good targets include (but aren't limited to):\n"
+                "- Human ingratitude, the absurdity of idolatry, the shock of resurrection\n"
+                "- The silence before Judgment, the weight of an atom of good or evil\n"
+                "- The blindness of the arrogant, the fragility of life, the deception of wealth\n"
+                "- Direct challenges to the listener ('Have you seen...', 'What will make you know...')\n\n"
+                "Other constraints:\n"
+                "- Must form a cohesive unit — a complete thought, argument, or narrative arc\n"
+                "- Will be spoken in English only — Arabic poetic qualities don't matter\n"
+                "- Avoid the most overused passages (Ayat al-Kursi, last 3 surahs, Al-Fatiha)\n"
+                "- Prefer shorter verses — total spoken length roughly 30-45 seconds\n"
+                "- Verses should build on each other, not just pad one famous line\n\n"
+                f"Previously used passages (DO NOT repeat or overlap with these): {used_list}\n\n"
+                "Return ONLY a valid JSON object, nothing else:\n"
+                '{"chapter": <int>, "ayah_start": <int>, "ayah_end": <int>}'
+            )
 
-        resp_text = resp.json()["content"][0]["text"].strip()
-        match = re.search(r"\{.*\}", resp_text, re.DOTALL)
-        if not match:
-            _update_pipeline_video_status(video_id, "failed", error="Could not parse passage selection from AI")
-            return
+            resp = requests.post(
+                "https://api.anthropic.com/v1/messages",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": api_key,
+                    "anthropic-version": "2023-06-01",
+                },
+                json={
+                    "model": "claude-sonnet-4-20250514",
+                    "max_tokens": 500,
+                    "messages": [{"role": "user", "content": select_prompt}],
+                },
+                timeout=30,
+            )
 
-        try:
-            selection = json.loads(match.group())
-        except json.JSONDecodeError as je:
-            _update_pipeline_video_status(video_id, "failed", error=f"AI returned invalid JSON for passage selection: {je}")
-            return
+            if resp.status_code != 200:
+                _update_pipeline_video_status(video_id, "failed", error=f"Claude API error: {resp.status_code}")
+                return
 
-        try:
-            chapter = int(selection["chapter"])
-            ayah_start = int(selection["ayah_start"])
-            ayah_end = int(selection["ayah_end"])
-        except (KeyError, TypeError, ValueError):
-            _update_pipeline_video_status(video_id, "failed", error="Missing chapter/ayah_start/ayah_end in AI response")
-            return
+            resp_text = resp.json()["content"][0]["text"].strip()
+            match = re.search(r"\{.*\}", resp_text, re.DOTALL)
+            if not match:
+                _update_pipeline_video_status(video_id, "failed", error="Could not parse passage selection from AI")
+                return
 
-        if ayah_end < ayah_start:
-            ayah_start, ayah_end = ayah_end, ayah_start
-        # Safety cap: no more than 8 verses to keep the short under time budget
-        if ayah_end - ayah_start + 1 > 8:
-            ayah_end = ayah_start + 7
+            try:
+                selection = json.loads(match.group())
+            except json.JSONDecodeError as je:
+                _update_pipeline_video_status(video_id, "failed", error=f"AI returned invalid JSON for passage selection: {je}")
+                return
+
+            try:
+                chapter = int(selection["chapter"])
+                ayah_start = int(selection["ayah_start"])
+                ayah_end = int(selection["ayah_end"])
+            except (KeyError, TypeError, ValueError):
+                _update_pipeline_video_status(video_id, "failed", error="Missing chapter/ayah_start/ayah_end in AI response")
+                return
+
+            if ayah_end < ayah_start:
+                ayah_start, ayah_end = ayah_end, ayah_start
+            # Safety cap: no more than 8 verses to keep the short under time budget
+            if ayah_end - ayah_start + 1 > 8:
+                ayah_end = ayah_start + 7
 
         # ---- 3. Fetch translations ----
         surah_name = _surah_name(chapter)
@@ -8771,13 +8822,19 @@ def _pipeline_generate_task(video_id):
 
             file_size = os.path.getsize(output_path)
 
-            # ---- 7. Generate YouTube title & description via Ollama ----
-            yt_title, yt_desc = "", ""
-            try:
-                _update_pipeline_video_status(video_id, "generating_metadata", "Generating YouTube metadata...")
-                yt_title, yt_desc = _generate_youtube_metadata(verse_data)
-            except Exception as e:
-                print(f"WARNING: YouTube metadata generation failed for video {video_id}: {e}")
+            # ---- 7. Generate YouTube title & description via Ollama (unless preseeded) ----
+            # If the row already has a title/description (manual mode), keep them.
+            preseed_title = vid_row["youtube_title"] if "youtube_title" in vid_row.keys() else None
+            preseed_desc = vid_row["youtube_description"] if "youtube_description" in vid_row.keys() else None
+            has_manual_metadata = bool(preseed_title) or bool(preseed_desc)
+
+            yt_title, yt_desc = preseed_title or "", preseed_desc or ""
+            if not has_manual_metadata:
+                try:
+                    _update_pipeline_video_status(video_id, "generating_metadata", "Generating YouTube metadata...")
+                    yt_title, yt_desc = _generate_youtube_metadata(verse_data)
+                except Exception as e:
+                    print(f"WARNING: YouTube metadata generation failed for video {video_id}: {e}")
 
             conn2 = get_db()
             try:
