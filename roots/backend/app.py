@@ -7719,6 +7719,12 @@ def _ensure_pipeline_tables():
                 updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # reciter_id is required for Arabic pipelines (NULL for English)
+        try:
+            conn.execute("ALTER TABLE admin_pipelines ADD COLUMN reciter_id INTEGER")
+            conn.commit()
+        except Exception:
+            pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS admin_pipeline_videos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7786,17 +7792,33 @@ def _update_pipeline_video_status(video_id, status, progress="", error=""):
 def admin_create_pipeline():
     body = request.get_json(silent=True) or {}
     name = (body.get("name") or "").strip()[:200]
+    language = (body.get("language") or "english").strip().lower()
     resource_id = body.get("resource_id")
     voice_id = (body.get("voice_id") or "").strip()
+    reciter_id = body.get("reciter_id")
     show_bands = bool(body.get("show_bands", True))
     music_id = body.get("music_id")
 
+    if language not in ("english", "arabic"):
+        return jsonify({"error": "language must be 'english' or 'arabic'"}), 400
     if not name:
         return jsonify({"error": "Name is required"}), 400
     if not resource_id:
         return jsonify({"error": "Background video is required"}), 400
-    if not voice_id:
-        return jsonify({"error": "Voice is required"}), 400
+
+    if language == "english":
+        if not voice_id:
+            return jsonify({"error": "Voice is required for English pipelines"}), 400
+        reciter_id = None
+    else:  # arabic
+        try:
+            reciter_id = int(reciter_id) if reciter_id is not None else 0
+        except (TypeError, ValueError):
+            reciter_id = 0
+        if not reciter_id:
+            return jsonify({"error": "Reciter is required for Arabic pipelines"}), 400
+        # voice_id column is NOT NULL — store empty string
+        voice_id = voice_id or ""
 
     conn = get_db()
     try:
@@ -7809,8 +7831,9 @@ def admin_create_pipeline():
                 return jsonify({"error": "Music track not found"}), 404
 
         cur = conn.execute(
-            "INSERT INTO admin_pipelines (name, language, resource_id, voice_id, show_bands, music_id) VALUES (?, 'english', ?, ?, ?, ?)",
-            (name, resource_id, voice_id, 1 if show_bands else 0, music_id),
+            "INSERT INTO admin_pipelines (name, language, resource_id, voice_id, reciter_id, show_bands, music_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (name, language, resource_id, voice_id, reciter_id, 1 if show_bands else 0, music_id),
         )
         conn.commit()
         pipeline = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -7867,13 +7890,19 @@ def admin_update_pipeline(pipeline_id):
 
         name = (body.get("name") or row["name"]).strip()[:200]
         resource_id = body.get("resource_id", row["resource_id"])
-        voice_id = (body.get("voice_id") or row["voice_id"]).strip()
+        voice_id = (body.get("voice_id") or row["voice_id"] or "").strip()
         show_bands = body.get("show_bands", bool(row["show_bands"]))
         music_id = body.get("music_id", row["music_id"])
+        # Get reciter_id — try current row first, fall back safely
+        try:
+            existing_reciter_id = row["reciter_id"]
+        except (IndexError, KeyError):
+            existing_reciter_id = None
+        reciter_id = body.get("reciter_id", existing_reciter_id)
 
         conn.execute(
-            "UPDATE admin_pipelines SET name=?, resource_id=?, voice_id=?, show_bands=?, music_id=?, updated_at=datetime('now') WHERE id=?",
-            (name, resource_id, voice_id, 1 if show_bands else 0, music_id, pipeline_id),
+            "UPDATE admin_pipelines SET name=?, resource_id=?, voice_id=?, reciter_id=?, show_bands=?, music_id=?, updated_at=datetime('now') WHERE id=?",
+            (name, resource_id, voice_id, reciter_id, 1 if show_bands else 0, music_id, pipeline_id),
         )
         conn.commit()
         updated = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
@@ -8237,6 +8266,17 @@ def _pipeline_generate_task(video_id):
                 _update_pipeline_video_status(video_id, "failed", error="Pipeline not found")
                 return
 
+            # Language determines audio source (ElevenLabs TTS vs reciter audio)
+            language = (pipeline["language"] or "english").lower()
+            is_arabic = language == "arabic"
+            try:
+                reciter_id_for_pipeline = pipeline["reciter_id"]
+            except (IndexError, KeyError):
+                reciter_id_for_pipeline = None
+            if is_arabic and not reciter_id_for_pipeline:
+                _update_pipeline_video_status(video_id, "failed", error="Arabic pipeline has no reciter configured")
+                return
+
             # Gather used passage ranges from the last 30 days of completed runs.
             # Anything older is eligible to be picked again.
             used_rows = conn.execute(
@@ -8316,34 +8356,70 @@ def _pipeline_generate_task(video_id):
         if not is_manual_selection:
             used_list = ", ".join(sorted(set(used_ranges))) if used_ranges else "None yet"
 
-            select_prompt = (
-                "You are selecting a Quranic passage for a YouTube Shorts video (under 60 seconds of spoken content).\n"
-                "Pick ONE continuous passage of 3 to 8 consecutive verses from a SINGLE surah.\n\n"
-                "HIGHEST PRIORITY — the passage must be BOTH:\n"
-                "  (a) Intellectually thought-provoking: contains paradox, a challenging question, a reversal of\n"
-                "      expectation, or a profound argument that makes the listener reconsider something\n"
-                "  (b) Emotionally striking: provokes awe, dread, grief, wonder, shame, or shock — not\n"
-                "      merely peaceful or comforting\n\n"
-                "REJECT passages that are:\n"
-                "- Merely descriptive of Paradise or rewards without tension\n"
-                "- Calmly reassuring (e.g. 89:27-30 — too gentle, no bite)\n"
-                "- Purely legal/procedural without emotional force\n"
-                "- One famous line padded with filler verses\n\n"
-                "Good targets include (but aren't limited to):\n"
-                "- Human ingratitude, the absurdity of idolatry, the shock of resurrection\n"
-                "- The silence before Judgment, the weight of an atom of good or evil\n"
-                "- The blindness of the arrogant, the fragility of life, the deception of wealth\n"
-                "- Direct challenges to the listener ('Have you seen...', 'What will make you know...')\n\n"
-                "Other constraints:\n"
-                "- Must form a cohesive unit — a complete thought, argument, or narrative arc\n"
-                "- Will be spoken in English only — Arabic poetic qualities don't matter\n"
-                "- Avoid the most overused passages (Ayat al-Kursi, last 3 surahs, Al-Fatiha)\n"
-                "- Prefer shorter verses — total spoken length roughly 30-45 seconds\n"
-                "- Verses should build on each other, not just pad one famous line\n\n"
-                f"Previously used passages (DO NOT repeat or overlap with these): {used_list}\n\n"
-                "Return ONLY a valid JSON object, nothing else:\n"
-                '{"chapter": <int>, "ayah_start": <int>, "ayah_end": <int>}'
-            )
+            if is_arabic:
+                select_prompt = (
+                    "You are selecting a Quranic passage for an ARABIC-RECITATION YouTube Short. The audio\n"
+                    "will be a reciter chanting these verses in Arabic; on-screen the viewer sees the\n"
+                    "English translation. Pick ONE continuous passage of 2 to 6 consecutive verses from\n"
+                    "a SINGLE surah.\n\n"
+                    "HIGHEST PRIORITY — the passage must be BOTH:\n"
+                    "  (a) Emotionally resonant: when recited, the listener feels it — awe, grief, wonder,\n"
+                    "      dread, hope. Not neutral narration or dry legal text.\n"
+                    "  (b) Meaningful: carries a self-contained truth, image, or argument that lands even\n"
+                    "      without extensive commentary.\n\n"
+                    "HARD CONSTRAINT — the TOTAL RECITED LENGTH MUST FIT UNDER 55 SECONDS to avoid\n"
+                    "copyright issues. Arabic recitation is slow and deliberate. Budget roughly:\n"
+                    "  - Short verse (<15 Arabic words): ~5-10 seconds recited\n"
+                    "  - Medium verse (15-30 words): ~10-20 seconds recited\n"
+                    "  - Long verse (>30 words): often 25+ seconds — usually too long\n"
+                    "STRONGLY prefer SHORT verses. Short surahs (Juz Amma: 78-114, and parts of 55, 56, 67)\n"
+                    "usually work best. If you pick from a long surah, confirm each verse is short.\n\n"
+                    "REJECT passages that are:\n"
+                    "- Long verses or long passages that risk exceeding 55 seconds\n"
+                    "- Purely legal/procedural, genealogical, or merely descriptive\n"
+                    "- Ayat al-Kursi (2:255), last 3 surahs, Al-Fatiha — too overused\n"
+                    "- One famous line padded with filler verses\n\n"
+                    "Good targets include (but aren't limited to):\n"
+                    "- The openings of Juz Amma (e.g. passages from An-Naba, An-Nazi'at, 'Abasa, At-Takwir,\n"
+                    "  Al-Infitar, Al-Inshiqaq, Al-Ghashiyah, Al-Fajr, Al-Balad, Al-Layl, Al-Qari'ah)\n"
+                    "- Rhythmic oath passages, vivid eschatological imagery, direct address\n"
+                    "- Passages about human fragility, reckoning, wonder at creation\n\n"
+                    "Other constraints:\n"
+                    "- Must form a cohesive unit — a complete image, argument, or narrative beat\n"
+                    "- Verses should build on each other rhythmically\n\n"
+                    f"Previously used passages (DO NOT repeat or overlap with these): {used_list}\n\n"
+                    "Return ONLY a valid JSON object, nothing else:\n"
+                    '{"chapter": <int>, "ayah_start": <int>, "ayah_end": <int>}'
+                )
+            else:
+                select_prompt = (
+                    "You are selecting a Quranic passage for a YouTube Shorts video (under 60 seconds of spoken content).\n"
+                    "Pick ONE continuous passage of 3 to 8 consecutive verses from a SINGLE surah.\n\n"
+                    "HIGHEST PRIORITY — the passage must be BOTH:\n"
+                    "  (a) Intellectually thought-provoking: contains paradox, a challenging question, a reversal of\n"
+                    "      expectation, or a profound argument that makes the listener reconsider something\n"
+                    "  (b) Emotionally striking: provokes awe, dread, grief, wonder, shame, or shock — not\n"
+                    "      merely peaceful or comforting\n\n"
+                    "REJECT passages that are:\n"
+                    "- Merely descriptive of Paradise or rewards without tension\n"
+                    "- Calmly reassuring (e.g. 89:27-30 — too gentle, no bite)\n"
+                    "- Purely legal/procedural without emotional force\n"
+                    "- One famous line padded with filler verses\n\n"
+                    "Good targets include (but aren't limited to):\n"
+                    "- Human ingratitude, the absurdity of idolatry, the shock of resurrection\n"
+                    "- The silence before Judgment, the weight of an atom of good or evil\n"
+                    "- The blindness of the arrogant, the fragility of life, the deception of wealth\n"
+                    "- Direct challenges to the listener ('Have you seen...', 'What will make you know...')\n\n"
+                    "Other constraints:\n"
+                    "- Must form a cohesive unit — a complete thought, argument, or narrative arc\n"
+                    "- Will be spoken in English only — Arabic poetic qualities don't matter\n"
+                    "- Avoid the most overused passages (Ayat al-Kursi, last 3 surahs, Al-Fatiha)\n"
+                    "- Prefer shorter verses — total spoken length roughly 30-45 seconds\n"
+                    "- Verses should build on each other, not just pad one famous line\n\n"
+                    f"Previously used passages (DO NOT repeat or overlap with these): {used_list}\n\n"
+                    "Return ONLY a valid JSON object, nothing else:\n"
+                    '{"chapter": <int>, "ayah_start": <int>, "ayah_end": <int>}'
+                )
 
             resp = requests.post(
                 "https://api.anthropic.com/v1/messages",
@@ -8386,9 +8462,11 @@ def _pipeline_generate_task(video_id):
 
             if ayah_end < ayah_start:
                 ayah_start, ayah_end = ayah_end, ayah_start
-            # Safety cap: no more than 8 verses to keep the short under time budget
-            if ayah_end - ayah_start + 1 > 8:
-                ayah_end = ayah_start + 7
+            # Safety cap: keep short under copyright-safe time budget.
+            # Arabic recitation is slower than English TTS, so Arabic cap is tighter.
+            max_verses = 6 if is_arabic else 8
+            if ayah_end - ayah_start + 1 > max_verses:
+                ayah_end = ayah_start + max_verses - 1
 
         # ---- 3. Fetch translations ----
         surah_name = _surah_name(chapter)
@@ -8490,75 +8568,118 @@ def _pipeline_generate_task(video_id):
         finally:
             conn.close()
 
-        # ---- 5. Generate TTS via ElevenLabs ----
-        _update_pipeline_video_status(video_id, "generating_tts", "Generating voice audio...")
+        # ---- 5. Acquire audio: ElevenLabs TTS (English) or reciter mp3s (Arabic) ----
+        if is_arabic:
+            _update_pipeline_video_status(video_id, "generating_tts", "Downloading recitation audio...")
 
-        conn = get_db()
-        try:
-            pref = conn.execute("SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'").fetchone()
-            eleven_key = pref["value"] if pref else os.environ.get("ELEVENLABS_API_KEY", "")
-        finally:
-            conn.close()
+            folder = _get_reciter_folder(int(reciter_id_for_pipeline))
+            audio_base = "https://verses.quran.com"
 
-        if not eleven_key:
-            _update_pipeline_video_status(video_id, "failed", error="ElevenLabs API key not configured")
-            return
+            total_dur = 0.0
+            for i, v in enumerate(verse_data):
+                audio_url = f"{audio_base}/{folder}/{v['chapter']:03d}{v['verse']:03d}.mp3"
+                url_hash = hashlib.sha256(audio_url.encode()).hexdigest()[:16]
+                filename = f"pipe_{video_id}_{i}_arabic_{url_hash}.mp3"
+                filepath = os.path.join(_TTS_CACHE_DIR, filename)
 
-        voice_id = pipeline["voice_id"]
+                try:
+                    resp = requests.get(audio_url, timeout=30)
+                    resp.raise_for_status()
+                except Exception as e:
+                    _update_pipeline_video_status(video_id, "failed", error=f"Failed to download {audio_url}: {e}")
+                    return
 
-        def _call_elevenlabs(text_to_speak):
-            return requests.post(
-                f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
-                headers={
-                    "xi-api-key": eleven_key,
-                    "Content-Type": "application/json",
-                    "Accept": "audio/mpeg",
-                },
-                json={
-                    "text": text_to_speak,
-                    "model_id": "eleven_multilingual_v2",
-                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
-                },
-                timeout=60,
-            )
+                with open(filepath, "wb") as f:
+                    f.write(resp.content)
 
-        # Intro: spoken "The Quran says" before any verse text appears.
-        # Phonetic spelling ("Koraan") because ElevenLabs mispronounces "Quran"
-        # (often as "KWOR-an"). The text is never shown on screen — only spoken —
-        # so the spelling only needs to produce the right sound ("kor-AAN").
-        intro_text = "The Koraan says"
-        intro_hash = hashlib.sha256(f"{voice_id}:intro:{intro_text}".encode()).hexdigest()[:16]
-        intro_filename = f"pipe_{video_id}_intro_{intro_hash}.mp3"
-        intro_filepath = os.path.join(_TTS_CACHE_DIR, intro_filename)
+                v["tts_filename"] = filename
+                v["audio_url"] = audio_url
 
-        intro_resp = _call_elevenlabs(intro_text)
-        if intro_resp.status_code != 200:
-            _update_pipeline_video_status(video_id, "failed", error=f"Intro TTS failed: {intro_resp.status_code}")
-            return
-        with open(intro_filepath, "wb") as f:
-            f.write(intro_resp.content)
+                try:
+                    total_dur += _get_audio_duration(filepath)
+                except Exception:
+                    pass
 
-        # Stash intro filename on the first verse for cleanup tracking
-        if verse_data:
-            verse_data[0]["intro_tts_filename"] = intro_filename
+                _update_pipeline_video_status(
+                    video_id, "generating_tts", f"Downloaded audio {i + 1}/{len(verse_data)}",
+                )
 
-        for i, v in enumerate(verse_data):
-            text = v["polished_text"]
-            text_hash = hashlib.sha256(f"{voice_id}:{text}".encode()).hexdigest()[:16]
-            filename = f"pipe_{video_id}_{i}_{text_hash}.mp3"
-            filepath = os.path.join(_TTS_CACHE_DIR, filename)
+            # Enforce 55s budget BEFORE rendering so we don't waste ffmpeg cycles
+            if total_dur > 55.0:
+                _update_pipeline_video_status(
+                    video_id, "failed",
+                    error=f"Passage too long: {total_dur:.1f}s of recitation (limit 55s). Try a shorter range.",
+                )
+                return
+        else:
+            _update_pipeline_video_status(video_id, "generating_tts", "Generating voice audio...")
 
-            tts_resp = _call_elevenlabs(text)
+            conn = get_db()
+            try:
+                pref = conn.execute("SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'").fetchone()
+                eleven_key = pref["value"] if pref else os.environ.get("ELEVENLABS_API_KEY", "")
+            finally:
+                conn.close()
 
-            if tts_resp.status_code != 200:
-                _update_pipeline_video_status(video_id, "failed", error=f"TTS failed for {v['ref']}: {tts_resp.status_code}")
+            if not eleven_key:
+                _update_pipeline_video_status(video_id, "failed", error="ElevenLabs API key not configured")
                 return
 
-            with open(filepath, "wb") as f:
-                f.write(tts_resp.content)
+            voice_id = pipeline["voice_id"]
 
-            v["tts_filename"] = filename
-            _update_pipeline_video_status(video_id, "generating_tts", f"Generated audio {i + 1}/{len(verse_data)}")
+            def _call_elevenlabs(text_to_speak):
+                return requests.post(
+                    f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+                    headers={
+                        "xi-api-key": eleven_key,
+                        "Content-Type": "application/json",
+                        "Accept": "audio/mpeg",
+                    },
+                    json={
+                        "text": text_to_speak,
+                        "model_id": "eleven_multilingual_v2",
+                        "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+                    },
+                    timeout=60,
+                )
+
+            # Intro: spoken "The Quran says" before any verse text appears.
+            # Phonetic spelling ("Koraan") because ElevenLabs mispronounces "Quran"
+            # (often as "KWOR-an"). The text is never shown on screen — only spoken —
+            # so the spelling only needs to produce the right sound ("kor-AAN").
+            intro_text = "The Koraan says"
+            intro_hash = hashlib.sha256(f"{voice_id}:intro:{intro_text}".encode()).hexdigest()[:16]
+            intro_filename = f"pipe_{video_id}_intro_{intro_hash}.mp3"
+            intro_filepath = os.path.join(_TTS_CACHE_DIR, intro_filename)
+
+            intro_resp = _call_elevenlabs(intro_text)
+            if intro_resp.status_code != 200:
+                _update_pipeline_video_status(video_id, "failed", error=f"Intro TTS failed: {intro_resp.status_code}")
+                return
+            with open(intro_filepath, "wb") as f:
+                f.write(intro_resp.content)
+
+            # Stash intro filename on the first verse for cleanup tracking
+            if verse_data:
+                verse_data[0]["intro_tts_filename"] = intro_filename
+
+            for i, v in enumerate(verse_data):
+                text = v["polished_text"]
+                text_hash = hashlib.sha256(f"{voice_id}:{text}".encode()).hexdigest()[:16]
+                filename = f"pipe_{video_id}_{i}_{text_hash}.mp3"
+                filepath = os.path.join(_TTS_CACHE_DIR, filename)
+
+                tts_resp = _call_elevenlabs(text)
+
+                if tts_resp.status_code != 200:
+                    _update_pipeline_video_status(video_id, "failed", error=f"TTS failed for {v['ref']}: {tts_resp.status_code}")
+                    return
+
+                with open(filepath, "wb") as f:
+                    f.write(tts_resp.content)
+
+                v["tts_filename"] = filename
+                _update_pipeline_video_status(video_id, "generating_tts", f"Generated audio {i + 1}/{len(verse_data)}")
 
         # Save verse_data with TTS filenames
         conn = get_db()

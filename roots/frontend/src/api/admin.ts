@@ -582,9 +582,10 @@ export async function startExplanationVideoGeneration(params: {
 export interface Pipeline {
   id: number;
   name: string;
-  language: string;
+  language: 'english' | 'arabic' | string;
   resource_id: number;
   voice_id: string;
+  reciter_id: number | null;
   show_bands: number;
   music_id: number | null;
   video_count?: number;
@@ -609,8 +610,10 @@ export interface PipelineVideo {
 
 export async function createPipeline(params: {
   name: string;
+  language?: 'english' | 'arabic';
   resource_id: number;
-  voice_id: string;
+  voice_id?: string;
+  reciter_id?: number | null;
   show_bands: boolean;
   music_id?: number | null;
 }): Promise<Pipeline> {
@@ -641,6 +644,7 @@ export async function updatePipeline(id: number, params: {
   name?: string;
   resource_id?: number;
   voice_id?: string;
+  reciter_id?: number | null;
   show_bands?: boolean;
   music_id?: number | null;
 }): Promise<Pipeline> {

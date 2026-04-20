@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getPipelines, createPipeline, updatePipeline, deletePipeline,
   generatePipelineVideo, getPipelineVideos, deletePipelineVideo,
-  pipelineVideoDownloadUrl, getResources, getMusicTracks, getVoices, getToken,
+  pipelineVideoDownloadUrl, getResources, getMusicTracks, getVoices, getReciters, getToken,
 } from '../../api/admin';
-import type { Pipeline, PipelineVideo, Resource, MusicTrack, Voice } from '../../api/admin';
+import type { Pipeline, PipelineVideo, Resource, MusicTrack, Voice, Reciter } from '../../api/admin';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -39,6 +39,7 @@ export default function PipelineManager() {
   const [resources, setResources] = useState<Resource[]>([]);
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
+  const [reciters, setReciters] = useState<Reciter[]>([]);
 
   // Pipelines
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -47,8 +48,10 @@ export default function PipelineManager() {
 
   // Create / edit form
   const [formName, setFormName] = useState('');
+  const [formLanguage, setFormLanguage] = useState<'english' | 'arabic'>('english');
   const [formResourceId, setFormResourceId] = useState<number | ''>('');
   const [formVoiceId, setFormVoiceId] = useState('');
+  const [formReciterId, setFormReciterId] = useState<number | ''>('');
   const [formShowBands, setFormShowBands] = useState(true);
   const [formMusicId, setFormMusicId] = useState<number | ''>('');
   const [formError, setFormError] = useState('');
@@ -69,11 +72,13 @@ export default function PipelineManager() {
       getResources().catch(() => []),
       getMusicTracks().catch(() => []),
       getVoices().catch(() => []),
+      getReciters().catch(() => []),
       getPipelines().catch(() => []),
-    ]).then(([res, mus, voi, pipes]) => {
+    ]).then(([res, mus, voi, rec, pipes]) => {
       setResources(res);
       setMusicTracks(mus);
       setVoices(voi);
+      setReciters(rec);
       setPipelines(pipes);
       if (pipes.length > 0) setSelectedId(pipes[0].id);
       setLoading(false);
@@ -102,8 +107,10 @@ export default function PipelineManager() {
 
   function resetForm() {
     setFormName('');
+    setFormLanguage('english');
     setFormResourceId('');
     setFormVoiceId('');
+    setFormReciterId('');
     setFormShowBands(true);
     setFormMusicId('');
     setFormError('');
@@ -116,7 +123,14 @@ export default function PipelineManager() {
   function validateForm(): boolean {
     if (!formName.trim()) { setFormError('Name is required'); return false; }
     if (!formResourceId) { setFormError('Background video is required'); return false; }
-    if (!formVoiceId) { setFormError('Voice is required'); return false; }
+    if (formLanguage === 'english' && !formVoiceId) {
+      setFormError('Voice is required for English pipelines');
+      return false;
+    }
+    if (formLanguage === 'arabic' && !formReciterId) {
+      setFormError('Reciter is required for Arabic pipelines');
+      return false;
+    }
     return true;
   }
 
@@ -127,8 +141,10 @@ export default function PipelineManager() {
     try {
       const pipe = await createPipeline({
         name: formName.trim(),
+        language: formLanguage,
         resource_id: formResourceId as number,
-        voice_id: formVoiceId,
+        voice_id: formLanguage === 'english' ? formVoiceId : undefined,
+        reciter_id: formLanguage === 'arabic' ? (formReciterId as number) : null,
         show_bands: formShowBands,
         music_id: formMusicId ? (formMusicId as number) : null,
       });
@@ -146,8 +162,10 @@ export default function PipelineManager() {
   function handleEdit(pipe: Pipeline) {
     setEditingId(pipe.id);
     setFormName(pipe.name);
+    setFormLanguage(pipe.language === 'arabic' ? 'arabic' : 'english');
     setFormResourceId(pipe.resource_id);
-    setFormVoiceId(pipe.voice_id);
+    setFormVoiceId(pipe.voice_id || '');
+    setFormReciterId(pipe.reciter_id || '');
     setFormShowBands(!!pipe.show_bands);
     setFormMusicId(pipe.music_id || '');
     setFormError('');
@@ -162,7 +180,8 @@ export default function PipelineManager() {
       const updated = await updatePipeline(editingId, {
         name: formName.trim(),
         resource_id: formResourceId as number,
-        voice_id: formVoiceId,
+        voice_id: formLanguage === 'english' ? formVoiceId : undefined,
+        reciter_id: formLanguage === 'arabic' ? (formReciterId as number) : null,
         show_bands: formShowBands,
         music_id: formMusicId ? (formMusicId as number) : null,
       });
@@ -318,20 +337,36 @@ export default function PipelineManager() {
       {/* Pipeline tabs */}
       {pipelines.length > 0 && (
         <div className="flex items-center gap-2 mb-6 flex-wrap">
-          {pipelines.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => { setSelectedId(p.id); setShowCreate(false); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                selectedId === p.id
-                  ? 'bg-stone-800 text-white'
-                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-              }`}
-            >
-              {p.name}
-              {p.video_count ? <span className="ml-1.5 text-xs opacity-60">({p.video_count})</span> : null}
-            </button>
-          ))}
+          {pipelines.map((p) => {
+            const langBadge = p.language === 'arabic' ? 'AR' : 'EN';
+            const isSelected = selectedId === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => { setSelectedId(p.id); setShowCreate(false); }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                  isSelected
+                    ? 'bg-stone-800 text-white'
+                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+                }`}
+              >
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  isSelected ? 'bg-white/20' : 'bg-stone-200 text-stone-500'
+                }`}>
+                  #{p.id}
+                </span>
+                <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${
+                  p.language === 'arabic'
+                    ? (isSelected ? 'bg-amber-200/30 text-amber-100' : 'bg-amber-100 text-amber-700')
+                    : (isSelected ? 'bg-emerald-200/30 text-emerald-100' : 'bg-emerald-100 text-emerald-700')
+                }`}>
+                  {langBadge}
+                </span>
+                <span>{p.name}</span>
+                {p.video_count ? <span className="text-xs opacity-60">({p.video_count})</span> : null}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -346,9 +381,41 @@ export default function PipelineManager() {
                 type="text"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                placeholder="e.g. English Shorts - Reflective"
+                placeholder={formLanguage === 'arabic' ? 'e.g. Arabic Shorts - Juz Amma' : 'e.g. English Shorts - Reflective'}
                 className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:border-stone-400"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-stone-700 mb-1">Language</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormLanguage('english')}
+                  disabled={!!editingId}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                    formLanguage === 'english'
+                      ? 'bg-stone-800 text-white border-stone-800'
+                      : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-50'
+                  }`}
+                >
+                  English (TTS)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormLanguage('arabic')}
+                  disabled={!!editingId}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                    formLanguage === 'arabic'
+                      ? 'bg-stone-800 text-white border-stone-800'
+                      : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-50'
+                  }`}
+                >
+                  Arabic (Recitation)
+                </button>
+              </div>
+              {editingId && (
+                <p className="text-xs text-stone-400 mt-1">Language cannot be changed after creation.</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Background Video</label>
@@ -363,19 +430,37 @@ export default function PipelineManager() {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Voice</label>
-              <select
-                value={formVoiceId}
-                onChange={(e) => setFormVoiceId(e.target.value)}
-                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:border-stone-400"
-              >
-                <option value="">Select...</option>
-                {voices.map((v) => (
-                  <option key={v.id} value={v.voice_id}>{v.name}</option>
-                ))}
-              </select>
-            </div>
+            {formLanguage === 'english' ? (
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Voice</label>
+                <select
+                  value={formVoiceId}
+                  onChange={(e) => setFormVoiceId(e.target.value)}
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:border-stone-400"
+                >
+                  <option value="">Select...</option>
+                  {voices.map((v) => (
+                    <option key={v.id} value={v.voice_id}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-1">Reciter</label>
+                <select
+                  value={formReciterId}
+                  onChange={(e) => setFormReciterId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:border-stone-400"
+                >
+                  <option value="">Select...</option>
+                  {reciters.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.reciter_name}{r.style ? ` — ${r.style}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1">Background Music (optional)</label>
               <select
@@ -429,10 +514,28 @@ export default function PipelineManager() {
           <div className="rounded-xl border border-stone-200 bg-white p-6 mb-6">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="font-semibold text-stone-800 text-lg">{selected.name}</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-mono text-stone-400 bg-stone-100 px-2 py-0.5 rounded">
+                    #{selected.id}
+                  </span>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                    selected.language === 'arabic' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {selected.language === 'arabic' ? 'Arabic · Recitation' : 'English · TTS'}
+                  </span>
+                  <h2 className="font-semibold text-stone-800 text-lg">{selected.name}</h2>
+                </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-stone-400">
                   <span>Video: {resources.find((r) => r.id === selected.resource_id)?.description || resources.find((r) => r.id === selected.resource_id)?.original_name || '?'}</span>
-                  <span>Voice: {voices.find((v) => v.voice_id === selected.voice_id)?.name || selected.voice_id}</span>
+                  {selected.language === 'arabic' ? (
+                    <span>Reciter: {(() => {
+                      const rec = reciters.find((r) => r.id === selected.reciter_id);
+                      if (!rec) return selected.reciter_id ? `#${selected.reciter_id}` : '?';
+                      return `${rec.reciter_name}${rec.style ? ` (${rec.style})` : ''}`;
+                    })()}</span>
+                  ) : (
+                    <span>Voice: {voices.find((v) => v.voice_id === selected.voice_id)?.name || selected.voice_id}</span>
+                  )}
                   {selected.music_id && <span>Music: {musicTracks.find((m) => m.id === selected.music_id)?.description || musicTracks.find((m) => m.id === selected.music_id)?.original_name || '?'}</span>}
                   <span>Bands: {selected.show_bands ? 'On' : 'Off'}</span>
                 </div>
@@ -461,7 +564,11 @@ export default function PipelineManager() {
                   disabled={generating || hasActiveVideo || showManualForm}
                   className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {generating && !showManualForm ? 'Starting...' : hasActiveVideo ? 'Video in progress...' : 'Auto Pick Verses for Pipeline'}
+                  {generating && !showManualForm
+                    ? 'Starting...'
+                    : hasActiveVideo
+                    ? 'Video in progress...'
+                    : `Auto Pick Verses for ${selected?.language === 'arabic' ? 'Arabic' : 'English'} Pipeline`}
                 </button>
                 <button
                   onClick={() => { setShowManualForm(!showManualForm); setManualError(''); }}
