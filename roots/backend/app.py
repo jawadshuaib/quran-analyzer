@@ -8501,24 +8501,47 @@ def _pipeline_generate_task(video_id):
             return
 
         # ---- 4. Polish translations via Claude ----
-        _update_pipeline_video_status(video_id, "polishing", "Polishing translations for spoken delivery...")
+        polish_status_msg = (
+            "Polishing translations for on-screen display..." if is_arabic
+            else "Polishing translations for spoken delivery..."
+        )
+        _update_pipeline_video_status(video_id, "polishing", polish_status_msg)
 
         verses_for_polish = [
             {"chapter": v["chapter"], "verse": v["verse"], "ref": v["ref"], "translation": v["original_translation"]}
             for v in verse_data
         ]
 
+        if is_arabic:
+            polish_intro = (
+                "You are preparing a Quranic passage for ON-SCREEN DISPLAY in a YouTube Short.\n"
+                f"This is a continuous passage from {passage_ref}. The Arabic recitation plays aloud;\n"
+                "the translation appears as subtitles, one verse at a time, synced to the recitation.\n"
+                "Polish each verse for clear, emotionally resonant silent reading.\n\n"
+                "Rules:\n"
+                "- Remove brackets, parentheses, footnote markers, editorial additions like [O Prophet], and superscript numbers\n"
+                "- Make the English read cleanly on screen, and flow naturally from one verse to the next\n"
+                "- Do NOT substantially change the meaning — polish for readability, not reinterpretation\n"
+                "- Make it impactful — the viewer has only a few seconds to absorb each verse\n"
+                "- Keep it concise — every word should earn its place (short lines read best on small screens)\n"
+                "- Preserve the word 'Allah' if present in the original\n\n"
+            )
+        else:
+            polish_intro = (
+                "You are preparing a Quranic passage for spoken delivery in a YouTube Short.\n"
+                f"This is a continuous passage from {passage_ref}. Polish each verse for natural spoken delivery.\n"
+                "They'll be read as one flowing passage with brief pauses between verses.\n\n"
+                "Rules:\n"
+                "- Remove brackets, parentheses, footnote markers, editorial additions like [O Prophet], and superscript numbers\n"
+                "- Make the text flow naturally for spoken English, and flow naturally from one verse to the next\n"
+                "- Do NOT substantially change the meaning — polish for delivery, not reinterpretation\n"
+                "- Make it smooth and impactful — imagine someone speaking to an audience with gravitas\n"
+                "- Keep it concise — every word should earn its place\n"
+                "- Preserve the word 'Allah' if present in the original\n\n"
+            )
+
         polish_prompt = (
-            "You are preparing a Quranic passage for spoken delivery in a YouTube Short.\n"
-            f"This is a continuous passage from {passage_ref}. Polish each verse for natural spoken delivery.\n"
-            "They'll be read as one flowing passage with brief pauses between verses.\n\n"
-            "Rules:\n"
-            "- Remove brackets, parentheses, footnote markers, editorial additions like [O Prophet], and superscript numbers\n"
-            "- Make the text flow naturally for spoken English, and flow naturally from one verse to the next\n"
-            "- Do NOT substantially change the meaning — polish for delivery, not reinterpretation\n"
-            "- Make it smooth and impactful — imagine someone speaking to an audience with gravitas\n"
-            "- Keep it concise — every word should earn its place\n"
-            "- Preserve the word 'Allah' if present in the original\n\n"
+            polish_intro +
             f"Verses to polish:\n{json.dumps(verses_for_polish, indent=2)}\n\n"
             "Return ONLY a valid JSON array with the polished text, nothing else:\n"
             '[{"chapter": <int>, "verse": <int>, "polished": "<polished text>"}, ...]'
@@ -8569,6 +8592,9 @@ def _pipeline_generate_task(video_id):
             conn.close()
 
         # ---- 5. Acquire audio: ElevenLabs TTS (English) or reciter mp3s (Arabic) ----
+        # For Arabic pipelines: NO ElevenLabs call, NO "The Koraan says" intro.
+        # The audio is purely the reciter's recitation — the English translation
+        # is shown as subtitles on screen but never spoken aloud.
         if is_arabic:
             _update_pipeline_video_status(video_id, "generating_tts", "Downloading recitation audio...")
 

@@ -88,10 +88,20 @@ export default function PipelineManager() {
   // Load videos when selection changes
   const loadVideos = useCallback(() => {
     if (!selectedId) return;
-    getPipelineVideos(selectedId).then(setVideos).catch(() => {});
+    getPipelineVideos(selectedId)
+      .then((fetched) => {
+        // Defensive client-side filter — only keep videos that belong to the
+        // currently selected pipeline. Guards against stale fetches and any
+        // pipeline_id inconsistency on the server side.
+        setVideos(fetched.filter((v) => v.pipeline_id === selectedId));
+      })
+      .catch(() => {});
   }, [selectedId]);
 
+  // Clear videos immediately when switching pipelines so the previous
+  // pipeline's list doesn't flash while the new fetch is in flight.
   useEffect(() => {
+    setVideos([]);
     loadVideos();
   }, [loadVideos]);
 
