@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { GrammarNotesData, GrammarTerm } from '../types';
 import { fetchGrammarNotes } from '../api/quran';
 
@@ -171,39 +172,49 @@ function renderWithMarkers(text: string, terms: Record<string, GrammarTerm>) {
 
 function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: string }) {
   const [open, setOpen] = useState(false);
-  const [placement, setPlacement] = useState<{ above: boolean; shift: number }>({ above: true, shift: 0 });
+  // Viewport coordinates of where the tooltip should render.
+  // Uses position: fixed so it escapes any overflow-hidden ancestor.
+  const [pos, setPos] = useState<{ left: number; top: number; above: boolean } | null>(null);
   const chipRef = useRef<HTMLSpanElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const closeTimer = useRef<number | null>(null);
+  const TIP_WIDTH = 288; // keep in sync with w-72 (288px)
+  const GAP = 8;
 
-  // Compute tooltip position whenever it opens
+  // Compute tooltip position relative to the viewport whenever it opens.
+  // Re-runs on scroll / resize so the tooltip follows the chip if the page
+  // moves while open.
   useEffect(() => {
     if (!open) return;
-    const chip = chipRef.current;
-    const tip = tipRef.current;
-    if (!chip || !tip) return;
 
-    const chipRect = chip.getBoundingClientRect();
-    const tipRect = tip.getBoundingClientRect();
-    const viewportW = window.innerWidth;
-    const viewportH = window.innerHeight;
+    function place() {
+      const chip = chipRef.current;
+      if (!chip) return;
+      const chipRect = chip.getBoundingClientRect();
+      const tipH = tipRef.current?.getBoundingClientRect().height ?? 200;
+      const viewportW = window.innerWidth;
+      const viewportH = window.innerHeight;
 
-    // Above by default; flip below if no room above
-    const spaceAbove = chipRect.top;
-    const spaceBelow = viewportH - chipRect.bottom;
-    const above = spaceAbove >= tipRect.height + 12 || spaceAbove >= spaceBelow;
+      // Prefer above; flip below if no room
+      const spaceAbove = chipRect.top;
+      const spaceBelow = viewportH - chipRect.bottom;
+      const above = spaceAbove >= tipH + GAP || spaceAbove >= spaceBelow;
 
-    // Shift so the tooltip doesn't clip horizontally
-    const chipCenter = chipRect.left + chipRect.width / 2;
-    const halfTip = tipRect.width / 2;
-    let shift = 0;
-    if (chipCenter - halfTip < 8) {
-      shift = 8 - (chipCenter - halfTip);
-    } else if (chipCenter + halfTip > viewportW - 8) {
-      shift = (viewportW - 8) - (chipCenter + halfTip);
+      const chipCenter = chipRect.left + chipRect.width / 2;
+      let left = chipCenter - TIP_WIDTH / 2;
+      left = Math.max(GAP, Math.min(left, viewportW - TIP_WIDTH - GAP));
+
+      const top = above ? chipRect.top - tipH - GAP : chipRect.bottom + GAP;
+      setPos({ left, top, above });
     }
 
-    setPlacement({ above, shift });
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
   }, [open]);
 
   function show() {
@@ -219,54 +230,56 @@ function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: st
     closeTimer.current = window.setTimeout(() => setOpen(false), 120);
   }
 
-  return (
-    <span
-      ref={chipRef}
+  const tooltip = open && pos ? (
+    <div
+      ref={tipRef}
       onMouseEnter={show}
       onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      tabIndex={0}
-      className="relative inline cursor-help underline decoration-amber-500 decoration-wavy underline-offset-4 decoration-2 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-sm"
+      style={{ left: pos.left, top: pos.top, width: TIP_WIDTH }}
+      className="fixed z-[1000] rounded-xl border border-stone-200 bg-white shadow-xl p-4 text-left pointer-events-auto"
     >
-      {displayText}
-      {open && (
-        <span
-          ref={tipRef}
-          onMouseEnter={show}
-          onMouseLeave={hide}
-          style={{ transform: `translate(calc(-50% + ${placement.shift}px), 0)` }}
-          className={`absolute left-1/2 z-30 w-72 rounded-xl border border-stone-200 bg-white shadow-xl p-4 text-left pointer-events-auto ${
-            placement.above ? 'bottom-full mb-2' : 'top-full mt-2'
-          }`}
-        >
-          <span className="block text-xs font-semibold tracking-wide uppercase text-amber-700">
-            {term.term_english}
-          </span>
-          {term.term_arabic && (
-            <span className="block mt-1 text-lg font-serif text-stone-700" dir="rtl" lang="ar">
-              {term.term_arabic}
-            </span>
-          )}
-          <span className="block mt-2 text-xs text-stone-600 leading-relaxed font-normal">
-            {term.plain_explanation}
-          </span>
-          {(term.example_sentence || term.example_translation) && (
-            <span className="block mt-3 pt-3 border-t border-stone-100">
-              {term.example_sentence && (
-                <span className="block text-base font-serif text-stone-800" dir="rtl" lang="ar">
-                  {term.example_sentence}
-                </span>
-              )}
-              {term.example_translation && (
-                <span className="block mt-1 text-xs italic text-stone-500 leading-relaxed font-normal">
-                  “{term.example_translation}”
-                </span>
-              )}
-            </span>
-          )}
-        </span>
+      <div className="text-xs font-semibold tracking-wide uppercase text-amber-700">
+        {term.term_english}
+      </div>
+      {term.term_arabic && (
+        <div className="mt-1 text-lg font-serif text-stone-700" dir="rtl" lang="ar">
+          {term.term_arabic}
+        </div>
       )}
-    </span>
+      <div className="mt-2 text-xs text-stone-600 leading-relaxed">
+        {term.plain_explanation}
+      </div>
+      {(term.example_sentence || term.example_translation) && (
+        <div className="mt-3 pt-3 border-t border-stone-100">
+          {term.example_sentence && (
+            <div className="text-base font-serif text-stone-800" dir="rtl" lang="ar">
+              {term.example_sentence}
+            </div>
+          )}
+          {term.example_translation && (
+            <div className="mt-1 text-xs italic text-stone-500 leading-relaxed">
+              “{term.example_translation}”
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <>
+      <span
+        ref={chipRef}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        onFocus={show}
+        onBlur={hide}
+        tabIndex={0}
+        className="cursor-help underline decoration-amber-500 decoration-wavy underline-offset-[3px] decoration-1 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-sm"
+      >
+        {displayText}
+      </span>
+      {tooltip && createPortal(tooltip, document.body)}
+    </>
   );
 }
