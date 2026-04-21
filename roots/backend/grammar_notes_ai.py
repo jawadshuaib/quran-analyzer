@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -386,9 +387,12 @@ def call_ollama_cloud(
             last_err = f"request exception: {e}"
 
         if attempt < max_retries:
-            # Exponential backoff: 5s, 15s, 45s
-            backoff = 5 * (3 ** (attempt - 1))
-            print(f"  retry {attempt}/{max_retries} after {backoff}s ({last_err})")
+            # Exponential backoff with full jitter so parallel workers don't
+            # synchronize their retries and hammer the API in lockstep.
+            # Base delays: 8s, 30s, 120s; actual sleep is random in [base/2, base*1.5].
+            base = 8 * (4 ** (attempt - 1))  # 8, 32, 128
+            backoff = random.uniform(base / 2, base * 1.5)
+            print(f"  retry {attempt}/{max_retries} after {backoff:.1f}s ({last_err})")
             time.sleep(backoff)
 
     raise RuntimeError(f"Ollama Cloud failed after {max_retries} attempts: {last_err}")
@@ -551,11 +555,23 @@ def main() -> int:
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--force", action="store_true", help="Overwrite existing entries")
     parser.add_argument("--dry-run", action="store_true", help="Print prompts, do not call model")
+    parser.add_argument(
+        "--startup-jitter",
+        type=float,
+        default=0.0,
+        help="Max random seconds to sleep before first call (spreads parallel workers out).",
+    )
     args = parser.parse_args()
 
     if not args.api_key and not args.dry_run:
         print("ERROR: Ollama Cloud key missing. Pass --api-key or set OLLAMA_CLOUD_KEY.", file=sys.stderr)
         return 2
+
+    # Stagger parallel workers so they don't all hit the API at second 0
+    if args.startup_jitter > 0 and not args.dry_run:
+        delay = random.uniform(0, args.startup_jitter)
+        print(f"Startup jitter: sleeping {delay:.1f}s before first call")
+        time.sleep(delay)
 
     # Resolve --verses / --surahs / --all into a flat list of (surah, ayah) tuples
     pairs: list[tuple[int, int]] = []
