@@ -88,7 +88,8 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
         if (tc.quran_wide_links) sections.push(`Quran-wide links: ${tc.quran_wide_links}`);
       }
 
-      // Grammar insights
+      // Grammar insights (legacy evidence-based pipeline — terse one-liners
+      // like "perspective shift", "cognate accusative")
       if (d.grammar_insights?.length) {
         sections.push('\n## Grammar Insights');
         for (const g of d.grammar_insights) {
@@ -98,6 +99,24 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
     }
   } catch {
     sections.push(`[Failed to fetch full context for ${surah}:${ayah}]`);
+  }
+
+  // Grammar Notes — prose commentary from the new qwen3.5 pipeline.
+  // Fetched separately because the v1 `?fields=all` envelope doesn't
+  // surface this table yet. Silently skipped if the verse has no notes.
+  try {
+    const res = await fetch(`${API_BASE}/api/verse/${surah}:${ayah}/grammar-notes`);
+    if (res.ok) {
+      const gn = await res.json();
+      if (gn?.notes_markdown) {
+        // Strip the [[term]] tooltip markers — Claude doesn't need them.
+        const plain = String(gn.notes_markdown).replace(/\[\[([^\]]+)\]\]/g, '$1');
+        sections.push('\n## Grammar Notes');
+        sections.push(plain);
+      }
+    }
+  } catch {
+    // ignore — grammar notes are optional
   }
 
   return sections.join('\n');
@@ -234,6 +253,22 @@ export async function buildWordContext(surah: number, ayah: number, pos: number)
     }
   } catch {
     sections.push(`[Failed to fetch word context for ${surah}:${ayah}/${pos}]`);
+  }
+
+  // Verse-level grammar notes — helpful when the user asks about this
+  // specific word's case, voice, mood, or its role in the sentence.
+  try {
+    const res = await fetch(`${API_BASE}/api/verse/${surah}:${ayah}/grammar-notes`);
+    if (res.ok) {
+      const gn = await res.json();
+      if (gn?.notes_markdown) {
+        const plain = String(gn.notes_markdown).replace(/\[\[([^\]]+)\]\]/g, '$1');
+        sections.push('\n## Grammar Notes (verse-level)');
+        sections.push(plain);
+      }
+    }
+  } catch {
+    // ignore
   }
 
   return sections.join('\n');
