@@ -220,7 +220,7 @@ export default function ApiPage() {
             path="/api/v1/verses/{surah}:{ayah}"
             description="Retrieve a verse with its Arabic text, translation, word-by-word breakdown, and root summary. Use the fields parameter to include additional analysis in one request."
             params={[
-              { name: 'fields', description: 'Comma-separated: morphology, word-meanings, roots, related, context, ai-translation, thematic-context, surah-context, grammar, or all' },
+              { name: 'fields', description: 'Comma-separated: morphology, word-meanings, roots, related, context, ai-translation, thematic-context, surah-context, grammar, grammar-notes, or all' },
               { name: 'related_limit', description: 'Max related verses to return (1–25, default 10)' },
               { name: 'context_size', description: 'Surrounding verses per side (1–6, default 3)' },
             ]}
@@ -274,6 +274,28 @@ export default function ApiPage() {
             path="/api/v1/verses/{s}:{a}/word-meanings"
             description="AI-generated meanings for each word in the verse, including semantic fields, cross-reference notes, and preferred translations."
             example="/api/v1/verses/96:1/word-meanings"
+          />
+          <Endpoint
+            method="GET"
+            path="/api/v1/verses/{s}:{a}/grammar-notes"
+            description={`Prose grammar commentary for a single verse written for a non-specialist reader. The notes_markdown body contains inline [[term]] markers wrapping technical grammar terms (e.g. [[nominative]], [[mubtada]]); each wrapped term has a matching entry in the "terms" dictionary with a plain-English explanation, Arabic equivalent (e.g. مبتدأ), and an illustrative example.`}
+            example="/api/v1/verses/1:1/grammar-notes"
+            response={`{
+  "ok": true,
+  "data": {
+    "notes_markdown": "This verse is grammatically unique because it is not a complete sentence. It relies on [[Ellipsis]] (Ḥadhf), where the verb 'I begin' is deliberately omitted...",
+    "terms": {
+      "ellipsis": {
+        "term_english": "Ellipsis",
+        "term_arabic": "حذف",
+        "plain_explanation": "The deliberate omission of a word that is understood from context...",
+        "example_sentence": "وَاسْأَلِ الْقَرْيَةَ",
+        "example_translation": "And ask the town (meaning: ask the people of the town)."
+      }
+    },
+    "model": { "config_name": "grammar-notes-cloud-v1", "model_name": "qwen3.5:397b-cloud", "prompt_version": "v1", "created_at": "..." }
+  }
+}`}
           />
         </div>
 

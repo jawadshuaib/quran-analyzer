@@ -22,7 +22,8 @@ v1_bp = Blueprint("v1", __name__, url_prefix="/api/v1")
 
 VALID_FIELDS = {
     "morphology", "word-meanings", "roots", "related", "context",
-    "ai-translation", "thematic-context", "surah-context", "grammar", "all",
+    "ai-translation", "thematic-context", "surah-context", "grammar",
+    "grammar-notes", "all",
 }
 
 
@@ -148,6 +149,10 @@ def get_verse(surah: int, ayah: int):
         if "grammar" in fields:
             included.append("grammar")
             data["grammar_insights"] = _fetch_grammar(mod, conn, surah, ayah)
+
+        if "grammar-notes" in fields:
+            included.append("grammar-notes")
+            data["grammar_notes"] = _fetch_grammar_notes(mod, conn, surah, ayah)
 
         elapsed = round((time.monotonic() - t0) * 1000)
         return _envelope(data, meta={"fields_included": included, "response_time_ms": elapsed})
@@ -280,6 +285,21 @@ def get_verse_grammar(surah: int, ayah: int):
         result = _fetch_grammar(mod, conn, surah, ayah)
         if not result:
             return _error("NO_DATA", f"No grammar insights for {surah}:{ayah}", 404)
+        return _envelope(result)
+    finally:
+        conn.close()
+
+
+@v1_bp.route("/verses/<int:surah>:<int:ayah>/grammar-notes")
+def get_verse_grammar_notes(surah: int, ayah: int):
+    mod = _app()
+    conn = mod.get_db()
+    try:
+        if not _verse_exists(conn, surah, ayah):
+            return _error("VERSE_NOT_FOUND", f"Verse {surah}:{ayah} does not exist", 404)
+        result = _fetch_grammar_notes(mod, conn, surah, ayah)
+        if not result:
+            return _error("NO_DATA", f"No grammar notes for {surah}:{ayah}", 404)
         return _envelope(result)
     finally:
         conn.close()
@@ -1558,6 +1578,63 @@ def _fetch_grammar(mod, conn, surah, ayah):
         "display": _safe_json(row["display_json"], {}),
         "verifier": _safe_json(row["verifier_report_json"], {}),
         "evidence": _safe_json(row["evidence_json"], {}),
+        "model": {
+            "config_name": row["config_name"],
+            "model_name": row["model_name"],
+            "prompt_version": row["prompt_version"],
+            "created_at": row["created_at"],
+        },
+    }
+
+
+def _fetch_grammar_notes(mod, conn, surah, ayah):
+    """Return the prose grammar commentary for a verse plus its term glossary.
+
+    The response contains:
+      - notes_markdown: plain prose with [[term]] markers wrapping technical
+        grammar terms (consumers that don't want the markers can strip them
+        with a simple regex /\\[\\[([^\\]]+)\\]\\]/ → $1)
+      - terms: a dict keyed by lowercased term_english, each value carrying
+        term_english, term_arabic (may be null), plain_explanation,
+        example_sentence (may be null), example_translation (may be null)
+
+    Returns None if no notes exist for this verse.
+    """
+    row = conn.execute(
+        "SELECT n.notes_markdown, n.referenced_terms, n.created_at, "
+        "       c.config_name, c.model_name, c.prompt_version "
+        "FROM ai_grammar_notes n "
+        "JOIN grammar_notes_configs c ON n.config_id = c.id "
+        "WHERE n.chapter = ? AND n.verse = ? "
+        "ORDER BY n.created_at DESC LIMIT 1",
+        (surah, ayah),
+    ).fetchone()
+    if not row:
+        return None
+
+    term_names = _safe_json(row["referenced_terms"], [])
+    terms_map: dict = {}
+    if term_names:
+        placeholders = ",".join(["?"] * len(term_names))
+        term_rows = conn.execute(
+            f"SELECT term_english, term_arabic, plain_explanation, "
+            f"       example_sentence, example_translation "
+            f"FROM grammar_terms "
+            f"WHERE term_english IN ({placeholders})",
+            tuple(term_names),
+        ).fetchall()
+        for tr in term_rows:
+            terms_map[tr["term_english"].lower()] = {
+                "term_english": tr["term_english"],
+                "term_arabic": tr["term_arabic"],
+                "plain_explanation": tr["plain_explanation"],
+                "example_sentence": tr["example_sentence"],
+                "example_translation": tr["example_translation"],
+            }
+
+    return {
+        "notes_markdown": row["notes_markdown"],
+        "terms": terms_map,
         "model": {
             "config_name": row["config_name"],
             "model_name": row["model_name"],
