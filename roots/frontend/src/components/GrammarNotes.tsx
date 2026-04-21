@@ -73,10 +73,6 @@ export default function GrammarNotes({ surah, ayah }: Props) {
     }
   }
 
-  // Don't show the section at all if we already know there are no notes
-  // for this verse (404 on the server). Keeps the verse page clean.
-  if (loaded && notFound && !loading) return null;
-
   return (
     <div className="rounded-xl border border-stone-200 bg-white shadow-sm overflow-hidden">
       <button

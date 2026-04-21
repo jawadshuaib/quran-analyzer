@@ -456,6 +456,7 @@ export default function App() {
               </div>
             )}
 
+            <GrammarNotes surah={data.surah} ayah={data.ayah} />
             <SurroundingContext
               surah={data.surah}
               ayah={data.ayah}
@@ -467,7 +468,6 @@ export default function App() {
               onNavigate={handleSearch}
               forceCollapse={!!wordSearchResults}
             />
-            <GrammarNotes surah={data.surah} ayah={data.ayah} />
 
             <AskAssistant
               pageType="verse"
