@@ -80,7 +80,31 @@ export default function PipelineManager() {
       setVoices(voi);
       setReciters(rec);
       setPipelines(pipes);
-      if (pipes.length > 0) setSelectedId(pipes[0].id);
+
+      // Preselect based on ?lang= query param (set by AdminMedia cards)
+      const params = new URLSearchParams(window.location.search);
+      const wantLang = params.get('lang');
+      const isValidLang = wantLang === 'arabic' || wantLang === 'english';
+
+      if (pipes.length > 0) {
+        let preselect = pipes[0];
+        if (isValidLang) {
+          const match = pipes.find((p: Pipeline) => p.language === wantLang);
+          if (match) {
+            preselect = match;
+          } else {
+            // User asked for a language that has no pipelines yet — open the
+            // create form pre-filled with that language.
+            setShowCreate(true);
+            setFormLanguage(wantLang);
+          }
+        }
+        setSelectedId(preselect.id);
+      } else if (isValidLang) {
+        // No pipelines at all — open create form with requested language
+        setShowCreate(true);
+        setFormLanguage(wantLang);
+      }
       setLoading(false);
     });
   }, []);

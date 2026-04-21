@@ -48,11 +48,11 @@ export default function AdminMedia() {
       {/* Pipelines */}
       <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Pipelines</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <a href="/admin/media/pipelines" className={card}>
+        <a href="/admin/media/pipelines?lang=english" className={card}>
           <h3 className="font-semibold text-stone-800 mb-1">English Pipeline</h3>
           <p className="text-sm text-stone-500">Automated YouTube Shorts with AI-selected verses, polished English TTS, and auto-generated metadata.</p>
         </a>
-        <a href="/admin/media/pipelines" className={card}>
+        <a href="/admin/media/pipelines?lang=arabic" className={card}>
           <h3 className="font-semibold text-stone-800 mb-1">Arabic Pipeline</h3>
           <p className="text-sm text-stone-500">Arabic recitation shorts with on-screen English translation. Passages capped at 55 seconds for copyright safety.</p>
         </a>
