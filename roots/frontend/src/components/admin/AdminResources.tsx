@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getResources, uploadResource, deleteResource, updateResource, resourceThumbnailUrl, getToken } from '../../api/admin';
 import type { Resource } from '../../api/admin';
+import { useConfirm } from './shared/useConfirm';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,6 +22,7 @@ export default function AdminResources() {
   const [uploadError, setUploadError] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   useEffect(() => {
     getResources().then(setResources).catch(() => {});
@@ -44,6 +46,16 @@ export default function AdminResources() {
   }
 
   async function handleDelete(id: number) {
+    const resource = resources.find((r) => r.id === id);
+    const ok = await confirm({
+      title: 'Delete background video?',
+      message: resource
+        ? `Permanently delete "${resource.description || resource.original_name}"? This cannot be undone. Pipelines that use this video will need a new one selected.`
+        : 'Permanently delete this background video? This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setDeleteError('');
     try {
       await deleteResource(id);
@@ -93,6 +105,7 @@ export default function AdminResources() {
           <ResourceCard key={r.id} resource={r} onDelete={handleDelete} onUpdate={(updated) => setResources((prev) => prev.map((p) => p.id === updated.id ? updated : p))} />
         ))}
       </div>
+      {confirmDialog}
     </div>
   );
 }

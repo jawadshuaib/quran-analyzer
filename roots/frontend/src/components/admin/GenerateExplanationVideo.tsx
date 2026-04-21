@@ -5,6 +5,7 @@ import {
   generatedVideoDownloadUrl, getToken,
 } from '../../api/admin';
 import type { ExplanationListItem, Explanation, Resource, MusicTrack, GeneratedVideo } from '../../api/admin';
+import { useConfirm } from './shared/useConfirm';
 
 function formatBytes(bytes: number): string {
   if (!bytes) return '--';
@@ -26,6 +27,7 @@ export default function GenerateExplanationVideo() {
   const [genError, setGenError] = useState('');
   const [videos, setVideos] = useState<GeneratedVideo[]>([]);
   const pollRef = useRef<number | null>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   useEffect(() => {
     getExplanations().then(setExplanations).catch(() => {});
@@ -104,6 +106,16 @@ export default function GenerateExplanationVideo() {
   }
 
   async function handleDeleteVideo(id: number) {
+    const video = videos.find((v) => v.id === id);
+    const ok = await confirm({
+      title: 'Delete generated video?',
+      message: video
+        ? `Permanently delete "${video.title || `video #${video.id}`}" and its files from disk? This cannot be undone.`
+        : 'Permanently delete this video and its files from disk? This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await deleteGeneratedVideo(id);
       setVideos((prev) => prev.filter((v) => v.id !== id));
@@ -327,6 +339,7 @@ export default function GenerateExplanationVideo() {
           </div>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }

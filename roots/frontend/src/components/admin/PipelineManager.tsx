@@ -5,6 +5,8 @@ import {
   pipelineVideoDownloadUrl, getResources, getMusicTracks, getVoices, getReciters, getToken,
 } from '../../api/admin';
 import type { Pipeline, PipelineVideo, Resource, MusicTrack, Voice, Reciter } from '../../api/admin';
+import { useConfirm } from './shared/useConfirm';
+import { safeFilename } from './shared/filename';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -234,7 +236,19 @@ export default function PipelineManager() {
     }
   }
 
+  const { confirm, dialog: confirmDialog } = useConfirm();
+
   async function handleDelete(id: number) {
+    const pipe = pipelines.find((p) => p.id === id);
+    const ok = await confirm({
+      title: 'Delete pipeline?',
+      message: pipe
+        ? `This will permanently delete "${pipe.name}" and all ${pipe.video_count || 0} of its generated videos. This cannot be undone.`
+        : 'This will permanently delete the pipeline and all its generated videos. This cannot be undone.',
+      confirmLabel: 'Delete pipeline',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await deletePipeline(id);
       setPipelines((prev) => {
@@ -330,6 +344,19 @@ export default function PipelineManager() {
   }
 
   async function handleDeleteVideo(vid: number) {
+    const video = videos.find((v) => v.id === vid);
+    const preview = video?.youtube_title
+      ? `"${video.youtube_title}"`
+      : video
+      ? `video #${video.id}`
+      : 'this video';
+    const ok = await confirm({
+      title: 'Delete generated video?',
+      message: `This will permanently delete ${preview} and its associated audio files. This cannot be undone.`,
+      confirmLabel: 'Delete video',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await deletePipelineVideo(vid);
       setVideos((prev) => prev.filter((v) => v.id !== vid));
@@ -344,9 +371,24 @@ export default function PipelineManager() {
     if (!res.ok) return;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
+
+    // Build a human-readable filename. Prefer the YouTube title; if absent,
+    // use the verse reference; finally fall back to pipeline_<id>.
+    let base: string;
+    if (vid.youtube_title) {
+      base = safeFilename(vid.youtube_title);
+    } else {
+      let verseRef = '';
+      try {
+        const verses = JSON.parse(vid.verse_data || '[]');
+        if (verses.length > 0 && verses[0].ref) verseRef = verses[0].ref;
+      } catch { /* ignore */ }
+      base = verseRef ? safeFilename(verseRef) : `pipeline_${vid.id}`;
+    }
+
     const a = document.createElement('a');
     a.href = url;
-    a.download = `pipeline_${vid.id}.mp4`;
+    a.download = `${base}.mp4`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -720,6 +762,8 @@ export default function PipelineManager() {
           </button>
         </div>
       )}
+
+      {confirmDialog}
     </div>
   );
 }

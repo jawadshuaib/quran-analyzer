@@ -8,6 +8,7 @@ import {
 import type { ExplanationSegment, ExplanationListItem, Voice } from '../../api/admin';
 import type { SurahInfo } from '../../types';
 import SuggestRelatedModal from './SuggestRelatedModal';
+import { useConfirm } from './shared/useConfirm';
 
 export default function ExplanationBuilder() {
   // Surah data
@@ -37,6 +38,7 @@ export default function ExplanationBuilder() {
   const [generatingTTS, setGeneratingTTS] = useState(false);
   const [error, setError] = useState('');
   const [showSuggestModal, setShowSuggestModal] = useState(false);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   useEffect(() => {
     fetchSurahs().then(setSurahs);
@@ -262,6 +264,16 @@ export default function ExplanationBuilder() {
   }
 
   async function handleDeleteExplanation(id: number) {
+    const item = savedList.find((e) => e.id === id);
+    const ok = await confirm({
+      title: 'Delete explanation?',
+      message: item
+        ? `Permanently delete "${item.title}" and its ${item.verse_count} verses with cached TTS files? This cannot be undone.`
+        : 'Permanently delete this explanation and its cached audio files? This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setError('');
     try {
       await deleteExplanation(id);
@@ -551,6 +563,7 @@ export default function ExplanationBuilder() {
           onClose={() => setShowSuggestModal(false)}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

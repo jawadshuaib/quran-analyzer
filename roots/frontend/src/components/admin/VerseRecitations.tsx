@@ -9,6 +9,7 @@ import {
 import type { Reciter, Voice, PreviewVerse, TTSCacheEntry, StaleTTSEntry } from '../../api/admin';
 import type { SurahInfo } from '../../types';
 import MovingVersesModal from './MovingVersesModal';
+import { useConfirm } from './shared/useConfirm';
 
 type PlayState = 'idle' | 'playing' | 'paused';
 
@@ -59,6 +60,7 @@ export default function VerseRecitations() {
 
   // Moving verse suggestions modal
   const [showMovingModal, setShowMovingModal] = useState(false);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // Load initial data
   const refreshCache = useCallback(() => {
@@ -653,7 +655,17 @@ export default function VerseRecitations() {
               </thead>
               <tbody>
                 {ttsCache.map((entry) => (
-                  <TTSCacheRow key={entry.id} entry={entry} onDelete={(id) => {
+                  <TTSCacheRow key={entry.id} entry={entry} onDelete={async (id) => {
+                    const item = ttsCache.find((c) => c.id === id);
+                    const ok = await confirm({
+                      title: 'Delete cached TTS?',
+                      message: item
+                        ? `Remove cached audio for ${item.surah_name} ${item.chapter}:${item.verse} (${item.voice_name})? It will be regenerated on next use.`
+                        : 'Remove this cached TTS entry? It will be regenerated on next use.',
+                      confirmLabel: 'Delete',
+                      tone: 'danger',
+                    });
+                    if (!ok) return;
                     deleteTTSCache(id).then(refreshCache).catch(() => {});
                   }} />
                 ))}
@@ -669,6 +681,7 @@ export default function VerseRecitations() {
           onSelect={handleMovingVerseSelect}
         />
       )}
+      {confirmDialog}
     </div>
   );
 }

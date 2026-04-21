@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { changePassword, getVoices, addVoice, deleteVoice, getPreferences, savePreferences } from '../../api/admin';
 import type { Voice } from '../../api/admin';
+import { useConfirm } from './shared/useConfirm';
 
 export default function AdminSettings() {
   return (
@@ -148,6 +149,7 @@ function ElevenLabsSection() {
   const [newVoiceId, setNewVoiceId] = useState('');
   const [voiceError, setVoiceError] = useState('');
   const [addingVoice, setAddingVoice] = useState(false);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   useEffect(() => {
     getPreferences().then((prefs) => {
@@ -183,6 +185,16 @@ function ElevenLabsSection() {
   }
 
   async function handleDelete(id: number) {
+    const voice = voices.find((v) => v.id === id);
+    const ok = await confirm({
+      title: 'Delete voice?',
+      message: voice
+        ? `Remove "${voice.name}" from your saved voices? You can add it again later using the same Voice ID.`
+        : 'Remove this voice from your saved voices?',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await deleteVoice(id);
       setVoices((v) => v.filter((x) => x.id !== id));
@@ -294,6 +306,7 @@ function ElevenLabsSection() {
         </button>
       </form>
       {voiceError && <p className="text-xs text-red-500 mt-2">{voiceError}</p>}
+      {confirmDialog}
     </div>
   );
 }

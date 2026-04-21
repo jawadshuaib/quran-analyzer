@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getMusicTracks, uploadMusicTrack, deleteMusicTrack, updateMusicTrack, musicAudioUrl, getToken } from '../../api/admin';
 import type { MusicTrack } from '../../api/admin';
+import { useConfirm } from './shared/useConfirm';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -21,6 +22,7 @@ export default function AdminMusic() {
   const [uploadError, setUploadError] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   useEffect(() => {
     getMusicTracks().then(setTracks).catch(() => {});
@@ -43,6 +45,16 @@ export default function AdminMusic() {
   }
 
   async function handleDelete(id: number) {
+    const track = tracks.find((t) => t.id === id);
+    const ok = await confirm({
+      title: 'Delete music track?',
+      message: track
+        ? `Permanently delete "${track.description || track.original_name}"? This cannot be undone. Pipelines that use this track will need a new one selected.`
+        : 'Permanently delete this music track? This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setDeleteError('');
     try {
       await deleteMusicTrack(id);
@@ -92,6 +104,7 @@ export default function AdminMusic() {
           <MusicCard key={t.id} track={t} onDelete={handleDelete} onUpdate={(updated) => setTracks((prev) => prev.map((p) => p.id === updated.id ? updated : p))} />
         ))}
       </div>
+      {confirmDialog}
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   generatedVideoDownloadUrl, getToken, generateDescription,
 } from '../../api/admin';
 import type { Resource, Reciter, TTSCacheEntry, GeneratedVideo, MusicTrack } from '../../api/admin';
+import { useConfirm } from './shared/useConfirm';
 
 function formatBytes(bytes: number): string {
   if (!bytes) return '--';
@@ -36,6 +37,8 @@ export default function GenerateVideo() {
   // Description
   const [description, setDescription] = useState('');
   const [generatingDesc, setGeneratingDesc] = useState(false);
+
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   // Load data
   useEffect(() => {
@@ -137,6 +140,16 @@ export default function GenerateVideo() {
   }
 
   async function handleDeleteVideo(id: number) {
+    const video = videos.find((v) => v.id === id);
+    const ok = await confirm({
+      title: 'Delete generated video?',
+      message: video
+        ? `Permanently delete "${video.title || `video #${video.id}`}" and its files from disk? This cannot be undone.`
+        : 'Permanently delete this video and its files from disk? This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await deleteGeneratedVideo(id);
       setVideos((prev) => prev.filter((v) => v.id !== id));
@@ -432,6 +445,7 @@ export default function GenerateVideo() {
           </div>
         </div>
       )}
+      {confirmDialog}
     </div>
   );
 }
