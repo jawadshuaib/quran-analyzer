@@ -347,8 +347,13 @@ def call_ollama_cloud(
     api_key: str,
     temperature: float = 0.3,
     timeout: int = 600,
+    max_retries: int = 3,
 ) -> tuple[str, int]:
-    """POST to Ollama Cloud. Returns (content, elapsed_ms)."""
+    """POST to Ollama Cloud with retry on 5xx / network errors.
+
+    Returns (content, elapsed_ms_including_retries).
+    Raises RuntimeError only after all retries are exhausted.
+    """
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}",
@@ -366,15 +371,27 @@ def call_ollama_cloud(
     }
 
     t0 = time.time()
-    resp = requests.post(OLLAMA_CLOUD_URL, headers=headers, json=payload, timeout=timeout)
-    elapsed_ms = int((time.time() - t0) * 1000)
+    last_err: str = ""
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = requests.post(OLLAMA_CLOUD_URL, headers=headers, json=payload, timeout=timeout)
+            if resp.status_code == 200:
+                content = resp.json().get("message", {}).get("content", "")
+                return content, int((time.time() - t0) * 1000)
+            # 4xx (other than 429) is usually unrecoverable — fail fast
+            if 400 <= resp.status_code < 500 and resp.status_code != 429:
+                raise RuntimeError(f"Ollama Cloud error {resp.status_code}: {resp.text[:500]}")
+            last_err = f"HTTP {resp.status_code}: {resp.text[:200]}"
+        except requests.RequestException as e:
+            last_err = f"request exception: {e}"
 
-    if resp.status_code != 200:
-        raise RuntimeError(f"Ollama Cloud error {resp.status_code}: {resp.text[:500]}")
+        if attempt < max_retries:
+            # Exponential backoff: 5s, 15s, 45s
+            backoff = 5 * (3 ** (attempt - 1))
+            print(f"  retry {attempt}/{max_retries} after {backoff}s ({last_err})")
+            time.sleep(backoff)
 
-    data = resp.json()
-    content = data.get("message", {}).get("content", "")
-    return content, elapsed_ms
+    raise RuntimeError(f"Ollama Cloud failed after {max_retries} attempts: {last_err}")
 
 
 # ------------------------------------------------------------------------
@@ -516,7 +533,17 @@ def existing_record(conn, surah: int, ayah: int, config_id: int) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate grammar notes via Ollama Cloud.")
-    parser.add_argument("--verses", required=True, help="e.g. '1:1-7,2:255'")
+    parser.add_argument("--verses", help="e.g. '1:1-7,2:255' — OR use --surahs instead.")
+    parser.add_argument(
+        "--surahs",
+        help="Surah ranges to run, e.g. '2-114' or '2,3,5-10'. "
+             "All verses of each surah are processed in order.",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Shortcut for --surahs 1-114 — run the entire Quran.",
+    )
     parser.add_argument("--model", default=DEFAULT_MODEL)
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     parser.add_argument("--prompt-version", default=DEFAULT_PROMPT_VERSION)
@@ -530,14 +557,55 @@ def main() -> int:
         print("ERROR: Ollama Cloud key missing. Pass --api-key or set OLLAMA_CLOUD_KEY.", file=sys.stderr)
         return 2
 
-    pairs = parse_verse_spec(args.verses)
-    if not pairs:
-        print(f"ERROR: no verses parsed from '{args.verses}'", file=sys.stderr)
-        return 2
+    # Resolve --verses / --surahs / --all into a flat list of (surah, ayah) tuples
+    pairs: list[tuple[int, int]] = []
 
     conn = get_db()
     try:
+        surah_spec: str | None = None
+        if args.all:
+            surah_spec = "1-114"
+        elif args.surahs:
+            surah_spec = args.surahs
+
+        if surah_spec:
+            # Parse a spec like "2-114" or "2,3,5-10"
+            surahs: list[int] = []
+            for part in surah_spec.split(","):
+                part = part.strip()
+                m = re.match(r"^(\d+)-(\d+)$", part)
+                if m:
+                    a, b = int(m.group(1)), int(m.group(2))
+                    surahs.extend(range(a, b + 1))
+                elif part.isdigit():
+                    surahs.append(int(part))
+            for s in surahs:
+                row = conn.execute(
+                    "SELECT MAX(verse) AS mv FROM verses WHERE chapter = ?",
+                    (s,),
+                ).fetchone()
+                mv = row["mv"] if row and row["mv"] else 0
+                for a in range(1, mv + 1):
+                    pairs.append((s, a))
+
+        if args.verses:
+            pairs.extend(parse_verse_spec(args.verses))
+
+        if not pairs:
+            print("ERROR: no verses to process. Pass --verses, --surahs, or --all.", file=sys.stderr)
+            return 2
+
+        # Deduplicate while preserving order
+        seen: set[tuple[int, int]] = set()
+        deduped: list[tuple[int, int]] = []
+        for p in pairs:
+            if p not in seen:
+                seen.add(p)
+                deduped.append(p)
+        pairs = deduped
+
         config_id = get_or_create_config(conn, args.config, args.model, args.prompt_version)
+        print(f"Processing {len(pairs)} verses with config '{args.config}' using {args.model}")
 
         for surah, ayah in pairs:
             print(f"\n=== {surah}:{ayah} ===")

@@ -34,13 +34,11 @@ export default function GrammarNotes({ surah, ayah }: Props) {
   const [data, setData] = useState<GrammarNotesData | null>(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [notFound, setNotFound] = useState(false);
 
   // When verse changes, reset data — keep expanded state (user preference)
   useEffect(() => {
     setData(null);
     setLoaded(false);
-    setNotFound(false);
   }, [surah, ayah]);
 
   // If the section is open (from persisted preference), auto-load the notes
@@ -56,9 +54,8 @@ export default function GrammarNotes({ surah, ayah }: Props) {
     try {
       const result = await fetchGrammarNotes(surah, ayah);
       setData(result);
-      setNotFound(result === null);
     } catch {
-      setNotFound(true);
+      setData(null);
     } finally {
       setLoading(false);
       setLoaded(true);
