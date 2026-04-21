@@ -10,6 +10,7 @@ import HomePage from './components/home/HomePage';
 import VerseDisplay from './components/VerseDisplay';
 import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
+import GrammarNotes from './components/GrammarNotes';
 import WordSearchResults from './components/WordSearchResults';
 import SemanticSearchResults from './components/SemanticSearchResults';
 import RootPage from './components/RootPage';
@@ -466,6 +467,7 @@ export default function App() {
               onNavigate={handleSearch}
               forceCollapse={!!wordSearchResults}
             />
+            <GrammarNotes surah={data.surah} ayah={data.ayah} />
 
             <AskAssistant
               pageType="verse"

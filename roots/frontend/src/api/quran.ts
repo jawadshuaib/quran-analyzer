@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse } from '../types';
+import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -103,6 +103,16 @@ export async function fetchAITranslation(
   const res = await fetch(`${BASE}/verse/${surah}:${ayah}/ai-translation`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to load AI translation');
+  return res.json();
+}
+
+export async function fetchGrammarNotes(
+  surah: number,
+  ayah: number,
+): Promise<GrammarNotesData | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/grammar-notes`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load grammar notes');
   return res.json();
 }
 

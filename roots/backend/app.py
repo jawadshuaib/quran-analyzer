@@ -174,6 +174,59 @@ def _ensure_ai_translation_tables():
 _ensure_ai_translation_tables()
 
 
+def _ensure_grammar_notes_tables():
+    """Create the grammar notes + centralized glossary tables."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS grammar_notes_configs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_name TEXT UNIQUE NOT NULL,
+                model_name TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS ai_grammar_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                config_id INTEGER NOT NULL REFERENCES grammar_notes_configs(id),
+                notes_markdown TEXT NOT NULL,
+                referenced_terms TEXT NOT NULL DEFAULT '[]',
+                raw_response TEXT,
+                full_prompt TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (chapter, verse, config_id)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ai_grammar_notes_verse
+            ON ai_grammar_notes (chapter, verse)
+        """)
+        # Centralized glossary of grammar terms. term_english is the canonical
+        # form emitted by the LLM inside [[...]] markers in notes_markdown.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS grammar_terms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                term_english TEXT UNIQUE NOT NULL COLLATE NOCASE,
+                term_arabic TEXT,
+                plain_explanation TEXT NOT NULL,
+                example_sentence TEXT,
+                example_translation TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_grammar_notes_tables()
+
+
 def _ensure_ai_word_meanings_table():
     """Create the ai_word_meanings table if it doesn't exist."""
     conn = get_db()
@@ -2979,6 +3032,85 @@ def get_ai_translation(surah: int, ayah: int):
             "model_name": row["model_name"],
             "created_at": row["created_at"],
         })
+    finally:
+        conn.close()
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/grammar-notes")
+def get_grammar_notes(surah: int, ayah: int):
+    """Return the most recent grammar notes for a verse with all referenced terms.
+
+    Notes are stored as markdown-like prose with [[term]] markers that wrap
+    technical grammar terms. This endpoint joins each referenced term with the
+    centralized `grammar_terms` glossary so the frontend can render tooltips
+    without a second fetch.
+
+    Response: 404 if no notes exist for the verse.
+    """
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT n.notes_markdown, n.referenced_terms, n.created_at, "
+            "       c.config_name, c.model_name, c.prompt_version "
+            "FROM ai_grammar_notes n "
+            "JOIN grammar_notes_configs c ON n.config_id = c.id "
+            "WHERE n.chapter = ? AND n.verse = ? "
+            "ORDER BY n.created_at DESC LIMIT 1",
+            (surah, ayah),
+        ).fetchone()
+
+        if not row:
+            return jsonify({"error": "No grammar notes available"}), 404
+
+        try:
+            term_names = json.loads(row["referenced_terms"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            term_names = []
+
+        terms_map = {}
+        if term_names:
+            placeholders = ",".join(["?"] * len(term_names))
+            term_rows = conn.execute(
+                f"SELECT term_english, term_arabic, plain_explanation, "
+                f"       example_sentence, example_translation "
+                f"FROM grammar_terms "
+                f"WHERE term_english IN ({placeholders})",
+                tuple(term_names),
+            ).fetchall()
+            for tr in term_rows:
+                # Key by lowercased term so frontend lookup is case-insensitive
+                terms_map[tr["term_english"].lower()] = {
+                    "term_english": tr["term_english"],
+                    "term_arabic": tr["term_arabic"],
+                    "plain_explanation": tr["plain_explanation"],
+                    "example_sentence": tr["example_sentence"],
+                    "example_translation": tr["example_translation"],
+                }
+
+        return jsonify({
+            "surah": surah,
+            "ayah": ayah,
+            "notes_markdown": row["notes_markdown"],
+            "terms": terms_map,
+            "config_name": row["config_name"],
+            "model_name": row["model_name"],
+            "created_at": row["created_at"],
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/grammar-terms")
+def get_grammar_terms_all():
+    """Return the full grammar terms glossary (for admin / debugging)."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT term_english, term_arabic, plain_explanation, "
+            "       example_sentence, example_translation, updated_at "
+            "FROM grammar_terms ORDER BY term_english"
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
     finally:
         conn.close()
 
