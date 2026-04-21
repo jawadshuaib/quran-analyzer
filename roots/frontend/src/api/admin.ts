@@ -587,6 +587,7 @@ export interface Pipeline {
   voice_id: string;
   reciter_id: number | null;
   show_bands: number;
+  random_resource: number;
   music_id: number | null;
   video_count?: number;
   created_at: string;
@@ -615,6 +616,7 @@ export async function createPipeline(params: {
   voice_id?: string;
   reciter_id?: number | null;
   show_bands: boolean;
+  random_resource?: boolean;
   music_id?: number | null;
 }): Promise<Pipeline> {
   const res = await authFetch(`${BASE}/pipelines`, {
@@ -646,6 +648,7 @@ export async function updatePipeline(id: number, params: {
   voice_id?: string;
   reciter_id?: number | null;
   show_bands?: boolean;
+  random_resource?: boolean;
   music_id?: number | null;
 }): Promise<Pipeline> {
   const res = await authFetch(`${BASE}/pipelines/${id}`, {

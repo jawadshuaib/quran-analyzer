@@ -7725,6 +7725,12 @@ def _ensure_pipeline_tables():
             conn.commit()
         except Exception:
             pass
+        # random_resource flag: when 1, pick a random resource per run
+        try:
+            conn.execute("ALTER TABLE admin_pipelines ADD COLUMN random_resource INTEGER NOT NULL DEFAULT 0")
+            conn.commit()
+        except Exception:
+            pass
         conn.execute("""
             CREATE TABLE IF NOT EXISTS admin_pipeline_videos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -7797,6 +7803,7 @@ def admin_create_pipeline():
     voice_id = (body.get("voice_id") or "").strip()
     reciter_id = body.get("reciter_id")
     show_bands = bool(body.get("show_bands", True))
+    random_resource = bool(body.get("random_resource", False))
     music_id = body.get("music_id")
 
     if language not in ("english", "arabic"):
@@ -7831,9 +7838,9 @@ def admin_create_pipeline():
                 return jsonify({"error": "Music track not found"}), 404
 
         cur = conn.execute(
-            "INSERT INTO admin_pipelines (name, language, resource_id, voice_id, reciter_id, show_bands, music_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (name, language, resource_id, voice_id, reciter_id, 1 if show_bands else 0, music_id),
+            "INSERT INTO admin_pipelines (name, language, resource_id, voice_id, reciter_id, show_bands, random_resource, music_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (name, language, resource_id, voice_id, reciter_id, 1 if show_bands else 0, 1 if random_resource else 0, music_id),
         )
         conn.commit()
         pipeline = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (cur.lastrowid,)).fetchone()
@@ -7899,10 +7906,16 @@ def admin_update_pipeline(pipeline_id):
         except (IndexError, KeyError):
             existing_reciter_id = None
         reciter_id = body.get("reciter_id", existing_reciter_id)
+        # Get random_resource flag
+        try:
+            existing_random = bool(row["random_resource"])
+        except (IndexError, KeyError):
+            existing_random = False
+        random_resource = body.get("random_resource", existing_random)
 
         conn.execute(
-            "UPDATE admin_pipelines SET name=?, resource_id=?, voice_id=?, reciter_id=?, show_bands=?, music_id=?, updated_at=datetime('now') WHERE id=?",
-            (name, resource_id, voice_id, reciter_id, 1 if show_bands else 0, music_id, pipeline_id),
+            "UPDATE admin_pipelines SET name=?, resource_id=?, voice_id=?, reciter_id=?, show_bands=?, random_resource=?, music_id=?, updated_at=datetime('now') WHERE id=?",
+            (name, resource_id, voice_id, reciter_id, 1 if show_bands else 0, 1 if random_resource else 0, music_id, pipeline_id),
         )
         conn.commit()
         updated = conn.execute("SELECT * FROM admin_pipelines WHERE id = ?", (pipeline_id,)).fetchone()
@@ -8307,7 +8320,20 @@ def _pipeline_generate_task(video_id):
                     else:
                         used_ranges.append(f"{ch}:{vs_min}-{vs_max}")
 
-            resource = conn.execute("SELECT * FROM admin_resources WHERE id = ?", (pipeline["resource_id"],)).fetchone()
+            # Resource: either the pipeline's fixed choice, or a random one
+            # per run (if random_resource flag is set).
+            try:
+                use_random_resource = bool(pipeline["random_resource"])
+            except (IndexError, KeyError):
+                use_random_resource = False
+            if use_random_resource:
+                resource = conn.execute(
+                    "SELECT * FROM admin_resources ORDER BY RANDOM() LIMIT 1"
+                ).fetchone()
+            else:
+                resource = conn.execute(
+                    "SELECT * FROM admin_resources WHERE id = ?", (pipeline["resource_id"],)
+                ).fetchone()
             music_filename = None
             if pipeline["music_id"]:
                 music_row = conn.execute("SELECT filename FROM admin_music WHERE id = ?", (pipeline["music_id"],)).fetchone()

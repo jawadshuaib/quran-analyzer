@@ -53,6 +53,7 @@ export default function PipelineManager() {
   const [formVoiceId, setFormVoiceId] = useState('');
   const [formReciterId, setFormReciterId] = useState<number | ''>('');
   const [formShowBands, setFormShowBands] = useState(true);
+  const [formRandomResource, setFormRandomResource] = useState(false);
   const [formMusicId, setFormMusicId] = useState<number | ''>('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -146,6 +147,7 @@ export default function PipelineManager() {
     setFormVoiceId('');
     setFormReciterId('');
     setFormShowBands(true);
+    setFormRandomResource(false);
     setFormMusicId('');
     setFormError('');
   }
@@ -180,6 +182,7 @@ export default function PipelineManager() {
         voice_id: formLanguage === 'english' ? formVoiceId : undefined,
         reciter_id: formLanguage === 'arabic' ? (formReciterId as number) : null,
         show_bands: formShowBands,
+        random_resource: formRandomResource,
         music_id: formMusicId ? (formMusicId as number) : null,
       });
       setPipelines((prev) => [pipe, ...prev]);
@@ -201,6 +204,7 @@ export default function PipelineManager() {
     setFormVoiceId(pipe.voice_id || '');
     setFormReciterId(pipe.reciter_id || '');
     setFormShowBands(!!pipe.show_bands);
+    setFormRandomResource(!!pipe.random_resource);
     setFormMusicId(pipe.music_id || '');
     setFormError('');
     setShowCreate(false);
@@ -217,6 +221,7 @@ export default function PipelineManager() {
         voice_id: formLanguage === 'english' ? formVoiceId : undefined,
         reciter_id: formLanguage === 'arabic' ? (formReciterId as number) : null,
         show_bands: formShowBands,
+        random_resource: formRandomResource,
         music_id: formMusicId ? (formMusicId as number) : null,
       });
       setPipelines((prev) => prev.map((p) => p.id === editingId ? { ...p, ...updated } : p));
@@ -452,17 +457,30 @@ export default function PipelineManager() {
               )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1">Background Video</label>
+              <label className="block text-sm font-medium text-stone-700 mb-1">
+                Background Video {formRandomResource && <span className="font-normal text-stone-400">(overridden by random per run)</span>}
+              </label>
               <select
                 value={formResourceId}
                 onChange={(e) => setFormResourceId(e.target.value ? Number(e.target.value) : '')}
-                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:border-stone-400"
+                className={`w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:border-stone-400 ${
+                  formRandomResource ? 'opacity-60' : ''
+                }`}
               >
                 <option value="">Select...</option>
                 {resources.map((r) => (
                   <option key={r.id} value={r.id}>{r.description || r.original_name}</option>
                 ))}
               </select>
+              <label className="flex items-center gap-2 cursor-pointer mt-2">
+                <input
+                  type="checkbox"
+                  checked={formRandomResource}
+                  onChange={(e) => setFormRandomResource(e.target.checked)}
+                  className="rounded border-stone-300"
+                />
+                <span className="text-sm text-stone-700">Pick a random background video for each generated video</span>
+              </label>
             </div>
             {formLanguage === 'english' ? (
               <div>
@@ -560,7 +578,13 @@ export default function PipelineManager() {
                   <h2 className="font-semibold text-stone-800 text-lg">{selected.name}</h2>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-stone-400">
-                  <span>Video: {resources.find((r) => r.id === selected.resource_id)?.description || resources.find((r) => r.id === selected.resource_id)?.original_name || '?'}</span>
+                  <span>
+                    Video: {selected.random_resource
+                      ? <span className="italic text-stone-500">Random per run</span>
+                      : (resources.find((r) => r.id === selected.resource_id)?.description
+                          || resources.find((r) => r.id === selected.resource_id)?.original_name
+                          || '?')}
+                  </span>
                   {selected.language === 'arabic' ? (
                     <span>Reciter: {(() => {
                       const rec = reciters.find((r) => r.id === selected.reciter_id);
