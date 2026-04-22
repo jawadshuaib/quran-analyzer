@@ -3,6 +3,70 @@ import { changePassword, getVoices, addVoice, deleteVoice, getPreferences, saveP
 import type { Voice } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
 
+// Ready-to-paste prompt for a browser-driving Claude agent. The agent opens
+// the admin settings + OAuth Playground, configures the Playground with the
+// admin's credentials, walks through the consent flow, and pastes the
+// resulting refresh token back into the admin — leaving only the Google
+// sign-in step for the human to complete.
+const YOUTUBE_AGENT_PROMPT = `I need to refresh my YouTube OAuth refresh token for al-nuqta.com. Please drive the browser through the process end-to-end. I will handle the Google sign-in step when prompted.
+
+1. Open https://al-nuqta.com/admin/settings in a new tab. If prompted, I will sign in as admin. Scroll to the "YouTube" section. Read the "Client ID" and "Client Secret" values from the input fields. (The Client Secret may be masked — click the "Show" button next to it to reveal.)
+
+2. Open https://developers.google.com/oauthplayground in another tab.
+
+3. Click the gear/settings icon (⚙️) in the top-right of the Playground. In the settings panel:
+   - Check "Use your own OAuth credentials"
+   - Paste the Client ID into "OAuth Client ID"
+   - Paste the Client Secret into "OAuth Client secret"
+   - Set "Force prompt" to "Consent"
+   - Close the gear panel
+
+4. In the left pane, locate "YouTube Data API v3" and expand it. Check the scope:
+   https://www.googleapis.com/auth/youtube.upload
+
+5. Click "Authorize APIs". A Google sign-in page will open — PAUSE and tell me to sign in with the account that owns my YouTube channel and approve the access. Wait for me to confirm I'm done.
+
+6. After I confirm, Google redirects back to the Playground and "Step 2: Exchange authorization code for tokens" becomes active. Click that button.
+
+7. In the JSON response, locate the "refresh_token" value. Copy the string value (not the key, not the access_token).
+
+8. Return to the al-nuqta admin settings tab. In the YouTube section, paste the refresh token into the "Refresh Token" field. Click "Save".
+
+9. Confirm success: a green "Connected" pill should appear at the top of the YouTube section. Report back that it's done.
+
+If any step fails, tell me exactly where it failed and show me the error message so I can fix it.`;
+
+function computeTokenAge(savedAtIso: string | null): {
+  days: number;
+  severity: 'ok' | 'warn' | 'danger';
+  label: string;
+} | null {
+  if (!savedAtIso) return null;
+  const saved = new Date(savedAtIso).getTime();
+  if (isNaN(saved)) return null;
+  const days = (Date.now() - saved) / (1000 * 60 * 60 * 24);
+  // Testing-mode refresh tokens expire after 7 days. Warn at 5, danger at 7.
+  let severity: 'ok' | 'warn' | 'danger' = 'ok';
+  let label = `Saved ${formatAge(days)} ago`;
+  if (days >= 7) {
+    severity = 'danger';
+    label = `Likely expired (${formatAge(days)} old)`;
+  } else if (days >= 5) {
+    severity = 'warn';
+    label = `Expires soon (${formatAge(days)} old)`;
+  }
+  return { days, severity, label };
+}
+
+function formatAge(days: number): string {
+  if (days < 1) {
+    const hours = Math.max(0, Math.round(days * 24));
+    return hours <= 1 ? 'less than an hour' : `${hours} hours`;
+  }
+  const d = Math.round(days);
+  return d === 1 ? '1 day' : `${d} days`;
+}
+
 export default function AdminSettings() {
   return (
     <div className="space-y-10">
@@ -456,6 +520,8 @@ function YoutubeSection() {
   const [refreshMasked, setRefreshMasked] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [refreshSavedAt, setRefreshSavedAt] = useState<string | null>(null);
+  const [promptCopied, setPromptCopied] = useState(false);
 
   useEffect(() => {
     getPreferences().then((prefs) => {
@@ -463,6 +529,7 @@ function YoutubeSection() {
       if (prefs.youtube_client_id) setClientId(prefs.youtube_client_id);
       if (prefs.youtube_client_secret) setClientSecret(prefs.youtube_client_secret);
       if (prefs.youtube_refresh_token) setRefreshToken(prefs.youtube_refresh_token);
+      if (prefs.youtube_refresh_token_saved_at) setRefreshSavedAt(prefs.youtube_refresh_token_saved_at);
     });
   }, []);
 
@@ -477,11 +544,28 @@ function YoutubeSection() {
         youtube_refresh_token: refreshToken,
       });
       setMsg('Saved');
+      // The backend stamps youtube_refresh_token_saved_at only if the token
+      // actually changed. Re-pull prefs so the age display updates.
+      getPreferences().then((p) => {
+        if (p.youtube_refresh_token_saved_at) {
+          setRefreshSavedAt(p.youtube_refresh_token_saved_at);
+        }
+      });
       setTimeout(() => setMsg(''), 2000);
     } catch {
       setMsg('Failed to save');
     } finally { setSaving(false); }
   }
+
+  function copyAgentPrompt() {
+    navigator.clipboard.writeText(YOUTUBE_AGENT_PROMPT).then(() => {
+      setPromptCopied(true);
+      setTimeout(() => setPromptCopied(false), 2500);
+    });
+  }
+
+  // Compute token age for the visible badge next to the refresh field
+  const tokenAge = computeTokenAge(refreshSavedAt);
 
   const maskedSecret = secretMasked && clientSecret.length > 4
     ? '\u2022'.repeat(clientSecret.length - 4) + clientSecret.slice(-4)
@@ -506,9 +590,36 @@ function YoutubeSection() {
         Used for uploading generated videos to YouTube. Admin-only — one set of credentials for your channel.
       </p>
 
+      <div className="mb-4 max-w-2xl flex items-start gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+        <div className="flex-1 text-xs text-stone-600 leading-relaxed">
+          <div className="font-semibold text-stone-700 mb-0.5">Have a browser-driving Claude agent do this for you</div>
+          <p className="text-stone-500">
+            Copies a ready-made prompt to your clipboard. Paste it into Claude
+            (with a browser) and it will drive the OAuth Playground end-to-end.
+            You only have to sign in to Google when it asks.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={copyAgentPrompt}
+          className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-stone-300 bg-white text-xs font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
+          title="Copy the browser-agent prompt"
+        >
+          {promptCopied ? (
+            <>
+              <CheckIcon /> Copied
+            </>
+          ) : (
+            <>
+              <ClipboardIcon /> Copy AI prompt
+            </>
+          )}
+        </button>
+      </div>
+
       <details className="mb-4 max-w-2xl text-xs text-stone-600">
         <summary className="cursor-pointer text-stone-500 hover:text-stone-700">
-          How to obtain Client ID / Secret / Refresh Token (one-time setup)
+          Or do it manually (6 steps, ~5 minutes)
         </summary>
         <ol className="mt-2 pl-5 list-decimal space-y-1 leading-relaxed">
           <li>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a>, create a project.</li>
@@ -569,7 +680,20 @@ function YoutubeSection() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-stone-700 mb-1">Refresh Token</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-sm font-medium text-stone-700">Refresh Token</label>
+            {tokenAge && (
+              <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                tokenAge.severity === 'danger'
+                  ? 'bg-red-100 text-red-700'
+                  : tokenAge.severity === 'warn'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-stone-100 text-stone-500'
+              }`}>
+                {tokenAge.label}
+              </span>
+            )}
+          </div>
           <div className="flex gap-2">
             <input
               type="text"
@@ -589,6 +713,11 @@ function YoutubeSection() {
               </button>
             )}
           </div>
+          {tokenAge && tokenAge.severity !== 'ok' && (
+            <p className={`mt-1 text-xs ${tokenAge.severity === 'danger' ? 'text-red-600' : 'text-amber-600'}`}>
+              Testing-mode OAuth refresh tokens expire after 7 days. Click "Copy AI prompt" above to refresh it.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -609,6 +738,23 @@ function YoutubeSection() {
 /* ------------------------------------------------------------------ */
 /*  Shared input field                                                */
 /* ------------------------------------------------------------------ */
+
+function ClipboardIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+  );
+}
 
 function InputField({ id, label, type = 'text', value, onChange, autoComplete, minLength }: {
   id: string; label: string; type?: string; value: string;

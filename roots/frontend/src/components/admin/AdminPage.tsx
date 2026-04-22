@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { isLoggedIn, verifyToken, clearToken } from '../../api/admin';
+import { isLoggedIn, verifyToken, clearToken, getPreferences } from '../../api/admin';
 import AdminLogin from './AdminLogin';
 import AdminSettings from './AdminSettings';
 import AdminMedia from './AdminMedia';
@@ -140,7 +140,8 @@ export default function AdminPage() {
         {route === 'dashboard' && (
           <div>
             <h1 className="text-xl font-semibold text-stone-800 mb-2">Admin Dashboard</h1>
-            <p className="text-sm text-stone-500">Welcome back, {username}.</p>
+            <p className="text-sm text-stone-500 mb-6">Welcome back, {username}.</p>
+            <DashboardAlerts />
           </div>
         )}
         {route === 'settings' && <AdminSettings />}
@@ -154,6 +155,99 @@ export default function AdminPage() {
         {route === 'generate-explanation' && <GenerateExplanationVideo />}
         {route === 'pipelines' && <PipelineManager />}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Alerts that show at the top of the Admin Dashboard.
+ * Today: YouTube refresh token expiry.
+ * Over time, other time-sensitive admin concerns can live here.
+ */
+function DashboardAlerts() {
+  const [alerts, setAlerts] = useState<{
+    severity: 'warn' | 'danger';
+    title: string;
+    body: string;
+    href?: string;
+    hrefLabel?: string;
+  }[]>([]);
+
+  useEffect(() => {
+    getPreferences().then((prefs) => {
+      const out: typeof alerts = [];
+
+      // YouTube refresh-token expiry
+      const savedAt = prefs.youtube_refresh_token_saved_at;
+      const token = prefs.youtube_refresh_token;
+      if (token && savedAt) {
+        const days = (Date.now() - new Date(savedAt).getTime()) / (1000 * 60 * 60 * 24);
+        if (!isNaN(days)) {
+          if (days >= 7) {
+            out.push({
+              severity: 'danger',
+              title: 'YouTube refresh token likely expired',
+              body: `Your OAuth refresh token was saved ${Math.round(days)} days ago. Google testing-mode tokens expire after 7 days. Uploads will start failing with invalid_grant errors.`,
+              href: '/admin/settings',
+              hrefLabel: 'Refresh it now',
+            });
+          } else if (days >= 5) {
+            out.push({
+              severity: 'warn',
+              title: 'YouTube refresh token expiring soon',
+              body: `Your OAuth refresh token is ${Math.round(days)} days old. It will stop working at the 7-day mark. Refresh it at your convenience.`,
+              href: '/admin/settings',
+              hrefLabel: 'Refresh it',
+            });
+          }
+        }
+      }
+
+      setAlerts(out);
+    }).catch(() => { /* silent — dashboard shouldn't fail on prefs fetch */ });
+  }, []);
+
+  if (alerts.length === 0) return null;
+
+  return (
+    <div className="space-y-3 mb-6">
+      {alerts.map((a, i) => (
+        <div
+          key={i}
+          className={`rounded-xl border p-4 ${
+            a.severity === 'danger'
+              ? 'border-red-200 bg-red-50'
+              : 'border-amber-200 bg-amber-50'
+          }`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className={`text-sm font-semibold ${
+                a.severity === 'danger' ? 'text-red-800' : 'text-amber-800'
+              }`}>
+                {a.title}
+              </h3>
+              <p className={`mt-1 text-xs leading-relaxed ${
+                a.severity === 'danger' ? 'text-red-700' : 'text-amber-700'
+              }`}>
+                {a.body}
+              </p>
+            </div>
+            {a.href && (
+              <a
+                href={a.href}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap ${
+                  a.severity === 'danger'
+                    ? 'bg-red-600 text-white hover:bg-red-700'
+                    : 'bg-amber-600 text-white hover:bg-amber-700'
+                }`}
+              >
+                {a.hrefLabel || 'Fix'}
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

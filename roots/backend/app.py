@@ -5007,6 +5007,18 @@ def admin_save_preferences():
     body = request.get_json(silent=True) or {}
     conn = get_db()
     try:
+        # Detect youtube_refresh_token CHANGING (not just being saved with the
+        # same value). When it changes, stamp the save time so the dashboard
+        # can warn the admin before the 7-day testing-mode expiry.
+        if "youtube_refresh_token" in body:
+            new_val = str(body.get("youtube_refresh_token") or "").strip()
+            existing = conn.execute(
+                "SELECT value FROM admin_preferences WHERE key = 'youtube_refresh_token'"
+            ).fetchone()
+            old_val = (existing["value"] if existing else "") or ""
+            if new_val and new_val != old_val.strip():
+                body["youtube_refresh_token_saved_at"] = datetime.now(timezone.utc).isoformat()
+
         for k, v in body.items():
             conn.execute(
                 "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
