@@ -3,6 +3,7 @@ import type {
   ContextResponse,
   VerseData,
   AITranslationData,
+  GrammarNotesData,
   WordMeaningsResponse,
 } from '../types/index.ts';
 
@@ -57,4 +58,14 @@ export async function fetchWordMeanings(
   const data: WordMeaningsResponse = await res.json();
   if (!data.meanings || Object.keys(data.meanings).length === 0) return null;
   return data;
+}
+
+export async function fetchGrammarNotes(
+  surah: number,
+  ayah: number,
+): Promise<GrammarNotesData | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/grammar-notes`);
+  if (res.status === 404) return null;
+  if (!res.ok) return null;
+  return res.json();
 }

@@ -77,6 +77,24 @@ export interface AITranslationData {
   created_at: string;
 }
 
+export interface GrammarTerm {
+  term_english: string;
+  term_arabic: string | null;
+  plain_explanation: string;
+  example_sentence: string | null;
+  example_translation: string | null;
+}
+
+export interface GrammarNotesData {
+  surah: number;
+  ayah: number;
+  notes_markdown: string;
+  terms: Record<string, GrammarTerm>;
+  config_name: string;
+  model_name: string;
+  created_at: string;
+}
+
 export interface WordMeaningBrief {
   meaning_short: string;
   has_detail: boolean;

@@ -28,7 +28,7 @@ export default function Popup() {
 
   // Fetch verse data for the first detected ayah
   const firstAyah = parsed?.ayahs?.[0] ?? null;
-  const { verse, aiTranslation, wordMeanings, loading: verseLoading } = useVerseData(
+  const { verse, aiTranslation, grammarNotes, wordMeanings, loading: verseLoading } = useVerseData(
     parsed?.surah ?? null,
     firstAyah,
   );
@@ -58,6 +58,7 @@ export default function Popup() {
             <VerseCard
               verse={verse}
               aiTranslation={aiTranslation}
+              grammarNotes={grammarNotes}
               wordMeanings={wordMeanings}
             />
           ) : null}

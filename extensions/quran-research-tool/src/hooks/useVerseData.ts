@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { VerseData, AITranslationData, WordMeaningBrief } from '../types/index.ts';
-import { fetchVerse, fetchAITranslation, fetchWordMeanings } from '../api/quran.ts';
+import type { VerseData, AITranslationData, GrammarNotesData, WordMeaningBrief } from '../types/index.ts';
+import { fetchVerse, fetchAITranslation, fetchGrammarNotes, fetchWordMeanings } from '../api/quran.ts';
 
 interface UseVerseDataResult {
   verse: VerseData | null;
   aiTranslation: AITranslationData | null;
+  grammarNotes: GrammarNotesData | null;
   wordMeanings: Record<string, WordMeaningBrief>;
   loading: boolean;
   error: string;
@@ -13,6 +14,7 @@ interface UseVerseDataResult {
 export function useVerseData(surah: number | null, ayah: number | null): UseVerseDataResult {
   const [verse, setVerse] = useState<VerseData | null>(null);
   const [aiTranslation, setAiTranslation] = useState<AITranslationData | null>(null);
+  const [grammarNotes, setGrammarNotes] = useState<GrammarNotesData | null>(null);
   const [wordMeanings, setWordMeanings] = useState<Record<string, WordMeaningBrief>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,12 +29,14 @@ export function useVerseData(surah: number | null, ayah: number | null): UseVers
     Promise.all([
       fetchVerse(surah, ayah),
       fetchAITranslation(surah, ayah),
+      fetchGrammarNotes(surah, ayah),
       fetchWordMeanings(surah, ayah),
     ])
-      .then(([verseData, aiData, wmData]) => {
+      .then(([verseData, aiData, gnData, wmData]) => {
         if (cancelled) return;
         setVerse(verseData);
         setAiTranslation(aiData);
+        setGrammarNotes(gnData);
         setWordMeanings(wmData?.meanings ?? {});
       })
       .catch(() => {
@@ -45,5 +49,5 @@ export function useVerseData(surah: number | null, ayah: number | null): UseVers
     return () => { cancelled = true; };
   }, [surah, ayah]);
 
-  return { verse, aiTranslation, wordMeanings, loading, error };
+  return { verse, aiTranslation, grammarNotes, wordMeanings, loading, error };
 }

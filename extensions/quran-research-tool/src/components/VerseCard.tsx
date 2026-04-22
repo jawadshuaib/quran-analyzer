@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import type { VerseData, AITranslationData, Word, WordMeaningBrief } from '../types/index.ts';
+import type { VerseData, AITranslationData, GrammarNotesData, Word, WordMeaningBrief } from '../types/index.ts';
 import WordTooltip from './WordTooltip.tsx';
+import GrammarNotesSection from './GrammarNotesSection.tsx';
 
 interface Props {
   verse: VerseData;
   aiTranslation: AITranslationData | null;
+  grammarNotes: GrammarNotesData | null;
   wordMeanings: Record<string, WordMeaningBrief>;
 }
 
@@ -110,7 +112,7 @@ function NoteText({ text }: { text: string }) {
   );
 }
 
-export default function VerseCard({ verse, aiTranslation, wordMeanings }: Props) {
+export default function VerseCard({ verse, aiTranslation, grammarNotes, wordMeanings }: Props) {
   const [activePos, setActivePos] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -194,6 +196,9 @@ export default function VerseCard({ verse, aiTranslation, wordMeanings }: Props)
           </div>
         </div>
       )}
+
+      {/* Grammar notes — click any underlined term to see its definition */}
+      {grammarNotes && <GrammarNotesSection data={grammarNotes} />}
 
       {/* Root pills */}
       {verse.roots_summary.length > 0 && (
