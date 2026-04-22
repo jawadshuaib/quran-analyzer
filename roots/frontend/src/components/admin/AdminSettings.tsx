@@ -8,7 +8,9 @@ import { useConfirm } from './shared/useConfirm';
 // admin's credentials, walks through the consent flow, and pastes the
 // resulting refresh token back into the admin — leaving only the Google
 // sign-in step for the human to complete.
-const YOUTUBE_AGENT_PROMPT = `I need to refresh my YouTube OAuth refresh token for al-nuqta.com. Please drive the browser through the process end-to-end. I will handle the Google sign-in step when prompted.
+const YOUTUBE_AGENT_PROMPT = `I need to refresh my YouTube OAuth refresh token for al-nuqta.com. Please drive the browser through the entire process without pausing unless something goes wrong.
+
+My Google account for YouTube: jawad.php@gmail.com
 
 1. Open https://al-nuqta.com/admin/settings in a new tab. If prompted, I will sign in as admin. Scroll to the "YouTube" section. Read the "Client ID" and "Client Secret" values from the input fields. (The Client Secret may be masked — click the "Show" button next to it to reveal.)
 
@@ -24,15 +26,19 @@ const YOUTUBE_AGENT_PROMPT = `I need to refresh my YouTube OAuth refresh token f
 4. In the left pane, locate "YouTube Data API v3" and expand it. Check the scope:
    https://www.googleapis.com/auth/youtube.upload
 
-5. Click "Authorize APIs". A Google sign-in page will open — PAUSE and tell me to sign in with the account that owns my YouTube channel and approve the access. Wait for me to confirm I'm done.
+5. Click "Authorize APIs". Google will show an account selector or consent screen.
+   - If you see jawad.php@gmail.com listed as an already-signed-in account: click it, then on the consent screen click "Continue" / "Allow". Keep going without pausing.
+   - If Google asks "Choose an account" and jawad.php@gmail.com is NOT in the list: click "Use another account", but then PAUSE and tell me — I'll need to enter my password.
+   - If a password prompt appears: PAUSE and tell me — I'll enter it.
+   - Otherwise, approve the consent normally and continue.
 
-6. After I confirm, Google redirects back to the Playground and "Step 2: Exchange authorization code for tokens" becomes active. Click that button.
+6. After consent, Google redirects back to the Playground and "Step 2: Exchange authorization code for tokens" becomes active. Click that button.
 
-7. In the JSON response, locate the "refresh_token" value. Copy the string value (not the key, not the access_token).
+7. In the JSON response, locate the "refresh_token" value. Copy the string value (not the key, not the access_token). Note: if the response doesn't include a refresh_token, the flow failed — go back to step 3 and verify "Force prompt" is set to "Consent".
 
 8. Return to the al-nuqta admin settings tab. In the YouTube section, paste the refresh token into the "Refresh Token" field. Click "Save".
 
-9. Confirm success: a green "Connected" pill should appear at the top of the YouTube section. Report back that it's done.
+9. Confirm success: a green "Connected" pill should appear at the top of the YouTube section, and the age badge next to Refresh Token should show "Saved less than an hour ago". Report back that it's done.
 
 If any step fails, tell me exactly where it failed and show me the error message so I can fix it.`;
 
