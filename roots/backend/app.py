@@ -8114,6 +8114,11 @@ def admin_delete_pipeline(pipeline_id):
         for v in videos:
             _cleanup_pipeline_video_files(v)
         conn.execute("DELETE FROM admin_pipeline_videos WHERE pipeline_id = ?", (pipeline_id,))
+        # Scheduler rows: FK-CASCADE is declared but SQLite only honors it when
+        # foreign_keys=ON is set per-connection, which we don't do globally.
+        # Explicit deletes guarantee no orphans regardless of pragma state.
+        conn.execute("DELETE FROM pipeline_schedules WHERE pipeline_id = ?", (pipeline_id,))
+        conn.execute("DELETE FROM pipeline_schedule_runs WHERE pipeline_id = ?", (pipeline_id,))
         conn.execute("DELETE FROM admin_pipelines WHERE id = ?", (pipeline_id,))
         conn.commit()
         return jsonify({"message": "Deleted"})
@@ -9744,11 +9749,17 @@ def admin_upload_pipeline_video_to_youtube(video_id):
         for t in tags_in or []:
             if not isinstance(t, str):
                 continue
-            cleaned = t.strip().lstrip("#")[:500]
+            cleaned = t.strip().lstrip("#")[:100]  # YouTube caps each tag at ~100 chars
             if cleaned and cleaned not in tags:
                 tags.append(cleaned)
             if len(tags) >= 15:
                 break
+
+        # YouTube enforces a 500-character total limit across all tags
+        # (counting the separating commas internally). Drop tags from the end
+        # until we fit, so we never send a request that YouTube rejects.
+        while tags and len(",".join(tags)) > 500:
+            tags.pop()
 
         privacy = (body.get("privacy") or "public").lower()
         if privacy not in ("public", "unlisted", "private"):

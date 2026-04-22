@@ -201,6 +201,16 @@ function DashboardAlerts() {
             });
           }
         }
+      } else if (token && !savedAt) {
+        // Legacy path: token saved before we started tracking saved_at.
+        // Since we can't tell how old it is, warn proactively.
+        out.push({
+          severity: 'warn',
+          title: 'YouTube refresh token age unknown',
+          body: 'A refresh token is saved but we don\'t know when it was created (it predates our tracking). If your uploads start failing with invalid_grant errors, refresh the token.',
+          href: '/admin/settings',
+          hrefLabel: 'Refresh it',
+        });
       }
 
       setAlerts(out);

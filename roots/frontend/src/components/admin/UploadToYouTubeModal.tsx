@@ -82,7 +82,24 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
     return () => window.removeEventListener('keydown', onKey);
   }, [uploading, onClose]);
 
+  // Snapshot of the seed values — lets us detect user edits so we can warn
+  // before Regenerate overwrites them.
+  const initialTitleRef = useRef(video.youtube_title || '');
+  const initialDescRef = useRef(video.youtube_description || '');
+  const initialTagsRef = useRef(parseTagsToString(video.youtube_tags));
+  const hasEdits = (
+    title !== initialTitleRef.current ||
+    description !== initialDescRef.current ||
+    tagsInput !== initialTagsRef.current
+  );
+
   async function handleRegenerate() {
+    if (hasEdits) {
+      const ok = window.confirm(
+        'This will overwrite your edits to the title, description, or tags with fresh AI output. Continue?'
+      );
+      if (!ok) return;
+    }
     setError('');
     setRegenerateMsg('');
     setRegenerating(true);
@@ -95,6 +112,11 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
       setTitle(result.title || '');
       setDescription(result.description || '');
       setTagsInput((result.tags || []).join(', '));
+      // The regenerated values are now the new "seed" — subsequent edits
+      // trigger the warning again.
+      initialTitleRef.current = result.title || '';
+      initialDescRef.current = result.description || '';
+      initialTagsRef.current = (result.tags || []).join(', ');
       setRegenerateMsg('Regenerated');
       setTimeout(() => setRegenerateMsg(''), 2500);
     } catch (e) {
@@ -111,6 +133,10 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
     if (!title.trim()) { setError('Title is required'); return; }
     if (title.length > 100) { setError('Title must be under 100 characters'); return; }
     if (description.length > 5000) { setError('Description must be under 5000 characters'); return; }
+    if (tags.join(',').length > 500) {
+      setError('Tags total over 500 characters — YouTube will reject this. Remove some tags.');
+      return;
+    }
 
     setUploading(true);
     try {
@@ -269,27 +295,48 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-stone-600 mb-1">
-                Tags <span className="font-normal text-stone-400">(comma-separated)</span>
-              </label>
-              <textarea
-                value={tagsInput}
-                onChange={(e) => setTagsInput(e.target.value)}
-                disabled={uploading}
-                rows={2}
-                className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 resize-y disabled:bg-stone-50"
-                placeholder="Quran, reflection, 2:255, ..."
-              />
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {parseStringToTags(tagsInput).map((tag, i) => (
-                  <span
-                    key={i}
-                    className="inline-block rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-600"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              {(() => {
+                const parsedTags = parseStringToTags(tagsInput);
+                // YouTube's server-side total limit across all tags (with
+                // internal comma separators) is 500 chars. We cap here too
+                // so the user knows before hitting Publish.
+                const tagBytes = parsedTags.join(',').length;
+                const overLimit = tagBytes > 500;
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-medium text-stone-600">
+                        Tags <span className="font-normal text-stone-400">(comma-separated)</span>
+                      </label>
+                      <span className={`text-[10px] ${overLimit ? 'text-red-500' : 'text-stone-400'}`}>
+                        {tagBytes} / 500 chars
+                      </span>
+                    </div>
+                    <textarea
+                      value={tagsInput}
+                      onChange={(e) => setTagsInput(e.target.value)}
+                      disabled={uploading}
+                      rows={2}
+                      className={`w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 resize-y disabled:bg-stone-50 ${
+                        overLimit
+                          ? 'border-red-300 focus:ring-red-400'
+                          : 'border-stone-300 focus:ring-stone-400'
+                      }`}
+                      placeholder="Quran, reflection, 2:255, ..."
+                    />
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {parsedTags.map((tag, i) => (
+                        <span
+                          key={i}
+                          className="inline-block rounded bg-stone-100 px-1.5 py-0.5 text-[10px] text-stone-600"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             <div>

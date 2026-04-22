@@ -3,7 +3,7 @@ import {
   getPipelines, createPipeline, updatePipeline, deletePipeline,
   generatePipelineVideo, getPipelineVideos, deletePipelineVideo,
   pipelineVideoDownloadUrl, getResources, getMusicTracks, getVoices, getReciters, getToken,
-  setPipelineVideoUploaded,
+  setPipelineVideoUploaded, getPreferences,
 } from '../../api/admin';
 import type { Pipeline, PipelineVideo, Resource, MusicTrack, Voice, Reciter } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
@@ -44,6 +44,7 @@ export default function PipelineManager() {
   const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [reciters, setReciters] = useState<Reciter[]>([]);
+  const [youtubeConfigured, setYoutubeConfigured] = useState(false);
 
   // Pipelines
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -79,12 +80,19 @@ export default function PipelineManager() {
       getVoices().catch(() => []),
       getReciters().catch(() => []),
       getPipelines().catch(() => []),
-    ]).then(([res, mus, voi, rec, pipes]) => {
+      getPreferences().catch(() => ({})),
+    ]).then(([res, mus, voi, rec, pipes, prefs]) => {
       setResources(res);
       setMusicTracks(mus);
       setVoices(voi);
       setReciters(rec);
       setPipelines(pipes);
+      // YouTube is "configured" when all three credential pieces are present.
+      // Channel ID is nice-to-have but OAuth itself works without it.
+      const p = prefs as Record<string, string | undefined>;
+      setYoutubeConfigured(
+        !!(p.youtube_client_id && p.youtube_client_secret && p.youtube_refresh_token),
+      );
 
       // Preselect based on ?lang= query param (set by AdminMedia cards)
       const params = new URLSearchParams(window.location.search);
@@ -761,6 +769,7 @@ export default function PipelineManager() {
                 onDelete={handleDeleteVideo}
                 onDownload={handleDownload}
                 onUploadedToggle={handleToggleUploaded}
+                youtubeConfigured={youtubeConfigured}
               />
             ))}
           </div>
@@ -811,11 +820,13 @@ function VideoCard({
   onDelete,
   onDownload,
   onUploadedToggle,
+  youtubeConfigured,
 }: {
   video: PipelineVideo;
   onDelete: (id: number) => void;
   onDownload: (v: PipelineVideo) => void;
   onUploadedToggle: (id: number, uploaded: boolean) => void;
+  youtubeConfigured: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sl = statusLabel(video.status);
@@ -885,8 +896,19 @@ function VideoCard({
           {video.status === 'complete' && (
             <button
               onClick={() => setShowUploadModal(true)}
-              className="text-xs font-medium text-red-600 hover:text-red-700 cursor-pointer"
-              title={uploaded ? 'Already uploaded — upload again' : 'Upload this video to YouTube'}
+              disabled={!youtubeConfigured}
+              className={`text-xs font-medium cursor-pointer disabled:cursor-not-allowed ${
+                youtubeConfigured
+                  ? 'text-red-600 hover:text-red-700'
+                  : 'text-stone-400 hover:text-stone-500'
+              }`}
+              title={
+                !youtubeConfigured
+                  ? 'YouTube not configured — set up credentials in Admin Settings → YouTube'
+                  : uploaded
+                  ? 'Already uploaded — upload again'
+                  : 'Upload this video to YouTube'
+              }
             >
               {uploaded ? 'Re-upload to YouTube' : 'Upload to YouTube'}
             </button>
