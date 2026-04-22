@@ -10,8 +10,9 @@ import AdminMusic from './AdminMusic';
 import ExplanationBuilder from './ExplanationBuilder';
 import GenerateExplanationVideo from './GenerateExplanationVideo';
 import PipelineManager from './PipelineManager';
+import SchedulerPage from './SchedulerPage';
 
-type AdminRoute = 'dashboard' | 'settings' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines';
+type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -23,6 +24,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/media\/generate-explanation\/?$/.test(path)) return 'generate-explanation';
   if (/^\/admin\/media\/pipelines\/?$/.test(path)) return 'pipelines';
   if (/^\/admin\/media\/?$/.test(path)) return 'media';
+  if (/^\/admin\/scheduler\/?$/.test(path)) return 'scheduler';
   if (/^\/admin\/settings\/?$/.test(path)) return 'settings';
   return 'dashboard';
 }
@@ -90,6 +92,12 @@ export default function AdminPage() {
               Media
             </a>
             <a
+              href="/admin/scheduler"
+              className={`text-sm ${route === 'scheduler' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              Scheduler
+            </a>
+            <a
               href="/admin/settings"
               className={`text-sm ${route === 'settings' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
             >
@@ -136,6 +144,7 @@ export default function AdminPage() {
           </div>
         )}
         {route === 'settings' && <AdminSettings />}
+        {route === 'scheduler' && <SchedulerPage />}
         {route === 'media' && <AdminMedia />}
         {route === 'recitations' && <VerseRecitations />}
         {route === 'resources' && <AdminResources />}

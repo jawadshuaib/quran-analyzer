@@ -65,7 +65,7 @@ function isKnownRoute(): boolean {
   if (/^\/settings\/?$/.test(path)) return true;
   if (/^\/developers\/?$/.test(path)) return true;
   if (/^\/methodology\/?$/.test(path)) return true;
-  if (/^\/admin(\/settings|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(path)) return true;
+  if (/^\/admin(\/settings|\/scheduler|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(path)) return true;
   return false;
 }
 
@@ -226,7 +226,7 @@ export default function App() {
     return <ApiPage />;
   }
 
-  if (/^\/admin(\/settings|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(currentPath)) {
+  if (/^\/admin(\/settings|\/scheduler|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(currentPath)) {
     return <AdminPage />;
   }
 

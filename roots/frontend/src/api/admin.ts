@@ -605,6 +605,8 @@ export interface PipelineVideo {
   error_message: string | null;
   youtube_title: string | null;
   youtube_description: string | null;
+  triggered_by: 'manual' | 'scheduler' | string;
+  uploaded_to_youtube: number;
   created_at: string;
   completed_at: string | null;
 }
@@ -707,6 +709,83 @@ export async function deletePipelineVideo(id: number): Promise<void> {
 
 export function pipelineVideoDownloadUrl(id: number): string {
   return `${BASE}/pipeline-videos/${id}/download`;
+}
+
+export async function setPipelineVideoUploaded(
+  id: number,
+  uploaded: boolean,
+): Promise<{ id: number; uploaded_to_youtube: boolean }> {
+  const res = await authFetch(`${BASE}/pipeline-videos/${id}/uploaded`, {
+    method: 'PUT',
+    body: JSON.stringify({ uploaded }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update upload flag');
+  return data;
+}
+
+// --------------- Pipeline scheduler ---------------
+
+export interface PipelineSchedule {
+  pipeline_id: number;
+  pipeline_name: string;
+  pipeline_language: 'english' | 'arabic' | string;
+  times: string[];            // ["HH:MM", ...] in server local time
+  max_runs_per_day: number;
+  enabled: boolean;
+  grace_minutes: number;
+  updated_at: string | null;
+}
+
+export interface PipelineScheduleRun {
+  id: number;
+  pipeline_id: number;
+  pipeline_name: string;
+  pipeline_language: string;
+  scheduled_time: string;
+  fired_at: string;
+  video_id: number | null;
+  status: 'fired' | 'skipped_cap' | 'skipped_active' | 'skipped_grace' | 'error' | string;
+  note: string | null;
+}
+
+export async function getPipelineSchedules(): Promise<PipelineSchedule[]> {
+  const res = await authFetch(`${BASE}/pipeline-schedules`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch schedules');
+  return data;
+}
+
+export async function savePipelineSchedule(
+  pipeline_id: number,
+  params: {
+    times: string[];
+    max_runs_per_day: number;
+    enabled: boolean;
+    grace_minutes: number;
+  },
+): Promise<PipelineSchedule> {
+  const res = await authFetch(`${BASE}/pipeline-schedules/${pipeline_id}`, {
+    method: 'PUT',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to save schedule');
+  return data;
+}
+
+export async function getPipelineScheduleRuns(opts: {
+  limit?: number;
+  pipeline_id?: number;
+} = {}): Promise<PipelineScheduleRun[]> {
+  const params = new URLSearchParams();
+  if (opts.limit) params.set('limit', String(opts.limit));
+  if (opts.pipeline_id) params.set('pipeline_id', String(opts.pipeline_id));
+  const qs = params.toString();
+  const res = await authFetch(`${BASE}/pipeline-schedule-runs${qs ? '?' + qs : ''}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch schedule runs');
+  return data;
 }
 
 // --------------- Auth ---------------

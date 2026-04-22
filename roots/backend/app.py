@@ -4111,7 +4111,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
 
@@ -7885,12 +7885,44 @@ def _ensure_pipeline_tables():
             ("manual_chapter", "INTEGER"),
             ("manual_ayah_start", "INTEGER"),
             ("manual_ayah_end", "INTEGER"),
+            # Scheduler integration
+            ("triggered_by", "TEXT DEFAULT 'manual'"),  # 'manual' | 'scheduler'
+            ("uploaded_to_youtube", "INTEGER NOT NULL DEFAULT 0"),
         ):
             try:
                 conn.execute(f"ALTER TABLE admin_pipeline_videos ADD COLUMN {col} {coltype}")
                 conn.commit()
             except Exception:
                 pass
+
+        # Pipeline scheduler — one config row per pipeline, audit log per fire
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pipeline_schedules (
+                pipeline_id INTEGER PRIMARY KEY REFERENCES admin_pipelines(id) ON DELETE CASCADE,
+                times TEXT NOT NULL DEFAULT '[]',
+                max_runs_per_day INTEGER NOT NULL DEFAULT 2,
+                enabled INTEGER NOT NULL DEFAULT 0,
+                grace_minutes INTEGER NOT NULL DEFAULT 30,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS pipeline_schedule_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pipeline_id INTEGER NOT NULL,
+                scheduled_time TEXT NOT NULL,
+                fired_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                video_id INTEGER,
+                status TEXT NOT NULL,
+                note TEXT
+            )
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_psr_pipeline_time
+            ON pipeline_schedule_runs (pipeline_id, scheduled_time)
+        """)
+        conn.commit()
         # Reset stuck jobs on startup
         conn.execute(
             "UPDATE admin_pipeline_videos SET status='failed', error_message='Server restarted' "
@@ -9162,6 +9194,376 @@ def _pipeline_generate_task(video_id):
         _update_pipeline_video_status(video_id, "failed", error="Video generation timed out")
     except Exception as e:
         _update_pipeline_video_status(video_id, "failed", error=str(e)[:500])
+
+
+# ---------------------------------------------------------------------------
+# Pipeline Scheduler
+#
+# One background daemon thread polls pipeline_schedules every 30s. For each
+# enabled schedule, for each scheduled time TODAY, if we're past the time but
+# within grace_minutes AND no pipeline_schedule_runs row already exists for
+# (pipeline_id, scheduled_time) — fire it, with appropriate guards.
+#
+# Guards:
+#   - Daily cap: count today's scheduler-triggered runs for this pipeline
+#     (manual runs don't count against the cap).
+#   - Active video: if the pipeline has a video in a non-terminal state,
+#     skip this fire (don't stack).
+#
+# Every fire — whether it produces a video or is skipped — writes an audit
+# row so the UI can show what happened and why.
+# ---------------------------------------------------------------------------
+
+def _start_scheduled_pipeline_run(pipeline_id: int) -> int:
+    """Launch a scheduler-triggered pipeline run. Returns the video_id.
+
+    Mirrors admin_pipeline_generate's INSERT + thread start, but marks the
+    row as triggered_by='scheduler' and skips the HTTP layer.
+    """
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "INSERT INTO admin_pipeline_videos (pipeline_id, status, triggered_by) "
+            "VALUES (?, 'pending', 'scheduler')",
+            (pipeline_id,),
+        )
+        conn.commit()
+        video_id = cur.lastrowid
+    finally:
+        conn.close()
+    t = threading.Thread(target=_pipeline_generate_task, args=(video_id,), daemon=True)
+    t.start()
+    return video_id
+
+
+def _scheduler_record_run(pipeline_id: int, scheduled_time: str, status: str,
+                          video_id: int | None = None, note: str | None = None):
+    """Insert (or ignore if duplicate) an audit row for a scheduled fire."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO pipeline_schedule_runs "
+            "(pipeline_id, scheduled_time, video_id, status, note) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (pipeline_id, scheduled_time, video_id, status, note),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _scheduler_tick():
+    """One pass of the scheduler loop. Safe to call repeatedly."""
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+
+    conn = get_db()
+    try:
+        schedules = conn.execute(
+            "SELECT s.pipeline_id, s.times, s.max_runs_per_day, s.enabled, s.grace_minutes, "
+            "       p.name AS pipeline_name "
+            "FROM pipeline_schedules s "
+            "JOIN admin_pipelines p ON p.id = s.pipeline_id "
+            "WHERE s.enabled = 1"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    for sched in schedules:
+        pid = sched["pipeline_id"]
+        try:
+            times = json.loads(sched["times"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            times = []
+        if not isinstance(times, list) or not times:
+            continue
+
+        grace = int(sched["grace_minutes"] or 30)
+        cap = int(sched["max_runs_per_day"] or 2)
+
+        for t_str in times:
+            if not isinstance(t_str, str) or not re.match(r"^\d{1,2}:\d{2}$", t_str):
+                continue
+            hh, mm = map(int, t_str.split(":"))
+            if not (0 <= hh <= 23 and 0 <= mm <= 59):
+                continue
+
+            sched_dt = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            scheduled_time_str = sched_dt.strftime("%Y-%m-%d %H:%M")
+
+            # Only consider times that have already passed today.
+            if now < sched_dt:
+                continue
+
+            # Past the grace window — won't backfill stale slots.
+            if now > sched_dt + timedelta(minutes=grace):
+                # Record a miss so the UI can show why nothing fired.
+                _scheduler_record_run(
+                    pid, scheduled_time_str, "skipped_grace",
+                    note=f"Past {grace}-minute grace window"
+                )
+                continue
+
+            # Already fired (or already recorded as a miss) — idempotent.
+            conn = get_db()
+            try:
+                existing = conn.execute(
+                    "SELECT id FROM pipeline_schedule_runs "
+                    "WHERE pipeline_id = ? AND scheduled_time = ?",
+                    (pid, scheduled_time_str),
+                ).fetchone()
+            finally:
+                conn.close()
+            if existing:
+                continue
+
+            # Daily cap — count only today's scheduler-triggered fires that
+            # actually started a video (status='fired'). Skipped runs don't
+            # count against the cap.
+            conn = get_db()
+            try:
+                today_count = conn.execute(
+                    "SELECT COUNT(*) AS c FROM pipeline_schedule_runs "
+                    "WHERE pipeline_id = ? AND status = 'fired' "
+                    "AND substr(scheduled_time, 1, 10) = ?",
+                    (pid, today_str),
+                ).fetchone()["c"]
+            finally:
+                conn.close()
+            if today_count >= cap:
+                _scheduler_record_run(
+                    pid, scheduled_time_str, "skipped_cap",
+                    note=f"Daily cap reached ({today_count}/{cap})"
+                )
+                continue
+
+            # Don't stack on top of an already-running video for this pipeline.
+            conn = get_db()
+            try:
+                active = conn.execute(
+                    "SELECT id FROM admin_pipeline_videos "
+                    "WHERE pipeline_id = ? AND status IN "
+                    "('pending','selecting_verses','polishing','generating_tts','rendering','generating_metadata') "
+                    "LIMIT 1",
+                    (pid,),
+                ).fetchone()
+            finally:
+                conn.close()
+            if active:
+                _scheduler_record_run(
+                    pid, scheduled_time_str, "skipped_active",
+                    note=f"Another video already running (#{active['id']})"
+                )
+                continue
+
+            # All guards clear — fire.
+            try:
+                video_id = _start_scheduled_pipeline_run(pid)
+                _scheduler_record_run(pid, scheduled_time_str, "fired", video_id=video_id)
+                print(f"[scheduler] Fired pipeline {pid} ({sched['pipeline_name']}) "
+                      f"for {scheduled_time_str} → video {video_id}")
+            except Exception as e:
+                _scheduler_record_run(
+                    pid, scheduled_time_str, "error",
+                    note=str(e)[:300]
+                )
+                print(f"[scheduler] ERROR firing pipeline {pid}: {e}")
+
+
+_scheduler_stop = threading.Event()
+
+
+def _scheduler_loop():
+    """Main scheduler daemon — ticks every 30 seconds."""
+    print("[scheduler] daemon started")
+    while not _scheduler_stop.is_set():
+        try:
+            _scheduler_tick()
+        except Exception as e:
+            print(f"[scheduler] tick error: {e}")
+        # Sleep in 5s chunks so shutdown can interrupt quickly.
+        for _ in range(6):
+            if _scheduler_stop.is_set():
+                return
+            time.sleep(5)
+
+
+try:
+    _scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
+    _scheduler_thread.start()
+except Exception as e:
+    print(f"WARNING: could not start scheduler daemon: {e}")
+
+
+# --------------- Admin: Pipeline Scheduler endpoints ---------------
+
+@app.route("/api/admin/pipeline-schedules", methods=["GET"])
+@admin_required
+def admin_list_pipeline_schedules():
+    """Return every pipeline with its schedule row (creating an empty default
+    if none exists yet)."""
+    conn = get_db()
+    try:
+        pipelines = conn.execute(
+            "SELECT id, name, language FROM admin_pipelines ORDER BY id"
+        ).fetchall()
+        out = []
+        for p in pipelines:
+            row = conn.execute(
+                "SELECT times, max_runs_per_day, enabled, grace_minutes, updated_at "
+                "FROM pipeline_schedules WHERE pipeline_id = ?",
+                (p["id"],),
+            ).fetchone()
+            if row:
+                try:
+                    times = json.loads(row["times"] or "[]")
+                except (json.JSONDecodeError, TypeError):
+                    times = []
+                out.append({
+                    "pipeline_id": p["id"],
+                    "pipeline_name": p["name"],
+                    "pipeline_language": p["language"],
+                    "times": times,
+                    "max_runs_per_day": row["max_runs_per_day"],
+                    "enabled": bool(row["enabled"]),
+                    "grace_minutes": row["grace_minutes"],
+                    "updated_at": row["updated_at"],
+                })
+            else:
+                out.append({
+                    "pipeline_id": p["id"],
+                    "pipeline_name": p["name"],
+                    "pipeline_language": p["language"],
+                    "times": [],
+                    "max_runs_per_day": 2,
+                    "enabled": False,
+                    "grace_minutes": 30,
+                    "updated_at": None,
+                })
+        return jsonify(out)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipeline-schedules/<int:pipeline_id>", methods=["PUT"])
+@admin_required
+def admin_upsert_pipeline_schedule(pipeline_id):
+    """Create or replace the schedule row for a pipeline."""
+    body = request.get_json(silent=True) or {}
+    times = body.get("times")
+    max_runs = body.get("max_runs_per_day", 2)
+    enabled = bool(body.get("enabled", False))
+    grace = int(body.get("grace_minutes", 30))
+
+    if not isinstance(times, list):
+        return jsonify({"error": "times must be a JSON array of 'HH:MM' strings"}), 400
+    cleaned: list[str] = []
+    for t in times:
+        if not isinstance(t, str):
+            continue
+        s = t.strip()
+        m = re.match(r"^(\d{1,2}):(\d{2})$", s)
+        if not m:
+            return jsonify({"error": f"invalid time format: {t!r} (expected HH:MM)"}), 400
+        h, mn = int(m.group(1)), int(m.group(2))
+        if not (0 <= h <= 23 and 0 <= mn <= 59):
+            return jsonify({"error": f"invalid time value: {t}"}), 400
+        cleaned.append(f"{h:02d}:{mn:02d}")
+    # De-duplicate while preserving order
+    seen: set[str] = set()
+    deduped = [t for t in cleaned if not (t in seen or seen.add(t))]
+
+    try:
+        max_runs = int(max_runs)
+    except (TypeError, ValueError):
+        return jsonify({"error": "max_runs_per_day must be an integer"}), 400
+    if not (1 <= max_runs <= 20):
+        return jsonify({"error": "max_runs_per_day must be between 1 and 20"}), 400
+    if not (1 <= grace <= 240):
+        return jsonify({"error": "grace_minutes must be between 1 and 240"}), 400
+
+    conn = get_db()
+    try:
+        pipe = conn.execute(
+            "SELECT id FROM admin_pipelines WHERE id = ?", (pipeline_id,)
+        ).fetchone()
+        if not pipe:
+            return jsonify({"error": "Pipeline not found"}), 404
+        conn.execute(
+            "INSERT INTO pipeline_schedules "
+            "(pipeline_id, times, max_runs_per_day, enabled, grace_minutes, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(pipeline_id) DO UPDATE SET "
+            "  times=excluded.times, "
+            "  max_runs_per_day=excluded.max_runs_per_day, "
+            "  enabled=excluded.enabled, "
+            "  grace_minutes=excluded.grace_minutes, "
+            "  updated_at=CURRENT_TIMESTAMP",
+            (pipeline_id, json.dumps(deduped), max_runs, 1 if enabled else 0, grace),
+        )
+        conn.commit()
+        return jsonify({
+            "pipeline_id": pipeline_id,
+            "times": deduped,
+            "max_runs_per_day": max_runs,
+            "enabled": enabled,
+            "grace_minutes": grace,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipeline-schedule-runs", methods=["GET"])
+@admin_required
+def admin_list_schedule_runs():
+    """Recent scheduler fires (or misses). Newest first."""
+    limit = min(max(request.args.get("limit", 50, type=int), 1), 500)
+    pipeline_id = request.args.get("pipeline_id", type=int)
+    conn = get_db()
+    try:
+        if pipeline_id:
+            rows = conn.execute(
+                "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language "
+                "FROM pipeline_schedule_runs r "
+                "JOIN admin_pipelines p ON p.id = r.pipeline_id "
+                "WHERE r.pipeline_id = ? ORDER BY r.fired_at DESC LIMIT ?",
+                (pipeline_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language "
+                "FROM pipeline_schedule_runs r "
+                "JOIN admin_pipelines p ON p.id = r.pipeline_id "
+                "ORDER BY r.fired_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipeline-videos/<int:video_id>/uploaded", methods=["PUT"])
+@admin_required
+def admin_set_video_uploaded(video_id):
+    """Toggle the uploaded_to_youtube flag on a pipeline video."""
+    body = request.get_json(silent=True) or {}
+    flag = 1 if bool(body.get("uploaded", False)) else 0
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM admin_pipeline_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Video not found"}), 404
+        conn.execute(
+            "UPDATE admin_pipeline_videos SET uploaded_to_youtube = ? WHERE id = ?",
+            (flag, video_id),
+        )
+        conn.commit()
+        return jsonify({"id": video_id, "uploaded_to_youtube": bool(flag)})
+    finally:
+        conn.close()
 
 
 # --------------- Legacy redirect ---------------
