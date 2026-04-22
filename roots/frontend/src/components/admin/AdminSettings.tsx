@@ -30,9 +30,26 @@ My Google account for YouTube: jawad.php@gmail.com
    https://www.googleapis.com/auth/youtube.upload
 
 5. Click "Authorize APIs". Google will show an account selector or consent screen.
-   - If jawad.php@gmail.com is listed as an already-signed-in account: click it, then on the consent screen click "Continue" / "Allow". Keep going without pausing.
-   - If only jawad.php@gmail.com is signed in and Google goes straight to the consent screen: click "Continue" / "Allow" and keep going.
-   - If jawad.php@gmail.com is NOT in the signed-in list, or Google asks for a password: PAUSE and tell me — I'll handle sign-in and then ask you to continue.
+
+   CRITICAL: I have MULTIPLE Google accounts signed in. You MUST authorize
+   jawad.php@gmail.com specifically — NOT whichever account appears first
+   or is marked as default. If you authorize the wrong account, uploads
+   will silently publish to the wrong YouTube channel.
+
+   - If an account picker appears with jawad.php@gmail.com listed: click
+     that specific entry, even if another account is listed first or has
+     a "default" marker.
+   - If Google skips the picker and the consent screen shows a different
+     email (check the top of the consent screen — the email is shown
+     there): DO NOT click Continue. Look for "Switch account", a back
+     arrow, or a small "not [email]?" link. Use it to return to the
+     picker and select jawad.php@gmail.com.
+   - Before clicking "Continue" / "Allow" on the consent screen, VERIFY
+     the email at the top of the consent screen is jawad.php@gmail.com.
+     If it's anything else, stop and switch account.
+   - If jawad.php@gmail.com isn't signed in at all, or a password prompt
+     appears: PAUSE and tell me — I'll handle sign-in and then ask you
+     to continue.
 
 6. After consent, Google redirects back to the Playground and "Step 2: Exchange authorization code for tokens" becomes active. Click that button.
 
