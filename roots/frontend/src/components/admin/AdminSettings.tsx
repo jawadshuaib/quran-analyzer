@@ -12,7 +12,10 @@ const YOUTUBE_AGENT_PROMPT = `I need to refresh my YouTube OAuth refresh token f
 
 My Google account for YouTube: jawad.php@gmail.com
 
-1. Open https://al-nuqta.com/admin/settings in a new tab. If prompted, I will sign in as admin. Scroll to the "YouTube" section. Read the "Client ID" and "Client Secret" values from the input fields. (The Client Secret may be masked — click the "Show" button next to it to reveal.)
+1. Open https://al-nuqta.com/admin/settings in a new tab.
+   - If the admin page loads directly (I'm already logged in): continue.
+   - If an admin login form appears: PAUSE and tell me — I'll enter my password.
+   Scroll to the "YouTube" section. Read the "Client ID" and "Client Secret" values from the input fields. The Client Secret is masked by default — click the "Show" button next to it to reveal the full value. If either field is empty, PAUSE and tell me — the one-time Google Cloud Console setup hasn't been done yet and this flow can't proceed until those credentials are in place.
 
 2. Open https://developers.google.com/oauthplayground in another tab.
 
@@ -27,10 +30,9 @@ My Google account for YouTube: jawad.php@gmail.com
    https://www.googleapis.com/auth/youtube.upload
 
 5. Click "Authorize APIs". Google will show an account selector or consent screen.
-   - If you see jawad.php@gmail.com listed as an already-signed-in account: click it, then on the consent screen click "Continue" / "Allow". Keep going without pausing.
-   - If Google asks "Choose an account" and jawad.php@gmail.com is NOT in the list: click "Use another account", but then PAUSE and tell me — I'll need to enter my password.
-   - If a password prompt appears: PAUSE and tell me — I'll enter it.
-   - Otherwise, approve the consent normally and continue.
+   - If jawad.php@gmail.com is listed as an already-signed-in account: click it, then on the consent screen click "Continue" / "Allow". Keep going without pausing.
+   - If only jawad.php@gmail.com is signed in and Google goes straight to the consent screen: click "Continue" / "Allow" and keep going.
+   - If jawad.php@gmail.com is NOT in the signed-in list, or Google asks for a password: PAUSE and tell me — I'll handle sign-in and then ask you to continue.
 
 6. After consent, Google redirects back to the Playground and "Step 2: Exchange authorization code for tokens" becomes active. Click that button.
 
