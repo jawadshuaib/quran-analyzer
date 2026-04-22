@@ -9809,7 +9809,10 @@ def _youtube_sanity_check(video_row) -> tuple[bool, str]:
                 "stream": False,
                 "options": {"temperature": 0.2},
             },
-            timeout=300,
+            # 90s is plenty for a yes/no decision. If a model takes longer,
+            # we'd rather abort and approve (since sanity is the safety net,
+            # not the gate).
+            timeout=90,
         )
         if resp.status_code != 200:
             return (True, f"Sanity check API error {resp.status_code}; proceeding")
@@ -9843,6 +9846,38 @@ def _youtube_upload_record_run(
             "VALUES (?, ?, ?, ?, ?)",
             (scheduled_time, video_id, youtube_video_id, status, note),
         )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _youtube_update_run_status(
+    scheduled_time: str,
+    status: str,
+    youtube_video_id: str | None = None,
+    note: str | None = None,
+):
+    """Update an existing run row (keyed by scheduled_time) with a new status.
+
+    Used by the async upload worker to transition from 'running' → final
+    outcome without creating a duplicate audit row.
+    """
+    conn = get_db()
+    try:
+        if youtube_video_id is not None:
+            conn.execute(
+                "UPDATE youtube_upload_runs "
+                "SET status = ?, youtube_video_id = ?, note = ?, fired_at = CURRENT_TIMESTAMP "
+                "WHERE scheduled_time = ?",
+                (status, youtube_video_id, note, scheduled_time),
+            )
+        else:
+            conn.execute(
+                "UPDATE youtube_upload_runs "
+                "SET status = ?, note = ?, fired_at = CURRENT_TIMESTAMP "
+                "WHERE scheduled_time = ?",
+                (status, note, scheduled_time),
+            )
         conn.commit()
     finally:
         conn.close()
@@ -9927,56 +9962,86 @@ def _youtube_upload_tick():
             )
             continue
 
-        # Sanity check
-        if sanity_enabled:
-            should_upload, reason = _youtube_sanity_check(vrow)
-            if not should_upload:
-                conn = get_db()
-                try:
-                    conn.execute(
-                        "UPDATE admin_pipeline_videos SET auto_upload_skipped = 1 WHERE id = ?",
-                        (vrow["id"],),
-                    )
-                    conn.commit()
-                finally:
-                    conn.close()
-                _youtube_upload_record_run(
-                    scheduled_time_str, "skipped_sanity",
-                    video_id=vrow["id"],
-                    note=reason,
-                )
-                print(f"[youtube-scheduler] video {vrow['id']} rejected by sanity: {reason}")
-                continue
-
-        # Upload
-        try:
-            result = _perform_youtube_upload(vrow["id"], privacy=privacy)
-        except Exception as e:
-            _youtube_upload_record_run(
-                scheduled_time_str, "error",
-                video_id=vrow["id"],
-                note=f"Exception: {str(e)[:300]}",
-            )
-            continue
-
-        if not result.get("ok"):
-            _youtube_upload_record_run(
-                scheduled_time_str, "error",
-                video_id=vrow["id"],
-                note=result.get("error", "unknown")[:500],
-            )
-            continue
-
+        # Claim the slot IMMEDIATELY with a placeholder row. This serves two
+        # purposes: (1) the UNIQUE index on scheduled_time prevents any other
+        # tick from double-firing this slot while we're running, and (2) the
+        # rest of the work (sanity + upload) can run in a background thread
+        # without blocking the daemon loop for minutes at a time.
         _youtube_upload_record_run(
-            scheduled_time_str, "uploaded",
+            scheduled_time_str, "running",
             video_id=vrow["id"],
-            youtube_video_id=result.get("youtube_video_id"),
-            note=f"Uploaded {privacy}",
+            note="Sanity check + upload in progress",
         )
-        print(
-            f"[youtube-scheduler] uploaded pipeline video {vrow['id']} → "
-            f"YT {result.get('youtube_video_id')} at {scheduled_time_str}"
-        )
+
+        def _do_sanity_and_upload(
+            scheduled_time_str: str = scheduled_time_str,
+            video_row_id: int = vrow["id"],
+            sanity_enabled: bool = sanity_enabled,
+            privacy: str = privacy,
+        ):
+            # Re-fetch the row inside the thread — the one from the outer
+            # scope is a Row object from a connection that's been closed.
+            conn_inner = get_db()
+            try:
+                vrow_inner = conn_inner.execute(
+                    "SELECT * FROM admin_pipeline_videos WHERE id = ?",
+                    (video_row_id,),
+                ).fetchone()
+            finally:
+                conn_inner.close()
+            if not vrow_inner:
+                _youtube_update_run_status(scheduled_time_str, "error",
+                                          note="Video disappeared mid-run")
+                return
+
+            # Sanity check
+            if sanity_enabled:
+                should_upload, reason = _youtube_sanity_check(vrow_inner)
+                if not should_upload:
+                    conn2 = get_db()
+                    try:
+                        conn2.execute(
+                            "UPDATE admin_pipeline_videos SET auto_upload_skipped = 1 WHERE id = ?",
+                            (video_row_id,),
+                        )
+                        conn2.commit()
+                    finally:
+                        conn2.close()
+                    _youtube_update_run_status(
+                        scheduled_time_str, "skipped_sanity",
+                        note=reason,
+                    )
+                    print(f"[youtube-scheduler] video {video_row_id} rejected by sanity: {reason}")
+                    return
+
+            # Upload
+            try:
+                result = _perform_youtube_upload(video_row_id, privacy=privacy)
+            except Exception as e:
+                _youtube_update_run_status(
+                    scheduled_time_str, "error",
+                    note=f"Exception: {str(e)[:300]}",
+                )
+                return
+
+            if not result.get("ok"):
+                _youtube_update_run_status(
+                    scheduled_time_str, "error",
+                    note=result.get("error", "unknown")[:500],
+                )
+                return
+
+            _youtube_update_run_status(
+                scheduled_time_str, "uploaded",
+                youtube_video_id=result.get("youtube_video_id"),
+                note=f"Uploaded {privacy}",
+            )
+            print(
+                f"[youtube-scheduler] uploaded pipeline video {video_row_id} → "
+                f"YT {result.get('youtube_video_id')} at {scheduled_time_str}"
+            )
+
+        threading.Thread(target=_do_sanity_and_upload, daemon=True).start()
 
 
 _scheduler_stop = threading.Event()
@@ -10264,6 +10329,30 @@ def admin_list_youtube_upload_runs():
             (limit,),
         ).fetchall()
         return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/pipeline-videos/<int:video_id>/clear-upload-skip", methods=["POST"])
+@admin_required
+def admin_clear_upload_skip(video_id):
+    """Clear the auto_upload_skipped flag so the YouTube scheduler will
+    reconsider this video on its next eligible slot. Useful after prompt
+    tuning or if a video was rejected by sanity check you think was wrong.
+    """
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM admin_pipeline_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Video not found"}), 404
+        conn.execute(
+            "UPDATE admin_pipeline_videos SET auto_upload_skipped = 0 WHERE id = ?",
+            (video_id,),
+        )
+        conn.commit()
+        return jsonify({"id": video_id, "auto_upload_skipped": False})
     finally:
         conn.close()
 

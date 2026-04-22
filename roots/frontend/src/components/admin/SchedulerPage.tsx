@@ -157,6 +157,7 @@ function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
     fired:            { label: 'Fired',              cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
     uploaded:         { label: 'Uploaded',           cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
+    running:          { label: 'Running',            cls: 'bg-blue-50 text-blue-700 border-blue-100' },
     skipped_cap:      { label: 'Skipped (cap)',      cls: 'bg-stone-50  text-stone-600   border-stone-200' },
     skipped_active:   { label: 'Skipped (active)',   cls: 'bg-stone-50 text-stone-600 border-stone-200' },
     skipped_grace:    { label: 'Skipped (grace)',    cls: 'bg-stone-50 text-stone-600 border-stone-200' },

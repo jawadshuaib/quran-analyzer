@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { isLoggedIn, verifyToken, clearToken, getPreferences } from '../../api/admin';
+import {
+  isLoggedIn, verifyToken, clearToken, getPreferences,
+  getYoutubeUploadSchedule,
+} from '../../api/admin';
 import AdminLogin from './AdminLogin';
 import AdminSettings from './AdminSettings';
 import AdminMedia from './AdminMedia';
@@ -174,8 +177,27 @@ function DashboardAlerts() {
   }[]>([]);
 
   useEffect(() => {
-    getPreferences().then((prefs) => {
+    Promise.all([
+      getPreferences(),
+      getYoutubeUploadSchedule().catch(() => null),
+    ]).then(([prefs, ytSchedule]) => {
       const out: typeof alerts = [];
+
+      // YouTube upload scheduler is enabled but credentials are incomplete.
+      // This is a silent-failure trap — scheduler fires, upload fails, user
+      // doesn't notice until days later. Surface it front and center.
+      if (ytSchedule?.enabled) {
+        const hasCreds = !!(prefs.youtube_client_id && prefs.youtube_client_secret && prefs.youtube_refresh_token);
+        if (!hasCreds) {
+          out.push({
+            severity: 'danger',
+            title: 'YouTube upload scheduler is enabled but credentials are missing',
+            body: 'The scheduler is set to auto-upload, but one or more of Client ID / Client Secret / Refresh Token is not saved. Every scheduled upload will fail silently until this is fixed.',
+            href: '/admin/settings',
+            hrefLabel: 'Set credentials',
+          });
+        }
+      }
 
       // YouTube refresh-token expiry
       const savedAt = prefs.youtube_refresh_token_saved_at;
