@@ -9834,13 +9834,60 @@ def admin_upload_pipeline_video_to_youtube(video_id):
     })
 
 
+# Metadata-regeneration state (process-local; single-admin use — no locking needed).
+# Keyed by video_id. One of:
+#   {"status": "running", "started_at": <epoch>}
+#   {"status": "done",    "title": "...", "description": "...", "tags": [...]}
+#   {"status": "error",   "error": "..."}
+_metadata_regen_state: dict[int, dict] = {}
+
+
+def _regenerate_metadata_task(video_id: int, verse_data: list):
+    """Background worker: regenerate metadata and persist, updating
+    _metadata_regen_state so the frontend can poll for completion."""
+    try:
+        title, description, tags = _generate_youtube_metadata(verse_data)
+        if not title and not description:
+            _metadata_regen_state[video_id] = {
+                "status": "error",
+                "error": "Metadata generator returned empty result",
+            }
+            return
+
+        conn = get_db()
+        try:
+            conn.execute(
+                "UPDATE admin_pipeline_videos SET "
+                "  youtube_title = ?, youtube_description = ?, youtube_tags = ? "
+                "WHERE id = ?",
+                (title or None, description or None, json.dumps(tags) if tags else None, video_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        _metadata_regen_state[video_id] = {
+            "status": "done",
+            "title": title,
+            "description": description,
+            "tags": tags,
+        }
+    except Exception as e:
+        _metadata_regen_state[video_id] = {"status": "error", "error": str(e)[:500]}
+
+
 @app.route("/api/admin/pipeline-videos/<int:video_id>/regenerate-metadata", methods=["POST"])
 @admin_required
 def admin_regenerate_pipeline_video_metadata(video_id):
-    """Re-run the Ollama metadata generator for an existing pipeline video.
+    """Start a background regenerate; return immediately with 202.
 
-    Useful when the original generation failed (e.g. transient cloud error) or
-    the user wants a fresh title/description/tags before uploading.
+    The Ollama metadata call can run 1-3 minutes with a thinking-capable
+    cloud model, which is longer than a typical proxy's read timeout.
+    Running synchronously would return HTML error pages from the proxy
+    before the endpoint finishes. Async + polling avoids that entirely.
+
+    Clients should poll GET /regenerate-metadata-status every 2-3s until
+    status is 'done' or 'error'.
     """
     conn = get_db()
     try:
@@ -9862,32 +9909,36 @@ def admin_regenerate_pipeline_video_metadata(video_id):
     if not verse_data:
         return jsonify({"error": "Video has no verse data to work from"}), 400
 
-    try:
-        title, description, tags = _generate_youtube_metadata(verse_data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 502
+    # Already running for this video? Let the existing task finish rather
+    # than spawn a duplicate.
+    existing = _metadata_regen_state.get(video_id)
+    if existing and existing.get("status") == "running":
+        return jsonify({"status": "running", "video_id": video_id}), 202
 
-    if not title and not description:
-        return jsonify({"error": "Metadata generator returned empty result"}), 502
+    _metadata_regen_state[video_id] = {"status": "running", "started_at": time.time()}
+    t = threading.Thread(
+        target=_regenerate_metadata_task,
+        args=(video_id, verse_data),
+        daemon=True,
+    )
+    t.start()
+    return jsonify({"status": "running", "video_id": video_id}), 202
 
-    conn = get_db()
-    try:
-        conn.execute(
-            "UPDATE admin_pipeline_videos SET "
-            "  youtube_title = ?, youtube_description = ?, youtube_tags = ? "
-            "WHERE id = ?",
-            (title or None, description or None, json.dumps(tags) if tags else None, video_id),
-        )
-        conn.commit()
-    finally:
-        conn.close()
 
-    return jsonify({
-        "video_id": video_id,
-        "youtube_title": title,
-        "youtube_description": description,
-        "youtube_tags": tags,
-    })
+@app.route("/api/admin/pipeline-videos/<int:video_id>/regenerate-metadata-status", methods=["GET"])
+@admin_required
+def admin_regenerate_pipeline_video_metadata_status(video_id):
+    """Poll the current state of a regenerate-metadata run."""
+    state = _metadata_regen_state.get(video_id)
+    if not state:
+        return jsonify({"status": "idle"})
+    resp = dict(state)
+    resp["video_id"] = video_id
+    # Clean up terminal states once the client has observed them,
+    # to avoid the dict growing unbounded.
+    if state.get("status") in ("done", "error"):
+        _metadata_regen_state.pop(video_id, None)
+    return jsonify(resp)
 
 
 # --------------- Legacy redirect ---------------

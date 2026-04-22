@@ -87,14 +87,19 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
     setRegenerateMsg('');
     setRegenerating(true);
     try {
-      const result = await regeneratePipelineVideoMetadata(video.id);
-      setTitle(result.youtube_title || '');
-      setDescription(result.youtube_description || '');
-      setTagsInput((result.youtube_tags || []).join(', '));
+      const result = await regeneratePipelineVideoMetadata(video.id, {
+        onProgress: (seconds) => {
+          setRegenerateMsg(`Thinking... ${seconds}s`);
+        },
+      });
+      setTitle(result.title || '');
+      setDescription(result.description || '');
+      setTagsInput((result.tags || []).join(', '));
       setRegenerateMsg('Regenerated');
       setTimeout(() => setRegenerateMsg(''), 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Metadata regeneration failed');
+      setRegenerateMsg('');
     } finally {
       setRegenerating(false);
     }

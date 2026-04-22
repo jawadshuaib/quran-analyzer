@@ -748,20 +748,73 @@ export async function uploadPipelineVideoToYouTube(
 
 export interface RegeneratedMetadata {
   video_id: number;
-  youtube_title: string;
-  youtube_description: string;
-  youtube_tags: string[];
+  title: string;
+  description: string;
+  tags: string[];
 }
 
+// Async regenerate with polling. The backend kicks off a thread and we
+// poll every 3 seconds until it's done or errors out. Works even when
+// the total wall-time exceeds proxy read timeouts.
 export async function regeneratePipelineVideoMetadata(
   id: number,
+  opts: { onProgress?: (elapsedSeconds: number) => void; signal?: AbortSignal } = {},
 ): Promise<RegeneratedMetadata> {
-  const res = await authFetch(`${BASE}/pipeline-videos/${id}/regenerate-metadata`, {
+  async function readJsonOrFail(res: Response, fallbackMsg: string) {
+    // Some proxies return HTML error pages — detect and surface a useful error
+    // instead of letting JSON.parse explode with "Unexpected token '<'".
+    const text = await res.text();
+    if (!text) {
+      throw new Error(res.ok ? 'Empty response from server' : `${fallbackMsg} (HTTP ${res.status})`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      if (text.trimStart().startsWith('<')) {
+        throw new Error(`${fallbackMsg} (server returned HTML — likely a proxy timeout or server error)`);
+      }
+      throw new Error(`${fallbackMsg}: ${text.slice(0, 200)}`);
+    }
+  }
+
+  // Kick off
+  const start = Date.now();
+  const kickoff = await authFetch(`${BASE}/pipeline-videos/${id}/regenerate-metadata`, {
     method: 'POST',
+    signal: opts.signal,
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Failed to regenerate metadata');
-  return data;
+  const kickoffData = await readJsonOrFail(kickoff, 'Failed to start regeneration');
+  if (!kickoff.ok) throw new Error(kickoffData.error || 'Failed to start regeneration');
+
+  // Poll
+  while (true) {
+    if (opts.signal?.aborted) throw new Error('Cancelled');
+    await new Promise((r) => setTimeout(r, 3000));
+    const statusRes = await authFetch(`${BASE}/pipeline-videos/${id}/regenerate-metadata-status`, {
+      signal: opts.signal,
+    });
+    const data = await readJsonOrFail(statusRes, 'Status poll failed');
+    if (!statusRes.ok) throw new Error(data.error || 'Status poll failed');
+
+    opts.onProgress?.(Math.round((Date.now() - start) / 1000));
+
+    if (data.status === 'done') {
+      return {
+        video_id: id,
+        title: data.title || '',
+        description: data.description || '',
+        tags: Array.isArray(data.tags) ? data.tags : [],
+      };
+    }
+    if (data.status === 'error') {
+      throw new Error(data.error || 'Metadata regeneration failed');
+    }
+    // status === 'running' or 'idle' → keep polling
+    // Safety cap at 10 minutes — way longer than any reasonable model call
+    if (Date.now() - start > 10 * 60 * 1000) {
+      throw new Error('Timed out waiting for metadata regeneration');
+    }
+  }
 }
 
 // --------------- Pipeline scheduler ---------------
