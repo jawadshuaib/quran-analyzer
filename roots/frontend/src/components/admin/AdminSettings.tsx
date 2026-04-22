@@ -320,6 +320,7 @@ function ElevenLabsSection() {
 function OllamaSection() {
   const [baseUrl, setBaseUrl] = useState('');
   const [model, setModel] = useState('');
+  const [metadataModel, setMetadataModel] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [masked, setMasked] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -329,6 +330,7 @@ function OllamaSection() {
     getPreferences().then((prefs) => {
       if (prefs.ollama_base_url) setBaseUrl(prefs.ollama_base_url);
       if (prefs.ollama_model) setModel(prefs.ollama_model);
+      if (prefs.ollama_metadata_model) setMetadataModel(prefs.ollama_metadata_model);
       if (prefs.ollama_api_key) setApiKey(prefs.ollama_api_key);
     });
   }, []);
@@ -340,6 +342,7 @@ function OllamaSection() {
       await savePreferences({
         ollama_base_url: baseUrl,
         ollama_model: model,
+        ollama_metadata_model: metadataModel,
         ollama_api_key: apiKey,
       });
       setMsg('Saved');
@@ -379,6 +382,25 @@ function OllamaSection() {
             className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
             placeholder="e.g. qwen3:14b"
           />
+          <p className="mt-1 text-xs text-stone-400">Default model used for all Ollama tasks.</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">
+            Metadata Model <span className="font-normal text-stone-400">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={metadataModel}
+            onChange={(e) => setMetadataModel(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="e.g. qwen3.5:397b-cloud"
+          />
+          <p className="mt-1 text-xs text-stone-400">
+            Override just for YouTube title/description/tags generation. Leave blank to use
+            the default model above. Recommended: <code className="px-1 bg-stone-100 rounded">qwen3.5:397b-cloud</code> —
+            its reasoning produces noticeably sharper descriptions than smaller models.
+          </p>
         </div>
 
         <div>

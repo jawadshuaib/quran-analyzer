@@ -8319,7 +8319,11 @@ def _gather_verse_root_insights(conn, verse_data):
 
 def _generate_youtube_metadata(verse_data):
     """Generate YouTube title, description, and tags via Ollama, enriched with
-    root-word insights. Returns (title, description, tags_list)."""
+    root-word insights. Returns (title, description, tags_list).
+
+    Uses `ollama_metadata_model` if set (recommended: qwen3.5:397b-cloud for
+    depth), otherwise falls back to the main `ollama_model`.
+    """
     conn = get_db()
     try:
         # Load Ollama settings from preferences
@@ -8330,7 +8334,8 @@ def _generate_youtube_metadata(verse_data):
             prefs[row["key"]] = row["value"]
 
         base_url = (prefs.get("ollama_base_url") or "http://localhost:11434").rstrip("/")
-        model = prefs.get("ollama_model") or ""
+        # Metadata model override takes precedence; falls back to the main model
+        model = (prefs.get("ollama_metadata_model") or prefs.get("ollama_model") or "").strip()
         api_key = prefs.get("ollama_api_key") or ""
 
         if not model:
@@ -8369,50 +8374,92 @@ def _generate_youtube_metadata(verse_data):
         verse_lines.append(f"- {v['chapter']}:{v['verse']}: \"{v['polished_text']}\"")
     verse_block = "\n".join(verse_lines)
 
+    system_prompt = (
+        "You are writing YouTube Shorts metadata for Qur'anic passages. Your job is to "
+        "produce titles and descriptions that are specific, insightful, and human — the "
+        "opposite of the generic spiritual AI slop that floods this genre.\n\n"
+        "Your reader is an educated, curious viewer scrolling past religious content. "
+        "The description is the ONE thing that might make them stop and actually watch."
+    )
+
     prompt = (
-        f"Generate a YouTube Shorts title and description for a Quran video featuring these verses:\n\n"
+        f"## Passage ({ref_string})\n\n"
         f"{verse_block}\n\n"
     )
 
     if root_insights:
-        prompt += f"Linguistic connections between these verses:\n{root_insights}\n\n"
+        prompt += f"## Root-word connections between these verses\n{root_insights}\n\n"
 
     prompt += (
-        f"TITLE RULES:\n"
-        f"- Must start with: \"{ref_string} | \"\n"
-        f"- After the pipe, add a short compelling phrase (4-8 words)\n"
-        f"- Total must be under 80 characters\n"
-        f"- No emojis\n\n"
-        f"DESCRIPTION RULES:\n"
-        f"- 1-2 sentences only\n"
-        f"- Be specific to these verses, not generic\n"
-        f"- If the root word data reveals an interesting connection, weave it in naturally\n"
-        f"- Sound human — like a thoughtful person wrote it, not AI\n"
-        f"- No hashtags, no \"In this video\", no calls to action\n\n"
-        f"TAGS RULES:\n"
-        f"- Return 8-12 YouTube tags as an array of short strings\n"
-        f"- Mix of: general ('Quran', 'Islam'), passage-specific ('{ref_string}'), and thematic tags\n"
-        f"  drawn from the actual content of these verses (e.g., 'patience', 'resurrection', 'gratitude')\n"
-        f"- Each tag should be 1-3 words, lowercase unless it's a proper noun\n"
-        f"- Include 'YouTube Shorts' and 'Quran Shorts' as two of the tags\n"
-        f"- No hashtags (#), no special characters\n\n"
-        f"Return ONLY valid JSON, nothing else:\n"
-        f"{{\"title\": \"...\", \"description\": \"...\", \"tags\": [\"tag1\", \"tag2\", ...]}}"
+        "## Output format\n\n"
+        "Return ONLY valid JSON, nothing else:\n"
+        f'{{"title": "...", "description": "...", "tags": ["tag1", "tag2", ...]}}\n\n'
+        "## Title rules\n"
+        f'- Must start with: "{ref_string} | "\n'
+        "- After the pipe, a 4-8 word phrase that names a specific tension, paradox,\n"
+        "  image, or turn in the passage. Not a summary of its theme.\n"
+        "- Under 80 characters total. No emojis.\n\n"
+        "## Description rules\n"
+        "- 2-3 short sentences. Roughly 200-400 characters total.\n"
+        "- Must deliver a SPECIFIC OBSERVATION the reader wouldn't get just from\n"
+        "  reading the translation. Something that reframes how they read the\n"
+        "  passage after seeing the video.\n"
+        "- Name the concrete thing — a word choice, a grammatical move, a reversal\n"
+        "  of expectation, a structural echo. Do NOT wave vaguely at 'powerful\n"
+        "  oaths' or 'deep reflection.'\n"
+        "- If a root-word connection genuinely illuminates the passage, name the\n"
+        "  English meaning and what shifts when you notice it — don't just drop\n"
+        "  the Arabic letters.\n"
+        "- Sound like a thoughtful human with something to say, not a content bot.\n"
+        "- BANNED opening phrases: 'This passage...', 'These verses...', 'In this...',\n"
+        "  'A reminder that...', 'Reflect on...', 'Explore...'\n"
+        "- BANNED filler words: powerful, profound, beautiful, majestic, timeless,\n"
+        "  deep reflection, divine promises, transformative.\n"
+        "- No hashtags. No calls to action. No 'watch this video'.\n\n"
+        "## Contrast — BAD vs GOOD for 89:1-5 (Al-Fajr opening oaths)\n\n"
+        'BAD: "Surah Al-Fajr opens with powerful oaths—by the dawn, ten nights,\n'
+        'and the night as it passes—connecting to the Arabic root ل ي ل meaning\n'
+        '\'night\' to emphasize that these Divine promises deserve deep reflection."\n'
+        '  — Generic ("powerful oaths", "deep reflection"), restates what the\n'
+        '    verses say, the root mention is decorative, tells me nothing new.\n\n'
+        'GOOD: "God swears five times in a row before making His point — and then\n'
+        'the point is delivered as a question, not a statement. Verse 6 opens\n'
+        'with \'Have you not seen...\', forcing the listener to arrive at the\n'
+        'conclusion themselves. The oaths are a setup, not the argument."\n'
+        '  — Names a specific structural move, notices what would surprise a\n'
+        '    careful reader, respects the reader\'s intelligence.\n\n'
+        "## Tags rules\n"
+        "- 8-12 YouTube tags as an array of short strings.\n"
+        f'- Mix: generic ("Quran", "Islam"), passage-specific ("{ref_string}"),\n'
+        "  and thematic tags drawn from the actual content (e.g. 'patience',\n"
+        "  'resurrection', 'gratitude' — pick what fits THIS passage).\n"
+        "- Each 1-3 words, lowercase unless a proper noun.\n"
+        "- Must include 'YouTube Shorts' and 'Quran Shorts'.\n"
+        "- No hashtags, no special characters.\n"
     )
 
     headers = {"Content-Type": "application/json"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
+    # Qwen3.5 and similar thinking-capable models accept a "think" flag to
+    # enable chain-of-thought reasoning before answering. Crucial for catching
+    # the subtle structural/grammatical hooks that separate insightful
+    # descriptions from generic ones. Non-thinking models ignore the flag.
     resp = requests.post(
         f"{base_url}/api/chat",
         headers=headers,
         json={
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt},
+            ],
             "stream": False,
+            "options": {"temperature": 0.7},
+            "think": True,
         },
-        timeout=120,
+        timeout=300,  # Thinking models run longer; metadata isn't a bottleneck
     )
 
     if resp.status_code != 200:
