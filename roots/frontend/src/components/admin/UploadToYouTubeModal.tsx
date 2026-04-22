@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { pipelineVideoDownloadUrl, uploadPipelineVideoToYouTube, getToken } from '../../api/admin';
+import {
+  pipelineVideoDownloadUrl,
+  uploadPipelineVideoToYouTube,
+  regeneratePipelineVideoMetadata,
+  getToken,
+} from '../../api/admin';
 import type { PipelineVideo } from '../../api/admin';
 
 interface Props {
@@ -26,6 +31,8 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
   const [loadingVideo, setLoadingVideo] = useState(true);
 
   const [uploading, setUploading] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+  const [regenerateMsg, setRegenerateMsg] = useState('');
   const [error, setError] = useState('');
   const [done, setDone] = useState<{ youtube_video_id: string; youtube_url: string } | null>(null);
   const blobUrlRef = useRef<string | null>(null);
@@ -74,6 +81,24 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [uploading, onClose]);
+
+  async function handleRegenerate() {
+    setError('');
+    setRegenerateMsg('');
+    setRegenerating(true);
+    try {
+      const result = await regeneratePipelineVideoMetadata(video.id);
+      setTitle(result.youtube_title || '');
+      setDescription(result.youtube_description || '');
+      setTagsInput((result.youtube_tags || []).join(', '));
+      setRegenerateMsg('Regenerated');
+      setTimeout(() => setRegenerateMsg(''), 2500);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Metadata regeneration failed');
+    } finally {
+      setRegenerating(false);
+    }
+  }
 
   async function handlePublish() {
     setError('');
@@ -184,6 +209,26 @@ export default function UploadToYouTubeModal({ video, onClose, onUploaded }: Pro
 
           {/* Form */}
           <div className="space-y-4">
+            {/* Regenerate metadata — replaces title/description/tags with fresh AI output */}
+            <div className="flex items-center justify-between gap-2 rounded-lg bg-stone-50 border border-stone-100 px-3 py-2">
+              <span className="text-xs text-stone-500">
+                Regenerate title, description, and tags with the AI metadata model.
+              </span>
+              <div className="flex items-center gap-2">
+                {regenerateMsg && (
+                  <span className="text-[10px] text-emerald-600">{regenerateMsg}</span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleRegenerate}
+                  disabled={regenerating || uploading}
+                  className="px-3 py-1 rounded-md border border-stone-300 bg-white text-xs font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {regenerating ? 'Regenerating...' : 'Regenerate Metadata'}
+                </button>
+              </div>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-medium text-stone-600">Title</label>

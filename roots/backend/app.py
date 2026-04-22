@@ -8334,7 +8334,10 @@ def _generate_youtube_metadata(verse_data):
         api_key = prefs.get("ollama_api_key") or ""
 
         if not model:
-            return ("", "", [])
+            raise RuntimeError(
+                "Ollama model not configured — open Admin Settings → Ollama "
+                "and fill in Base URL, Model, and (for cloud) API Key."
+            )
 
         # Gather root word insights
         root_insights = _gather_verse_root_insights(conn, verse_data)
@@ -9781,6 +9784,62 @@ def admin_upload_pipeline_video_to_youtube(video_id):
         "youtube_video_id": yt_video_id,
         "youtube_url": f"https://youtube.com/watch?v={yt_video_id}" if yt_video_id else None,
         "privacy": privacy,
+    })
+
+
+@app.route("/api/admin/pipeline-videos/<int:video_id>/regenerate-metadata", methods=["POST"])
+@admin_required
+def admin_regenerate_pipeline_video_metadata(video_id):
+    """Re-run the Ollama metadata generator for an existing pipeline video.
+
+    Useful when the original generation failed (e.g. transient cloud error) or
+    the user wants a fresh title/description/tags before uploading.
+    """
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT verse_data, status FROM admin_pipeline_videos WHERE id = ?",
+            (video_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Video not found"}), 404
+        if row["status"] != "complete":
+            return jsonify({"error": "Video must be complete before regenerating metadata"}), 400
+        try:
+            verse_data = json.loads(row["verse_data"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            verse_data = []
+    finally:
+        conn.close()
+
+    if not verse_data:
+        return jsonify({"error": "Video has no verse data to work from"}), 400
+
+    try:
+        title, description, tags = _generate_youtube_metadata(verse_data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+    if not title and not description:
+        return jsonify({"error": "Metadata generator returned empty result"}), 502
+
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE admin_pipeline_videos SET "
+            "  youtube_title = ?, youtube_description = ?, youtube_tags = ? "
+            "WHERE id = ?",
+            (title or None, description or None, json.dumps(tags) if tags else None, video_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({
+        "video_id": video_id,
+        "youtube_title": title,
+        "youtube_description": description,
+        "youtube_tags": tags,
     })
 
 

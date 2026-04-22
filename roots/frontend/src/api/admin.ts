@@ -746,6 +746,24 @@ export async function uploadPipelineVideoToYouTube(
   return data;
 }
 
+export interface RegeneratedMetadata {
+  video_id: number;
+  youtube_title: string;
+  youtube_description: string;
+  youtube_tags: string[];
+}
+
+export async function regeneratePipelineVideoMetadata(
+  id: number,
+): Promise<RegeneratedMetadata> {
+  const res = await authFetch(`${BASE}/pipeline-videos/${id}/regenerate-metadata`, {
+    method: 'POST',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to regenerate metadata');
+  return data;
+}
+
 // --------------- Pipeline scheduler ---------------
 
 export interface PipelineSchedule {
