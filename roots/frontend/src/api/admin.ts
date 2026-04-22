@@ -881,6 +881,60 @@ export async function getPipelineScheduleRuns(opts: {
   return data;
 }
 
+// --------------- YouTube upload scheduler ---------------
+
+export interface YoutubeUploadSchedule {
+  enabled: boolean;
+  times: string[];
+  grace_minutes: number;
+  sanity_check_enabled: boolean;
+  privacy: 'public' | 'unlisted' | 'private';
+  updated_at: string | null;
+}
+
+export interface YoutubeUploadRun {
+  id: number;
+  scheduled_time: string;
+  fired_at: string;
+  video_id: number | null;
+  youtube_video_id: string | null;
+  status: 'uploaded' | 'skipped_no_videos' | 'skipped_sanity'
+        | 'skipped_grace' | 'error' | string;
+  note: string | null;
+}
+
+export async function getYoutubeUploadSchedule(): Promise<YoutubeUploadSchedule> {
+  const res = await authFetch(`${BASE}/youtube-upload-schedule`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch YouTube upload schedule');
+  return data;
+}
+
+export async function saveYoutubeUploadSchedule(
+  params: {
+    enabled: boolean;
+    times: string[];
+    grace_minutes: number;
+    sanity_check_enabled: boolean;
+    privacy: 'public' | 'unlisted' | 'private';
+  },
+): Promise<YoutubeUploadSchedule> {
+  const res = await authFetch(`${BASE}/youtube-upload-schedule`, {
+    method: 'PUT',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to save schedule');
+  return data;
+}
+
+export async function getYoutubeUploadRuns(limit = 50): Promise<YoutubeUploadRun[]> {
+  const res = await authFetch(`${BASE}/youtube-upload-runs?limit=${limit}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch runs');
+  return data;
+}
+
 // --------------- Auth ---------------
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {

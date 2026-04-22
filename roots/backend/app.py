@@ -9660,6 +9660,325 @@ def _scheduler_tick():
                 print(f"[scheduler] ERROR firing pipeline {pid}: {e}")
 
 
+# ---------------------------------------------------------------------------
+# YouTube Upload Scheduler
+#
+# Runs inside the same daemon loop as the pipeline scheduler. For each
+# configured time slot today, if we're past it + within the grace window and
+# haven't already fired that slot, try to upload the oldest eligible pipeline
+# video. Eligible = status 'complete' + uploaded_to_youtube = 0 +
+# auto_upload_skipped = 0 + triggered_by = 'scheduler' (only auto-generated
+# videos auto-upload; manual picks stay manual).
+#
+# Before uploading, runs an Ollama sanity check asking "is this video worth
+# uploading?" — if the model says no, the video is marked auto_upload_skipped
+# and the slot records skipped_sanity. If Ollama isn't configured or the check
+# errors, we default to uploading (errors on the side of shipping, since the
+# admin already blessed the video when it was generated).
+# ---------------------------------------------------------------------------
+
+
+def _ensure_youtube_upload_tables():
+    conn = get_db()
+    try:
+        # Per-video skip flag for sanity-rejected videos (idempotent migration)
+        try:
+            conn.execute(
+                "ALTER TABLE admin_pipeline_videos "
+                "ADD COLUMN auto_upload_skipped INTEGER NOT NULL DEFAULT 0"
+            )
+            conn.commit()
+        except Exception:
+            pass
+        # Singleton schedule config: single row with id=1
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS youtube_upload_schedule (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                enabled INTEGER NOT NULL DEFAULT 0,
+                times TEXT NOT NULL DEFAULT '["09:00","12:00","15:00","18:00","21:00"]',
+                grace_minutes INTEGER NOT NULL DEFAULT 30,
+                sanity_check_enabled INTEGER NOT NULL DEFAULT 1,
+                privacy TEXT NOT NULL DEFAULT 'public',
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute(
+            "INSERT OR IGNORE INTO youtube_upload_schedule (id) VALUES (1)"
+        )
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS youtube_upload_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scheduled_time TEXT NOT NULL,
+                fired_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                video_id INTEGER,
+                youtube_video_id TEXT,
+                status TEXT NOT NULL,
+                note TEXT
+            )
+        """)
+        conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_yur_scheduled_time
+            ON youtube_upload_runs (scheduled_time)
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+try:
+    _ensure_youtube_upload_tables()
+except Exception as e:
+    print(f"WARNING: youtube upload tables setup failed: {e}")
+
+
+def _youtube_sanity_check(video_row) -> tuple[bool, str]:
+    """Ask Ollama whether this video is worth uploading.
+
+    Returns (should_upload, reason). If Ollama isn't configured or errors,
+    defaults to True (with a note) — admin already blessed the video by
+    having the pipeline produce it; we don't want the sanity check to become
+    a hard dependency that blocks all uploads if Ollama is down.
+    """
+    title = (video_row["youtube_title"] or "").strip()
+    description = (video_row["youtube_description"] or "").strip()
+    try:
+        tag_list = json.loads(video_row["youtube_tags"] or "[]")
+    except (json.JSONDecodeError, TypeError):
+        tag_list = []
+    try:
+        verses = json.loads(video_row["verse_data"] or "[]")
+    except (json.JSONDecodeError, TypeError):
+        verses = []
+
+    # Summarise verses for the prompt
+    verse_lines = []
+    passage_ref = ""
+    for v in verses:
+        passage_ref = v.get("passage_ref") or v.get("ref") or passage_ref
+        polished = v.get("polished_text") or v.get("original_translation") or ""
+        verse_lines.append(f"  {v.get('chapter')}:{v.get('verse')}: {polished}")
+    verse_block = "\n".join(verse_lines) or "(no verse data)"
+
+    conn = get_db()
+    try:
+        prefs: dict[str, str] = {}
+        for row in conn.execute(
+            "SELECT key, value FROM admin_preferences WHERE key LIKE 'ollama_%'"
+        ).fetchall():
+            prefs[row["key"]] = row["value"]
+    finally:
+        conn.close()
+
+    base_url = (prefs.get("ollama_base_url") or "http://localhost:11434").rstrip("/")
+    model = (prefs.get("ollama_metadata_model") or prefs.get("ollama_model") or "").strip()
+    api_key = prefs.get("ollama_api_key") or ""
+
+    if not model:
+        return (True, "Ollama not configured — sanity check skipped")
+
+    prompt = (
+        "You are doing a final quality check before a Quran Shorts video is uploaded "
+        "to YouTube. Reject ONLY if there's a clear problem — default to approving.\n\n"
+        f"Passage: {passage_ref or '(unknown)'}\n"
+        f"Title: {title or '(none)'}\n"
+        f"Description: {description or '(none)'}\n"
+        f"Tags: {', '.join(tag_list) if tag_list else '(none)'}\n\n"
+        f"Polished verses shown in the video:\n{verse_block}\n\n"
+        "Reject if any of these are clearly wrong:\n"
+        "- Title is broken, empty, or generic spiritual filler (e.g. 'Reflect on divine promises')\n"
+        "- Description restates the translation without adding a specific insight\n"
+        "- Tags are empty or nonsensical\n"
+        "- Polished verse text looks garbled, truncated, or contains raw markup/brackets\n"
+        "- The passage selection feels incoherent — verses don't form a meaningful unit\n\n"
+        "Approve if the content is thoughtful and specific, even if you personally would\n"
+        "phrase it differently. Err toward approving.\n\n"
+        "Answer with JSON only:\n"
+        '{"upload": true or false, "reason": "<one short sentence>"}'
+    )
+
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    try:
+        resp = requests.post(
+            f"{base_url}/api/chat",
+            headers=headers,
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "options": {"temperature": 0.2},
+            },
+            timeout=300,
+        )
+        if resp.status_code != 200:
+            return (True, f"Sanity check API error {resp.status_code}; proceeding")
+        content = resp.json().get("message", {}).get("content", "")
+        content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        content = re.sub(r"^```(?:json)?\s*\n?", "", content.strip())
+        content = re.sub(r"\n?```\s*$", "", content.strip())
+        match = re.search(r"\{.*\}", content, re.DOTALL)
+        if not match:
+            return (True, "Sanity check response unparseable; proceeding")
+        obj = json.loads(match.group())
+        upload = bool(obj.get("upload", True))
+        reason = (obj.get("reason") or "").strip()[:300]
+        return (upload, reason or ("Approved" if upload else "Rejected"))
+    except Exception as e:
+        return (True, f"Sanity check error: {str(e)[:200]} — proceeding")
+
+
+def _youtube_upload_record_run(
+    scheduled_time: str,
+    status: str,
+    video_id: int | None = None,
+    youtube_video_id: str | None = None,
+    note: str | None = None,
+):
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO youtube_upload_runs "
+            "(scheduled_time, video_id, youtube_video_id, status, note) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (scheduled_time, video_id, youtube_video_id, status, note),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _youtube_upload_tick():
+    """One pass of the YouTube upload scheduler. Idempotent per slot."""
+    from datetime import datetime, timedelta
+    now = datetime.now()
+
+    conn = get_db()
+    try:
+        sched = conn.execute(
+            "SELECT enabled, times, grace_minutes, sanity_check_enabled, privacy "
+            "FROM youtube_upload_schedule WHERE id = 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    if not sched or not sched["enabled"]:
+        return
+
+    try:
+        times = json.loads(sched["times"] or "[]")
+    except (json.JSONDecodeError, TypeError):
+        times = []
+    if not isinstance(times, list) or not times:
+        return
+
+    grace = int(sched["grace_minutes"] or 30)
+    sanity_enabled = bool(sched["sanity_check_enabled"])
+    privacy = (sched["privacy"] or "public").lower()
+    if privacy not in ("public", "unlisted", "private"):
+        privacy = "public"
+
+    for t_str in times:
+        if not isinstance(t_str, str) or not re.match(r"^\d{1,2}:\d{2}$", t_str):
+            continue
+        hh, mm = map(int, t_str.split(":"))
+        if not (0 <= hh <= 23 and 0 <= mm <= 59):
+            continue
+        sched_dt = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        scheduled_time_str = sched_dt.strftime("%Y-%m-%d %H:%M")
+
+        if now < sched_dt:
+            continue
+        if now > sched_dt + timedelta(minutes=grace):
+            _youtube_upload_record_run(
+                scheduled_time_str, "skipped_grace",
+                note=f"Past {grace}-minute grace window",
+            )
+            continue
+
+        # Idempotence
+        conn = get_db()
+        try:
+            existing = conn.execute(
+                "SELECT id FROM youtube_upload_runs WHERE scheduled_time = ?",
+                (scheduled_time_str,),
+            ).fetchone()
+        finally:
+            conn.close()
+        if existing:
+            continue
+
+        # Find oldest eligible video
+        conn = get_db()
+        try:
+            vrow = conn.execute(
+                "SELECT * FROM admin_pipeline_videos "
+                "WHERE status = 'complete' "
+                "  AND uploaded_to_youtube = 0 "
+                "  AND auto_upload_skipped = 0 "
+                "  AND triggered_by = 'scheduler' "
+                "ORDER BY created_at ASC LIMIT 1"
+            ).fetchone()
+        finally:
+            conn.close()
+        if not vrow:
+            _youtube_upload_record_run(
+                scheduled_time_str, "skipped_no_videos",
+                note="No eligible scheduler-generated videos to upload",
+            )
+            continue
+
+        # Sanity check
+        if sanity_enabled:
+            should_upload, reason = _youtube_sanity_check(vrow)
+            if not should_upload:
+                conn = get_db()
+                try:
+                    conn.execute(
+                        "UPDATE admin_pipeline_videos SET auto_upload_skipped = 1 WHERE id = ?",
+                        (vrow["id"],),
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+                _youtube_upload_record_run(
+                    scheduled_time_str, "skipped_sanity",
+                    video_id=vrow["id"],
+                    note=reason,
+                )
+                print(f"[youtube-scheduler] video {vrow['id']} rejected by sanity: {reason}")
+                continue
+
+        # Upload
+        try:
+            result = _perform_youtube_upload(vrow["id"], privacy=privacy)
+        except Exception as e:
+            _youtube_upload_record_run(
+                scheduled_time_str, "error",
+                video_id=vrow["id"],
+                note=f"Exception: {str(e)[:300]}",
+            )
+            continue
+
+        if not result.get("ok"):
+            _youtube_upload_record_run(
+                scheduled_time_str, "error",
+                video_id=vrow["id"],
+                note=result.get("error", "unknown")[:500],
+            )
+            continue
+
+        _youtube_upload_record_run(
+            scheduled_time_str, "uploaded",
+            video_id=vrow["id"],
+            youtube_video_id=result.get("youtube_video_id"),
+            note=f"Uploaded {privacy}",
+        )
+        print(
+            f"[youtube-scheduler] uploaded pipeline video {vrow['id']} → "
+            f"YT {result.get('youtube_video_id')} at {scheduled_time_str}"
+        )
+
+
 _scheduler_stop = threading.Event()
 
 
@@ -9671,6 +9990,10 @@ def _scheduler_loop():
             _scheduler_tick()
         except Exception as e:
             print(f"[scheduler] tick error: {e}")
+        try:
+            _youtube_upload_tick()
+        except Exception as e:
+            print(f"[youtube-scheduler] tick error: {e}")
         # Sleep in 5s chunks so shutdown can interrupt quickly.
         for _ in range(6):
             if _scheduler_stop.is_set():
@@ -9832,6 +10155,119 @@ def admin_list_schedule_runs():
         conn.close()
 
 
+# --------------- Admin: YouTube Upload Scheduler endpoints ---------------
+
+@app.route("/api/admin/youtube-upload-schedule", methods=["GET"])
+@admin_required
+def admin_get_youtube_upload_schedule():
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT enabled, times, grace_minutes, sanity_check_enabled, "
+            "       privacy, updated_at "
+            "FROM youtube_upload_schedule WHERE id = 1"
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row:
+        return jsonify({
+            "enabled": False,
+            "times": ["09:00", "12:00", "15:00", "18:00", "21:00"],
+            "grace_minutes": 30,
+            "sanity_check_enabled": True,
+            "privacy": "public",
+            "updated_at": None,
+        })
+    try:
+        times = json.loads(row["times"] or "[]")
+    except (json.JSONDecodeError, TypeError):
+        times = []
+    return jsonify({
+        "enabled": bool(row["enabled"]),
+        "times": times,
+        "grace_minutes": row["grace_minutes"],
+        "sanity_check_enabled": bool(row["sanity_check_enabled"]),
+        "privacy": row["privacy"],
+        "updated_at": row["updated_at"],
+    })
+
+
+@app.route("/api/admin/youtube-upload-schedule", methods=["PUT"])
+@admin_required
+def admin_save_youtube_upload_schedule():
+    body = request.get_json(silent=True) or {}
+    times = body.get("times")
+    grace = int(body.get("grace_minutes", 30))
+    sanity = bool(body.get("sanity_check_enabled", True))
+    enabled = bool(body.get("enabled", False))
+    privacy = (body.get("privacy") or "public").lower()
+
+    if not isinstance(times, list):
+        return jsonify({"error": "times must be a JSON array of 'HH:MM' strings"}), 400
+    if privacy not in ("public", "unlisted", "private"):
+        return jsonify({"error": "privacy must be public, unlisted, or private"}), 400
+    if not (1 <= grace <= 240):
+        return jsonify({"error": "grace_minutes must be between 1 and 240"}), 400
+
+    cleaned: list[str] = []
+    for t in times:
+        if not isinstance(t, str):
+            continue
+        s = t.strip()
+        m = re.match(r"^(\d{1,2}):(\d{2})$", s)
+        if not m:
+            return jsonify({"error": f"invalid time format: {t!r} (expected HH:MM)"}), 400
+        h, mn = int(m.group(1)), int(m.group(2))
+        if not (0 <= h <= 23 and 0 <= mn <= 59):
+            return jsonify({"error": f"invalid time value: {t}"}), 400
+        cleaned.append(f"{h:02d}:{mn:02d}")
+    # De-duplicate, sorted
+    cleaned = sorted(set(cleaned))
+
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO youtube_upload_schedule "
+            "(id, enabled, times, grace_minutes, sanity_check_enabled, privacy, updated_at) "
+            "VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) "
+            "ON CONFLICT(id) DO UPDATE SET "
+            "  enabled=excluded.enabled, "
+            "  times=excluded.times, "
+            "  grace_minutes=excluded.grace_minutes, "
+            "  sanity_check_enabled=excluded.sanity_check_enabled, "
+            "  privacy=excluded.privacy, "
+            "  updated_at=CURRENT_TIMESTAMP",
+            (1 if enabled else 0, json.dumps(cleaned), grace,
+             1 if sanity else 0, privacy),
+        )
+        conn.commit()
+        return jsonify({
+            "enabled": enabled,
+            "times": cleaned,
+            "grace_minutes": grace,
+            "sanity_check_enabled": sanity,
+            "privacy": privacy,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/youtube-upload-runs", methods=["GET"])
+@admin_required
+def admin_list_youtube_upload_runs():
+    """Recent YouTube upload fires. Newest first."""
+    limit = min(max(request.args.get("limit", 50, type=int), 1), 500)
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM youtube_upload_runs ORDER BY fired_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/pipeline-videos/<int:video_id>/uploaded", methods=["PUT"])
 @admin_required
 def admin_set_video_uploaded(video_id):
@@ -9909,15 +10345,21 @@ def _youtube_get_access_token() -> str:
 
 @app.route("/api/admin/pipeline-videos/<int:video_id>/upload", methods=["POST"])
 @admin_required
-def admin_upload_pipeline_video_to_youtube(video_id):
-    """Upload a completed pipeline video to YouTube via the Data API v3.
+def _perform_youtube_upload(
+    video_id: int,
+    title: str | None = None,
+    description: str | None = None,
+    tags: list[str] | None = None,
+    privacy: str = "public",
+) -> dict:
+    """Core upload logic shared by the HTTP endpoint and the YouTube upload
+    scheduler. Reads the video row, uploads via YouTube Data API v3, persists
+    the outcome.
 
-    Body (all optional — falls back to stored values on the video row):
-      { "title": "...", "description": "...", "tags": [...],
-        "privacy": "public" | "unlisted" | "private" }
+    Returns a dict with one of:
+      {"ok": True, "video_id": ..., "youtube_video_id": "...", "youtube_url": "...", "privacy": "..."}
+      {"ok": False, "error": "...", "status": 400|404|502}
     """
-    body = request.get_json(silent=True) or {}
-
     conn = get_db()
     try:
         row = conn.execute(
@@ -9925,70 +10367,60 @@ def admin_upload_pipeline_video_to_youtube(video_id):
             (video_id,),
         ).fetchone()
         if not row or not row["filename"]:
-            return jsonify({"error": "Video not found or not complete"}), 404
+            return {"ok": False, "error": "Video not found or not complete", "status": 404}
         filepath = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
         if not os.path.isfile(filepath):
-            return jsonify({"error": "Video file missing on disk"}), 404
+            return {"ok": False, "error": "Video file missing on disk", "status": 404}
 
-        # Resolve title/description/tags: request body takes precedence, then
-        # the stored columns, then blank.
-        title = (body.get("title") or row["youtube_title"] or f"Pipeline video {video_id}").strip()[:100]
-        description = (body.get("description") or row["youtube_description"] or "").strip()[:5000]
+        # Resolve metadata: caller overrides > stored columns > blank fallback
+        final_title = (title or row["youtube_title"] or f"Pipeline video {video_id}").strip()[:100]
+        final_description = (description or row["youtube_description"] or "").strip()[:5000]
 
-        body_tags = body.get("tags")
-        if isinstance(body_tags, list):
-            tags_in = body_tags
-        else:
+        if tags is None:
             try:
                 tags_in = json.loads(row["youtube_tags"] or "[]")
             except (json.JSONDecodeError, TypeError):
                 tags_in = []
-        tags: list[str] = []
+        else:
+            tags_in = tags
+
+        final_tags: list[str] = []
         for t in tags_in or []:
             if not isinstance(t, str):
                 continue
-            cleaned = t.strip().lstrip("#")[:100]  # YouTube caps each tag at ~100 chars
-            if cleaned and cleaned not in tags:
-                tags.append(cleaned)
-            if len(tags) >= 15:
+            cleaned = t.strip().lstrip("#")[:100]
+            if cleaned and cleaned not in final_tags:
+                final_tags.append(cleaned)
+            if len(final_tags) >= 15:
                 break
+        while final_tags and len(",".join(final_tags)) > 500:
+            final_tags.pop()
 
-        # YouTube enforces a 500-character total limit across all tags
-        # (counting the separating commas internally). Drop tags from the end
-        # until we fit, so we never send a request that YouTube rejects.
-        while tags and len(",".join(tags)) > 500:
-            tags.pop()
-
-        privacy = (body.get("privacy") or "public").lower()
-        if privacy not in ("public", "unlisted", "private"):
-            privacy = "public"
+        final_privacy = (privacy or "public").lower()
+        if final_privacy not in ("public", "unlisted", "private"):
+            final_privacy = "public"
     finally:
         conn.close()
 
-    # Get a fresh access token
     try:
         access_token = _youtube_get_access_token()
     except RuntimeError as e:
-        return jsonify({"error": str(e)}), 400
+        return {"ok": False, "error": str(e), "status": 400}
 
-    # YouTube multipart upload:
-    # - part 1: JSON metadata (snippet + status)
-    # - part 2: binary video file
     metadata = {
         "snippet": {
-            "title": title,
-            "description": description,
-            "tags": tags,
-            "categoryId": "22",  # People & Blogs — safest default for short religious content
+            "title": final_title,
+            "description": final_description,
+            "tags": final_tags,
+            "categoryId": "22",
         },
         "status": {
-            "privacyStatus": privacy,
+            "privacyStatus": final_privacy,
             "selfDeclaredMadeForKids": False,
         },
     }
 
     boundary = f"boundary_{uuid.uuid4().hex}"
-    # Build multipart body manually to control content types precisely
     body_parts: list[bytes] = []
     body_parts.append(f"--{boundary}\r\n".encode())
     body_parts.append(b"Content-Type: application/json; charset=UTF-8\r\n\r\n")
@@ -10011,26 +10443,25 @@ def admin_upload_pipeline_video_to_youtube(video_id):
                 "Content-Type": f"multipart/related; boundary={boundary}",
             },
             data=upload_body,
-            timeout=600,  # Large files can take time
+            timeout=600,
         )
     except requests.RequestException as e:
-        return jsonify({"error": f"Upload request failed: {e}"}), 502
+        return {"ok": False, "error": f"Upload request failed: {e}", "status": 502}
 
     if up_resp.status_code not in (200, 201):
-        # Extract YouTube's error message if present
         try:
             err_body = up_resp.json()
             err = err_body.get("error", {}).get("message") or str(err_body)[:500]
         except Exception:
             err = up_resp.text[:500]
-        return jsonify({
+        return {
+            "ok": False,
             "error": f"YouTube upload failed ({up_resp.status_code}): {err}",
-        }), 502
+            "status": 502,
+        }
 
-    video_json = up_resp.json()
-    yt_video_id = video_json.get("id")
+    yt_video_id = up_resp.json().get("id")
 
-    # Persist the upload outcome on the video row
     conn = get_db()
     try:
         conn.execute(
@@ -10041,17 +10472,44 @@ def admin_upload_pipeline_video_to_youtube(video_id):
             "  youtube_description = ?, "
             "  youtube_tags = ? "
             "WHERE id = ?",
-            (yt_video_id, title, description, json.dumps(tags) if tags else None, video_id),
+            (yt_video_id, final_title, final_description,
+             json.dumps(final_tags) if final_tags else None, video_id),
         )
         conn.commit()
     finally:
         conn.close()
 
-    return jsonify({
+    return {
+        "ok": True,
         "video_id": video_id,
         "youtube_video_id": yt_video_id,
         "youtube_url": f"https://youtube.com/watch?v={yt_video_id}" if yt_video_id else None,
-        "privacy": privacy,
+        "privacy": final_privacy,
+    }
+
+
+def admin_upload_pipeline_video_to_youtube(video_id):
+    """Upload a completed pipeline video to YouTube via the Data API v3.
+
+    Body (all optional — falls back to stored values on the video row):
+      { "title": "...", "description": "...", "tags": [...],
+        "privacy": "public" | "unlisted" | "private" }
+    """
+    body = request.get_json(silent=True) or {}
+    result = _perform_youtube_upload(
+        video_id,
+        title=body.get("title"),
+        description=body.get("description"),
+        tags=body.get("tags") if isinstance(body.get("tags"), list) else None,
+        privacy=body.get("privacy") or "public",
+    )
+    if not result["ok"]:
+        return jsonify({"error": result["error"]}), result.get("status", 500)
+    return jsonify({
+        "video_id": result["video_id"],
+        "youtube_video_id": result["youtube_video_id"],
+        "youtube_url": result["youtube_url"],
+        "privacy": result["privacy"],
     })
 
 
