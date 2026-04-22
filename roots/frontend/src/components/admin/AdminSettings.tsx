@@ -13,6 +13,8 @@ export default function AdminSettings() {
       <ElevenLabsSection />
       <hr className="border-stone-200" />
       <OllamaSection />
+      <hr className="border-stone-200" />
+      <YoutubeSection />
     </div>
   );
 }
@@ -399,6 +401,169 @@ function OllamaSection() {
                 className="px-2 text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
               >
                 {masked ? 'Show' : 'Hide'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {msg && <span className="text-xs text-stone-500">{msg}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  YouTube Configuration                                             */
+/* ------------------------------------------------------------------ */
+
+function YoutubeSection() {
+  const [channelId, setChannelId] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [refreshToken, setRefreshToken] = useState('');
+  const [secretMasked, setSecretMasked] = useState(true);
+  const [refreshMasked, setRefreshMasked] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    getPreferences().then((prefs) => {
+      if (prefs.youtube_channel_id) setChannelId(prefs.youtube_channel_id);
+      if (prefs.youtube_client_id) setClientId(prefs.youtube_client_id);
+      if (prefs.youtube_client_secret) setClientSecret(prefs.youtube_client_secret);
+      if (prefs.youtube_refresh_token) setRefreshToken(prefs.youtube_refresh_token);
+    });
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg('');
+    try {
+      await savePreferences({
+        youtube_channel_id: channelId,
+        youtube_client_id: clientId,
+        youtube_client_secret: clientSecret,
+        youtube_refresh_token: refreshToken,
+      });
+      setMsg('Saved');
+      setTimeout(() => setMsg(''), 2000);
+    } catch {
+      setMsg('Failed to save');
+    } finally { setSaving(false); }
+  }
+
+  const maskedSecret = secretMasked && clientSecret.length > 4
+    ? '\u2022'.repeat(clientSecret.length - 4) + clientSecret.slice(-4)
+    : clientSecret;
+  const maskedRefresh = refreshMasked && refreshToken.length > 4
+    ? '\u2022'.repeat(refreshToken.length - 4) + refreshToken.slice(-4)
+    : refreshToken;
+
+  const connected = !!(clientId && clientSecret && refreshToken);
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <h2 className="text-lg font-semibold text-stone-800">YouTube</h2>
+        {connected && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
+            Connected
+          </span>
+        )}
+      </div>
+      <p className="text-sm text-stone-500 mb-4">
+        Used for uploading generated videos to YouTube. Admin-only — one set of credentials for your channel.
+      </p>
+
+      <details className="mb-4 max-w-2xl text-xs text-stone-600">
+        <summary className="cursor-pointer text-stone-500 hover:text-stone-700">
+          How to obtain Client ID / Secret / Refresh Token (one-time setup)
+        </summary>
+        <ol className="mt-2 pl-5 list-decimal space-y-1 leading-relaxed">
+          <li>Go to <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer" className="underline">Google Cloud Console</a>, create a project.</li>
+          <li>Enable the <b>YouTube Data API v3</b> for that project.</li>
+          <li>Create OAuth credentials (type: <b>Web application</b>). Add
+            <code className="mx-1 px-1 bg-stone-100 rounded">https://developers.google.com/oauthplayground</code>
+            as an authorized redirect URI. Copy the Client ID + Client Secret here.</li>
+          <li>Open <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noopener noreferrer" className="underline">OAuth 2.0 Playground</a> ⚙️ → check "Use your own OAuth credentials", paste the ID/Secret.</li>
+          <li>In the scope list add <code className="mx-1 px-1 bg-stone-100 rounded">https://www.googleapis.com/auth/youtube.upload</code>, click Authorize APIs, sign in with the account that owns the channel.</li>
+          <li>Click "Exchange authorization code for tokens", copy the <b>Refresh token</b> here.</li>
+        </ol>
+      </details>
+
+      <div className="max-w-md space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Channel ID</label>
+          <input
+            type="text"
+            value={channelId}
+            onChange={(e) => setChannelId(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="UCxxxxxxxxxxxxxxxxxxxxxx"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Client ID</label>
+          <input
+            type="text"
+            value={clientId}
+            onChange={(e) => setClientId(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="xxxxxxxx.apps.googleusercontent.com"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Client Secret</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={secretMasked ? maskedSecret : clientSecret}
+              onChange={(e) => { setClientSecret(e.target.value); setSecretMasked(false); }}
+              onFocus={() => setSecretMasked(false)}
+              className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+              placeholder="GOCSPX-..."
+            />
+            {clientSecret && (
+              <button
+                type="button"
+                onClick={() => setSecretMasked(!secretMasked)}
+                className="px-2 text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
+              >
+                {secretMasked ? 'Show' : 'Hide'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Refresh Token</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={refreshMasked ? maskedRefresh : refreshToken}
+              onChange={(e) => { setRefreshToken(e.target.value); setRefreshMasked(false); }}
+              onFocus={() => setRefreshMasked(false)}
+              className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+              placeholder="1//0g..."
+            />
+            {refreshToken && (
+              <button
+                type="button"
+                onClick={() => setRefreshMasked(!refreshMasked)}
+                className="px-2 text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
+              >
+                {refreshMasked ? 'Show' : 'Hide'}
               </button>
             )}
           </div>

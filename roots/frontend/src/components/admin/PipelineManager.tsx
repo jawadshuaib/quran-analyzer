@@ -8,6 +8,7 @@ import {
 import type { Pipeline, PipelineVideo, Resource, MusicTrack, Voice, Reciter } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
 import { safeFilename } from './shared/filename';
+import UploadToYouTubeModal from './UploadToYouTubeModal';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -823,6 +824,7 @@ function VideoCard({
     catch { return []; }
   })();
 
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const isActive = ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering', 'generating_metadata'].includes(video.status);
   const bySchedule = video.triggered_by === 'scheduler';
   const uploaded = !!video.uploaded_to_youtube;
@@ -878,6 +880,15 @@ function VideoCard({
               className="text-xs font-medium text-emerald-600 hover:text-emerald-700 cursor-pointer"
             >
               Download
+            </button>
+          )}
+          {video.status === 'complete' && (
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="text-xs font-medium text-red-600 hover:text-red-700 cursor-pointer"
+              title={uploaded ? 'Already uploaded — upload again' : 'Upload this video to YouTube'}
+            >
+              {uploaded ? 'Re-upload to YouTube' : 'Upload to YouTube'}
             </button>
           )}
           {verses.length > 0 && (
@@ -949,9 +960,32 @@ function VideoCard({
         );
       })()}
 
-      <div className="mt-2 text-[10px] text-stone-300">
-        {new Date(video.created_at).toLocaleString()}
+      <div className="mt-2 text-[10px] text-stone-300 flex items-center gap-2">
+        <span>{new Date(video.created_at).toLocaleString()}</span>
+        {video.youtube_video_id && (
+          <a
+            href={`https://youtube.com/watch?v=${video.youtube_video_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-red-500 hover:text-red-600 font-medium"
+            title="Open on YouTube"
+          >
+            ▶ youtube.com/watch?v={video.youtube_video_id}
+          </a>
+        )}
       </div>
+
+      {showUploadModal && (
+        <UploadToYouTubeModal
+          video={video}
+          onClose={() => setShowUploadModal(false)}
+          onUploaded={(ytId) => {
+            // The server already updated uploaded_to_youtube + youtube_video_id
+            // — nothing more to do here. The parent's next poll will refresh.
+            void ytId;
+          }}
+        />
+      )}
     </div>
   );
 }

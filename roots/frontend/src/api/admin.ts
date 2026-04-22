@@ -605,6 +605,8 @@ export interface PipelineVideo {
   error_message: string | null;
   youtube_title: string | null;
   youtube_description: string | null;
+  youtube_tags: string | null;           // JSON string of tag array
+  youtube_video_id: string | null;
   triggered_by: 'manual' | 'scheduler' | string;
   uploaded_to_youtube: number;
   created_at: string;
@@ -721,6 +723,26 @@ export async function setPipelineVideoUploaded(
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to update upload flag');
+  return data;
+}
+
+export interface YoutubeUploadResult {
+  video_id: number;
+  youtube_video_id: string;
+  youtube_url: string;
+  privacy: 'public' | 'unlisted' | 'private';
+}
+
+export async function uploadPipelineVideoToYouTube(
+  id: number,
+  params: { title: string; description: string; tags: string[]; privacy?: 'public' | 'unlisted' | 'private' },
+): Promise<YoutubeUploadResult> {
+  const res = await authFetch(`${BASE}/pipeline-videos/${id}/upload`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'YouTube upload failed');
   return data;
 }
 

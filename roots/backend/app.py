@@ -7882,6 +7882,8 @@ def _ensure_pipeline_tables():
         for col, coltype in (
             ("youtube_title", "TEXT"),
             ("youtube_description", "TEXT"),
+            ("youtube_tags", "TEXT"),              # JSON array of strings
+            ("youtube_video_id", "TEXT"),          # ID returned by YouTube after upload
             ("manual_chapter", "INTEGER"),
             ("manual_ayah_start", "INTEGER"),
             ("manual_ayah_end", "INTEGER"),
@@ -8316,7 +8318,8 @@ def _gather_verse_root_insights(conn, verse_data):
 
 
 def _generate_youtube_metadata(verse_data):
-    """Generate YouTube title and description via Ollama, enriched with root insights."""
+    """Generate YouTube title, description, and tags via Ollama, enriched with
+    root-word insights. Returns (title, description, tags_list)."""
     conn = get_db()
     try:
         # Load Ollama settings from preferences
@@ -8331,7 +8334,7 @@ def _generate_youtube_metadata(verse_data):
         api_key = prefs.get("ollama_api_key") or ""
 
         if not model:
-            return ("", "")
+            return ("", "", [])
 
         # Gather root word insights
         root_insights = _gather_verse_root_insights(conn, verse_data)
@@ -8383,8 +8386,15 @@ def _generate_youtube_metadata(verse_data):
         f"- If the root word data reveals an interesting connection, weave it in naturally\n"
         f"- Sound human — like a thoughtful person wrote it, not AI\n"
         f"- No hashtags, no \"In this video\", no calls to action\n\n"
+        f"TAGS RULES:\n"
+        f"- Return 8-12 YouTube tags as an array of short strings\n"
+        f"- Mix of: general ('Quran', 'Islam'), passage-specific ('{ref_string}'), and thematic tags\n"
+        f"  drawn from the actual content of these verses (e.g., 'patience', 'resurrection', 'gratitude')\n"
+        f"- Each tag should be 1-3 words, lowercase unless it's a proper noun\n"
+        f"- Include 'YouTube Shorts' and 'Quran Shorts' as two of the tags\n"
+        f"- No hashtags (#), no special characters\n\n"
         f"Return ONLY valid JSON, nothing else:\n"
-        f"{{\"title\": \"...\", \"description\": \"...\"}}"
+        f"{{\"title\": \"...\", \"description\": \"...\", \"tags\": [\"tag1\", \"tag2\", ...]}}"
     )
 
     headers = {"Content-Type": "application/json"}
@@ -8425,7 +8435,19 @@ def _generate_youtube_metadata(verse_data):
     title = (meta.get("title") or "").strip()
     description = (meta.get("description") or "").strip()
 
-    return (title, description)
+    # Tags: accept list; filter to non-empty strings; cap at 15 and 500 chars each
+    raw_tags = meta.get("tags") if isinstance(meta.get("tags"), list) else []
+    tags: list[str] = []
+    for t in raw_tags:
+        if not isinstance(t, str):
+            continue
+        cleaned = t.strip().lstrip("#")[:500]
+        if cleaned and cleaned not in tags:
+            tags.append(cleaned)
+        if len(tags) >= 15:
+            break
+
+    return (title, description, tags)
 
 
 def _pipeline_generate_task(video_id):
@@ -9166,10 +9188,11 @@ def _pipeline_generate_task(video_id):
             has_manual_metadata = bool(preseed_title) or bool(preseed_desc)
 
             yt_title, yt_desc = preseed_title or "", preseed_desc or ""
+            yt_tags: list[str] = []
             if not has_manual_metadata:
                 try:
                     _update_pipeline_video_status(video_id, "generating_metadata", "Generating YouTube metadata...")
-                    yt_title, yt_desc = _generate_youtube_metadata(verse_data)
+                    yt_title, yt_desc, yt_tags = _generate_youtube_metadata(verse_data)
                 except Exception as e:
                     print(f"WARNING: YouTube metadata generation failed for video {video_id}: {e}")
 
@@ -9178,10 +9201,11 @@ def _pipeline_generate_task(video_id):
                 conn2.execute(
                     """UPDATE admin_pipeline_videos
                        SET status='complete', filename=?, file_size=?,
-                           youtube_title=?, youtube_description=?,
+                           youtube_title=?, youtube_description=?, youtube_tags=?,
                            completed_at=CURRENT_TIMESTAMP, progress='Done'
                        WHERE id = ?""",
-                    (output_filename, file_size, yt_title or None, yt_desc or None, video_id),
+                    (output_filename, file_size, yt_title or None, yt_desc or None,
+                     json.dumps(yt_tags) if yt_tags else None, video_id),
                 )
                 conn2.commit()
             finally:
@@ -9564,6 +9588,200 @@ def admin_set_video_uploaded(video_id):
         return jsonify({"id": video_id, "uploaded_to_youtube": bool(flag)})
     finally:
         conn.close()
+
+
+# --------------- Admin: YouTube upload ---------------
+
+def _youtube_get_access_token() -> str:
+    """Exchange the stored refresh_token for a short-lived access_token.
+
+    Reads client_id, client_secret, and refresh_token from admin_preferences.
+    Raises RuntimeError with a user-friendly message if any credential is
+    missing or the exchange fails.
+    """
+    conn = get_db()
+    try:
+        prefs: dict[str, str] = {}
+        for row in conn.execute(
+            "SELECT key, value FROM admin_preferences "
+            "WHERE key IN ('youtube_client_id','youtube_client_secret','youtube_refresh_token')"
+        ).fetchall():
+            prefs[row["key"]] = row["value"]
+    finally:
+        conn.close()
+
+    client_id = (prefs.get("youtube_client_id") or "").strip()
+    client_secret = (prefs.get("youtube_client_secret") or "").strip()
+    refresh_token = (prefs.get("youtube_refresh_token") or "").strip()
+    if not (client_id and client_secret and refresh_token):
+        raise RuntimeError(
+            "YouTube credentials not configured. "
+            "Set Client ID, Client Secret, and Refresh Token in Admin Settings."
+        )
+
+    resp = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        },
+        timeout=20,
+    )
+    if resp.status_code != 200:
+        # Surface Google's specific error so the admin can fix it
+        try:
+            err = resp.json().get("error_description") or resp.json().get("error") or resp.text
+        except Exception:
+            err = resp.text[:300]
+        raise RuntimeError(f"OAuth token exchange failed: {err}")
+    token = resp.json().get("access_token")
+    if not token:
+        raise RuntimeError("OAuth response missing access_token")
+    return token
+
+
+@app.route("/api/admin/pipeline-videos/<int:video_id>/upload", methods=["POST"])
+@admin_required
+def admin_upload_pipeline_video_to_youtube(video_id):
+    """Upload a completed pipeline video to YouTube via the Data API v3.
+
+    Body (all optional — falls back to stored values on the video row):
+      { "title": "...", "description": "...", "tags": [...],
+        "privacy": "public" | "unlisted" | "private" }
+    """
+    body = request.get_json(silent=True) or {}
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM admin_pipeline_videos WHERE id = ? AND status = 'complete'",
+            (video_id,),
+        ).fetchone()
+        if not row or not row["filename"]:
+            return jsonify({"error": "Video not found or not complete"}), 404
+        filepath = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
+        if not os.path.isfile(filepath):
+            return jsonify({"error": "Video file missing on disk"}), 404
+
+        # Resolve title/description/tags: request body takes precedence, then
+        # the stored columns, then blank.
+        title = (body.get("title") or row["youtube_title"] or f"Pipeline video {video_id}").strip()[:100]
+        description = (body.get("description") or row["youtube_description"] or "").strip()[:5000]
+
+        body_tags = body.get("tags")
+        if isinstance(body_tags, list):
+            tags_in = body_tags
+        else:
+            try:
+                tags_in = json.loads(row["youtube_tags"] or "[]")
+            except (json.JSONDecodeError, TypeError):
+                tags_in = []
+        tags: list[str] = []
+        for t in tags_in or []:
+            if not isinstance(t, str):
+                continue
+            cleaned = t.strip().lstrip("#")[:500]
+            if cleaned and cleaned not in tags:
+                tags.append(cleaned)
+            if len(tags) >= 15:
+                break
+
+        privacy = (body.get("privacy") or "public").lower()
+        if privacy not in ("public", "unlisted", "private"):
+            privacy = "public"
+    finally:
+        conn.close()
+
+    # Get a fresh access token
+    try:
+        access_token = _youtube_get_access_token()
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 400
+
+    # YouTube multipart upload:
+    # - part 1: JSON metadata (snippet + status)
+    # - part 2: binary video file
+    metadata = {
+        "snippet": {
+            "title": title,
+            "description": description,
+            "tags": tags,
+            "categoryId": "22",  # People & Blogs — safest default for short religious content
+        },
+        "status": {
+            "privacyStatus": privacy,
+            "selfDeclaredMadeForKids": False,
+        },
+    }
+
+    boundary = f"boundary_{uuid.uuid4().hex}"
+    # Build multipart body manually to control content types precisely
+    body_parts: list[bytes] = []
+    body_parts.append(f"--{boundary}\r\n".encode())
+    body_parts.append(b"Content-Type: application/json; charset=UTF-8\r\n\r\n")
+    body_parts.append(json.dumps(metadata).encode("utf-8"))
+    body_parts.append(b"\r\n")
+    body_parts.append(f"--{boundary}\r\n".encode())
+    body_parts.append(b"Content-Type: video/mp4\r\n\r\n")
+    with open(filepath, "rb") as f:
+        body_parts.append(f.read())
+    body_parts.append(b"\r\n")
+    body_parts.append(f"--{boundary}--\r\n".encode())
+    upload_body = b"".join(body_parts)
+
+    try:
+        up_resp = requests.post(
+            "https://www.googleapis.com/upload/youtube/v3/videos",
+            params={"uploadType": "multipart", "part": "snippet,status"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": f"multipart/related; boundary={boundary}",
+            },
+            data=upload_body,
+            timeout=600,  # Large files can take time
+        )
+    except requests.RequestException as e:
+        return jsonify({"error": f"Upload request failed: {e}"}), 502
+
+    if up_resp.status_code not in (200, 201):
+        # Extract YouTube's error message if present
+        try:
+            err_body = up_resp.json()
+            err = err_body.get("error", {}).get("message") or str(err_body)[:500]
+        except Exception:
+            err = up_resp.text[:500]
+        return jsonify({
+            "error": f"YouTube upload failed ({up_resp.status_code}): {err}",
+        }), 502
+
+    video_json = up_resp.json()
+    yt_video_id = video_json.get("id")
+
+    # Persist the upload outcome on the video row
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE admin_pipeline_videos SET "
+            "  uploaded_to_youtube = 1, "
+            "  youtube_video_id = ?, "
+            "  youtube_title = ?, "
+            "  youtube_description = ?, "
+            "  youtube_tags = ? "
+            "WHERE id = ?",
+            (yt_video_id, title, description, json.dumps(tags) if tags else None, video_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({
+        "video_id": video_id,
+        "youtube_video_id": yt_video_id,
+        "youtube_url": f"https://youtube.com/watch?v={yt_video_id}" if yt_video_id else None,
+        "privacy": privacy,
+    })
 
 
 # --------------- Legacy redirect ---------------
