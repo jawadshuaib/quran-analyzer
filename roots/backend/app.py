@@ -8916,6 +8916,204 @@ def _pipeline_generate_task(video_id):
                     error=f"Passage too long: {total_dur:.1f}s of recitation (limit 55s). Try a shorter range.",
                 )
                 return
+
+            # 5b. Smart extension: if Claude's auto-picked passage comes in
+            # noticeably short (average has been ~33s with a 55s budget),
+            # probe the next verses one at a time and ask Claude whether
+            # adding each one would meaningfully improve the video. Skipped
+            # for manual selection (user picked exact verses on purpose) and
+            # for passages already close to the budget.
+            EXTENSION_TRIGGER_SECONDS = 40.0
+            EXTENSION_MAX_COUNT = 3
+            EXTENSION_HARD_CAP_SECONDS = 55.0
+
+            if (
+                not is_manual_selection
+                and api_key
+                and total_dur < EXTENSION_TRIGGER_SECONDS
+            ):
+                _update_pipeline_video_status(
+                    video_id, "generating_tts",
+                    f"Passage is {total_dur:.0f}s — considering extension...",
+                )
+                current_end_ayah = ayah_end
+
+                for ext_i in range(EXTENSION_MAX_COUNT):
+                    candidate_ayah = current_end_ayah + 1
+
+                    # Does the next verse exist in the same surah?
+                    conn_ext = get_db()
+                    try:
+                        cand_row = conn_ext.execute(
+                            "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                            (chapter, candidate_ayah),
+                        ).fetchone()
+                        if not cand_row:
+                            break  # end of surah
+                        candidate_arabic = _strip_bismillah(
+                            cand_row["text_uthmani"], chapter, candidate_ayah
+                        )
+                        candidate_translation = _best_translation(conn_ext, chapter, candidate_ayah)
+                    finally:
+                        conn_ext.close()
+                    if not candidate_translation:
+                        break
+                    candidate_translation = html.unescape(re.sub(r"<[^>]+>", "", candidate_translation))
+
+                    # Ask Claude whether this extension would enhance the video
+                    passage_so_far = "\n".join(
+                        f"- {v['chapter']}:{v['verse']}: {v.get('polished_text') or v['original_translation']}"
+                        for v in verse_data
+                    )
+                    decide_prompt = (
+                        f"You are deciding whether to extend a short Arabic-recitation Quran Short by one more verse.\n\n"
+                        f"CURRENT PASSAGE ({chapter}:{ayah_start}-{current_end_ayah}, ~{total_dur:.0f}s of recitation):\n"
+                        f"{passage_so_far}\n\n"
+                        f"CANDIDATE NEXT VERSE ({chapter}:{candidate_ayah}):\n"
+                        f"Arabic: {candidate_arabic}\n"
+                        f"Translation: {candidate_translation}\n\n"
+                        f"Should we include this next verse? Weigh:\n"
+                        f"- Does it meaningfully extend the narrative, argument, or emotional arc?\n"
+                        f"- Does the current passage leave a thought unresolved that this verse finishes?\n"
+                        f"- Does adding it deliver a rhetorical or emotional payoff that cutting here would lose?\n"
+                        f"- Or: does the current passage stand stronger on its own — would this dilute it?\n\n"
+                        f"Answer with JSON only:\n"
+                        f'{{"add": true or false, "reason": "<one short sentence>"}}'
+                    )
+                    try:
+                        dec_resp = requests.post(
+                            "https://api.anthropic.com/v1/messages",
+                            headers={
+                                "Content-Type": "application/json",
+                                "x-api-key": api_key,
+                                "anthropic-version": "2023-06-01",
+                            },
+                            json={
+                                "model": "claude-sonnet-4-20250514",
+                                "max_tokens": 200,
+                                "messages": [{"role": "user", "content": decide_prompt}],
+                            },
+                            timeout=30,
+                        )
+                        if dec_resp.status_code != 200:
+                            print(f"[extension] decision HTTP {dec_resp.status_code}; stopping")
+                            break
+                        decide_text = dec_resp.json()["content"][0]["text"].strip()
+                        m = re.search(r"\{.*\}", decide_text, re.DOTALL)
+                        if not m:
+                            break
+                        decision = json.loads(m.group())
+                    except Exception as e:
+                        print(f"[extension] decision error: {e}")
+                        break
+
+                    if not decision.get("add"):
+                        print(
+                            f"[extension] Claude declined {chapter}:{candidate_ayah}: "
+                            f"{decision.get('reason', '(no reason)')}"
+                        )
+                        break
+
+                    # Claude says yes — download the audio, measure, budget-check
+                    ext_audio_url = f"{audio_base}/{folder}/{chapter:03d}{candidate_ayah:03d}.mp3"
+                    ext_hash = hashlib.sha256(ext_audio_url.encode()).hexdigest()[:16]
+                    ext_filename = f"pipe_{video_id}_ext{ext_i}_arabic_{ext_hash}.mp3"
+                    ext_filepath = os.path.join(_TTS_CACHE_DIR, ext_filename)
+                    try:
+                        ext_resp = requests.get(ext_audio_url, timeout=30)
+                        ext_resp.raise_for_status()
+                    except Exception as e:
+                        print(f"[extension] audio download failed: {e}")
+                        break
+                    with open(ext_filepath, "wb") as f:
+                        f.write(ext_resp.content)
+                    try:
+                        ext_dur = _get_audio_duration(ext_filepath)
+                    except Exception:
+                        ext_dur = 0.0
+
+                    if total_dur + ext_dur > EXTENSION_HARD_CAP_SECONDS:
+                        print(
+                            f"[extension] {chapter}:{candidate_ayah} would push total to "
+                            f"{total_dur + ext_dur:.1f}s (cap {EXTENSION_HARD_CAP_SECONDS}s); stopping"
+                        )
+                        try:
+                            os.remove(ext_filepath)
+                        except OSError:
+                            pass
+                        break
+
+                    # Polish this single added verse with a small Claude call
+                    polish_ext_prompt = (
+                        f"Polish this Quranic verse translation for clear on-screen display in a YouTube Short. "
+                        f"The Arabic recitation plays aloud; this text appears as subtitles.\n\n"
+                        f'Original: "{candidate_translation}"\n\n'
+                        f"Rules:\n"
+                        f"- Remove brackets, parentheses, footnote markers, editorial additions, superscript numbers\n"
+                        f"- Read cleanly and impactfully for a viewer with a few seconds to absorb it\n"
+                        f"- Keep concise; do NOT substantially change meaning\n"
+                        f"- Preserve 'Allah' if present\n\n"
+                        f"Return ONLY the polished text, no preamble."
+                    )
+                    try:
+                        p_resp = requests.post(
+                            "https://api.anthropic.com/v1/messages",
+                            headers={
+                                "Content-Type": "application/json",
+                                "x-api-key": api_key,
+                                "anthropic-version": "2023-06-01",
+                            },
+                            json={
+                                "model": "claude-sonnet-4-20250514",
+                                "max_tokens": 500,
+                                "messages": [{"role": "user", "content": polish_ext_prompt}],
+                            },
+                            timeout=30,
+                        )
+                        polished_ext = (
+                            p_resp.json()["content"][0]["text"].strip()
+                            if p_resp.status_code == 200 else candidate_translation
+                        )
+                    except Exception:
+                        polished_ext = candidate_translation
+
+                    # Commit
+                    verse_data.append({
+                        "chapter": chapter,
+                        "verse": candidate_ayah,
+                        "ref": passage_ref,  # rewritten below once loop ends
+                        "passage_ref": passage_ref,
+                        "original_translation": candidate_translation,
+                        "polished_text": polished_ext,
+                        "tts_filename": ext_filename,
+                        "audio_url": ext_audio_url,
+                    })
+                    total_dur += ext_dur
+                    current_end_ayah = candidate_ayah
+                    print(
+                        f"[extension] added {chapter}:{candidate_ayah} "
+                        f"({ext_dur:.1f}s, total {total_dur:.1f}s): "
+                        f"{decision.get('reason', '')}"
+                    )
+                    _update_pipeline_video_status(
+                        video_id, "generating_tts",
+                        f"Extended to {chapter}:{candidate_ayah} ({total_dur:.0f}s total)",
+                    )
+
+                # If we actually extended, update the passage_ref that the
+                # renderer uses for the subtitle band and that the frontend
+                # displays above video cards.
+                if current_end_ayah != ayah_end:
+                    ayah_end = current_end_ayah
+                    new_passage_ref = (
+                        f"{surah_name} {chapter}:{ayah_start}"
+                        if ayah_start == ayah_end
+                        else f"{surah_name} {chapter}:{ayah_start}-{ayah_end}"
+                    )
+                    for v in verse_data:
+                        v["ref"] = new_passage_ref
+                        v["passage_ref"] = new_passage_ref
+                    passage_ref = new_passage_ref
         else:
             _update_pipeline_video_status(video_id, "generating_tts", "Generating voice audio...")
 
