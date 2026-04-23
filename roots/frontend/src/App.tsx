@@ -19,6 +19,8 @@ import NotFound from './components/NotFound';
 import ApiPage from './components/ApiPage';
 import MethodologyPage from './components/MethodologyPage';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
+import PrivacyPage from './components/PrivacyPage';
+import TermsPage from './components/TermsPage';
 import LearningPage from './components/learning/LearningPage';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
@@ -50,6 +52,14 @@ function isExtensionPrivacyPath(): boolean {
   return /^\/privacy\/extension\/?$/.test(window.location.pathname);
 }
 
+function isPrivacyPath(): boolean {
+  return /^\/privacy\/?$/.test(window.location.pathname);
+}
+
+function isTermsPath(): boolean {
+  return /^\/terms\/?$/.test(window.location.pathname);
+}
+
 function isLearningPath(): boolean {
   return /^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(window.location.pathname);
 }
@@ -58,6 +68,8 @@ function isKnownRoute(): boolean {
   const path = window.location.pathname;
   if (path === '/') return true;
   if (/^\/privacy\/extension\/?$/.test(path)) return true;
+  if (/^\/privacy\/?$/.test(path)) return true;
+  if (/^\/terms\/?$/.test(path)) return true;
   if (/^\/verse\/\d+:\d+$/.test(path)) return true;
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
@@ -142,7 +154,12 @@ function TopExtensionBar() {
 function SiteFooter() {
   return (
     <footer className="py-6 border-t border-card-border text-center text-[11.5px] text-ink-muted tracking-wide">
-      open corpus &middot; non-commercial &middot; built by and for students of the text
+      <div>open corpus &middot; non-commercial &middot; built by and for students of the text</div>
+      <div className="mt-1.5">
+        <a href="/privacy" className="hover:text-ink-secondary">Privacy</a>
+        <span className="mx-2">&middot;</span>
+        <a href="/terms" className="hover:text-ink-secondary">Terms</a>
+      </div>
     </footer>
   );
 }
@@ -205,6 +222,31 @@ export default function App() {
         {showTopBar && <TopExtensionBar />}
         <NavBar currentPath={currentPath} />
         <ExtensionPrivacyPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (isPrivacyPath()) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar />}
+        <NavBar currentPath={currentPath} />
+        <PrivacyPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (isTermsPath()) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar />}
+        <NavBar currentPath={currentPath} />
+        <TermsPage />
+        <SiteFooter />
       </div>
     );
   }

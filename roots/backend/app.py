@@ -4097,6 +4097,10 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/privacy/extension/?$", path):
         return True
+    if re.match(r"^/privacy/?$", path):
+        return True
+    if re.match(r"^/terms/?$", path):
+        return True
     if re.match(r"^/verse/\d+:\d+$", path):
         return True
     if re.match(r"^/root/.+$", path):
@@ -4125,6 +4129,26 @@ def _get_seo_meta(path: str) -> dict:
             "description": "Privacy policy for the Quran Research Tool Chrome extension, including data access, usage, and retention details.",
             "og_type": "article",
             "canonical": SITE_URL + "/privacy/extension",
+            "robots": "index, follow",
+        }
+
+    # Site privacy policy: /privacy
+    if re.match(r"^/privacy/?$", path):
+        return {
+            "title": "Privacy Policy | al-nuqta",
+            "description": "Privacy policy for al-nuqta.com — what data we collect, what we don't, and how we handle it.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/privacy",
+            "robots": "index, follow",
+        }
+
+    # Site terms of service: /terms
+    if re.match(r"^/terms/?$", path):
+        return {
+            "title": "Terms of Service | al-nuqta",
+            "description": "Terms of service for al-nuqta.com — permitted use, disclaimers, and scholarly caveats.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/terms",
             "robots": "index, follow",
         }
 
@@ -4470,6 +4494,8 @@ def sitemap_xml():
 
     # Home
     _add(SITE_URL + "/", "1.0")
+    _add(SITE_URL + "/privacy", "0.3")
+    _add(SITE_URL + "/terms", "0.3")
     _add(SITE_URL + "/privacy/extension", "0.3")
 
     # All verse pages
