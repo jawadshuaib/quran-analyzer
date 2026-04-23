@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { changePassword, getVoices, addVoice, deleteVoice, getPreferences, savePreferences } from '../../api/admin';
-import type { Voice } from '../../api/admin';
+import { changePassword, getVoices, addVoice, deleteVoice, getPreferences, savePreferences, getTiktokStatus, startTiktokAuth, disconnectTiktok } from '../../api/admin';
+import type { Voice, TiktokStatus } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
 
 // Ready-to-paste prompt for a browser-driving Claude agent. The agent opens
@@ -104,6 +104,8 @@ export default function AdminSettings() {
       <OllamaSection />
       <hr className="border-stone-200" />
       <YoutubeSection />
+      <hr className="border-stone-200" />
+      <TiktokSection />
     </div>
   );
 }
@@ -755,6 +757,221 @@ function YoutubeSection() {
           </button>
           {msg && <span className="text-xs text-stone-500">{msg}</span>}
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  TikTok Configuration                                              */
+/* ------------------------------------------------------------------ */
+
+function TiktokSection() {
+  const [clientKey, setClientKey] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [secretMasked, setSecretMasked] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [status, setStatus] = useState<TiktokStatus | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  async function refreshAll() {
+    const [prefs, st] = await Promise.all([getPreferences(), getTiktokStatus()]);
+    if (prefs.tiktok_client_key) setClientKey(prefs.tiktok_client_key);
+    if (prefs.tiktok_client_secret) setClientSecret(prefs.tiktok_client_secret);
+    setStatus(st);
+  }
+
+  useEffect(() => {
+    refreshAll().catch(() => {});
+
+    // Pick up callback result from URL (?tiktok_connected=1 / ?tiktok_error=...)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tiktok_connected')) {
+      setMsg('TikTok connected');
+      setTimeout(() => setMsg(''), 3000);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('tiktok_connected');
+      window.history.replaceState({}, '', url.toString());
+    }
+    const err = params.get('tiktok_error');
+    if (err) {
+      setMsg(`TikTok connect failed: ${err}`);
+      const url = new URL(window.location.href);
+      url.searchParams.delete('tiktok_error');
+      window.history.replaceState({}, '', url.toString());
+    }
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg('');
+    try {
+      await savePreferences({
+        tiktok_client_key: clientKey,
+        tiktok_client_secret: clientSecret,
+      });
+      setMsg('Saved');
+      await refreshAll();
+      setTimeout(() => setMsg(''), 2000);
+    } catch {
+      setMsg('Failed to save');
+    } finally { setSaving(false); }
+  }
+
+  async function handleConnect() {
+    setConnecting(true);
+    setMsg('');
+    try {
+      const { authorize_url } = await startTiktokAuth();
+      window.location.href = authorize_url;
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Failed to start auth');
+      setConnecting(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    setMsg('');
+    try {
+      await disconnectTiktok();
+      await refreshAll();
+      setMsg('Disconnected');
+      setTimeout(() => setMsg(''), 2000);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Failed to disconnect');
+    } finally { setDisconnecting(false); }
+  }
+
+  const maskedSecret = secretMasked && clientSecret.length > 4
+    ? '\u2022'.repeat(clientSecret.length - 4) + clientSecret.slice(-4)
+    : clientSecret;
+
+  const connected = !!status?.connected;
+  const canConnect = !!(clientKey && clientSecret) && !connected;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <h2 className="text-lg font-semibold text-stone-800">TikTok</h2>
+        {connected && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
+            Connected
+          </span>
+        )}
+        {status && !connected && (clientKey || clientSecret) && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700">
+            Not authorized
+          </span>
+        )}
+      </div>
+      <p className="text-sm text-stone-500 mb-4">
+        Used for uploading generated videos to TikTok via the Content Posting API. Sandbox /
+        unapproved apps post as <code className="px-1 bg-stone-100 rounded text-xs">SELF_ONLY</code>{' '}
+        (visible only to you) until TikTok approves the scope.
+      </p>
+
+      <details className="mb-4 max-w-2xl text-xs text-stone-600">
+        <summary className="cursor-pointer text-stone-500 hover:text-stone-700">
+          One-time setup (TikTok Developer Portal)
+        </summary>
+        <ol className="mt-2 pl-5 list-decimal space-y-1 leading-relaxed">
+          <li>Go to <a href="https://developers.tiktok.com/" target="_blank" rel="noopener noreferrer" className="underline">developers.tiktok.com</a> → your app.</li>
+          <li>Under <b>Login Kit</b> and <b>Content Posting API</b>, add these scopes: <code className="px-1 bg-stone-100 rounded">user.info.basic</code>, <code className="px-1 bg-stone-100 rounded">video.upload</code>, <code className="px-1 bg-stone-100 rounded">video.publish</code>.</li>
+          <li>Set the redirect URI to exactly <code className="px-1 bg-stone-100 rounded">{status?.redirect_uri || 'https://al-nuqta.com/admin/tiktok/callback'}</code>.</li>
+          <li>Add your TikTok username as a <b>sandbox tester</b> so you can OAuth pre-approval.</li>
+          <li>Copy the Client Key and Client Secret into the fields below, click Save, then click Connect.</li>
+        </ol>
+      </details>
+
+      <div className="max-w-md space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Client Key</label>
+          <input
+            type="text"
+            value={clientKey}
+            onChange={(e) => setClientKey(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="aw..."
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Client Secret</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={secretMasked ? maskedSecret : clientSecret}
+              onChange={(e) => { setClientSecret(e.target.value); setSecretMasked(false); }}
+              onFocus={() => setSecretMasked(false)}
+              className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+              placeholder="Secret from TikTok developer portal"
+            />
+            {clientSecret && (
+              <button
+                type="button"
+                onClick={() => setSecretMasked(!secretMasked)}
+                className="px-2 text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
+              >
+                {secretMasked ? 'Show' : 'Hide'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+
+          {!connected && (
+            <button
+              onClick={handleConnect}
+              disabled={!canConnect || connecting}
+              title={!canConnect ? 'Save Client Key + Secret first' : 'Redirects to TikTok to authorize'}
+              className="px-4 py-2 rounded-lg border border-stone-800 text-stone-800 text-sm font-medium hover:bg-stone-800 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {connecting ? 'Redirecting…' : 'Connect TikTok'}
+            </button>
+          )}
+
+          {connected && (
+            <button
+              onClick={handleDisconnect}
+              disabled={disconnecting}
+              className="px-4 py-2 rounded-lg border border-red-300 text-red-700 text-sm font-medium hover:bg-red-50 disabled:opacity-50 cursor-pointer"
+            >
+              {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+            </button>
+          )}
+
+          {msg && <span className="text-xs text-stone-500">{msg}</span>}
+        </div>
+
+        {connected && status && (
+          <div className="mt-2 rounded-md border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 space-y-1">
+            <div>
+              <span className="text-stone-400">Open ID:</span>{' '}
+              <code className="text-stone-700">{status.open_id || '(not provided)'}</code>
+            </div>
+            {status.connected_at && (
+              <div>
+                <span className="text-stone-400">Connected:</span>{' '}
+                {new Date(status.connected_at).toLocaleString()}
+              </div>
+            )}
+            <div>
+              <span className="text-stone-400">Scopes:</span>{' '}
+              <code className="text-stone-700">{status.scopes}</code>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

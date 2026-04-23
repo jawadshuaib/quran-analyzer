@@ -22,7 +22,7 @@ from urllib.parse import quote
 import arabic_reshaper
 import secrets
 from bidi.algorithm import get_display
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 import bcrypt
@@ -10657,6 +10657,498 @@ def admin_upload_pipeline_video_to_youtube(video_id):
         "youtube_video_id": result["youtube_video_id"],
         "youtube_url": result["youtube_url"],
         "privacy": result["privacy"],
+    })
+
+
+# =========================================================================
+# TikTok Content Posting API integration (minimal, sandbox-ready)
+# -------------------------------------------------------------------------
+# Scope for this build: manual upload only. No scheduler, no auto-captions,
+# no audit log — those come after the TikTok app is approved by reviewers.
+#
+# Flow:
+#   1. Admin clicks "Connect TikTok" → backend generates PKCE verifier +
+#      CSRF state, persists them in admin_preferences, redirects to the
+#      TikTok OAuth authorize endpoint.
+#   2. TikTok redirects back to /admin/tiktok/callback?code=...&state=...
+#   3. Backend validates state, swaps code for access_token + refresh_token
+#      (30-day refresh, 24-hour access), persists to admin_preferences.
+#   4. Admin picks a completed pipeline video, adds a caption, clicks
+#      "Post to TikTok". Backend uses the Content Posting FILE_UPLOAD flow:
+#      init → PUT bytes → poll status.
+#   5. Video uploads to the admin's TikTok as SELF_ONLY (sandbox/unapproved
+#      apps cannot publish publicly — this is a TikTok platform limit).
+# =========================================================================
+
+TIKTOK_OAUTH_AUTHORIZE_URL = "https://www.tiktok.com/v2/auth/authorize/"
+TIKTOK_OAUTH_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
+TIKTOK_REVOKE_URL = "https://open.tiktokapis.com/v2/oauth/revoke/"
+TIKTOK_UPLOAD_INIT_URL = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+TIKTOK_UPLOAD_STATUS_URL = "https://open.tiktokapis.com/v2/post/publish/status/fetch/"
+TIKTOK_REDIRECT_URI = "https://al-nuqta.com/admin/tiktok/callback"
+TIKTOK_SCOPES = "user.info.basic,video.upload,video.publish"
+
+
+def _ensure_tiktok_tables():
+    """Add TikTok-related columns to admin_pipeline_videos (idempotent)."""
+    conn = get_db()
+    try:
+        for alter in (
+            "ALTER TABLE admin_pipeline_videos ADD COLUMN uploaded_to_tiktok INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE admin_pipeline_videos ADD COLUMN tiktok_video_id TEXT",
+            "ALTER TABLE admin_pipeline_videos ADD COLUMN tiktok_caption TEXT",
+        ):
+            try:
+                conn.execute(alter)
+                conn.commit()
+            except Exception:
+                pass
+    finally:
+        conn.close()
+
+
+try:
+    _ensure_tiktok_tables()
+except Exception as e:
+    print(f"WARNING: tiktok tables setup failed: {e}")
+
+
+def _tiktok_pkce_pair() -> tuple[str, str]:
+    """Generate (code_verifier, code_challenge) for PKCE S256."""
+    import base64
+    verifier = secrets.token_urlsafe(64)[:128]
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+    return verifier, challenge
+
+
+def _tiktok_read_prefs(keys: list[str]) -> dict[str, str]:
+    conn = get_db()
+    try:
+        placeholders = ",".join(["?"] * len(keys))
+        rows = conn.execute(
+            f"SELECT key, value FROM admin_preferences WHERE key IN ({placeholders})",
+            keys,
+        ).fetchall()
+        return {r["key"]: (r["value"] or "") for r in rows}
+    finally:
+        conn.close()
+
+
+def _tiktok_write_prefs(updates: dict[str, str | None]):
+    conn = get_db()
+    try:
+        for k, v in updates.items():
+            if v is None:
+                conn.execute("DELETE FROM admin_preferences WHERE key = ?", (k,))
+            else:
+                conn.execute(
+                    "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) "
+                    "VALUES (?, ?, CURRENT_TIMESTAMP)",
+                    (k, str(v)),
+                )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _tiktok_get_access_token() -> str:
+    """Return a valid access_token, refreshing via refresh_token if expired.
+
+    Raises RuntimeError with a user-friendly message if credentials are
+    missing or the refresh call fails.
+    """
+    prefs = _tiktok_read_prefs([
+        "tiktok_client_key",
+        "tiktok_client_secret",
+        "tiktok_access_token",
+        "tiktok_refresh_token",
+        "tiktok_access_token_expires_at",
+    ])
+    client_key = prefs.get("tiktok_client_key", "").strip()
+    client_secret = prefs.get("tiktok_client_secret", "").strip()
+    access_token = prefs.get("tiktok_access_token", "").strip()
+    refresh_token = prefs.get("tiktok_refresh_token", "").strip()
+    expires_at_s = prefs.get("tiktok_access_token_expires_at", "").strip()
+
+    if not (client_key and client_secret and refresh_token):
+        raise RuntimeError(
+            "TikTok not connected. Click Connect TikTok in Admin Settings to authorize."
+        )
+
+    # If access_token still valid for >60s, use it.
+    if access_token and expires_at_s:
+        try:
+            from datetime import datetime as _dt
+            exp = _dt.fromisoformat(expires_at_s.replace("Z", "+00:00"))
+            if (exp - datetime.now(timezone.utc)).total_seconds() > 60:
+                return access_token
+        except Exception:
+            pass
+
+    # Refresh
+    resp = requests.post(
+        TIKTOK_OAUTH_TOKEN_URL,
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Cache-Control": "no-cache"},
+        data={
+            "client_key": client_key,
+            "client_secret": client_secret,
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+        },
+        timeout=20,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"TikTok token refresh failed ({resp.status_code}): {resp.text[:300]}"
+        )
+    data = resp.json()
+    if "access_token" not in data:
+        raise RuntimeError(f"TikTok refresh returned no access_token: {str(data)[:300]}")
+
+    new_access = data["access_token"]
+    new_refresh = data.get("refresh_token", refresh_token)
+    expires_in = int(data.get("expires_in", 86400))  # default 24h
+    new_expires_at = (
+        datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    ).isoformat()
+
+    _tiktok_write_prefs({
+        "tiktok_access_token": new_access,
+        "tiktok_refresh_token": new_refresh,
+        "tiktok_access_token_expires_at": new_expires_at,
+    })
+    return new_access
+
+
+@app.route("/api/admin/tiktok/status", methods=["GET"])
+@admin_required
+def admin_tiktok_status():
+    """Summary of TikTok connection state for the admin UI."""
+    prefs = _tiktok_read_prefs([
+        "tiktok_client_key",
+        "tiktok_client_secret",
+        "tiktok_refresh_token",
+        "tiktok_refresh_token_saved_at",
+        "tiktok_open_id",
+    ])
+    return jsonify({
+        "has_client_key": bool(prefs.get("tiktok_client_key")),
+        "has_client_secret": bool(prefs.get("tiktok_client_secret")),
+        "connected": bool(prefs.get("tiktok_refresh_token")),
+        "open_id": prefs.get("tiktok_open_id") or None,
+        "connected_at": prefs.get("tiktok_refresh_token_saved_at") or None,
+        "redirect_uri": TIKTOK_REDIRECT_URI,
+        "scopes": TIKTOK_SCOPES,
+    })
+
+
+@app.route("/api/admin/tiktok/auth-start", methods=["POST"])
+@admin_required
+def admin_tiktok_auth_start():
+    """Return the TikTok authorize URL the admin should open in a new tab.
+
+    Generates and persists a PKCE verifier + CSRF state; the callback route
+    validates the returned state before exchanging the code.
+    """
+    prefs = _tiktok_read_prefs(["tiktok_client_key"])
+    client_key = (prefs.get("tiktok_client_key") or "").strip()
+    if not client_key:
+        return jsonify({"error": "Set tiktok_client_key in Admin Settings first."}), 400
+
+    verifier, challenge = _tiktok_pkce_pair()
+    state = secrets.token_urlsafe(32)
+    _tiktok_write_prefs({
+        "tiktok_oauth_state": state,
+        "tiktok_oauth_verifier": verifier,
+        "tiktok_oauth_started_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    from urllib.parse import urlencode
+    authorize_url = TIKTOK_OAUTH_AUTHORIZE_URL + "?" + urlencode({
+        "client_key": client_key,
+        "response_type": "code",
+        "scope": TIKTOK_SCOPES,
+        "redirect_uri": TIKTOK_REDIRECT_URI,
+        "state": state,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+    })
+    return jsonify({"authorize_url": authorize_url})
+
+
+@app.route("/admin/tiktok/callback", methods=["GET"])
+def tiktok_oauth_callback():
+    """Public endpoint — TikTok redirects here with ?code=...&state=... after
+    the user authorizes. We validate state, swap code for tokens, persist,
+    then redirect back to /admin/settings."""
+    code = request.args.get("code", "").strip()
+    state = request.args.get("state", "").strip()
+    error = request.args.get("error", "").strip()
+    error_description = request.args.get("error_description", "").strip()
+
+    def _redirect_with(msg_key: str, msg_val: str):
+        from urllib.parse import quote as _q
+        return Response(
+            "",
+            status=302,
+            headers={"Location": f"/admin/settings?tiktok_{msg_key}={_q(msg_val)}"},
+        )
+
+    if error:
+        return _redirect_with("error", error_description or error)
+    if not code or not state:
+        return _redirect_with("error", "missing code or state parameter")
+
+    prefs = _tiktok_read_prefs([
+        "tiktok_client_key",
+        "tiktok_client_secret",
+        "tiktok_oauth_state",
+        "tiktok_oauth_verifier",
+    ])
+    client_key = (prefs.get("tiktok_client_key") or "").strip()
+    client_secret = (prefs.get("tiktok_client_secret") or "").strip()
+    saved_state = (prefs.get("tiktok_oauth_state") or "").strip()
+    verifier = (prefs.get("tiktok_oauth_verifier") or "").strip()
+
+    if not (client_key and client_secret and saved_state and verifier):
+        return _redirect_with("error", "oauth session expired — retry")
+    if not secrets.compare_digest(state, saved_state):
+        return _redirect_with("error", "state mismatch — possible CSRF; retry")
+
+    try:
+        resp = requests.post(
+            TIKTOK_OAUTH_TOKEN_URL,
+            headers={"Content-Type": "application/x-www-form-urlencoded", "Cache-Control": "no-cache"},
+            data={
+                "client_key": client_key,
+                "client_secret": client_secret,
+                "code": code,
+                "grant_type": "authorization_code",
+                "redirect_uri": TIKTOK_REDIRECT_URI,
+                "code_verifier": verifier,
+            },
+            timeout=20,
+        )
+    except requests.RequestException as e:
+        return _redirect_with("error", f"token exchange network error: {e}")
+
+    if resp.status_code != 200:
+        return _redirect_with("error", f"token exchange failed ({resp.status_code}): {resp.text[:200]}")
+
+    data = resp.json()
+    access_token = data.get("access_token")
+    refresh_token = data.get("refresh_token")
+    open_id = data.get("open_id") or ""
+    expires_in = int(data.get("expires_in", 86400))
+    if not (access_token and refresh_token):
+        return _redirect_with("error", f"token exchange missing tokens: {str(data)[:200]}")
+
+    expires_at = (
+        datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    ).isoformat()
+    now_iso = datetime.now(timezone.utc).isoformat()
+    _tiktok_write_prefs({
+        "tiktok_access_token": access_token,
+        "tiktok_refresh_token": refresh_token,
+        "tiktok_access_token_expires_at": expires_at,
+        "tiktok_open_id": open_id,
+        "tiktok_refresh_token_saved_at": now_iso,
+        # Clear ephemeral OAuth state
+        "tiktok_oauth_state": None,
+        "tiktok_oauth_verifier": None,
+    })
+    return _redirect_with("connected", "1")
+
+
+@app.route("/api/admin/tiktok/disconnect", methods=["POST"])
+@admin_required
+def admin_tiktok_disconnect():
+    """Revoke tokens at TikTok (best-effort) and clear local credentials."""
+    prefs = _tiktok_read_prefs([
+        "tiktok_client_key", "tiktok_client_secret", "tiktok_access_token"
+    ])
+    ck = prefs.get("tiktok_client_key", "").strip()
+    cs = prefs.get("tiktok_client_secret", "").strip()
+    at = prefs.get("tiktok_access_token", "").strip()
+    if ck and cs and at:
+        try:
+            requests.post(
+                TIKTOK_REVOKE_URL,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={"client_key": ck, "client_secret": cs, "token": at},
+                timeout=10,
+            )
+        except requests.RequestException:
+            pass
+    _tiktok_write_prefs({
+        "tiktok_access_token": None,
+        "tiktok_refresh_token": None,
+        "tiktok_access_token_expires_at": None,
+        "tiktok_open_id": None,
+        "tiktok_refresh_token_saved_at": None,
+    })
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/pipeline-videos/<int:video_id>/upload-to-tiktok", methods=["POST"])
+@admin_required
+def admin_upload_pipeline_video_to_tiktok(video_id: int):
+    """Upload a completed pipeline video to TikTok via the Content Posting API.
+
+    Body: { "caption": "...", "privacy_level": "SELF_ONLY" }  (privacy optional)
+
+    Sandbox / unapproved apps MUST use SELF_ONLY — the TikTok platform will
+    reject PUBLIC_TO_EVERYONE until the Content Posting scope is approved.
+    """
+    body = request.get_json(silent=True) or {}
+    caption = (body.get("caption") or "").strip()[:2200]
+    privacy_level = (body.get("privacy_level") or "SELF_ONLY").upper()
+    if privacy_level not in ("SELF_ONLY", "MUTUAL_FOLLOW_FRIENDS", "PUBLIC_TO_EVERYONE"):
+        privacy_level = "SELF_ONLY"
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, filename, youtube_title, youtube_description "
+            "FROM admin_pipeline_videos WHERE id = ? AND status = 'complete'",
+            (video_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row or not row["filename"]:
+        return jsonify({"error": "Video not found or not complete"}), 404
+    filepath = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
+    if not os.path.isfile(filepath):
+        return jsonify({"error": "Video file missing on disk"}), 404
+
+    # Fall back to YouTube-style metadata if no caption provided.
+    if not caption:
+        caption = (
+            (row["youtube_title"] or "").strip()
+            + "\n\n"
+            + (row["youtube_description"] or "").strip()
+        ).strip()[:2200]
+
+    try:
+        access_token = _tiktok_get_access_token()
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 400
+
+    video_size = os.path.getsize(filepath)
+    # Single-chunk upload (simplest; TikTok allows up to ~50 MB single-chunk).
+    init_resp = requests.post(
+        TIKTOK_UPLOAD_INIT_URL,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json; charset=UTF-8",
+        },
+        json={
+            "post_info": {
+                "title": caption,
+                "privacy_level": privacy_level,
+                "disable_duet": False,
+                "disable_comment": False,
+                "disable_stitch": False,
+                "video_cover_timestamp_ms": 1000,
+            },
+            "source_info": {
+                "source": "FILE_UPLOAD",
+                "video_size": video_size,
+                "chunk_size": video_size,
+                "total_chunk_count": 1,
+            },
+        },
+        timeout=30,
+    )
+    if init_resp.status_code != 200:
+        return jsonify({
+            "error": f"TikTok init failed ({init_resp.status_code}): {init_resp.text[:500]}"
+        }), 502
+    init_data = init_resp.json().get("data", {})
+    publish_id = init_data.get("publish_id")
+    upload_url = init_data.get("upload_url")
+    if not (publish_id and upload_url):
+        return jsonify({
+            "error": f"TikTok init returned no publish_id/upload_url: {str(init_resp.json())[:500]}"
+        }), 502
+
+    # PUT the file bytes to the upload_url.
+    with open(filepath, "rb") as f:
+        video_bytes = f.read()
+    put_resp = requests.put(
+        upload_url,
+        headers={
+            "Content-Type": "video/mp4",
+            "Content-Range": f"bytes 0-{video_size - 1}/{video_size}",
+        },
+        data=video_bytes,
+        timeout=600,
+    )
+    if put_resp.status_code not in (200, 201):
+        return jsonify({
+            "error": f"TikTok upload PUT failed ({put_resp.status_code}): {put_resp.text[:500]}"
+        }), 502
+
+    # Poll status until PUBLISH_COMPLETE or FAILED (60s cap).
+    final_status = None
+    final_note = ""
+    tiktok_video_id = None
+    for _ in range(30):  # 30 * 2s = 60s
+        time.sleep(2)
+        try:
+            st_resp = requests.post(
+                TIKTOK_UPLOAD_STATUS_URL,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json; charset=UTF-8",
+                },
+                json={"publish_id": publish_id},
+                timeout=15,
+            )
+        except requests.RequestException:
+            continue
+        if st_resp.status_code != 200:
+            continue
+        st_data = st_resp.json().get("data", {})
+        status = st_data.get("status", "")
+        if status == "PUBLISH_COMPLETE":
+            final_status = "PUBLISH_COMPLETE"
+            pids = st_data.get("publicaly_available_post_id") or st_data.get("publicly_available_post_id")
+            if isinstance(pids, list) and pids:
+                tiktok_video_id = str(pids[0])
+            final_note = "published"
+            break
+        if status in ("FAILED", "PROCESSING_FAILED", "PUBLISH_FAILED"):
+            final_status = status
+            final_note = st_data.get("fail_reason", "unknown failure")
+            break
+
+    if final_status != "PUBLISH_COMPLETE":
+        return jsonify({
+            "error": f"TikTok publish did not complete: {final_status or 'timeout'} — {final_note}",
+            "publish_id": publish_id,
+        }), 502
+
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE admin_pipeline_videos SET "
+            "  uploaded_to_tiktok = 1, tiktok_video_id = ?, tiktok_caption = ? "
+            "WHERE id = ?",
+            (tiktok_video_id, caption, video_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return jsonify({
+        "ok": True,
+        "video_id": video_id,
+        "tiktok_video_id": tiktok_video_id,
+        "publish_id": publish_id,
+        "privacy_level": privacy_level,
+        "note": "Uploaded. Sandbox apps can only post SELF_ONLY — visible to you only.",
     })
 
 

@@ -609,6 +609,9 @@ export interface PipelineVideo {
   youtube_video_id: string | null;
   triggered_by: 'manual' | 'scheduler' | string;
   uploaded_to_youtube: number;
+  uploaded_to_tiktok?: number;
+  tiktok_video_id?: string | null;
+  tiktok_caption?: string | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -743,6 +746,61 @@ export async function uploadPipelineVideoToYouTube(
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'YouTube upload failed');
+  return data;
+}
+
+/* ---------------- TikTok ---------------- */
+
+export interface TiktokStatus {
+  has_client_key: boolean;
+  has_client_secret: boolean;
+  connected: boolean;
+  open_id: string | null;
+  connected_at: string | null;
+  redirect_uri: string;
+  scopes: string;
+}
+
+export async function getTiktokStatus(): Promise<TiktokStatus> {
+  const res = await authFetch(`${BASE}/tiktok/status`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch TikTok status');
+  return data;
+}
+
+export async function startTiktokAuth(): Promise<{ authorize_url: string }> {
+  const res = await authFetch(`${BASE}/tiktok/auth-start`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to start TikTok auth');
+  return data;
+}
+
+export async function disconnectTiktok(): Promise<{ ok: true }> {
+  const res = await authFetch(`${BASE}/tiktok/disconnect`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to disconnect TikTok');
+  return data;
+}
+
+export interface TiktokUploadResult {
+  ok: true;
+  video_id: number;
+  tiktok_video_id: string | null;
+  publish_id: string;
+  privacy_level: 'SELF_ONLY' | 'MUTUAL_FOLLOW_FRIENDS' | 'PUBLIC_TO_EVERYONE';
+  note: string;
+}
+
+export async function uploadPipelineVideoToTiktok(
+  id: number,
+  params: { caption: string; privacy_level?: 'SELF_ONLY' | 'MUTUAL_FOLLOW_FRIENDS' | 'PUBLIC_TO_EVERYONE' },
+): Promise<TiktokUploadResult> {
+  const res = await authFetch(`${BASE}/pipeline-videos/${id}/upload-to-tiktok`, {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'TikTok upload failed');
   return data;
 }
 

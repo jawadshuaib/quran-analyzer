@@ -9,6 +9,8 @@ import type { Pipeline, PipelineVideo, Resource, MusicTrack, Voice, Reciter } fr
 import { useConfirm } from './shared/useConfirm';
 import { safeFilename } from './shared/filename';
 import UploadToYouTubeModal from './UploadToYouTubeModal';
+import PostToTikTokModal from './PostToTikTokModal';
+import { getTiktokStatus } from '../../api/admin';
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -45,6 +47,7 @@ export default function PipelineManager() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [reciters, setReciters] = useState<Reciter[]>([]);
   const [youtubeConfigured, setYoutubeConfigured] = useState(false);
+  const [tiktokConfigured, setTiktokConfigured] = useState(false);
 
   // Pipelines
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -93,6 +96,13 @@ export default function PipelineManager() {
       setYoutubeConfigured(
         !!(p.youtube_client_id && p.youtube_client_secret && p.youtube_refresh_token),
       );
+
+      // TikTok configured when the /tiktok/status endpoint reports connected.
+      // Done separately so the refresh-token freshness is actually checked
+      // (not just presence of fields in admin_preferences).
+      getTiktokStatus()
+        .then((s) => setTiktokConfigured(!!s.connected))
+        .catch(() => setTiktokConfigured(false));
 
       // Preselect based on ?lang= query param (set by AdminMedia cards)
       const params = new URLSearchParams(window.location.search);
@@ -770,6 +780,7 @@ export default function PipelineManager() {
                 onDownload={handleDownload}
                 onUploadedToggle={handleToggleUploaded}
                 youtubeConfigured={youtubeConfigured}
+                tiktokConfigured={tiktokConfigured}
               />
             ))}
           </div>
@@ -821,12 +832,14 @@ function VideoCard({
   onDownload,
   onUploadedToggle,
   youtubeConfigured,
+  tiktokConfigured,
 }: {
   video: PipelineVideo;
   onDelete: (id: number) => void;
   onDownload: (v: PipelineVideo) => void;
   onUploadedToggle: (id: number, uploaded: boolean) => void;
   youtubeConfigured: boolean;
+  tiktokConfigured: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sl = statusLabel(video.status);
@@ -836,9 +849,11 @@ function VideoCard({
   })();
 
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showTiktokModal, setShowTiktokModal] = useState(false);
   const isActive = ['pending', 'selecting_verses', 'polishing', 'generating_tts', 'rendering', 'generating_metadata'].includes(video.status);
   const bySchedule = video.triggered_by === 'scheduler';
   const uploaded = !!video.uploaded_to_youtube;
+  const uploadedTiktok = !!video.uploaded_to_tiktok;
 
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-4">
@@ -911,6 +926,26 @@ function VideoCard({
               }
             >
               {uploaded ? 'Re-upload to YouTube' : 'Upload to YouTube'}
+            </button>
+          )}
+          {video.status === 'complete' && (
+            <button
+              onClick={() => setShowTiktokModal(true)}
+              disabled={!tiktokConfigured}
+              className={`text-xs font-medium cursor-pointer disabled:cursor-not-allowed ${
+                tiktokConfigured
+                  ? 'text-fuchsia-600 hover:text-fuchsia-700'
+                  : 'text-stone-400 hover:text-stone-500'
+              }`}
+              title={
+                !tiktokConfigured
+                  ? 'TikTok not connected — go to Admin Settings → TikTok to connect'
+                  : uploadedTiktok
+                  ? 'Already posted — post again'
+                  : 'Post this video to TikTok'
+              }
+            >
+              {uploadedTiktok ? 'Re-post to TikTok' : 'Post to TikTok'}
             </button>
           )}
           {verses.length > 0 && (
@@ -1005,6 +1040,19 @@ function VideoCard({
             // The server already updated uploaded_to_youtube + youtube_video_id
             // — nothing more to do here. The parent's next poll will refresh.
             void ytId;
+          }}
+        />
+      )}
+
+      {showTiktokModal && (
+        <PostToTikTokModal
+          video={video}
+          onClose={() => setShowTiktokModal(false)}
+          onUploaded={(ttId, pId) => {
+            // Server already persisted uploaded_to_tiktok + tiktok_video_id;
+            // parent's next poll refreshes the card.
+            void ttId;
+            void pId;
           }}
         />
       )}
