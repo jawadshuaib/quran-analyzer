@@ -11,6 +11,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -8949,7 +8950,10 @@ def _pipeline_generate_task(video_id):
             # adding each one would meaningfully improve the video. Skipped
             # for manual selection (user picked exact verses on purpose) and
             # for passages already close to the budget.
-            EXTENSION_TRIGGER_SECONDS = 40.0
+            # Trigger on anything under 48s — leaves room for one more short
+            # verse before the 55s cap, and catches mid-argument endings that
+            # would otherwise ship with 7–15s of unused budget.
+            EXTENSION_TRIGGER_SECONDS = 48.0
             EXTENSION_MAX_COUNT = 3
             EXTENSION_HARD_CAP_SECONDS = 55.0
 
@@ -8991,20 +8995,35 @@ def _pipeline_generate_task(video_id):
                         f"- {v['chapter']}:{v['verse']}: {v.get('polished_text') or v['original_translation']}"
                         for v in verse_data
                     )
+                    budget_remaining = EXTENSION_HARD_CAP_SECONDS - total_dur
                     decide_prompt = (
                         f"You are deciding whether to extend a short Arabic-recitation Quran Short by one more verse.\n\n"
-                        f"CURRENT PASSAGE ({chapter}:{ayah_start}-{current_end_ayah}, ~{total_dur:.0f}s of recitation):\n"
+                        f"CURRENT PASSAGE ({chapter}:{ayah_start}-{current_end_ayah}, ~{total_dur:.0f}s of recitation, "
+                        f"~{budget_remaining:.0f}s of budget remaining before the 55s cap):\n"
                         f"{passage_so_far}\n\n"
                         f"CANDIDATE NEXT VERSE ({chapter}:{candidate_ayah}):\n"
                         f"Arabic: {candidate_arabic}\n"
                         f"Translation: {candidate_translation}\n\n"
-                        f"Should we include this next verse? Weigh:\n"
-                        f"- Does it meaningfully extend the narrative, argument, or emotional arc?\n"
-                        f"- Does the current passage leave a thought unresolved that this verse finishes?\n"
-                        f"- Does adding it deliver a rhetorical or emotional payoff that cutting here would lose?\n"
-                        f"- Or: does the current passage stand stronger on its own — would this dilute it?\n\n"
+                        f"GUIDANCE — the #1 failure mode is ending a Short mid-thought. If the current\n"
+                        f"passage trails off in a way that viewers feel was cut short, that is much worse\n"
+                        f"than a slightly-too-long video. Read the last verse of the current passage and ask:\n\n"
+                        f"  Does it end on a COMPLETE thought, or does it leave something hanging?\n\n"
+                        f"Signs the current ending is INCOMPLETE (→ strongly prefer adding):\n"
+                        f"- Ends on a rhetorical question that the next verse answers\n"
+                        f"- Ends on a setup/premise that the next verse resolves or subverts\n"
+                        f"- Ends on a conditional (\"if/when...\") whose consequence is in the next verse\n"
+                        f"- Ends on a list or parallel structure that the next verse completes\n"
+                        f"- Ends on a contrast (\"some... but others...\") missing its counterpart\n"
+                        f"- Ends describing a scene/state whose resolution or reversal is in the next verse\n"
+                        f"- The next verse contains the emotional, theological, or rhetorical PAYOFF\n\n"
+                        f"Signs the current ending stands on its own (→ decline adding):\n"
+                        f"- Ends on a definitive declaration, verdict, or summary statement\n"
+                        f"- Next verse shifts to an unrelated topic or audience\n"
+                        f"- Next verse dilutes rather than completes (e.g. restarts a new theme)\n\n"
+                        f"When genuinely uncertain AND budget permits, add the verse. A finished thought\n"
+                        f"is more valuable than a tighter runtime.\n\n"
                         f"Answer with JSON only:\n"
-                        f'{{"add": true or false, "reason": "<one short sentence>"}}'
+                        f'{{"add": true or false, "reason": "<one short sentence naming the completeness signal>"}}'
                     )
                     try:
                         dec_resp = requests.post(
@@ -10092,11 +10111,24 @@ def _scheduler_loop():
             time.sleep(5)
 
 
-try:
-    _scheduler_thread = threading.Thread(target=_scheduler_loop, daemon=True)
-    _scheduler_thread.start()
-except Exception as e:
-    print(f"WARNING: could not start scheduler daemon: {e}")
+def _start_scheduler_once():
+    """Spawn the scheduler daemon thread (idempotent per process)."""
+    if getattr(_start_scheduler_once, "_started", False):
+        return
+    try:
+        threading.Thread(target=_scheduler_loop, daemon=True).start()
+        _start_scheduler_once._started = True
+    except Exception as e:
+        print(f"WARNING: could not start scheduler daemon: {e}")
+
+
+# When imported by a WSGI server (gunicorn, uwsgi) the module is loaded
+# exactly once per worker and __name__ is the module name — safe to start.
+# When `python app.py` is run directly the __main__ block below handles it
+# with a reloader-aware guard; the module here is imported as __main__, so
+# this branch is skipped.
+if __name__ != "__main__":
+    _start_scheduler_once()
 
 
 # --------------- Admin: Pipeline Scheduler endpoints ---------------
@@ -10919,4 +10951,11 @@ if SERVE_STATIC:
 
 
 if __name__ == "__main__":
+    # Only the reloader-spawned child (WERKZEUG_RUN_MAIN=true) runs the
+    # scheduler. The parent watcher process stays passive — that keeps one
+    # and only one scheduler daemon alive, even across code reloads.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        _start_scheduler_once()
+    else:
+        print("[scheduler] parent watcher — deferring start to reloader child")
     app.run(debug=True, port=5000)
