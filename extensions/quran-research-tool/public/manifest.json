@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Quran Research Tool",
-  "version": "1.2.0",
-  "description": "Identifies Quranic Arabic text and shows word-level morphology, translations, translation notes, grammar notes with a term glossary, and root analysis",
+  "version": "1.2.1",
+  "description": "Identifies Quranic Arabic on any page: morphology, AI translations, translation and grammar notes, root analysis.",
   "permissions": [
     "activeTab",
     "tabs"
