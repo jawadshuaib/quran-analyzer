@@ -5059,6 +5059,45 @@ def admin_save_preferences():
         conn.close()
 
 
+# --------------- Public: Chrome extension info ---------------
+
+# Fallback values used when admin hasn't set them yet. Matches what was
+# previously hardcoded in the frontend. Updating the extension ID after
+# a Chrome Web Store resubmission is now a one-field edit in Admin
+# Settings rather than a code deploy.
+_CHROME_EXTENSION_DEFAULTS = {
+    "id": "jbalbedmilokgefgknhieckdidnlikdm",
+    "store_url": (
+        "https://chromewebstore.google.com/detail/quran-research-tool/"
+        "jbalbedmilokgefgknhieckdidnlikdm"
+    ),
+}
+
+
+@app.route("/api/public/chrome-extension-info", methods=["GET"])
+def public_chrome_extension_info():
+    """Return the current Chrome extension ID + store URL for the site to
+    use when detecting whether the extension is installed and linking to
+    the store. Public, no auth — this info isn't sensitive and is also
+    visible in the extension listing itself."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT key, value FROM admin_preferences "
+            "WHERE key IN ('chrome_extension_id', 'chrome_extension_store_url')"
+        ).fetchall()
+        prefs = {r["key"]: (r["value"] or "").strip() for r in rows}
+    finally:
+        conn.close()
+
+    ext_id = prefs.get("chrome_extension_id") or _CHROME_EXTENSION_DEFAULTS["id"]
+    store_url = (
+        prefs.get("chrome_extension_store_url")
+        or _CHROME_EXTENSION_DEFAULTS["store_url"]
+    )
+    return jsonify({"id": ext_id, "store_url": store_url})
+
+
 # --------------- Admin: Reciters proxy (Quran.com) ---------------
 
 _reciters_cache: dict | None = None
@@ -10490,8 +10529,6 @@ def _youtube_get_access_token() -> str:
     return token
 
 
-@app.route("/api/admin/pipeline-videos/<int:video_id>/upload", methods=["POST"])
-@admin_required
 def _perform_youtube_upload(
     video_id: int,
     title: str | None = None,
@@ -10635,6 +10672,8 @@ def _perform_youtube_upload(
     }
 
 
+@app.route("/api/admin/pipeline-videos/<int:video_id>/upload", methods=["POST"])
+@admin_required
 def admin_upload_pipeline_video_to_youtube(video_id):
     """Upload a completed pipeline video to YouTube via the Data API v3.
 

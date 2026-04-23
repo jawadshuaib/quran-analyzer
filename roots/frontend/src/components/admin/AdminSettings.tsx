@@ -106,6 +106,8 @@ export default function AdminSettings() {
       <YoutubeSection />
       <hr className="border-stone-200" />
       <TiktokSection />
+      <hr className="border-stone-200" />
+      <ChromeExtensionSection />
     </div>
   );
 }
@@ -972,6 +974,111 @@ function TiktokSection() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Chrome Extension Configuration                                    */
+/* ------------------------------------------------------------------ */
+
+function ChromeExtensionSection() {
+  const [extId, setExtId] = useState('');
+  const [storeUrl, setStoreUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    getPreferences().then((prefs) => {
+      if (prefs.chrome_extension_id) setExtId(prefs.chrome_extension_id);
+      if (prefs.chrome_extension_store_url) setStoreUrl(prefs.chrome_extension_store_url);
+    });
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg('');
+    try {
+      await savePreferences({
+        chrome_extension_id: extId.trim(),
+        chrome_extension_store_url: storeUrl.trim(),
+      });
+      setMsg('Saved');
+      setTimeout(() => setMsg(''), 2000);
+    } catch {
+      setMsg('Failed to save');
+    } finally { setSaving(false); }
+  }
+
+  // Auto-derive the store URL when the ID changes and the URL field is
+  // either empty or still pointed at the old pattern. Admin can override.
+  function handleIdChange(next: string) {
+    setExtId(next);
+    const trimmed = next.trim();
+    if (trimmed && (!storeUrl.trim() || /\/detail\/quran-research-tool\//.test(storeUrl))) {
+      setStoreUrl(`https://chromewebstore.google.com/detail/quran-research-tool/${trimmed}`);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold text-stone-800 mb-1">Chrome Extension</h2>
+      <p className="text-sm text-stone-500 mb-4">
+        Controls the "Get Chrome Extension" banner and the installed-check ping. Update the ID
+        here whenever a Chrome Web Store resubmission issues a new one — no code deploy needed.
+      </p>
+
+      <div className="max-w-xl space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Extension ID</label>
+          <input
+            type="text"
+            value={extId}
+            onChange={(e) => handleIdChange(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="jbalbedmilokgefgknhieckdidnlikdm"
+          />
+          <div className="mt-1.5 text-[11px] text-stone-500 leading-relaxed space-y-1">
+            <div>
+              The 32-character string at the <b>end</b> of your Chrome Web Store URL:
+            </div>
+            <div className="font-mono text-stone-400 break-all">
+              https://chromewebstore.google.com/detail/quran-research-tool/
+              <span className="text-stone-700 font-semibold underline decoration-stone-300 underline-offset-2">
+                jbalbedmilokgefgknhieckdidnlikdm
+              </span>
+            </div>
+            <div className="text-stone-400">
+              Also shown on <code className="px-1 bg-stone-100 rounded">chrome://extensions</code> once "Developer mode" (top right) is enabled.
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1">Store URL</label>
+          <input
+            type="text"
+            value={storeUrl}
+            onChange={(e) => setStoreUrl(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="https://chromewebstore.google.com/detail/quran-research-tool/…"
+          />
+          <p className="mt-1 text-[11px] text-stone-400">
+            Where the "Get Chrome Extension" banner links. Auto-derives from the ID; override if the slug differs.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {msg && <span className="text-xs text-stone-500">{msg}</span>}
+        </div>
       </div>
     </div>
   );

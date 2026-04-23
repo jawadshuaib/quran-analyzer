@@ -28,8 +28,11 @@ import SavedItemsPanel from './components/SavedItemsPanel';
 import AdminPage from './components/admin/AdminPage';
 import { buildVerseContext } from './utils/context-builders';
 
-const CHROME_EXTENSION_URL = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
-const CHROME_EXTENSION_ID = 'jbalbedmilokgefgknhieckdidnlikdm';
+// Fallback values used until /api/public/chrome-extension-info resolves.
+// Admin can change these at runtime from Admin Settings — useful when
+// the Chrome Web Store issues a new ID after a resubmission.
+const CHROME_EXTENSION_URL_FALLBACK = 'https://chromewebstore.google.com/detail/quran-research-tool/jbalbedmilokgefgknhieckdidnlikdm';
+const CHROME_EXTENSION_ID_FALLBACK = 'jbalbedmilokgefgknhieckdidnlikdm';
 
 function getVerseFromPath(): { surah: number; ayah: number } | null {
   const match = window.location.pathname.match(/^\/verse\/(\d+):(\d+)$/);
@@ -86,7 +89,7 @@ function isMobileUserAgent(): boolean {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
 }
 
-async function detectExtensionInstalled(): Promise<boolean> {
+async function detectExtensionInstalled(extensionId: string): Promise<boolean> {
   const chromeObj = (window as unknown as { chrome?: { runtime?: { sendMessage?: Function; lastError?: { message?: string } } } }).chrome;
   const runtime = chromeObj?.runtime;
   const sendMessage = runtime?.sendMessage;
@@ -102,7 +105,7 @@ async function detectExtensionInstalled(): Promise<boolean> {
 
     try {
       sendMessage(
-        CHROME_EXTENSION_ID,
+        extensionId,
         { type: 'QURAN_RESEARCH_TOOL_PING' },
         (response: unknown) => {
           if (done) return;
@@ -129,7 +132,7 @@ async function detectExtensionInstalled(): Promise<boolean> {
   });
 }
 
-function TopExtensionBar() {
+function TopExtensionBar({ storeUrl }: { storeUrl: string }) {
   return (
     <div className="sticky top-0 z-40 w-full border-b border-stone-300 bg-stone-100">
       <div className="w-full px-4 py-2 flex justify-center">
@@ -138,7 +141,7 @@ function TopExtensionBar() {
             Bring deeper analysis to the Quran without leaving your browser.
           </p>
           <a
-            href={CHROME_EXTENSION_URL}
+            href={storeUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center rounded-md bg-stone-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-700 transition-colors"
@@ -167,17 +170,23 @@ function SiteFooter() {
 export default function App() {
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [extensionCheckDone, setExtensionCheckDone] = useState(false);
+  const [extensionConfig, setExtensionConfig] = useState<{ id: string; storeUrl: string }>({
+    id: CHROME_EXTENSION_ID_FALLBACK,
+    storeUrl: CHROME_EXTENSION_URL_FALLBACK,
+  });
+  const currentPath = window.location.pathname;
+  const isHomepage = currentPath === '/' || currentPath === '';
   const showTopBar =
     !isMobileUserAgent() &&
     extensionCheckDone &&
-    !extensionInstalled;
-  const currentPath = window.location.pathname;
+    !extensionInstalled &&
+    !isHomepage;
 
   if (isLearningPath()) {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <LearningPage />
         <SiteFooter />
@@ -191,7 +200,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <div className="flex-1">
           <WordAnalysisPage surah={wordParams.surah} ayah={wordParams.ayah} pos={wordParams.pos} />
@@ -207,7 +216,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <RootPage rootBw={rootBw} />
         <SavedItemsPanel />
@@ -219,7 +228,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <ExtensionPrivacyPage />
         <SiteFooter />
@@ -231,7 +240,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <PrivacyPage />
         <SiteFooter />
@@ -243,7 +252,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <TermsPage />
         <SiteFooter />
@@ -255,7 +264,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <MethodologyPage />
         <SiteFooter />
@@ -276,7 +285,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <SettingsPage />
       </div>
@@ -287,7 +296,7 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col">
         <PageBackground />
-        {showTopBar && <TopExtensionBar />}
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <NotFound />
       </div>
@@ -350,11 +359,32 @@ export default function App() {
       setExtensionCheckDone(true);
       return;
     }
-    detectExtensionInstalled().then((installed) => {
+
+    // Fetch the live extension id/store URL (admin-configurable) before
+    // pinging — so a resubmission to the Chrome Web Store that changes
+    // the ID only needs an Admin Settings update, not a code deploy.
+    (async () => {
+      let id = CHROME_EXTENSION_ID_FALLBACK;
+      let storeUrl = CHROME_EXTENSION_URL_FALLBACK;
+      try {
+        const res = await fetch('/api/public/chrome-extension-info');
+        if (res.ok) {
+          const data = (await res.json()) as { id?: string; store_url?: string };
+          if (data.id) id = data.id;
+          if (data.store_url) storeUrl = data.store_url;
+        }
+      } catch {
+        // Fallback constants are already set — continue silently.
+      }
+      if (cancelled) return;
+      setExtensionConfig({ id, storeUrl });
+
+      const installed = await detectExtensionInstalled(id);
       if (cancelled) return;
       setExtensionInstalled(installed);
       setExtensionCheckDone(true);
-    });
+    })();
+
     return () => {
       cancelled = true;
     };
@@ -418,7 +448,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
     <PageBackground />
-    {showTopBar && <TopExtensionBar />}
+    {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
 
     {/* NavBar — full-width, spans across */}
     <NavBar currentPath={currentPath} />
