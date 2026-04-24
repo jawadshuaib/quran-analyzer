@@ -274,7 +274,12 @@ export default function App() {
   }
 
   if (/^\/developers\/?$/.test(currentPath)) {
-    return <ApiPage />;
+    return (
+      <>
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <ApiPage />
+      </>
+    );
   }
 
   if (/^\/admin(\/settings|\/scheduler|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(currentPath)) {

@@ -118,16 +118,31 @@ except Exception as e:
 " 2>&1
 fi
 
-# Back up all admin tables (preferences, voices, users, tts_cache, resources, generated_videos)
+# Back up all runtime-state tables. These are tables populated by the
+# running app (preferences, schedules, upload runs, pipeline video rows,
+# etc.) as opposed to the seed corpus (verses, roots, ai_* generated
+# content). Matching prefixes:
+#   admin_%    — admin_preferences, admin_pipeline_videos, admin_voices, ...
+#   pipeline_% — pipeline_schedules, pipeline_schedule_runs
+#   youtube_%  — youtube_upload_schedule, youtube_upload_runs
+#   tiktok_%   — reserved for upcoming TikTok integration tables
+#
+# IMPORTANT: when you add a new user-facing table, either (a) give it
+# one of these prefixes, or (b) add its prefix here. Otherwise it will
+# silently get wiped on every deploy.
 if [ -f /app/data/quran.db ]; then
-  echo "Backing up admin tables..."
+  echo "Backing up runtime-state tables..."
   python3 -c "
 import sqlite3, os
 src = '/app/data/quran.db'
 bak = '/tmp/admin_backup.db'
 try:
     conn = sqlite3.connect(src)
-    tables = [r[0] for r in conn.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'admin_%'\").fetchall()]
+    tables = [r[0] for r in conn.execute(
+        \"SELECT name FROM sqlite_master WHERE type='table' AND (\"
+        \"name LIKE 'admin_%' OR name LIKE 'pipeline_%' OR \"
+        \"name LIKE 'youtube_%' OR name LIKE 'tiktok_%')\"
+    ).fetchall()]
     if tables:
         bak_conn = sqlite3.connect(bak)
         for tbl in tables:
@@ -139,13 +154,25 @@ try:
                     placeholders = ','.join(['?'] * len(rows[0]))
                     bak_conn.executemany(f'INSERT INTO {tbl} VALUES ({placeholders})', rows)
                     print(f'  Backed up {len(rows)} rows from {tbl}')
+        # Also grab indexes (e.g. the UNIQUE idx on youtube_upload_runs.scheduled_time)
+        # so that the restored table keeps its uniqueness guarantees.
+        for tbl in tables:
+            idx_rows = conn.execute(
+                \"SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL\",
+                (tbl,),
+            ).fetchall()
+            for (idx_sql,) in idx_rows:
+                try:
+                    bak_conn.execute(idx_sql)
+                except Exception:
+                    pass  # skip if already created
         bak_conn.commit()
         bak_conn.close()
     else:
-        print('  No admin tables found')
+        print('  No runtime-state tables found')
     conn.close()
 except Exception as e:
-    print(f'  Admin backup warning: {e}')
+    print(f'  Runtime-state backup warning: {e}')
 " 2>&1
 fi
 
@@ -153,16 +180,21 @@ fi
 echo "Deploying latest database..."
 cp /app/seed-quran.db /app/data/quran.db
 
-# Restore admin tables into the fresh database
+# Restore runtime-state tables into the fresh database. Matches the
+# prefix list in the backup step above — keep these in sync.
 if [ -f /tmp/admin_backup.db ]; then
-  echo "Restoring admin tables..."
+  echo "Restoring runtime-state tables..."
   python3 -c "
 import sqlite3, os
 bak = '/tmp/admin_backup.db'
 dst = '/app/data/quran.db'
 try:
     bak_conn = sqlite3.connect(bak)
-    tables = [r[0] for r in bak_conn.execute(\"SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'admin_%'\").fetchall()]
+    tables = [r[0] for r in bak_conn.execute(
+        \"SELECT name FROM sqlite_master WHERE type='table' AND (\"
+        \"name LIKE 'admin_%' OR name LIKE 'pipeline_%' OR \"
+        \"name LIKE 'youtube_%' OR name LIKE 'tiktok_%')\"
+    ).fetchall()]
     dst_conn = sqlite3.connect(dst)
     for tbl in tables:
         schema = bak_conn.execute(f\"SELECT sql FROM sqlite_master WHERE type='table' AND name='{tbl}'\").fetchone()
@@ -173,12 +205,23 @@ try:
                 placeholders = ','.join(['?'] * len(rows[0]))
                 dst_conn.executemany(f'INSERT OR REPLACE INTO {tbl} VALUES ({placeholders})', rows)
                 print(f'  Restored {len(rows)} rows to {tbl}')
+    # Restore indexes too (e.g. UNIQUE on youtube_upload_runs.scheduled_time)
+    for tbl in tables:
+        idx_rows = bak_conn.execute(
+            \"SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL\",
+            (tbl,),
+        ).fetchall()
+        for (idx_sql,) in idx_rows:
+            try:
+                dst_conn.execute(idx_sql)
+            except Exception:
+                pass  # already exists or table schema re-created it
     dst_conn.commit()
     dst_conn.close()
     bak_conn.close()
     os.remove(bak)
 except Exception as e:
-    print(f'  Admin restore warning: {e}')
+    print(f'  Runtime-state restore warning: {e}')
 " 2>&1
 fi
 
