@@ -10,6 +10,7 @@ import { useConfirm } from './shared/useConfirm';
 import { safeFilename } from './shared/filename';
 import UploadToYouTubeModal from './UploadToYouTubeModal';
 import PostToTikTokModal from './PostToTikTokModal';
+import InlineVideoPreview from './InlineVideoPreview';
 import { getTiktokStatus } from '../../api/admin';
 
 function formatBytes(bytes: number): string {
@@ -857,6 +858,15 @@ function VideoCard({
 
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <div className="flex gap-4 items-start">
+        {/* Inline preview (only for completed videos) — lazy-loaded blob
+            so the pipeline page doesn't bulk-download every card's video on
+            mount. */}
+        {video.status === 'complete' && video.filename && (
+          <InlineVideoPreview videoId={video.id} />
+        )}
+
+        <div className="flex-1 min-w-0">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
           <span className={`px-2.5 py-1 rounded-full text-[11px] font-medium ${sl.color}`}>
@@ -1030,6 +1040,8 @@ function VideoCard({
             ▶ youtube.com/watch?v={video.youtube_video_id}
           </a>
         )}
+      </div>
+        </div>
       </div>
 
       {showUploadModal && (
