@@ -182,40 +182,97 @@ cp /app/seed-quran.db /app/data/quran.db
 
 # Restore runtime-state tables into the fresh database. Matches the
 # prefix list in the backup step above — keep these in sync.
+#
+# Robustness notes (lessons learned):
+#   1. The seed DB already has empty copies of the admin_%, pipeline_%,
+#      youtube_%, tiktok_% tables (the python _ensure_* functions create
+#      them and the seed-baking script DELETEs rows but does not DROP).
+#      So every CREATE TABLE raised "table already exists" and the outer
+#      try/except bailed out BEFORE any INSERT — silently wiping all
+#      admin settings on every deploy.
+#   2. Fix: use CREATE TABLE IF NOT EXISTS, clear the seed's stale rows
+#      first, then do column-explicit INSERTs against the intersection of
+#      backup columns and destination columns. This survives schema
+#      drift (e.g. if a new ALTER-added column exists in one side only).
+#   3. Each table is wrapped in its own try/except so one problematic
+#      table cannot take down the rest.
 if [ -f /tmp/admin_backup.db ]; then
   echo "Restoring runtime-state tables..."
   python3 -c "
-import sqlite3, os
+import sqlite3, os, re
 bak = '/tmp/admin_backup.db'
 dst = '/app/data/quran.db'
 try:
     bak_conn = sqlite3.connect(bak)
+    dst_conn = sqlite3.connect(dst)
     tables = [r[0] for r in bak_conn.execute(
         \"SELECT name FROM sqlite_master WHERE type='table' AND (\"
         \"name LIKE 'admin_%' OR name LIKE 'pipeline_%' OR \"
         \"name LIKE 'youtube_%' OR name LIKE 'tiktok_%')\"
     ).fetchall()]
-    dst_conn = sqlite3.connect(dst)
+
     for tbl in tables:
-        schema = bak_conn.execute(f\"SELECT sql FROM sqlite_master WHERE type='table' AND name='{tbl}'\").fetchone()
-        if schema and schema[0]:
-            dst_conn.execute(schema[0])
-            rows = bak_conn.execute(f'SELECT * FROM {tbl}').fetchall()
+        try:
+            schema = bak_conn.execute(
+                \"SELECT sql FROM sqlite_master WHERE type='table' AND name=?\",
+                (tbl,),
+            ).fetchone()
+            if not schema or not schema[0]:
+                continue
+
+            # Make the CREATE idempotent so we don't blow up when the
+            # seed already has an empty version of this table.
+            create_sql = re.sub(
+                r'^CREATE TABLE(?!\s+IF\s+NOT\s+EXISTS)',
+                'CREATE TABLE IF NOT EXISTS',
+                schema[0].strip(), count=1,
+            )
+            dst_conn.execute(create_sql)
+
+            # Clear stale seed rows (empty by design, but be defensive).
+            dst_conn.execute(f'DELETE FROM \"{tbl}\"')
+
+            # Column-intersection INSERT — safe against schema drift.
+            bak_cols = [r[1] for r in bak_conn.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()]
+            dst_cols = [r[1] for r in dst_conn.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()]
+            dst_set = set(dst_cols)
+            common_cols = [c for c in bak_cols if c in dst_set]
+            if not common_cols:
+                print(f'  [{tbl}] no common columns between backup and dst, skipping')
+                continue
+
+            col_list = ','.join(f'\"{c}\"' for c in common_cols)
+            placeholders = ','.join(['?'] * len(common_cols))
+            rows = bak_conn.execute(f'SELECT {col_list} FROM \"{tbl}\"').fetchall()
             if rows:
-                placeholders = ','.join(['?'] * len(rows[0]))
-                dst_conn.executemany(f'INSERT OR REPLACE INTO {tbl} VALUES ({placeholders})', rows)
+                dst_conn.executemany(
+                    f'INSERT INTO \"{tbl}\" ({col_list}) VALUES ({placeholders})',
+                    rows,
+                )
                 print(f'  Restored {len(rows)} rows to {tbl}')
-    # Restore indexes too (e.g. UNIQUE on youtube_upload_runs.scheduled_time)
+        except Exception as e:
+            print(f'  [{tbl}] restore error: {e}')
+
+    # Restore indexes too (e.g. UNIQUE on youtube_upload_runs.scheduled_time).
     for tbl in tables:
-        idx_rows = bak_conn.execute(
-            \"SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL\",
-            (tbl,),
-        ).fetchall()
-        for (idx_sql,) in idx_rows:
-            try:
-                dst_conn.execute(idx_sql)
-            except Exception:
-                pass  # already exists or table schema re-created it
+        try:
+            idx_rows = bak_conn.execute(
+                \"SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL\",
+                (tbl,),
+            ).fetchall()
+            for (idx_sql,) in idx_rows:
+                idx_sql = re.sub(
+                    r'^CREATE(?:\s+UNIQUE)?\s+INDEX(?!\s+IF\s+NOT\s+EXISTS)',
+                    lambda m: m.group(0).replace('INDEX', 'INDEX IF NOT EXISTS'),
+                    idx_sql.strip(), count=1,
+                )
+                try:
+                    dst_conn.execute(idx_sql)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f'  [{tbl}] index restore error: {e}')
+
     dst_conn.commit()
     dst_conn.close()
     bak_conn.close()
