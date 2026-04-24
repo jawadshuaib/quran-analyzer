@@ -116,6 +116,31 @@ export async function fetchGrammarNotes(
   return res.json();
 }
 
+export interface GrammarGlossaryResponse {
+  categories: string[];
+  terms: Array<
+    import('../types').GrammarTerm & { category: string | null; updated_at?: string }
+  >;
+}
+
+export async function fetchAllGrammarTerms(): Promise<GrammarGlossaryResponse> {
+  const res = await fetch(`${BASE}/grammar-terms`);
+  if (!res.ok) throw new Error('Failed to load grammar glossary');
+  return res.json();
+}
+
+/** Slug generator — must match the backend anchor scheme so tooltip deep links work. */
+export function grammarTermSlug(term: string): string {
+  return term
+    .toLowerCase()
+    .normalize('NFD')
+    // Strip combining diacritics
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-');
+}
+
 export async function fetchWordMeanings(
   surah: number,
   ayah: number,

@@ -21,6 +21,7 @@ import MethodologyPage from './components/MethodologyPage';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
 import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
+import GrammarGlossaryPage from './components/GrammarGlossaryPage';
 import LearningPage from './components/learning/LearningPage';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
@@ -63,6 +64,10 @@ function isTermsPath(): boolean {
   return /^\/terms\/?$/.test(window.location.pathname);
 }
 
+function isGrammarGlossaryPath(): boolean {
+  return /^\/grammar-glossary\/?$/.test(window.location.pathname);
+}
+
 function isLearningPath(): boolean {
   return /^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(window.location.pathname);
 }
@@ -80,6 +85,7 @@ function isKnownRoute(): boolean {
   if (/^\/settings\/?$/.test(path)) return true;
   if (/^\/developers\/?$/.test(path)) return true;
   if (/^\/methodology\/?$/.test(path)) return true;
+  if (/^\/grammar-glossary\/?$/.test(path)) return true;
   if (/^\/admin(\/settings|\/scheduler|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(path)) return true;
   return false;
 }
@@ -255,6 +261,18 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <TermsPage />
+        <SiteFooter />
+      </div>
+    );
+  }
+
+  if (isGrammarGlossaryPath()) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <GrammarGlossaryPage />
         <SiteFooter />
       </div>
     );

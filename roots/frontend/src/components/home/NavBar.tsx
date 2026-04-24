@@ -5,6 +5,7 @@ interface Props {
 const NAV_LINKS = [
   { label: 'Learn', href: '/learning' },
   { label: 'Methodology', href: '/methodology' },
+  { label: 'Grammar', href: '/grammar-glossary' },
   { label: 'API', href: '/developers' },
   { label: 'Settings', href: '/settings' },
 ];

@@ -3101,17 +3101,189 @@ def get_grammar_notes(surah: int, ayah: int):
         conn.close()
 
 
+# =========================================================================
+# Grammar term categorization
+# -------------------------------------------------------------------------
+# The glossary is organized pedagogically rather than alphabetically: terms
+# related by grammatical function sit next to each other. The category is
+# stored on the row so the frontend/noscript/sitemap logic can all read it
+# cheaply, and the categorize() function is the single source of truth —
+# it's invoked on startup to backfill NULL categories (after new terms are
+# inserted by the grammar_notes_ai.py pipeline, the next backend restart
+# will categorize them).
+# =========================================================================
+
+GRAMMAR_CATEGORIES = [
+    "Sentence Structures",
+    "Case & Mood",
+    "Subjects, Objects & Complements",
+    "Verb Morphology & Forms",
+    "Tense & Aspect",
+    "Participles & Verbal Nouns",
+    "Nouns",
+    "Pronouns",
+    "Prepositions",
+    "Particles",
+    "Negation",
+    "Emphasis & Restriction",
+    "Conditionals & Oaths",
+    "Interrogatives",
+    "Relatives",
+    "Vocatives & Address",
+    "Adverbial & Circumstantial",
+    "Inna / Kāna Families",
+    "Rhetorical Devices",
+    "Agreement & Number",
+    "Morphology & Phonology",
+    "Other",
+]
+
+# Rule table: ordered — first match wins. Each rule is
+# (category, regex_pattern). Patterns are matched case-insensitively
+# against the English term first, then the explanation as a fallback.
+_GRAMMAR_CAT_RULES = [
+    ("Inna / Kāna Families",
+     r"\b(inna and its sisters|kana and its sisters|sisters of|and its sisters)\b|\b(kāna|kana|laysa|layta|la.alla|ka.anna|lakinna|lākinna|ṣāra|aṣbaḥa|amsā|ẓalla|bāta|ʾanna|ʾinna|dhanna|ḥasiba|khāla|predicate of kana)\b|\binna\b|\binnamā\b|\bPredicate of 'Kana'\b"),
+    ("Conditionals & Oaths",
+     r"\b(conditional|counterfactual|hypothetical|apodosis|protasis|consequence particle|oath|qasam)\b|^law\b|^lawla\b|^lawlā\b|^idha\b|^idhā\b|\bwāw of oath\b|\bwaw of oath\b"),
+    ("Adverbial & Circumstantial",
+     r"^(hal|ḥāl|halah|circumstantial|adverbial|adverb|locative adverb)\b|\baccusative of (time|place|reason|purpose|specification|exaltation)\b|\b(adverb of|zarf|ẓarf)\b"),
+    ("Rhetorical Devices",
+     r"\b(iltifāt|iltifat|rhetorical|fronting|taqdīm|taqdim|topicalization|ellipsis|omission|ḥadhf|metaphor|metonymy|parallelism|antithesis|chiasmus|merism|hasr|ḥaṣr|restriction|exclusive|fasl|faṣl|direct speech|badal|apposit|tamyiz|tamyīz|specification|exception|exceptive|istithnāʾ|istithna|concessive|iqtiṣāṣ|contrastive topic)\b"),
+    ("Pronouns",
+     r"\bpronoun\b|\bpronominal\b|\bdemonstrative\b|^(1st|2nd|3rd|first|second|third) person\b|^damir|^ḍamīr|\bgrammatical person\b"),
+    ("Negation",
+     r"\b(negation|negative|negator|negating|absolute negat)\b|^(lā|la) (of|al-)|\b(lam|lan|laysa|lā nāfiya|lā nafiya|lā naf|mā al-)\b|\bno verb\b|\bno noun\b"),
+    ("Emphasis & Restriction",
+     r"\b(emphatic|emphasis|emphasising|emphasizing|tawkīd|tawkid|assertive|corroborative|corroborat|intensif|confirmatory|confirm|accentuating)\b"),
+    ("Prepositions",
+     r"\bpreposition\b|\bprepositional\b|\bharf jar\b"),
+    ("Case & Mood",
+     r"^(nominative|accusative|genitive|jussive|subjunctive|indicative|mansub|majzum|marfu|majrūr|majrur|mabni|muʿrab|apocopate|indeclinable)\b|^(case|mood|aspect|tense|voice|active|passive)$|^grammatical (case|mood)$|\b(active|passive) (voice|verb|participle)\b"),
+    ("Verb Morphology & Forms",
+     r"^form [ivx]+\b|^verb form|\b(triliteral|biliteral|quadriliteral|quintuple)\b|\broot letters?\b|^(transitive|intransitive|ditransitive|copular|defective|sound|weak|hollow|assimilated|doubled|denominal)\b|^(causative|reflexive|reciprocal|iterative|intensive|factitive)\b|\b(double accusative|double object|doubly transitive|approach verb|auxiliary verb|derived form|reciprocity|inceptive verb)\b"),
+    ("Tense & Aspect",
+     r"^(perfect|imperfect|past|present|future|imperative|continuous past)\b|\b(continuous past|past tense|perfect tense|perfect verb|imperfect verb|imperfect aspect|jussive mood)\b"),
+    ("Participles & Verbal Nouns",
+     r"\b(participle|gerund|masdar|verbal noun|infinitive|active participle|passive participle)\b"),
+    ("Nouns",
+     r"\b(idāfa|idafa|idaafa|possessive construct|construct phrase|annexation|genitive construction|possessive noun|possessive)\b|^(noun|proper noun|common noun|definite|indefinite|nakira|ma.rifa|definiteness|indefiniteness|collective|broken plural|sound plural|diminutive|elative|elicitive|superlative|comparative|partitive|ism tafdil|ism tafdeel|ism fāʿil|ism mafʿūl|attribute|attributive noun|adjective|adjective agreement)\b|^ism\b"),
+    ("Interrogatives",
+     r"^(interrogative|question particle)\b|\b(question particle|interrogative particle|hamza of interrogation|hal particle)\b|\bexclamation\b"),
+    ("Relatives",
+     r"\brelative (pronoun|clause)\b|^alladh[īyū]\b|\bism mawṣūl\b"),
+    ("Vocatives & Address",
+     r"\b(vocative|nidā|nidāʾ|nida|ya of |calling|address|interjection)\b"),
+    ("Sentence Structures",
+     r"\b(nominal|verbal) (sentence|clause|phrase|jumla)\b|\bjumla\b|^(sentence|clause|phrase|main clause|subordinate|dependent clause|embedded clause|result clause|apposition|appositive|apposite)\b"),
+    ("Agreement & Number",
+     r"\b(agreement|concord|number|gender|plural agreement|feminine|masculine|singular|dual|plural|agreement by meaning|agreement shift|agreement mismatch)\b"),
+    ("Subjects, Objects & Complements",
+     r"^(subject|agent|object|objects|complement|predicate|mubtada|khabar|mafʿūl|mafʿūl bi|maf.ul|fāʿil|nāʾib|delayed subject|postponed subject|grammatical object)\b|\b(mafʿūl|mafʿūl bi|fāʿil|nāʾib al-fāʿil)\b"),
+    ("Morphology & Phonology",
+     r"\b(wazn|pattern|morpholog|affix|prefix|suffix|infix|nunation|tanwīn|tanwin|iʿrāb|irab|sukūn|sukun|ḥaraka|haraka|vowel|hamza|sun letter|moon letter|assimilat|shadda|dagger alif|disconnected letters|disjointed letters|gemin|elision|root)\b"),
+    # Broad fallback — anything still "X particle" or generic conjunction
+    ("Particles",
+     r"\bparticle\b|\bparticles\b|\bconjunction\b|\bconjunctive\b|\bdiscourse marker\b|\bfa-?\b|\bwāw\b|\bwaw\b|\bmarker\b"),
+    # --- Final cleanup rules for terms the more specific patterns miss ---
+    ("Subjects, Objects & Complements",
+     r"^(second object|substitute|vicarious subject|vice-subject)$"),
+    ("Adverbial & Circumstantial",
+     r"^(temporal adverb|temporal clause|time adverb)$"),
+    ("Sentence Structures",
+     r"^(VSO word order|SVO word order|word order)$"),
+    ("Rhetorical Devices",
+     r"^(topical structure)$"),
+    ("Verb Morphology & Forms",
+     r"^(verb|transformative verb|verb of becoming|verb of censure|verbs of becoming|verbs of nearness|verb taking two objects|verb \"to be\"|verb to be)$"),
+    ("Tense & Aspect",
+     r"^(verb aspect|verb voice)$"),
+    ("Nouns",
+     r"^(sifa|ṣifa)$"),
+    ("Morphology & Phonology",
+     r"^(morphology|syntax)$"),
+]
+
+
+def _categorize_grammar_term(term: str, explanation: str = "") -> str:
+    """Return the best-fit category for a grammar term.
+
+    Tries the term name first; falls back to explanation if the term is
+    ambiguous. Unknown terms fall into 'Other' — these can be fixed by
+    adding more patterns above or by manually updating the row.
+    """
+    for cat, pat in _GRAMMAR_CAT_RULES:
+        if re.search(pat, term or "", re.IGNORECASE):
+            return cat
+    for cat, pat in _GRAMMAR_CAT_RULES:
+        if re.search(pat, explanation or "", re.IGNORECASE):
+            return cat
+    return "Other"
+
+
+def _ensure_grammar_term_category():
+    """Add the category column if missing, then backfill any NULL rows.
+
+    Idempotent — safe to run on every startup. New rows inserted by the
+    grammar_notes_ai.py pipeline get categorized on the next restart.
+    """
+    conn = get_db()
+    try:
+        try:
+            conn.execute("ALTER TABLE grammar_terms ADD COLUMN category TEXT")
+            conn.commit()
+        except Exception:
+            pass  # column already exists
+
+        rows = conn.execute(
+            "SELECT term_english, plain_explanation FROM grammar_terms "
+            "WHERE category IS NULL OR category = ''"
+        ).fetchall()
+        if not rows:
+            return
+        updates = [
+            (_categorize_grammar_term(r["term_english"], r["plain_explanation"]),
+             r["term_english"])
+            for r in rows
+        ]
+        conn.executemany(
+            "UPDATE grammar_terms SET category = ? WHERE term_english = ?",
+            updates,
+        )
+        conn.commit()
+        print(f"[grammar_terms] categorized {len(updates)} rows")
+    finally:
+        conn.close()
+
+
+try:
+    _ensure_grammar_term_category()
+except Exception as e:
+    print(f"WARNING: grammar_terms category backfill failed: {e}")
+
+
 @app.route("/api/grammar-terms")
 def get_grammar_terms_all():
-    """Return the full grammar terms glossary (for admin / debugging)."""
+    """Return the full grammar terms glossary grouped by category.
+
+    Response shape:
+      {
+        "categories": ["Sentence Structures", "Case & Mood", ...],  // display order
+        "terms": [ { term_english, term_arabic, plain_explanation,
+                     example_sentence, example_translation, category } ]
+      }
+    """
     conn = get_db()
     try:
         rows = conn.execute(
             "SELECT term_english, term_arabic, plain_explanation, "
-            "       example_sentence, example_translation, updated_at "
-            "FROM grammar_terms ORDER BY term_english"
+            "       example_sentence, example_translation, category, updated_at "
+            "FROM grammar_terms ORDER BY term_english COLLATE NOCASE"
         ).fetchall()
-        return jsonify([dict(r) for r in rows])
+        return jsonify({
+            "categories": GRAMMAR_CATEGORIES,
+            "terms": [dict(r) for r in rows],
+        })
     finally:
         conn.close()
 
@@ -4116,6 +4288,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/methodology/?$", path):
         return True
+    if re.match(r"^/grammar-glossary/?$", path):
+        return True
     if re.match(r"^/admin(/settings|/scheduler|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
@@ -4258,6 +4432,16 @@ def _get_seo_meta(path: str) -> dict:
             "description": "Our translation uses three lenses: the Quran\u2019s own internal cross-references, Semitic cognate etymology across 59 languages, and morphological precision \u2014 ensuring every word is grounded in evidence.",
             "og_type": "article",
             "canonical": SITE_URL + "/methodology",
+            "robots": "index, follow",
+        }
+
+    # Grammar glossary: /grammar-glossary
+    if re.match(r"^/grammar-glossary/?$", path):
+        return {
+            "title": "Grammar Glossary \u2014 Arabic Grammar Terms in Quranic Analysis | al-nuqta",
+            "description": "Definitions and examples for every Arabic grammar term used in al-nuqta's verse-level grammar notes \u2014 \u1e25\u0101l, i\u1e0d\u0101fa, jussive, mubtada, subjunctive, and 600+ more. Each entry links back to the verses that reference it.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/grammar-glossary",
             "robots": "index, follow",
         }
 
@@ -4498,6 +4682,7 @@ def sitemap_xml():
     _add(SITE_URL + "/privacy", "0.3")
     _add(SITE_URL + "/terms", "0.3")
     _add(SITE_URL + "/privacy/extension", "0.3")
+    _add(SITE_URL + "/grammar-glossary", "0.6")
 
     # All verse pages
     conn = get_db()
@@ -11311,6 +11496,22 @@ def _redirect_legacy_query_params():
 
 # --------------- Noscript content for LLM crawlers ---------------
 
+def _grammar_term_slug(term: str) -> str:
+    """Convert a grammar term (e.g. 'emphatic lām') to a URL-safe anchor
+    slug. Must stay in sync with grammarTermSlug() in frontend/api/quran.ts
+    so tooltip deep links resolve correctly against both the client-rendered
+    DOM and the server-rendered noscript HTML.
+    """
+    import unicodedata as _ucd
+    s = _ucd.normalize('NFD', term or '')
+    s = ''.join(c for c in s if not _ucd.combining(c))
+    s = s.lower()
+    s = re.sub(r"[^\w\s-]", '', s)
+    s = s.strip()
+    s = re.sub(r'\s+', '-', s)
+    return s
+
+
 def _build_noscript_content(path: str) -> str:
     """Generate static HTML content for crawlers that don't execute JavaScript.
 
@@ -11402,6 +11603,58 @@ def _build_noscript_content(path: str) -> str:
                     parts.append(f'<p>{html.escape(cur["root_story"][:300])}</p>')
             finally:
                 conn.close()
+
+    # Grammar glossary: /grammar-glossary — render the full term list as
+    # static HTML so crawlers (and LLM bots) can index every definition
+    # without running JavaScript. Terms are grouped pedagogically by
+    # category (matching the frontend's default view), and each term gets
+    # a stable anchor that matches the frontend's slug scheme.
+    if re.match(r'^/grammar-glossary/?$', path):
+        conn = get_db()
+        try:
+            rows = conn.execute(
+                "SELECT term_english, term_arabic, plain_explanation, "
+                "       example_sentence, example_translation, category "
+                "FROM grammar_terms ORDER BY term_english COLLATE NOCASE"
+            ).fetchall()
+        finally:
+            conn.close()
+        parts.append('<h1>Grammar Glossary</h1>')
+        parts.append('<p>Arabic grammar terms used across al-nuqta\'s verse-level '
+                     'grammar notes, grouped by grammatical function. Each entry '
+                     'has a plain-English definition and an Arabic example.</p>')
+        # Group by category in display order
+        by_cat: dict[str, list] = {c: [] for c in GRAMMAR_CATEGORIES}
+        for r in rows:
+            by_cat.setdefault(r["category"] or "Other", []).append(r)
+        for cat in GRAMMAR_CATEGORIES:
+            items = by_cat.get(cat) or []
+            if not items:
+                continue
+            cat_slug = _grammar_term_slug(cat)
+            parts.append(f'<h2 id="cat-{cat_slug}">{html.escape(cat)}</h2>')
+            parts.append('<dl>')
+            for r in items:
+                slug = _grammar_term_slug(r["term_english"])
+                term_html = html.escape(r["term_english"])
+                ar = r["term_arabic"] or ""
+                ar_html = (f' <span lang="ar">({html.escape(ar)})</span>' if ar else "")
+                parts.append(
+                    f'<dt id="{slug}"><a href="#{slug}"><strong>{term_html}</strong></a>{ar_html}</dt>'
+                )
+                parts.append(f'<dd>{html.escape(r["plain_explanation"] or "")}')
+                if r["example_sentence"] or r["example_translation"]:
+                    parts.append('<br/>')
+                    if r["example_sentence"]:
+                        parts.append(
+                            f'<em lang="ar">{html.escape(r["example_sentence"])}</em> '
+                        )
+                    if r["example_translation"]:
+                        parts.append(
+                            f'&mdash; <em>{html.escape(r["example_translation"])}</em>'
+                        )
+                parts.append('</dd>')
+            parts.append('</dl>')
 
     # Home page
     if path in ('', '/'):
