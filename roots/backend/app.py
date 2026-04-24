@@ -266,6 +266,101 @@ def _ensure_ai_word_meanings_table():
 _ensure_ai_word_meanings_table()
 
 
+def _ensure_translation_bias_reviews_table():
+    """Stage-1/Stage-2 translation bias review pipeline storage.
+
+    Rows are created by bias_detect.py (Stage 1). Stage 2 (Claude
+    adjudicator) fills in adjudicator_model / decision / etc. Nothing
+    touches ai_translations directly — revisions are staged here and
+    only applied explicitly from admin UI or a separate apply script.
+    """
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS translation_bias_reviews (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                ai_translation_config_id INTEGER NOT NULL,
+                original_text TEXT NOT NULL,
+
+                -- Stage 1 (detector)
+                detector_model TEXT NOT NULL,
+                detector_prompt_version TEXT NOT NULL,
+                detector_run_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                detector_flagged INTEGER NOT NULL DEFAULT 0,
+                flags_json TEXT,          -- [{type, span, reason}, ...]
+                detector_raw_response TEXT,
+
+                -- Stage 2 (adjudicator, nullable until run)
+                adjudicator_model TEXT,
+                adjudicator_run_at TEXT,
+                decision TEXT,            -- 'revise' | 'keep' | 'defer'
+                revised_text TEXT,
+                reasoning TEXT,
+                confidence REAL,
+                adjudicator_raw_response TEXT,
+
+                -- Application lifecycle
+                applied INTEGER NOT NULL DEFAULT 0,
+                applied_at TEXT,
+                reverted_at TEXT,
+                reverted_reason TEXT,
+
+                UNIQUE (chapter, verse, detector_model, detector_prompt_version,
+                        ai_translation_config_id)
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tbr_flagged_unadjudicated "
+            "ON translation_bias_reviews (detector_flagged, decision) "
+            "WHERE detector_flagged = 1 AND decision IS NULL"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_translation_bias_reviews_table()
+
+
+def _ensure_term_surveys_table():
+    """Per-root semantic survey results — the 'ground truth' used by the
+    bias detector and adjudicator to decide what the Quran-only canonical
+    rendering of a term is. One row per root (keyed by Buckwalter form).
+    Populated by term_survey.py (Stage 0)."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS term_surveys (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                root_buckwalter TEXT NOT NULL UNIQUE,
+                root_arabic TEXT,
+                occurrence_count INTEGER,
+                -- JSON array of {chapter, verse, arabic_word, lemma, translation}
+                occurrence_samples TEXT,
+
+                surveyor_model TEXT NOT NULL,
+                surveyor_prompt_version TEXT NOT NULL DEFAULT 'v1',
+                surveyor_run_at TEXT DEFAULT CURRENT_TIMESTAMP,
+
+                canonical_english TEXT,       -- e.g. "sustained connection" for ṣalāh
+                reasoning TEXT,               -- semantic thread through all usages
+                counter_examples_json TEXT,   -- JSON: [{ref, how_canonical_fits}, ...]
+                translation_note TEXT,        -- reader-facing note for public display
+                leave_untranslated INTEGER NOT NULL DEFAULT 0,
+                confidence REAL,
+                raw_response TEXT
+            )
+        """)
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_term_surveys_table()
+
+
 def _ensure_judge_columns():
     """Add preferred_translation and preferred_source columns if missing."""
     conn = get_db()
