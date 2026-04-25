@@ -14,8 +14,10 @@ import ExplanationBuilder from './ExplanationBuilder';
 import GenerateExplanationVideo from './GenerateExplanationVideo';
 import PipelineManager from './PipelineManager';
 import SchedulerPage from './SchedulerPage';
+import AdminVocabulary from './AdminVocabulary';
+import AdminVocabularyStudio from './AdminVocabularyStudio';
 
-type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines';
+type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'vocabulary' | 'vocabulary-studio';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -29,6 +31,9 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/media\/?$/.test(path)) return 'media';
   if (/^\/admin\/scheduler\/?$/.test(path)) return 'scheduler';
   if (/^\/admin\/settings\/?$/.test(path)) return 'settings';
+  if (/^\/admin\/vocabulary\/?$/.test(path)) return 'vocabulary';
+  const m = path.match(/^\/admin\/vocabulary\/([^/]+)\/?$/);
+  if (m) return 'vocabulary-studio';
   return 'dashboard';
 }
 
@@ -38,6 +43,16 @@ export default function AdminPage() {
   const [username, setUsername] = useState('');
 
   const route = getAdminRoute();
+
+  // Visual indicator that we're on local dev, not production.
+  // Prevents the "settings appear wiped" panic when looking at the local
+  // sandbox's admin_preferences table (which is naturally empty) and
+  // mistaking it for production.
+  const isDev = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.local')
+  );
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -73,14 +88,22 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className={`min-h-screen ${isDev ? 'bg-rose-50' : 'bg-stone-50'}`}>
       {/* Admin nav */}
-      <nav className="border-b border-stone-200 bg-white">
+      <nav className={`border-b ${isDev ? 'border-rose-300 bg-rose-100' : 'border-stone-200 bg-white'}`}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <a href="/" className="text-sm font-serif font-medium text-stone-800 hover:text-stone-600">
               al-nuqta
             </a>
+            {isDev && (
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-rose-600 text-white uppercase"
+                title="You are on local dev — data is sandboxed and separate from production"
+              >
+                Dev
+              </span>
+            )}
             <span className="text-stone-300">|</span>
             <a
               href="/admin"
@@ -99,6 +122,12 @@ export default function AdminPage() {
               className={`text-sm ${route === 'scheduler' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
             >
               Scheduler
+            </a>
+            <a
+              href="/admin/vocabulary"
+              className={`text-sm ${route === 'vocabulary' || route === 'vocabulary-studio' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+            >
+              Vocabulary
             </a>
             <a
               href="/admin/settings"
@@ -157,6 +186,8 @@ export default function AdminPage() {
         {route === 'explanations' && <ExplanationBuilder />}
         {route === 'generate-explanation' && <GenerateExplanationVideo />}
         {route === 'pipelines' && <PipelineManager />}
+        {route === 'vocabulary' && <AdminVocabulary />}
+        {route === 'vocabulary-studio' && <AdminVocabularyStudio />}
       </div>
     </div>
   );

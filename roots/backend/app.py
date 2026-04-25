@@ -4552,7 +4552,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/quran-vocabulary/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/vocabulary(/[^/]+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
 
@@ -5513,6 +5513,340 @@ def admin_save_preferences():
         if "claude_api_key" in body:
             _invalidate_claude_key_cache()
         return jsonify({"message": "Saved"})
+    finally:
+        conn.close()
+
+
+# =========================================================================
+# Admin: Vocabulary Studio
+# -------------------------------------------------------------------------
+# Admin-driven version of the bias-revision pipeline. Lets the admin
+# search a root, run a Stage-0 semantic survey via Claude Opus, edit
+# the result, then bulk-apply revisions across the three reader-facing
+# surfaces (verse translations, grammar notes, word meanings) with
+# per-row revert. Reuses the same logic the CLI scripts use.
+# =========================================================================
+
+VOCAB_OPUS_MODEL = "claude-opus-4-20250514"
+VOCAB_SONNET_MODEL = "claude-sonnet-4-20250514"
+
+
+def _vocab_get_state(conn, root_bw: str) -> dict | None:
+    """Return current term_surveys row for a root + occurrence summary."""
+    row = conn.execute(
+        "SELECT root_buckwalter, root_arabic, canonical_english, reasoning, "
+        "       counter_examples_json, translation_note, leave_untranslated, "
+        "       confidence, hard_cases_json, occurrence_count, surveyor_model, "
+        "       surveyor_run_at "
+        "FROM term_surveys WHERE root_buckwalter = ?",
+        (root_bw,),
+    ).fetchone()
+    if not row:
+        return None
+    out = dict(row)
+    for key in ("counter_examples_json", "hard_cases_json"):
+        try:
+            out[key.replace("_json", "")] = json.loads(out[key]) if out[key] else []
+        except Exception:
+            out[key.replace("_json", "")] = []
+    return out
+
+
+def _vocab_count_revisions(conn, root_bw: str) -> dict:
+    """How many DB rows for this root would be / are revised across each
+    reader surface. Used by the Apply panel to show pending counts."""
+    # Verses with hard cases (transliteration applied)
+    survey = conn.execute(
+        "SELECT hard_cases_json FROM term_surveys WHERE root_buckwalter = ?",
+        (root_bw,),
+    ).fetchone()
+    hard_cases: list[dict] = []
+    if survey and survey["hard_cases_json"]:
+        try:
+            hard_cases = json.loads(survey["hard_cases_json"])
+        except Exception:
+            hard_cases = []
+    hard_refs = [hc.get("ref") for hc in hard_cases if hc.get("ref")]
+
+    # Translations with revised_text where the verse has this root
+    translations_revised = 0
+    if hard_refs:
+        for ref in hard_refs:
+            try:
+                ch, vs = ref.split(":")
+                ch, vs = int(ch), int(vs)
+            except Exception:
+                continue
+            r = conn.execute(
+                "SELECT 1 FROM ai_translations WHERE chapter = ? AND verse = ? "
+                "AND revised_text IS NOT NULL LIMIT 1",
+                (ch, vs),
+            ).fetchone()
+            if r:
+                translations_revised += 1
+
+    # Grammar notes touched (any verse where notes_markdown_original is set
+    # AND verse contains this root in morphology)
+    grammar_revised = conn.execute(
+        "SELECT COUNT(DISTINCT g.chapter || ':' || g.verse) "
+        "FROM ai_grammar_notes g "
+        "JOIN morphology m ON m.chapter = g.chapter AND m.verse = g.verse "
+        "WHERE g.notes_markdown_original IS NOT NULL AND m.root_buckwalter = ?",
+        (root_bw,),
+    ).fetchone()[0]
+
+    # Word meanings touched
+    word_meanings_revised = conn.execute(
+        "SELECT COUNT(*) FROM ai_word_meanings w "
+        "JOIN morphology m ON m.chapter = w.chapter AND m.verse = w.verse "
+        "                  AND m.word_pos = w.word_pos "
+        "WHERE w.meaning_short_original IS NOT NULL AND m.root_buckwalter = ?",
+        (root_bw,),
+    ).fetchone()[0]
+
+    # Pending: occurrences in the corpus NOT yet revised
+    total_word_occurrences = conn.execute(
+        "SELECT COUNT(DISTINCT chapter || ':' || verse || '/' || word_pos) "
+        "FROM morphology WHERE root_buckwalter = ?",
+        (root_bw,),
+    ).fetchone()[0]
+
+    return {
+        "hard_cases_total": len(hard_refs),
+        "translations_revised": translations_revised,
+        "grammar_notes_revised": grammar_revised,
+        "word_meanings_revised": word_meanings_revised,
+        "total_word_occurrences": total_word_occurrences,
+    }
+
+
+@app.route("/api/admin/vocab/<root_bw>", methods=["GET"])
+@admin_required
+def admin_vocab_state(root_bw: str):
+    """Return everything the studio needs for one root."""
+    conn = get_db()
+    try:
+        state = _vocab_get_state(conn, root_bw)
+        # Occurrences (for the survey panel)
+        occ_rows = conn.execute(
+            "SELECT m.chapter, m.verse, m.word_pos, m.form_arabic, m.pos, "
+            "       v.text_uthmani, t.translation_text, t.revised_text "
+            "FROM morphology m "
+            "JOIN verses v ON v.chapter = m.chapter AND v.verse = m.verse "
+            "LEFT JOIN ai_translations t ON t.chapter = m.chapter "
+            "                            AND t.verse = m.verse "
+            "WHERE m.root_buckwalter = ? "
+            "GROUP BY m.chapter, m.verse, m.word_pos "
+            "ORDER BY m.chapter, m.verse, m.word_pos",
+            (root_bw,),
+        ).fetchall()
+        occurrences = [{
+            "chapter": r["chapter"],
+            "verse": r["verse"],
+            "word_pos": r["word_pos"],
+            "arabic_word": r["form_arabic"],
+            "pos": r["pos"],
+            "translation": (r["revised_text"] or r["translation_text"] or "")[:240],
+        } for r in occ_rows]
+
+        root_arabic = (state and state["root_arabic"]) or _root_arabic_map.get(root_bw, "")
+        revisions = _vocab_count_revisions(conn, root_bw)
+
+        return jsonify({
+            "root_buckwalter": root_bw,
+            "root_arabic": root_arabic,
+            "occurrences": occurrences,
+            "occurrence_count": len(occurrences),
+            "survey": state,
+            "revisions": revisions,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/survey", methods=["POST"])
+@admin_required
+def admin_vocab_run_survey(root_bw: str):
+    """Run a Claude Opus Stage-0 survey for this root. Body may include:
+        { "model": "claude-opus-4-20250514", "extra_constraint": "...", "force": false }
+    Writes the result to term_surveys (creates or overwrites)."""
+    body = request.get_json(silent=True) or {}
+    model = body.get("model") or VOCAB_OPUS_MODEL
+    extra = body.get("extra_constraint") or ""
+    force = bool(body.get("force"))
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "No CLAUDE_API_KEY in admin_preferences."}), 400
+
+    # Lazy import to avoid circular issues at startup
+    import term_survey
+
+    conn = get_db()
+    try:
+        # If already surveyed and not forcing, return existing
+        existing = conn.execute(
+            "SELECT id FROM term_surveys WHERE root_buckwalter = ?", (root_bw,)
+        ).fetchone()
+        if existing and not force:
+            return jsonify({"error": "Already surveyed; pass force=true to overwrite",
+                            "existing_id": existing["id"]}), 409
+
+        occurrences = term_survey.pull_occurrences(
+            conn, root_bw, term_survey.DEFAULT_TRANSLATION_CONFIG,
+        )
+        if not occurrences:
+            return jsonify({"error": "No occurrences in morphology for this root"}), 404
+
+        root_arabic = _root_arabic_map.get(root_bw, root_bw)
+        prompt = term_survey.build_user_prompt(
+            root_bw, root_arabic, "", occurrences, extra,
+        )
+        try:
+            raw, ms = term_survey.call_claude(
+                model, term_survey.SYSTEM_PROMPT, prompt, api_key,
+            )
+            parsed = term_survey.parse_response(raw)
+        except Exception as e:
+            return jsonify({"error": f"Survey call failed: {e}"}), 502
+
+        wrote = term_survey.save_survey(
+            conn, root_bw, root_arabic, occurrences,
+            model, "v1", parsed, raw, force=True,
+        )
+        if not wrote:
+            return jsonify({"error": "save_survey returned False unexpectedly"}), 500
+
+        return jsonify({
+            "ok": True,
+            "elapsed_ms": ms,
+            "model": model,
+            "state": _vocab_get_state(conn, root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>", methods=["PUT"])
+@admin_required
+def admin_vocab_save_edits(root_bw: str):
+    """Admin edits to canonical_english / reasoning / translation_note /
+    leave_untranslated / confidence after the survey ran. Body:
+        { canonical_english, reasoning, translation_note,
+          leave_untranslated, confidence, counter_examples,
+          hard_cases }"""
+    body = request.get_json(silent=True) or {}
+    fields: list[tuple[str, object]] = []
+
+    def _set(col: str, val):
+        fields.append((col, val))
+
+    if "canonical_english" in body:
+        _set("canonical_english", str(body["canonical_english"]).strip())
+    if "reasoning" in body:
+        _set("reasoning", str(body["reasoning"]).strip())
+    if "translation_note" in body:
+        _set("translation_note", str(body["translation_note"]).strip())
+    if "leave_untranslated" in body:
+        _set("leave_untranslated", 1 if body["leave_untranslated"] else 0)
+    if "confidence" in body:
+        try:
+            _set("confidence", float(body["confidence"]))
+        except Exception:
+            pass
+    if "counter_examples" in body and isinstance(body["counter_examples"], list):
+        _set("counter_examples_json",
+             json.dumps(body["counter_examples"], ensure_ascii=False))
+    if "hard_cases" in body and isinstance(body["hard_cases"], list):
+        _set("hard_cases_json",
+             json.dumps(body["hard_cases"], ensure_ascii=False))
+
+    if not fields:
+        return jsonify({"error": "No editable fields in body"}), 400
+
+    conn = get_db()
+    try:
+        sql = ("UPDATE term_surveys SET " +
+               ", ".join(f"{c} = ?" for c, _ in fields) +
+               " WHERE root_buckwalter = ?")
+        conn.execute(sql, [v for _, v in fields] + [root_bw])
+        conn.commit()
+        return jsonify({"ok": True, "state": _vocab_get_state(conn, root_bw)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/apply-transliteration", methods=["POST"])
+@admin_required
+def admin_vocab_apply_transliteration(root_bw: str):
+    """Apply transliteration to all hard-case verses for this root. Uses
+    Claude Sonnet (as the existing apply_hard_case_transliterations.py
+    script). Returns per-verse results."""
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "No CLAUDE_API_KEY in admin_preferences."}), 400
+
+    import apply_hard_case_transliterations as ahct
+
+    conn = get_db()
+    try:
+        survey_row = conn.execute(
+            "SELECT hard_cases_json, root_arabic, canonical_english "
+            "FROM term_surveys WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        if not survey_row or not survey_row["hard_cases_json"]:
+            return jsonify({"error": "No hard cases for this root"}), 404
+
+        try:
+            cases = json.loads(survey_row["hard_cases_json"])
+        except Exception:
+            cases = []
+        results = []
+        for hc in cases:
+            ref = hc.get("ref", "")
+            m = re.match(r"^(\d+):(\d+)$", ref)
+            if not m:
+                continue
+            ch, vs = int(m.group(1)), int(m.group(2))
+            case = {
+                "chapter": ch, "verse": vs,
+                "root_bw": root_bw,
+                "root_arabic": survey_row["root_arabic"],
+                "canonical_english": survey_row["canonical_english"],
+                "arabic_word": hc.get("arabic_word"),
+                "transliteration": hc.get("transliteration"),
+                "reason": hc.get("reason"),
+            }
+            outcome = ahct.apply_one(
+                conn, case, VOCAB_SONNET_MODEL, api_key,
+                ahct.DEFAULT_TRANSLATION_CONFIG,
+                dry_run=False, force=True,
+            )
+            results.append({"ref": ref, "outcome": outcome})
+
+        return jsonify({"ok": True, "results": results,
+                        "revisions": _vocab_count_revisions(conn, root_bw)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/revert-transliteration/<int:chapter>/<int:verse>",
+           methods=["POST"])
+@admin_required
+def admin_vocab_revert_transliteration(root_bw: str, chapter: int, verse: int):
+    """Clear ai_translations.revised_text for one (chapter, verse).
+    The original translation_text remains intact."""
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE ai_translations SET revised_text = NULL "
+            "WHERE chapter = ? AND verse = ?",
+            (chapter, verse),
+        )
+        conn.commit()
+        return jsonify({"ok": True,
+                        "revisions": _vocab_count_revisions(conn, root_bw)})
     finally:
         conn.close()
 

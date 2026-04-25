@@ -92,7 +92,7 @@ function isKnownRoute(): boolean {
   if (/^\/methodology\/?$/.test(path)) return true;
   if (/^\/grammar-glossary\/?$/.test(path)) return true;
   if (/^\/quran-vocabulary\/?$/.test(path)) return true;
-  if (/^\/admin(\/settings|\/scheduler|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(path)) return true;
+  if (/^\/admin(\/settings|\/scheduler|\/vocabulary(\/[^/]+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(path)) return true;
   return false;
 }
 
@@ -318,7 +318,7 @@ export default function App() {
     );
   }
 
-  if (/^\/admin(\/settings|\/scheduler|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(currentPath)) {
+  if (/^\/admin(\/settings|\/scheduler|\/vocabulary(\/[^/]+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(currentPath)) {
     return <AdminPage />;
   }
 

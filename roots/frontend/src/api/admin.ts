@@ -105,6 +105,119 @@ export async function savePreferences(prefs: Record<string, string>): Promise<vo
   }
 }
 
+// --------------- Vocabulary Studio ---------------
+
+export interface VocabSurveyState {
+  root_buckwalter: string;
+  root_arabic: string;
+  canonical_english: string | null;
+  reasoning: string | null;
+  counter_examples: Array<{ ref: string; usage?: string; how_canonical_fits: string }>;
+  translation_note: string | null;
+  leave_untranslated: number;
+  confidence: number | null;
+  hard_cases: Array<{ ref: string; arabic_word: string; transliteration: string; reason: string }>;
+  occurrence_count: number;
+  surveyor_model: string | null;
+  surveyor_run_at: string | null;
+}
+
+export interface VocabRevisions {
+  hard_cases_total: number;
+  translations_revised: number;
+  grammar_notes_revised: number;
+  word_meanings_revised: number;
+  total_word_occurrences: number;
+}
+
+export interface VocabStudioState {
+  root_buckwalter: string;
+  root_arabic: string;
+  occurrences: Array<{
+    chapter: number;
+    verse: number;
+    word_pos: number;
+    arabic_word: string;
+    pos: string | null;
+    translation: string;
+  }>;
+  occurrence_count: number;
+  survey: VocabSurveyState | null;
+  revisions: VocabRevisions;
+}
+
+export async function getVocabStudio(rootBw: string): Promise<VocabStudioState> {
+  const res = await authFetch(`${BASE}/vocab/${encodeURIComponent(rootBw)}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load vocab studio');
+  return data;
+}
+
+export async function runVocabSurvey(
+  rootBw: string,
+  opts: { force?: boolean; extra_constraint?: string; model?: string } = {},
+): Promise<{ ok: true; elapsed_ms: number; model: string; state: VocabSurveyState }> {
+  const res = await authFetch(`${BASE}/vocab/${encodeURIComponent(rootBw)}/survey`, {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Survey failed');
+  return data;
+}
+
+export async function saveVocabEdits(
+  rootBw: string,
+  edits: Partial<VocabSurveyState>,
+): Promise<{ ok: true; state: VocabSurveyState }> {
+  const res = await authFetch(`${BASE}/vocab/${encodeURIComponent(rootBw)}`, {
+    method: 'PUT',
+    body: JSON.stringify(edits),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Save failed');
+  return data;
+}
+
+export async function applyVocabTransliteration(
+  rootBw: string,
+): Promise<{ ok: true; results: Array<{ ref: string; outcome: string }>; revisions: VocabRevisions }> {
+  const res = await authFetch(`${BASE}/vocab/${encodeURIComponent(rootBw)}/apply-transliteration`, {
+    method: 'POST',
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Apply failed');
+  return data;
+}
+
+export async function revertVocabTransliteration(
+  rootBw: string,
+  chapter: number,
+  verse: number,
+): Promise<{ ok: true; revisions: VocabRevisions }> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/revert-transliteration/${chapter}/${verse}`,
+    { method: 'POST' },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Revert failed');
+  return data;
+}
+
+/** Search roots — public endpoint, no auth needed but admin uses it. */
+export interface RootSearchHit {
+  root_buckwalter: string;
+  root_arabic: string;
+  occurrences?: number;
+  meaning?: string;
+}
+
+export async function searchAdminRoots(query: string): Promise<RootSearchHit[]> {
+  const res = await fetch(`/api/roots/search?q=${encodeURIComponent(query)}&limit=15`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 // --------------- Reciters ---------------
 
 export interface Reciter {
