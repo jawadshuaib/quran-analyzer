@@ -125,6 +125,8 @@ export interface VocabSurveyState {
 export interface VocabRevisions {
   hard_cases_total: number;
   translations_revised: number;
+  verse_translations_revised: number;
+  verse_translations_total: number;
   grammar_notes_revised: number;
   grammar_notes_total: number;
   word_meanings_revised: number;
@@ -281,6 +283,31 @@ export async function revertVocabGrammarNotes(
   );
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Grammar-notes revert failed');
+  return data;
+}
+
+export async function reviseVocabVerseTranslations(
+  rootBw: string,
+  opts: { limit?: number; force?: boolean } = {},
+): Promise<VocabReviseChunkResult> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/revise-verse-translations`,
+    { method: 'POST', body: JSON.stringify(opts) },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Verse-translation revision failed');
+  return data;
+}
+
+export async function revertVocabVerseTranslations(
+  rootBw: string,
+): Promise<{ ok: true; reverted: number; revisions: VocabRevisions }> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/revert-verse-translations`,
+    { method: 'POST' },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Verse-translation revert failed');
   return data;
 }
 

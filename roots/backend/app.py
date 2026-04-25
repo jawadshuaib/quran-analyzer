@@ -5589,7 +5589,9 @@ def _vocab_count_revisions(conn, root_bw: str) -> dict:
             hard_cases = []
     hard_refs = [hc.get("ref") for hc in hard_cases if hc.get("ref")]
 
-    # Translations with revised_text where the verse has this root
+    # Translations with revised_text from the hard-case pipeline
+    # (apply_hard_case_transliterations). Counted separately from the
+    # broader Phase-2 verse-translation pipeline below.
     translations_revised = 0
     if hard_refs:
         for ref in hard_refs:
@@ -5605,6 +5607,38 @@ def _vocab_count_revisions(conn, root_bw: str) -> dict:
             ).fetchone()
             if r:
                 translations_revised += 1
+
+    # Verse-translation revisions from revise_verse_translations.
+    # Indicator = departure_notes_original IS NOT NULL (set on first
+    # revision). Total = verses containing this root that have an
+    # ai_translations row, EXCLUDING hard-case verses.
+    has_dno_col = any(
+        r[1] == "departure_notes_original"
+        for r in conn.execute("PRAGMA table_info(ai_translations)")
+    )
+    verse_translations_revised = 0
+    verse_translations_total = 0
+    if has_dno_col:
+        verse_translations_revised = conn.execute(
+            "SELECT COUNT(DISTINCT t.chapter || ':' || t.verse) "
+            "FROM ai_translations t "
+            "JOIN morphology m ON m.chapter = t.chapter AND m.verse = t.verse "
+            "WHERE m.root_buckwalter = ? "
+            "  AND t.departure_notes_original IS NOT NULL "
+            "  AND t.departure_notes_original != ''",
+            (root_bw,),
+        ).fetchone()[0]
+        # Total: verses with this root + ai_translations row, minus hard cases.
+        total_with_translation = conn.execute(
+            "SELECT COUNT(DISTINCT t.chapter || ':' || t.verse) "
+            "FROM ai_translations t "
+            "JOIN morphology m ON m.chapter = t.chapter AND m.verse = t.verse "
+            "WHERE m.root_buckwalter = ? AND t.translation_text IS NOT NULL",
+            (root_bw,),
+        ).fetchone()[0]
+        verse_translations_total = total_with_translation - len(hard_refs)
+        if verse_translations_total < 0:
+            verse_translations_total = 0
 
     # Grammar notes touched (any verse where notes_markdown_original is set
     # AND verse contains this root in morphology)
@@ -5654,6 +5688,8 @@ def _vocab_count_revisions(conn, root_bw: str) -> dict:
     return {
         "hard_cases_total": len(hard_refs),
         "translations_revised": translations_revised,
+        "verse_translations_revised": verse_translations_revised,
+        "verse_translations_total": verse_translations_total,
         "grammar_notes_revised": grammar_revised,
         "grammar_notes_total": grammar_notes_total,
         "word_meanings_revised": word_meanings_revised,
@@ -6269,6 +6305,145 @@ def admin_vocab_revert_grammar_notes(root_bw: str):
                 "UPDATE ai_grammar_notes SET "
                 "  notes_markdown = notes_markdown_original, "
                 "  notes_markdown_original = NULL "
+                "WHERE chapter = ? AND verse = ?",
+                (r["chapter"], r["verse"]),
+            )
+            reverted += 1
+        conn.commit()
+        return jsonify({
+            "ok": True,
+            "reverted": reverted,
+            "revisions": _vocab_count_revisions(conn, root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/revise-verse-translations", methods=["POST"])
+@admin_required
+def admin_vocab_revise_verse_translations(root_bw: str):
+    """Run revise_verse_translations.revise_one on up to <limit> verses
+    where this root appears (excluding hard-case verses, which are
+    handled by apply_hard_case_transliterations).
+    Body: { limit?: 20, force?: false }"""
+    body = request.get_json(silent=True) or {}
+    limit = max(1, min(50, int(body.get("limit") or 20)))
+    force = bool(body.get("force"))
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "No CLAUDE_API_KEY in admin_preferences."}), 400
+
+    import revise_verse_translations as rvt
+
+    conn = get_db()
+    try:
+        rvt.ensure_backup_columns(conn)
+
+        survey = conn.execute(
+            "SELECT root_buckwalter, root_arabic, canonical_english, translation_note "
+            "FROM term_surveys WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        if not survey or not survey["canonical_english"]:
+            return jsonify({"error": "No surveyed canonical for this root yet"}), 404
+
+        all_targets = rvt.collect_targets(conn, root_bw, force)
+        total_pending_before = len(all_targets)
+        batch = all_targets[:limit]
+
+        revised, errors = 0, 0
+        samples: list[dict] = []
+        errors_detail: list[dict] = []
+        t0 = time.time()
+        for ch, vs in batch:
+            ref = f"{ch}:{vs}"
+            before_row = conn.execute(
+                "SELECT translation_text, revised_text FROM ai_translations "
+                "WHERE chapter = ? AND verse = ?",
+                (ch, vs),
+            ).fetchone()
+            before_trans = ((before_row["revised_text"] if before_row else None)
+                            or (before_row["translation_text"] if before_row else "")
+                            or "")
+            err_msg: str | None = None
+            outcome = "error"
+            try:
+                outcome = rvt.revise_one(
+                    conn, ch, vs,
+                    survey["root_buckwalter"], survey["root_arabic"],
+                    survey["canonical_english"], survey["translation_note"] or "",
+                    VOCAB_SONNET_MODEL, api_key,
+                    dry_run=False, force=force,
+                )
+                if outcome == "error":
+                    err_msg = "revise_one returned 'error' — see container stderr for details"
+            except Exception as e:
+                err_msg = f"{type(e).__name__}: {e}"
+                print(f"[vocab/verse-translations] {ref} {err_msg}", file=sys.stderr)
+            if outcome == "revised":
+                revised += 1
+                after_row = conn.execute(
+                    "SELECT revised_text FROM ai_translations "
+                    "WHERE chapter = ? AND verse = ?",
+                    (ch, vs),
+                ).fetchone()
+                samples.append({
+                    "ref": ref,
+                    "before": (before_trans or "")[:200],
+                    "after": ((after_row["revised_text"] if after_row else "") or "")[:200],
+                })
+            elif isinstance(outcome, str) and outcome.startswith("skip"):
+                pass
+            else:
+                errors += 1
+                errors_detail.append({
+                    "ref": ref,
+                    "message": (err_msg or str(outcome))[:300],
+                })
+
+        elapsed_ms = int((time.time() - t0) * 1000)
+        remaining = max(0, total_pending_before - len(batch))
+        return jsonify({
+            "ok": True,
+            "processed": len(batch),
+            "revised": revised,
+            "errors": errors,
+            "remaining": remaining,
+            "elapsed_ms": elapsed_ms,
+            "samples": samples[:5],
+            "errors_detail": errors_detail[:10],
+            "revisions": _vocab_count_revisions(conn, root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/revert-verse-translations", methods=["POST"])
+@admin_required
+def admin_vocab_revert_verse_translations(root_bw: str):
+    """Restore departure_notes from departure_notes_original and clear
+    revised_text for every ai_translations row whose verse contains this
+    root. translation_text was never touched, so revised_text=NULL puts
+    the original back via _best_translation's COALESCE."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT t.chapter, t.verse "
+            "FROM ai_translations t "
+            "JOIN morphology m ON m.chapter = t.chapter AND m.verse = t.verse "
+            "WHERE m.root_buckwalter = ? "
+            "  AND t.departure_notes_original IS NOT NULL "
+            "  AND t.departure_notes_original != ''",
+            (root_bw,),
+        ).fetchall()
+        reverted = 0
+        for r in rows:
+            conn.execute(
+                "UPDATE ai_translations SET "
+                "  departure_notes = departure_notes_original, "
+                "  departure_notes_original = NULL, "
+                "  revised_text = NULL "
                 "WHERE chapter = ? AND verse = ?",
                 (r["chapter"], r["verse"]),
             )

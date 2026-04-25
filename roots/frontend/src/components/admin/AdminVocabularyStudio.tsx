@@ -10,6 +10,8 @@ import {
   revertVocabWordMeanings,
   reviseVocabGrammarNotes,
   revertVocabGrammarNotes,
+  reviseVocabVerseTranslations,
+  revertVocabVerseTranslations,
 } from '../../api/admin';
 import type { VocabStudioState } from '../../api/admin';
 
@@ -76,6 +78,16 @@ export default function AdminVocabularyStudio() {
     errors_detail: Array<{ ref: string; message: string }>;
   } | null>(null);
   const [gnReverting, setGnReverting] = useState(false);
+
+  // Verse translations + Translation Notes: same chunked pattern.
+  const vtRunningRef = useRef(false);
+  const [vtRunning, setVtRunning] = useState(false);
+  const [vtProgress, setVtProgress] = useState<{
+    processed: number; revised: number; errors: number; remaining: number;
+    samples: Array<{ ref: string; before: string; after: string }>;
+    errors_detail: Array<{ ref: string; message: string }>;
+  } | null>(null);
+  const [vtReverting, setVtReverting] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -302,6 +314,66 @@ export default function AdminVocabularyStudio() {
       setError(e instanceof Error ? e.message : 'Revert failed');
     } finally {
       setGnReverting(false);
+    }
+  }
+
+  async function handleReviseVerseTranslations() {
+    if (vtRunningRef.current) {
+      vtRunningRef.current = false;
+      setStatusMsg('Stopping after current batch…');
+      return;
+    }
+    vtRunningRef.current = true;
+    setVtRunning(true);
+    setVtProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [], errors_detail: [] });
+    setError('');
+    setStatusMsg('');
+    let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
+    let lastSamples: NonNullable<typeof vtProgress>['samples'] = [];
+    let allErrorsDetail: NonNullable<typeof vtProgress>['errors_detail'] = [];
+    try {
+      while (vtRunningRef.current) {
+        const r = await reviseVocabVerseTranslations(rootBw, { limit: 10 });
+        totalProcessed += r.processed;
+        totalRevised += r.revised;
+        totalErrors += r.errors;
+        if (r.samples.length) lastSamples = r.samples;
+        if (r.errors_detail?.length) {
+          allErrorsDetail = [...allErrorsDetail, ...r.errors_detail].slice(-20);
+        }
+        setVtProgress({
+          processed: totalProcessed,
+          revised: totalRevised,
+          errors: totalErrors,
+          remaining: r.remaining,
+          samples: lastSamples,
+          errors_detail: allErrorsDetail,
+        });
+        if (r.remaining === 0 || r.processed === 0) break;
+      }
+      setStatusMsg(`Verse-translation revision complete: ${totalRevised} revised, ${totalErrors} errors.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Revision failed');
+    } finally {
+      vtRunningRef.current = false;
+      setVtRunning(false);
+      await refresh();
+    }
+  }
+
+  async function handleRevertVerseTranslations() {
+    if (!confirm('Revert all verse-translation revisions for this root? This restores both the translation text and Translation Notes for every affected verse.')) return;
+    setVtReverting(true);
+    setError('');
+    try {
+      const r = await revertVocabVerseTranslations(rootBw);
+      setVtProgress(null);
+      setStatusMsg(`Reverted ${r.reverted} verse-translation rows.`);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Revert failed');
+    } finally {
+      setVtReverting(false);
     }
   }
 
@@ -748,6 +820,94 @@ export default function AdminVocabularyStudio() {
                   </summary>
                   <ul className="mt-1.5 space-y-1 pl-2 border-l-2 border-red-200">
                     {gnProgress.errors_detail.map((e, i) => (
+                      <li key={i} className="text-[11px] leading-relaxed text-red-700">
+                        <code className="text-red-800">{e.ref}</code>{' — '}
+                        <span className="text-red-600">{e.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* --- Verse translations + Translation Notes --------------- */}
+        <div className="pt-4 border-t border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-stone-700">
+              Verse translations &amp; Translation Notes ({state.revisions.verse_translations_revised} of {state.revisions.verse_translations_total} revised)
+            </h3>
+            <div className="flex items-center gap-2">
+              {state.revisions.verse_translations_revised > 0 && !vtRunning && (
+                <button
+                  onClick={handleRevertVerseTranslations}
+                  disabled={vtReverting}
+                  className="text-xs px-3 py-1.5 rounded-md border border-stone-300 text-stone-600 hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
+                >
+                  {vtReverting ? 'Reverting…' : 'Revert all'}
+                </button>
+              )}
+              <button
+                onClick={handleReviseVerseTranslations}
+                disabled={
+                  state.revisions.verse_translations_total === 0 ||
+                  (!vtRunning && state.revisions.verse_translations_total === state.revisions.verse_translations_revised)
+                }
+                className={`text-xs px-4 py-1.5 rounded-md text-white disabled:opacity-50 cursor-pointer ${
+                  vtRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'
+                }`}
+              >
+                {vtRunning
+                  ? 'Stop'
+                  : state.revisions.verse_translations_total === 0
+                    ? 'No verses with translations'
+                    : state.revisions.verse_translations_total === state.revisions.verse_translations_revised
+                      ? 'All revised'
+                      : `Revise ${state.revisions.verse_translations_total - state.revisions.verse_translations_revised} pending`}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-stone-500 mb-2">
+            Rewrites the verse's main English translation (<code className="text-[11px]">revised_text</code>) and the Translation Notes panel below it (<code className="text-[11px]">departure_notes</code>) on every <code className="text-[11px]">ai_translations</code> row whose verse contains this root, swapping conventional vocabulary for "{canonical || '?'}". Hard-case verses are excluded — they're handled by the transliteration pipeline above. Originals saved to <code className="text-[11px]">departure_notes_original</code>; revert restores both fields. Slower than other panels (~5–10s per verse, batches of 10).
+          </p>
+          {vtProgress && (
+            <div className="mt-2 rounded-md bg-stone-50 border border-stone-200 px-3 py-2">
+              <div className="flex items-center gap-3 text-xs text-stone-600">
+                <span className="font-medium">{vtProgress.processed} processed</span>
+                <span className="text-emerald-700">{vtProgress.revised} revised</span>
+                {vtProgress.errors > 0 && (
+                  <span className="text-red-700">{vtProgress.errors} errors</span>
+                )}
+                <span className="text-stone-400">{vtProgress.remaining} remaining</span>
+                {vtRunning && (
+                  <span className="ml-auto inline-flex items-center gap-1.5 text-stone-500">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    Running…
+                  </span>
+                )}
+              </div>
+              {vtProgress.samples.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {vtProgress.samples.slice(0, 3).map((s, i) => (
+                    <li key={i} className="text-[11px] text-stone-600 leading-relaxed">
+                      <a href={`/verse/${s.ref}`} target="_blank" rel="noopener noreferrer" className="font-mono text-amber-700 hover:underline">
+                        {s.ref}
+                      </a>{' '}
+                      <span className="text-stone-400">{s.before.slice(0, 70)}…</span>
+                      {' → '}
+                      <span className="text-stone-700">{s.after.slice(0, 70)}…</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {vtProgress.errors_detail.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-[11px] text-red-700 cursor-pointer hover:text-red-900">
+                    {vtProgress.errors_detail.length} error{vtProgress.errors_detail.length === 1 ? '' : 's'} — click to see details
+                  </summary>
+                  <ul className="mt-1.5 space-y-1 pl-2 border-l-2 border-red-200">
+                    {vtProgress.errors_detail.map((e, i) => (
                       <li key={i} className="text-[11px] leading-relaxed text-red-700">
                         <code className="text-red-800">{e.ref}</code>{' — '}
                         <span className="text-red-600">{e.message}</span>

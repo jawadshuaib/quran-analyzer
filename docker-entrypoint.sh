@@ -317,15 +317,25 @@ try:
             )
             print(f'  Backed up {len(rows)} ai_grammar_notes revisions')
 
-    # 4. ai_translations (sparse — only revised_text set) ------------------
+    # 4. ai_translations (sparse — only rows where revised_text or
+    #    departure_notes_original is set). Both pipelines write here:
+    #    - apply_hard_case_transliterations -> revised_text
+    #    - revise_verse_translations -> revised_text + departure_notes +
+    #      departure_notes_original
     if has_table(conn, 'ai_translations') and has_column(conn, 'ai_translations', 'revised_text'):
         keep_cols = ['chapter', 'verse', 'revised_text']
+        # Optional Phase-2 columns — only include if they exist on this DB.
+        if has_column(conn, 'ai_translations', 'departure_notes'):
+            keep_cols.append('departure_notes')
+        if has_column(conn, 'ai_translations', 'departure_notes_original'):
+            keep_cols.append('departure_notes_original')
         col_list = ','.join(f'\"{c}\"' for c in keep_cols)
         bak_conn.execute(f'CREATE TABLE _tr_modified ({col_list})')
-        rows = conn.execute(
-            f'SELECT {col_list} FROM ai_translations '
-            \"WHERE revised_text IS NOT NULL AND revised_text != ''\"
-        ).fetchall()
+        # Build WHERE clause matching either pipeline's marker.
+        where = \"WHERE (revised_text IS NOT NULL AND revised_text != '')\"
+        if 'departure_notes_original' in keep_cols:
+            where += \" OR (departure_notes_original IS NOT NULL AND departure_notes_original != '')\"
+        rows = conn.execute(f'SELECT {col_list} FROM ai_translations {where}').fetchall()
         if rows:
             placeholders = ','.join(['?'] * len(keep_cols))
             bak_conn.executemany(
@@ -674,20 +684,38 @@ except Exception as e:
 # 4. ai_translations — UPDATE matching rows --------------------------------
 try:
     if has_table(bak_conn, '_tr_modified') and has_table(dst_conn, 'ai_translations'):
-        rows = bak_conn.execute(
-            'SELECT chapter, verse, revised_text FROM _tr_modified'
-        ).fetchall()
-        count = 0
-        for r in rows:
-            res = dst_conn.execute(
-                'UPDATE ai_translations SET revised_text = ? '
-                'WHERE chapter = ? AND verse = ?',
-                (r[2], r[0], r[1]),
-            )
-            if res.rowcount:
-                count += 1
-        if count:
-            print(f'  Restored {count} ai_translations revisions')
+        # Make sure the Phase-2 backup column exists on dest. The seed may
+        # predate the revise_verse_translations migration.
+        if not has_column(dst_conn, 'ai_translations', 'departure_notes_original'):
+            try:
+                dst_conn.execute('ALTER TABLE ai_translations ADD COLUMN departure_notes_original TEXT')
+            except Exception:
+                pass
+        # Discover what columns this backup actually carries (the layout
+        # depends on which Phase-2 columns existed at backup time).
+        bak_cols = [r[1] for r in bak_conn.execute('PRAGMA table_info(_tr_modified)')]
+        dst_cols = set(r[1] for r in dst_conn.execute('PRAGMA table_info(ai_translations)'))
+        # We always have chapter, verse, revised_text. Optionally:
+        # departure_notes, departure_notes_original.
+        col_list = ','.join(f'\"{c}\"' for c in bak_cols)
+        rows = bak_conn.execute(f'SELECT {col_list} FROM _tr_modified').fetchall()
+        # Build the SET clause from intersect(bak_cols, dst_cols) excluding the keys.
+        set_cols = [c for c in bak_cols if c in dst_cols and c not in ('chapter', 'verse')]
+        if set_cols:
+            set_sql = ', '.join(f'\"{c}\" = ?' for c in set_cols)
+            count = 0
+            for r in rows:
+                # Map row columns by name
+                row_map = dict(zip(bak_cols, r))
+                set_vals = [row_map[c] for c in set_cols]
+                res = dst_conn.execute(
+                    f'UPDATE ai_translations SET {set_sql} WHERE chapter = ? AND verse = ?',
+                    (*set_vals, row_map['chapter'], row_map['verse']),
+                )
+                if res.rowcount:
+                    count += 1
+            if count:
+                print(f'  Restored {count} ai_translations revisions')
 except Exception as e:
     print(f'  [ai_translations] restore error: {e}')
 
