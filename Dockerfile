@@ -27,6 +27,10 @@ RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceT
 COPY roots/backend/app.py ./app.py
 COPY roots/backend/api_v1.py ./api_v1.py
 COPY roots/backend/build_embeddings.py ./build_embeddings.py
+# Vocabulary Studio support modules — lazy-imported by /api/admin/vocab/* endpoints.
+# Without these the survey + apply-transliteration handlers raise ModuleNotFoundError.
+COPY roots/backend/term_survey.py ./term_survey.py
+COPY roots/backend/apply_hard_case_transliterations.py ./apply_hard_case_transliterations.py
 
 # Copy bundled fonts for video text overlays
 COPY roots/backend/data/fonts ./data/fonts
