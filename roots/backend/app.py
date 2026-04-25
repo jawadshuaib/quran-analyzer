@@ -2681,10 +2681,31 @@ def get_verse(surah: int, ayah: int):
             for pos, segs in words.items()
         ]
 
-        # Enrich roots with cognate data
+        # Enrich roots with cognate data, then layer the surveyed canonical
+        # English on top when one exists. The chip box on /verse/<ref> shows
+        # `r.cognate.concept`; for surveyed roots we want that to be the
+        # admin-curated canonical (e.g. "endure" for ص-ب-ر) rather than the
+        # raw Semitic-cognate concept ("restrain / ice / pointed tool"),
+        # because the survey reflects deliberate Quran-only methodology.
+        # The original concept is preserved on `cognate.concept_cognate` for
+        # any UI that wants to surface it explicitly.
         roots_list = list(roots_seen.values())
         for root_entry in roots_list:
             cognate = _get_cognate(conn, root_entry["root_buckwalter"])
+            survey_row = conn.execute(
+                "SELECT canonical_english FROM term_surveys "
+                "WHERE root_buckwalter = ? AND canonical_english IS NOT NULL "
+                "AND TRIM(canonical_english) != ''",
+                (root_entry["root_buckwalter"],),
+            ).fetchone()
+            if survey_row and survey_row["canonical_english"]:
+                if cognate is None:
+                    cognate = {"concept": survey_row["canonical_english"]}
+                else:
+                    cognate = dict(cognate)
+                    cognate["concept_cognate"] = cognate.get("concept")
+                    cognate["concept"] = survey_row["canonical_english"]
+                    cognate["from_survey"] = True
             root_entry["cognate"] = cognate
 
         # Build previous/next verse links (across surah boundaries).
@@ -5611,11 +5632,32 @@ def _vocab_count_revisions(conn, root_bw: str) -> dict:
         (root_bw,),
     ).fetchone()[0]
 
+    # Total candidates the Phase-2 revisers can touch (joins narrow the
+    # set vs. raw morphology counts: ai_word_meanings might be missing a
+    # row; ai_grammar_notes is per-verse, not per-word).
+    word_meanings_total = conn.execute(
+        "SELECT COUNT(*) FROM ai_word_meanings w "
+        "JOIN morphology m ON m.chapter = w.chapter AND m.verse = w.verse "
+        "                  AND m.word_pos = w.word_pos "
+        "WHERE m.root_buckwalter = ?",
+        (root_bw,),
+    ).fetchone()[0]
+
+    grammar_notes_total = conn.execute(
+        "SELECT COUNT(DISTINCT g.chapter || ':' || g.verse) "
+        "FROM ai_grammar_notes g "
+        "JOIN morphology m ON m.chapter = g.chapter AND m.verse = g.verse "
+        "WHERE m.root_buckwalter = ? AND g.notes_markdown IS NOT NULL",
+        (root_bw,),
+    ).fetchone()[0]
+
     return {
         "hard_cases_total": len(hard_refs),
         "translations_revised": translations_revised,
         "grammar_notes_revised": grammar_revised,
+        "grammar_notes_total": grammar_notes_total,
         "word_meanings_revised": word_meanings_revised,
+        "word_meanings_total": word_meanings_total,
         "total_word_occurrences": total_word_occurrences,
     }
 
@@ -5847,6 +5889,369 @@ def admin_vocab_revert_transliteration(root_bw: str, chapter: int, verse: int):
         conn.commit()
         return jsonify({"ok": True,
                         "revisions": _vocab_count_revisions(conn, root_bw)})
+    finally:
+        conn.close()
+
+
+# ---- Phase 2: bulk-apply revisions across reader surfaces ----------------
+# Three reader-facing surfaces use the surveyed canonical:
+#   1. term_surveys.translation_note      (single-row regeneration)
+#   2. ai_word_meanings rows for this root (per-word revision, chunked)
+#   3. ai_grammar_notes rows for verses that contain this root (chunked)
+#
+# Each chunked endpoint takes optional { limit, force } and returns
+# { processed, revised, errors, remaining, samples }. The frontend keeps
+# calling until remaining == 0.
+#
+# Both word-meanings and grammar-notes have *_original backup columns
+# (created by the underlying CLI scripts on first run). The revert
+# endpoints copy *_original back into the active column for every row
+# under this root, then clear *_original.
+
+
+def _vocab_collect_word_meanings_targets(conn, root_bw: str, force: bool) -> list[dict]:
+    """ai_word_meanings rows joined to morphology where root = root_bw.
+    If not force, excludes rows already revised (meaning_short_original set)."""
+    rows = conn.execute(
+        "SELECT w.id, w.chapter, w.verse, w.word_pos, "
+        "       w.meaning_short, w.meaning_detailed, w.preferred_translation, "
+        "       w.meaning_short_original, w.preferred_source, "
+        "       m.root_buckwalter, m.root_arabic, m.form_arabic, m.pos, m.tag "
+        "FROM ai_word_meanings w "
+        "JOIN morphology m ON m.chapter = w.chapter AND m.verse = w.verse "
+        "                  AND m.word_pos = w.word_pos "
+        "WHERE m.root_buckwalter = ? "
+        "GROUP BY w.id "
+        "ORDER BY w.chapter, w.verse, w.word_pos",
+        (root_bw,),
+    ).fetchall()
+    out = [dict(r) for r in rows]
+    if not force:
+        out = [r for r in out if not r.get("meaning_short_original")]
+    return out
+
+
+def _vocab_collect_grammar_targets(
+    conn, root_bw: str, force: bool,
+) -> list[tuple[int, int]]:
+    """Distinct (chapter, verse) pairs where the verse contains this root
+    AND has a grammar note. If not force, excludes already-revised."""
+    sql = (
+        "SELECT DISTINCT g.chapter, g.verse "
+        "FROM ai_grammar_notes g "
+        "JOIN morphology m ON m.chapter = g.chapter AND m.verse = g.verse "
+        "WHERE m.root_buckwalter = ? AND g.notes_markdown IS NOT NULL "
+    )
+    if not force:
+        sql += "AND (g.notes_markdown_original IS NULL OR g.notes_markdown_original = '') "
+    sql += "ORDER BY g.chapter, g.verse"
+    rows = conn.execute(sql, (root_bw,)).fetchall()
+    return [(r["chapter"], r["verse"]) for r in rows]
+
+
+@app.route("/api/admin/vocab/<root_bw>/regenerate-translation-note", methods=["POST"])
+@admin_required
+def admin_vocab_regenerate_translation_note(root_bw: str):
+    """Re-generate the reader-facing translation_note for this survey using
+    the canonical_english + reasoning + counter_examples already on file.
+    Single Claude Sonnet call, ~5 sec, ~$0.01.
+    Body (optional): { model }"""
+    body = request.get_json(silent=True) or {}
+    model = body.get("model") or VOCAB_SONNET_MODEL
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "No CLAUDE_API_KEY in admin_preferences."}), 400
+
+    import regenerate_translation_notes as rtn
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM term_surveys WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "No survey for this root yet"}), 404
+        try:
+            t0 = time.time()
+            rtn.regenerate_for_row(conn, dict(row), model, api_key, dry_run=False)
+            elapsed_ms = int((time.time() - t0) * 1000)
+        except Exception as e:
+            return jsonify({"error": f"Regeneration failed: {e}"}), 502
+
+        # Re-read to get the new note
+        new_note = conn.execute(
+            "SELECT translation_note FROM term_surveys WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        return jsonify({
+            "ok": True,
+            "elapsed_ms": elapsed_ms,
+            "model": model,
+            "translation_note": new_note["translation_note"] if new_note else None,
+            "state": _vocab_get_state(conn, root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/revise-word-meanings", methods=["POST"])
+@admin_required
+def admin_vocab_revise_word_meanings(root_bw: str):
+    """Run revise_word_meanings.revise_one on up to <limit> ai_word_meanings
+    rows for this root. Idempotent: skips rows already revised unless
+    force=true. Returns progress so the UI can keep calling.
+    Body: { limit?: 20, force?: false }"""
+    body = request.get_json(silent=True) or {}
+    limit = max(1, min(50, int(body.get("limit") or 20)))
+    force = bool(body.get("force"))
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "No CLAUDE_API_KEY in admin_preferences."}), 400
+
+    import revise_word_meanings as rwm
+
+    conn = get_db()
+    try:
+        canon_row = conn.execute(
+            "SELECT root_buckwalter, root_arabic, canonical_english, "
+            "       translation_note, hard_cases_json "
+            "FROM term_surveys WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        if not canon_row:
+            return jsonify({"error": "No survey for this root yet"}), 404
+        if not canon_row["canonical_english"]:
+            return jsonify({"error": "Survey has no canonical_english yet"}), 400
+
+        canon = dict(canon_row)
+        # hard-case index for THIS root only
+        try:
+            cases = json.loads(canon_row["hard_cases_json"] or "[]")
+        except Exception:
+            cases = []
+        hc_index: dict[tuple[str, int, int], dict] = {}
+        for hc in cases:
+            ref = hc.get("ref", "")
+            m = re.match(r"^(\d+):(\d+)$", ref)
+            if not m:
+                continue
+            hc_index[(root_bw, int(m.group(1)), int(m.group(2)))] = {
+                "root_buckwalter": root_bw,
+                "root_arabic": canon_row["root_arabic"],
+                "canonical_english": canon_row["canonical_english"],
+                "arabic_word": hc.get("arabic_word"),
+                "transliteration": hc.get("transliteration"),
+                "reason": hc.get("reason"),
+            }
+
+        all_targets = _vocab_collect_word_meanings_targets(conn, root_bw, force)
+        total_pending_before = len(all_targets)
+        batch = all_targets[:limit]
+
+        revised, errors = 0, 0
+        samples: list[dict] = []
+        t0 = time.time()
+        for row in batch:
+            hc = hc_index.get((root_bw, row["chapter"], row["verse"]))
+            before_short = row.get("meaning_short", "")
+            try:
+                outcome = rwm.revise_one(
+                    conn, row, hc, canon, VOCAB_SONNET_MODEL, api_key, dry_run=False,
+                )
+            except Exception as e:
+                outcome = "error"
+                print(f"[vocab/word-meanings] {row['chapter']}:{row['verse']}/p{row['word_pos']} {e}",
+                      file=sys.stderr)
+            if outcome == "revised":
+                revised += 1
+                # Re-read to capture what got written
+                new_short = conn.execute(
+                    "SELECT meaning_short FROM ai_word_meanings WHERE id = ?",
+                    (row["id"],),
+                ).fetchone()
+                samples.append({
+                    "ref": f"{row['chapter']}:{row['verse']}/p{row['word_pos']}",
+                    "before": before_short,
+                    "after": new_short["meaning_short"] if new_short else "",
+                    "hard_case": hc is not None,
+                })
+            else:
+                errors += 1
+
+        elapsed_ms = int((time.time() - t0) * 1000)
+        remaining = max(0, total_pending_before - len(batch))
+        return jsonify({
+            "ok": True,
+            "processed": len(batch),
+            "revised": revised,
+            "errors": errors,
+            "remaining": remaining,
+            "elapsed_ms": elapsed_ms,
+            "samples": samples[:5],
+            "revisions": _vocab_count_revisions(conn, root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/revert-word-meanings", methods=["POST"])
+@admin_required
+def admin_vocab_revert_word_meanings(root_bw: str):
+    """Restore meaning_short / meaning_detailed / preferred_translation
+    from their *_original backups for every ai_word_meanings row joined to
+    morphology with this root. Clears the *_original columns so a future
+    revise call sees the row as unrevised."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT w.id "
+            "FROM ai_word_meanings w "
+            "JOIN morphology m ON m.chapter = w.chapter AND m.verse = w.verse "
+            "                  AND m.word_pos = w.word_pos "
+            "WHERE m.root_buckwalter = ? "
+            "  AND w.meaning_short_original IS NOT NULL",
+            (root_bw,),
+        ).fetchall()
+        ids = [r["id"] for r in rows]
+        if ids:
+            placeholders = ",".join(["?"] * len(ids))
+            conn.execute(
+                f"UPDATE ai_word_meanings SET "
+                f"  meaning_short = meaning_short_original, "
+                f"  meaning_detailed = meaning_detailed_original, "
+                f"  preferred_translation = preferred_translation_original, "
+                f"  meaning_short_original = NULL, "
+                f"  meaning_detailed_original = NULL, "
+                f"  preferred_translation_original = NULL "
+                f"WHERE id IN ({placeholders})",
+                ids,
+            )
+            conn.commit()
+        return jsonify({
+            "ok": True,
+            "reverted": len(ids),
+            "revisions": _vocab_count_revisions(conn, root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/revise-grammar-notes", methods=["POST"])
+@admin_required
+def admin_vocab_revise_grammar_notes(root_bw: str):
+    """Run revise_grammar_notes.revise_one on up to <limit> verses where
+    this root appears AND a grammar note exists. Body: { limit?: 20, force?: false }"""
+    body = request.get_json(silent=True) or {}
+    limit = max(1, min(50, int(body.get("limit") or 20)))
+    force = bool(body.get("force"))
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "No CLAUDE_API_KEY in admin_preferences."}), 400
+
+    import revise_grammar_notes as rgn
+
+    conn = get_db()
+    try:
+        # Make sure backup column exists (idempotent)
+        rgn.ensure_backup_column(conn)
+
+        canon_row = conn.execute(
+            "SELECT canonical_english FROM term_surveys WHERE root_buckwalter = ?",
+            (root_bw,),
+        ).fetchone()
+        if not canon_row or not canon_row["canonical_english"]:
+            return jsonify({"error": "No surveyed canonical for this root yet"}), 404
+
+        all_targets = _vocab_collect_grammar_targets(conn, root_bw, force)
+        total_pending_before = len(all_targets)
+        batch = all_targets[:limit]
+
+        revised, errors = 0, 0
+        samples: list[dict] = []
+        t0 = time.time()
+        for ch, vs in batch:
+            before_row = conn.execute(
+                "SELECT notes_markdown FROM ai_grammar_notes WHERE chapter=? AND verse=?",
+                (ch, vs),
+            ).fetchone()
+            before_md = before_row["notes_markdown"] if before_row else ""
+            try:
+                outcome = rgn.revise_one(
+                    conn, ch, vs, [root_bw],
+                    VOCAB_SONNET_MODEL, api_key,
+                    dry_run=False, force=force,
+                )
+            except Exception as e:
+                outcome = "error"
+                print(f"[vocab/grammar-notes] {ch}:{vs} {e}", file=sys.stderr)
+            if outcome == "revised":
+                revised += 1
+                after_row = conn.execute(
+                    "SELECT notes_markdown FROM ai_grammar_notes WHERE chapter=? AND verse=?",
+                    (ch, vs),
+                ).fetchone()
+                samples.append({
+                    "ref": f"{ch}:{vs}",
+                    "before": (before_md or "")[:200],
+                    "after": (after_row["notes_markdown"] if after_row else "")[:200],
+                })
+            elif outcome.startswith("skip"):
+                pass  # already revised or no canon — not an error
+            else:
+                errors += 1
+
+        elapsed_ms = int((time.time() - t0) * 1000)
+        remaining = max(0, total_pending_before - len(batch))
+        return jsonify({
+            "ok": True,
+            "processed": len(batch),
+            "revised": revised,
+            "errors": errors,
+            "remaining": remaining,
+            "elapsed_ms": elapsed_ms,
+            "samples": samples[:5],
+            "revisions": _vocab_count_revisions(conn, root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/vocab/<root_bw>/revert-grammar-notes", methods=["POST"])
+@admin_required
+def admin_vocab_revert_grammar_notes(root_bw: str):
+    """Restore notes_markdown from notes_markdown_original for every
+    ai_grammar_notes row whose verse contains this root."""
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT DISTINCT g.chapter, g.verse "
+            "FROM ai_grammar_notes g "
+            "JOIN morphology m ON m.chapter = g.chapter AND m.verse = g.verse "
+            "WHERE m.root_buckwalter = ? "
+            "  AND g.notes_markdown_original IS NOT NULL "
+            "  AND g.notes_markdown_original != ''",
+            (root_bw,),
+        ).fetchall()
+        reverted = 0
+        for r in rows:
+            conn.execute(
+                "UPDATE ai_grammar_notes SET "
+                "  notes_markdown = notes_markdown_original, "
+                "  notes_markdown_original = NULL "
+                "WHERE chapter = ? AND verse = ?",
+                (r["chapter"], r["verse"]),
+            )
+            reverted += 1
+        conn.commit()
+        return jsonify({
+            "ok": True,
+            "reverted": reverted,
+            "revisions": _vocab_count_revisions(conn, root_bw),
+        })
     finally:
         conn.close()
 

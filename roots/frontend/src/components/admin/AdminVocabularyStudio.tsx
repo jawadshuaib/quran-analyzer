@@ -1,24 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   getVocabStudio,
   runVocabSurvey,
   saveVocabEdits,
   applyVocabTransliteration,
   revertVocabTransliteration,
+  regenerateTranslationNote,
+  reviseVocabWordMeanings,
+  revertVocabWordMeanings,
+  reviseVocabGrammarNotes,
+  revertVocabGrammarNotes,
 } from '../../api/admin';
 import type { VocabStudioState } from '../../api/admin';
 
 /**
  * Per-root studio. Routed at /admin/vocabulary/<root_buckwalter>.
  *
- * Phase 1 panels:
- *   1. Survey  — run Claude Opus over all occurrences; canonical / reasoning /
- *                counter-examples editable; saves to term_surveys.
- *   2. Apply   — bulk apply transliteration to hard-case verses (Sonnet),
- *                with per-verse revert.
- *
- * Future phases will add: translation_note editor, hard_cases editor,
- * grammar_notes apply, word_meanings apply, audit log.
+ * Panels:
+ *   1. Survey                — run Claude Opus over all occurrences;
+ *                              canonical / reasoning / counter-examples
+ *                              editable; saves to term_surveys.
+ *                              "Regenerate (AI)" rewrites translation_note
+ *                              to match the canonical via Sonnet.
+ *   2. Apply revisions       — four bulk actions, each with revert:
+ *                                a. Hard-case transliteration
+ *                                b. Word meanings revision (chunked)
+ *                                c. Grammar notes revision (chunked)
+ *                              The chunked actions auto-loop in 20-row
+ *                              batches until exhausted; the button toggles
+ *                              to "Stop" while running.
+ *   3. Occurrences           — read-only list of every (chapter, verse,
+ *                              word_pos) where this root appears.
  */
 export default function AdminVocabularyStudio() {
   const rootBw = decodeURIComponent(
@@ -40,6 +52,28 @@ export default function AdminVocabularyStudio() {
   const [saving, setSaving] = useState(false);
   const [applyingTransliteration, setApplyingTransliteration] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
+
+  // Phase 2 state
+  const [regeneratingNote, setRegeneratingNote] = useState(false);
+
+  // Word meanings: auto-loops 20-row batches; ref-flag lets the Stop
+  // button break out of the loop without losing the in-flight chunk.
+  const wmRunningRef = useRef(false);
+  const [wmRunning, setWmRunning] = useState(false);
+  const [wmProgress, setWmProgress] = useState<{
+    processed: number; revised: number; errors: number; remaining: number;
+    samples: Array<{ ref: string; before: string; after: string; hard_case?: boolean }>;
+  } | null>(null);
+  const [wmReverting, setWmReverting] = useState(false);
+
+  // Grammar notes: same pattern.
+  const gnRunningRef = useRef(false);
+  const [gnRunning, setGnRunning] = useState(false);
+  const [gnProgress, setGnProgress] = useState<{
+    processed: number; revised: number; errors: number; remaining: number;
+    samples: Array<{ ref: string; before: string; after: string }>;
+  } | null>(null);
+  const [gnReverting, setGnReverting] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -127,6 +161,135 @@ export default function AdminVocabularyStudio() {
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Revert failed');
+    }
+  }
+
+  async function handleRegenerateNote() {
+    setRegeneratingNote(true);
+    setError('');
+    setStatusMsg('');
+    try {
+      const r = await regenerateTranslationNote(rootBw);
+      setTranslationNote(r.translation_note ?? '');
+      setStatusMsg(`Translation note regenerated in ${(r.elapsed_ms / 1000).toFixed(1)}s.`);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Regeneration failed');
+    } finally {
+      setRegeneratingNote(false);
+    }
+  }
+
+  async function handleReviseWordMeanings() {
+    if (wmRunningRef.current) {
+      // Stop signal — current in-flight chunk completes, then we exit
+      wmRunningRef.current = false;
+      setStatusMsg('Stopping after current batch…');
+      return;
+    }
+    wmRunningRef.current = true;
+    setWmRunning(true);
+    setWmProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [] });
+    setError('');
+    setStatusMsg('');
+    let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
+    let lastSamples: typeof wmProgress extends null ? never : NonNullable<typeof wmProgress>['samples'] = [];
+    try {
+      while (wmRunningRef.current) {
+        const r = await reviseVocabWordMeanings(rootBw, { limit: 20 });
+        totalProcessed += r.processed;
+        totalRevised += r.revised;
+        totalErrors += r.errors;
+        if (r.samples.length) lastSamples = r.samples;
+        setWmProgress({
+          processed: totalProcessed,
+          revised: totalRevised,
+          errors: totalErrors,
+          remaining: r.remaining,
+          samples: lastSamples,
+        });
+        // Two exit conditions: nothing left, or chunk did nothing (avoids
+        // an infinite loop if the backend keeps returning processed=0).
+        if (r.remaining === 0 || r.processed === 0) break;
+      }
+      setStatusMsg(`Word-meanings revision complete: ${totalRevised} revised, ${totalErrors} errors.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Revision failed');
+    } finally {
+      wmRunningRef.current = false;
+      setWmRunning(false);
+      await refresh();
+    }
+  }
+
+  async function handleRevertWordMeanings() {
+    if (!confirm('Revert all word-meanings revisions for this root? Originals will be restored from backup columns.')) return;
+    setWmReverting(true);
+    setError('');
+    try {
+      const r = await revertVocabWordMeanings(rootBw);
+      setWmProgress(null);
+      setStatusMsg(`Reverted ${r.reverted} word-meaning rows.`);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Revert failed');
+    } finally {
+      setWmReverting(false);
+    }
+  }
+
+  async function handleReviseGrammarNotes() {
+    if (gnRunningRef.current) {
+      gnRunningRef.current = false;
+      setStatusMsg('Stopping after current batch…');
+      return;
+    }
+    gnRunningRef.current = true;
+    setGnRunning(true);
+    setGnProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [] });
+    setError('');
+    setStatusMsg('');
+    let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
+    let lastSamples: NonNullable<typeof gnProgress>['samples'] = [];
+    try {
+      while (gnRunningRef.current) {
+        const r = await reviseVocabGrammarNotes(rootBw, { limit: 20 });
+        totalProcessed += r.processed;
+        totalRevised += r.revised;
+        totalErrors += r.errors;
+        if (r.samples.length) lastSamples = r.samples;
+        setGnProgress({
+          processed: totalProcessed,
+          revised: totalRevised,
+          errors: totalErrors,
+          remaining: r.remaining,
+          samples: lastSamples,
+        });
+        if (r.remaining === 0 || r.processed === 0) break;
+      }
+      setStatusMsg(`Grammar-notes revision complete: ${totalRevised} revised, ${totalErrors} errors.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Revision failed');
+    } finally {
+      gnRunningRef.current = false;
+      setGnRunning(false);
+      await refresh();
+    }
+  }
+
+  async function handleRevertGrammarNotes() {
+    if (!confirm('Revert all grammar-notes revisions for this root?')) return;
+    setGnReverting(true);
+    setError('');
+    try {
+      const r = await revertVocabGrammarNotes(rootBw);
+      setGnProgress(null);
+      setStatusMsg(`Reverted ${r.reverted} grammar-note rows.`);
+      await refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Revert failed');
+    } finally {
+      setGnReverting(false);
     }
   }
 
@@ -244,9 +407,19 @@ export default function AdminVocabularyStudio() {
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-stone-600 mb-1">
-                Translation note (reader-facing tooltip text)
-              </label>
+              <div className="flex items-baseline justify-between mb-1">
+                <label className="block text-xs font-medium text-stone-600">
+                  Translation note (reader-facing tooltip text)
+                </label>
+                <button
+                  onClick={handleRegenerateNote}
+                  disabled={regeneratingNote || !canonical.trim()}
+                  className="text-[11px] px-2.5 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
+                  title={!canonical.trim() ? 'Set a canonical English first' : 'Rewrite the note via Sonnet using the canonical + reasoning + counter-examples on file. ~$0.01.'}
+                >
+                  {regeneratingNote ? 'Regenerating…' : 'Regenerate (AI)'}
+                </button>
+              </div>
               <textarea
                 value={translationNote}
                 onChange={(e) => setTranslationNote(e.target.value)}
@@ -393,9 +566,154 @@ export default function AdminVocabularyStudio() {
           )}
         </div>
 
-        {/* Other surfaces (Phase 2 will hook these up) */}
-        <div className="text-xs text-stone-400 italic pt-3 border-t border-stone-100">
-          Coming next: bulk apply across grammar notes ({state.revisions.grammar_notes_revised} touched) and word meanings ({state.revisions.word_meanings_revised} of {state.revisions.total_word_occurrences} occurrences).
+        {/* --- Word meanings revision -------------------------------- */}
+        <div className="mb-6 pt-4 border-t border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-stone-700">
+              Word meanings ({state.revisions.word_meanings_revised} of {state.revisions.word_meanings_total} revised)
+            </h3>
+            <div className="flex items-center gap-2">
+              {state.revisions.word_meanings_revised > 0 && !wmRunning && (
+                <button
+                  onClick={handleRevertWordMeanings}
+                  disabled={wmReverting}
+                  className="text-xs px-3 py-1.5 rounded-md border border-stone-300 text-stone-600 hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
+                >
+                  {wmReverting ? 'Reverting…' : 'Revert all'}
+                </button>
+              )}
+              <button
+                onClick={handleReviseWordMeanings}
+                disabled={
+                  state.revisions.word_meanings_total === 0 ||
+                  (!wmRunning && state.revisions.word_meanings_total === state.revisions.word_meanings_revised)
+                }
+                className={`text-xs px-4 py-1.5 rounded-md text-white disabled:opacity-50 cursor-pointer ${
+                  wmRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'
+                }`}
+              >
+                {wmRunning
+                  ? 'Stop'
+                  : state.revisions.word_meanings_total === 0
+                    ? 'No word meanings'
+                    : state.revisions.word_meanings_total === state.revisions.word_meanings_revised
+                      ? 'All revised'
+                      : `Revise ${state.revisions.word_meanings_total - state.revisions.word_meanings_revised} pending`}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-stone-500 mb-2">
+            Rewrites <code className="text-[11px]">meaning_short</code> /{' '}
+            <code className="text-[11px]">meaning_detailed</code> /{' '}
+            <code className="text-[11px]">preferred_translation</code> on every <code className="text-[11px]">ai_word_meanings</code> row whose root is{' '}
+            <code className="text-[11px]">{rootBw}</code>, using the canonical "{canonical || '?'}". Originals are saved to <code className="text-[11px]">*_original</code> backup columns and can be reverted in one click.
+          </p>
+          {wmProgress && (
+            <div className="mt-2 rounded-md bg-stone-50 border border-stone-200 px-3 py-2">
+              <div className="flex items-center gap-3 text-xs text-stone-600">
+                <span className="font-medium">
+                  {wmProgress.processed} processed
+                </span>
+                <span className="text-emerald-700">{wmProgress.revised} revised</span>
+                {wmProgress.errors > 0 && (
+                  <span className="text-red-700">{wmProgress.errors} errors</span>
+                )}
+                <span className="text-stone-400">{wmProgress.remaining} remaining</span>
+                {wmRunning && (
+                  <span className="ml-auto inline-flex items-center gap-1.5 text-stone-500">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    Running…
+                  </span>
+                )}
+              </div>
+              {wmProgress.samples.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {wmProgress.samples.slice(0, 3).map((s, i) => (
+                    <li key={i} className="text-[11px] text-stone-600 leading-relaxed">
+                      <code className="text-amber-700">{s.ref}</code>
+                      {s.hard_case && <span className="ml-1 text-stone-400">[hard]</span>}{' '}
+                      <span className="text-stone-400">{s.before.slice(0, 50)}</span>
+                      {' → '}
+                      <span className="text-stone-700">{s.after.slice(0, 50)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* --- Grammar notes revision -------------------------------- */}
+        <div className="pt-4 border-t border-stone-100">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-stone-700">
+              Grammar notes ({state.revisions.grammar_notes_revised} of {state.revisions.grammar_notes_total} revised)
+            </h3>
+            <div className="flex items-center gap-2">
+              {state.revisions.grammar_notes_revised > 0 && !gnRunning && (
+                <button
+                  onClick={handleRevertGrammarNotes}
+                  disabled={gnReverting}
+                  className="text-xs px-3 py-1.5 rounded-md border border-stone-300 text-stone-600 hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
+                >
+                  {gnReverting ? 'Reverting…' : 'Revert all'}
+                </button>
+              )}
+              <button
+                onClick={handleReviseGrammarNotes}
+                disabled={
+                  state.revisions.grammar_notes_total === 0 ||
+                  (!gnRunning && state.revisions.grammar_notes_total === state.revisions.grammar_notes_revised)
+                }
+                className={`text-xs px-4 py-1.5 rounded-md text-white disabled:opacity-50 cursor-pointer ${
+                  gnRunning ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-600 hover:bg-amber-700'
+                }`}
+              >
+                {gnRunning
+                  ? 'Stop'
+                  : state.revisions.grammar_notes_total === 0
+                    ? 'No grammar notes'
+                    : state.revisions.grammar_notes_total === state.revisions.grammar_notes_revised
+                      ? 'All revised'
+                      : `Revise ${state.revisions.grammar_notes_total - state.revisions.grammar_notes_revised} pending`}
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-stone-500 mb-2">
+            Rewrites <code className="text-[11px]">notes_markdown</code> on every grammar note for verses containing this root, swapping conventional vocabulary for the canonical "{canonical || '?'}". Preserves <code className="text-[11px]">[[term]]</code> markers and grammatical analysis.
+          </p>
+          {gnProgress && (
+            <div className="mt-2 rounded-md bg-stone-50 border border-stone-200 px-3 py-2">
+              <div className="flex items-center gap-3 text-xs text-stone-600">
+                <span className="font-medium">{gnProgress.processed} processed</span>
+                <span className="text-emerald-700">{gnProgress.revised} revised</span>
+                {gnProgress.errors > 0 && (
+                  <span className="text-red-700">{gnProgress.errors} errors</span>
+                )}
+                <span className="text-stone-400">{gnProgress.remaining} remaining</span>
+                {gnRunning && (
+                  <span className="ml-auto inline-flex items-center gap-1.5 text-stone-500">
+                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    Running…
+                  </span>
+                )}
+              </div>
+              {gnProgress.samples.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {gnProgress.samples.slice(0, 3).map((s, i) => (
+                    <li key={i} className="text-[11px] text-stone-600 leading-relaxed">
+                      <a href={`/verse/${s.ref}`} target="_blank" rel="noopener noreferrer" className="font-mono text-amber-700 hover:underline">
+                        {s.ref}
+                      </a>{' '}
+                      <span className="text-stone-400">{s.before.slice(0, 70)}…</span>
+                      {' → '}
+                      <span className="text-stone-700">{s.after.slice(0, 70)}…</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

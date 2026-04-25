@@ -126,8 +126,21 @@ export interface VocabRevisions {
   hard_cases_total: number;
   translations_revised: number;
   grammar_notes_revised: number;
+  grammar_notes_total: number;
   word_meanings_revised: number;
+  word_meanings_total: number;
   total_word_occurrences: number;
+}
+
+export interface VocabReviseChunkResult {
+  ok: true;
+  processed: number;
+  revised: number;
+  errors: number;
+  remaining: number;
+  elapsed_ms: number;
+  samples: Array<{ ref: string; before: string; after: string; hard_case?: boolean }>;
+  revisions: VocabRevisions;
 }
 
 export interface VocabStudioState {
@@ -201,6 +214,72 @@ export async function revertVocabTransliteration(
   );
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Revert failed');
+  return data;
+}
+
+// ---- Phase 2 actions: regenerate translation note + bulk revise word
+// meanings + bulk revise grammar notes (each with revert). Word meanings
+// and grammar notes are chunked — caller polls until remaining == 0.
+
+export async function regenerateTranslationNote(
+  rootBw: string,
+): Promise<{ ok: true; elapsed_ms: number; model: string; translation_note: string | null; state: VocabStudioState['survey'] }> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/regenerate-translation-note`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Regeneration failed');
+  return data;
+}
+
+export async function reviseVocabWordMeanings(
+  rootBw: string,
+  opts: { limit?: number; force?: boolean } = {},
+): Promise<VocabReviseChunkResult> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/revise-word-meanings`,
+    { method: 'POST', body: JSON.stringify(opts) },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Word-meanings revision failed');
+  return data;
+}
+
+export async function revertVocabWordMeanings(
+  rootBw: string,
+): Promise<{ ok: true; reverted: number; revisions: VocabRevisions }> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/revert-word-meanings`,
+    { method: 'POST' },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Word-meanings revert failed');
+  return data;
+}
+
+export async function reviseVocabGrammarNotes(
+  rootBw: string,
+  opts: { limit?: number; force?: boolean } = {},
+): Promise<VocabReviseChunkResult> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/revise-grammar-notes`,
+    { method: 'POST', body: JSON.stringify(opts) },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Grammar-notes revision failed');
+  return data;
+}
+
+export async function revertVocabGrammarNotes(
+  rootBw: string,
+): Promise<{ ok: true; reverted: number; revisions: VocabRevisions }> {
+  const res = await authFetch(
+    `${BASE}/vocab/${encodeURIComponent(rootBw)}/revert-grammar-notes`,
+    { method: 'POST' },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Grammar-notes revert failed');
   return data;
 }
 
