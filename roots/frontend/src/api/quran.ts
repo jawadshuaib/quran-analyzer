@@ -145,6 +145,9 @@ export interface QuranVocabularyTerm {
     transliteration: string;
     reason: string;
   }>;
+  /** English words that, when found in a translation of a verse
+   * containing this root, should be rendered as a glossary chip. */
+  chip_word_family: string[];
 }
 
 export interface QuranVocabularyResponse {

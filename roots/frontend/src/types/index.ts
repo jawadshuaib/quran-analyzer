@@ -377,6 +377,7 @@ export interface RootDetailData {
 export interface WordMeaningBrief {
   meaning_short: string;
   has_detail: boolean;
+  meaning_excerpt?: string | null;
   preferred_translation?: string;
   preferred_source?: 'conventional' | 'ai' | 'judge';
 }
@@ -395,6 +396,7 @@ export interface WordOccurrence {
   translation: string;
   conventional_gloss: string;
   ai_meaning: string | null;
+  verse_root_buckwalters?: string[];
 }
 
 export interface WordAIMeaning {
@@ -428,4 +430,5 @@ export interface WordAnalysisData {
   other_occurrences: WordOccurrence[];
   total_lemma_occurrences: number;
   ai_meaning: WordAIMeaning | null;
+  verse_root_buckwalters?: string[];
 }

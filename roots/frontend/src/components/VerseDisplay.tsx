@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData } from '../types';
 import { searchWordsCount, fetchWordMeanings, fetchAITranslation } from '../api/quran';
-import { TranslationWithChips } from './TermChip';
+import { TranslationWithChips, type WordContext } from './TermChip';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
 import SelectionHeader from './SelectionHeader';
@@ -82,6 +82,33 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
       rootCognateMap.set(r.root_buckwalter, r.cognate);
     }
   });
+
+  // Build root_buckwalter -> ordered list of word-level contexts. Each
+  // entry carries the AI-derived per-word meaning for one occurrence of
+  // the root in this verse, in word-position order. The TermChip layer
+  // uses these to show context-specific tooltips on hover instead of
+  // the generic root note.
+  const contextByRoot = useMemo(() => {
+    const map = new Map<string, WordContext[]>();
+    const ordered = [...data.words].sort((a, b) => a.position - b.position);
+    for (const word of ordered) {
+      const rootSeg = word.segments.find((s) => s.root_buckwalter);
+      if (!rootSeg) continue;
+      const root = rootSeg.root_buckwalter;
+      const wm = wordMeanings[String(word.position)];
+      const list = map.get(root) ?? [];
+      list.push({
+        surah: data.surah,
+        ayah: data.ayah,
+        word_pos: word.position,
+        meaning_short: wm?.preferred_translation || wm?.meaning_short,
+        meaning_excerpt: wm?.meaning_excerpt,
+        has_detail: wm?.has_detail,
+      });
+      map.set(root, list);
+    }
+    return map;
+  }, [data, wordMeanings]);
 
   // Get cognate for a word (from its first root-bearing segment)
   function getCognateForWord(word: Word): CognateData | undefined {
@@ -440,6 +467,8 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
       <p className="text-stone-600 italic">
         <TranslationWithChips
           text={aiTranslation ? aiTranslation.translation : data.translation}
+          surveyedRootsInVerse={data.roots_summary.map((r) => r.root_buckwalter)}
+          contextByRoot={contextByRoot}
         />
       </p>
 

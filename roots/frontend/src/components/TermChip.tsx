@@ -88,12 +88,26 @@ export function useTermLookup() {
 
 // ---------- The chip ----------
 
+/** Context for a specific occurrence of a surveyed root in a verse —
+ * the AI-derived word-level meaning. When provided, the chip's tooltip
+ * leads with this verse-specific gloss instead of the generic root note. */
+export interface WordContext {
+  surah: number;
+  ayah: number;
+  word_pos: number;
+  meaning_short?: string;
+  meaning_excerpt?: string | null;
+  has_detail?: boolean;
+}
+
 function TermChip({
   transliteration,
   term,
+  wordContext,
 }: {
   transliteration: string;
   term: QuranVocabularyTerm;
+  wordContext?: WordContext | null;
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; above: boolean } | null>(null);
@@ -141,6 +155,11 @@ function TermChip({
 
   const slug = vocabTermSlug(term.root_buckwalter);
 
+  const hasContext = !!(wordContext && wordContext.meaning_short);
+  const wordHref = wordContext
+    ? `/word/${wordContext.surah}:${wordContext.ayah}/${wordContext.word_pos}`
+    : null;
+
   const tooltip = open && pos ? (
     <div
       ref={tipRef}
@@ -149,30 +168,54 @@ function TermChip({
       style={{ left: pos.left, top: pos.top, width: TIP_WIDTH }}
       className="fixed z-[1000] rounded-xl border border-stone-200 bg-white shadow-xl p-4 text-left pointer-events-auto"
     >
-      <div className="flex items-baseline gap-2 mb-1">
-        <span className="font-serif text-lg text-stone-800" lang="ar">
-          {term.root_arabic}
-        </span>
-        <span className="text-stone-300">→</span>
-        <span className="text-sm font-semibold text-amber-700">
-          {term.canonical_english}
-        </span>
-      </div>
-      <div className="text-[11px] text-ink-muted tracking-wide mb-2">
-        Transliterated as <em className="not-italic font-medium text-stone-600">{transliteration}</em>
-        {' '}· {term.occurrence_count} occurrences in the Qur'an
-      </div>
-      {term.translation_note && (
-        <div className="mt-2 text-xs text-stone-600 leading-relaxed line-clamp-6">
-          {term.translation_note}
-        </div>
+      {/* Primary content: verse-specific context-derived meaning when
+          available; otherwise the generic root translation_note. */}
+      {hasContext ? (
+        <>
+          <div className="text-[11px] tracking-wide uppercase text-amber-700 mb-1">
+            In this verse
+          </div>
+          <div className="font-serif text-base text-stone-800 leading-snug">
+            {wordContext!.meaning_short}
+          </div>
+          {wordContext!.meaning_excerpt && (
+            <div className="mt-2 text-xs text-stone-600 leading-relaxed line-clamp-5">
+              {wordContext!.meaning_excerpt}
+            </div>
+          )}
+        </>
+      ) : (
+        term.translation_note ? (
+          <div className="text-xs text-stone-700 leading-relaxed line-clamp-6">
+            {term.translation_note}
+          </div>
+        ) : (
+          <div className="text-xs text-stone-500 italic">
+            (No translation note available.)
+          </div>
+        )
       )}
-      <div className="mt-3 pt-3 border-t border-stone-100">
-        <a
-          href={`/quran-vocabulary#${slug}`}
-          className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700 hover:text-amber-800"
-        >
-          View in vocabulary
+
+      {/* Secondary: small root-info strip */}
+      <div className="mt-3 pt-3 border-t border-stone-100 text-[11px] text-ink-muted">
+        Root <span className="font-serif text-sm text-stone-700 mx-0.5" lang="ar">{term.root_arabic}</span>
+        <span className="mx-1">→</span>
+        <span className="font-medium text-stone-700">{term.canonical_english}</span>
+        {' '}· transliterated <em className="not-italic text-stone-700">{transliteration}</em>
+      </div>
+
+      {/* Drill-in links */}
+      <div className="mt-2 flex items-center gap-3 text-[11px] font-medium">
+        {wordHref && wordContext?.has_detail && (
+          <a href={wordHref} className="text-amber-700 hover:text-amber-800 inline-flex items-center gap-0.5">
+            Word details
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+        )}
+        <a href={`/quran-vocabulary#${slug}`} className="text-amber-700 hover:text-amber-800 inline-flex items-center gap-0.5">
+          {hasContext ? 'About this root' : 'View in vocabulary'}
           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
@@ -199,16 +242,209 @@ function TermChip({
   );
 }
 
-// ---------- Public renderer: parse *...* and emit chips inline ----------
+// ---------- Word-family chip layer ----------
+// In addition to the *xxx* italic transliteration markers above, we also
+// chip plain English words ("prayer", "alms", "prostrate", …) when:
+//   (a) the verse contains the matching surveyed root, AND
+//   (b) the word appears in that root's chip_word_family.
+// This scoping by verse-roots keeps false positives at zero — "prayer"
+// in a non-Slw verse is left alone.
 
-export function TranslationWithChips({ text }: { text: string }) {
+interface ChipMatch {
+  start: number;
+  end: number;
+  matchedText: string;
+  term: QuranVocabularyTerm;
+  /** "italic" for *xxx* markers; "word" for word-family matches. */
+  kind: 'italic' | 'word';
+}
+
+function findWordFamilyMatches(
+  text: string,
+  vocab: QuranVocabularyTerm[],
+  surveyedRootsInVerse: string[] | undefined,
+): ChipMatch[] {
+  if (!text) return [];
+  // If the caller knows which surveyed roots appear in the verse, use
+  // only those. Otherwise consider all (looser).
+  const allowedRoots = surveyedRootsInVerse
+    ? new Set(surveyedRootsInVerse)
+    : null;
+  const eligibleTerms = allowedRoots
+    ? vocab.filter((t) => allowedRoots.has(t.root_buckwalter))
+    : vocab;
+  if (!eligibleTerms.length) return [];
+
+  // Build a single regex from all candidate words, longest-first to
+  // prefer "remembrance" over "remember" when both could match.
+  const wordsByTerm: Array<{ word: string; term: QuranVocabularyTerm }> = [];
+  for (const term of eligibleTerms) {
+    for (const w of term.chip_word_family || []) {
+      wordsByTerm.push({ word: w, term });
+    }
+  }
+  if (!wordsByTerm.length) return [];
+  wordsByTerm.sort((a, b) => b.word.length - a.word.length);
+
+  // Escape regex metas
+  const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const alternation = wordsByTerm.map((w) => escape(w.word)).join('|');
+  // Whole-word, case-insensitive
+  const re = new RegExp(`\\b(${alternation})\\b`, 'gi');
+
+  const matches: ChipMatch[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const matched = m[1];
+    // Find the term this match belongs to (case-insensitive)
+    const lower = matched.toLowerCase();
+    const entry = wordsByTerm.find((w) => w.word.toLowerCase() === lower);
+    if (!entry) continue;
+    matches.push({
+      start: m.index,
+      end: m.index + matched.length,
+      matchedText: matched,
+      term: entry.term,
+      kind: 'word',
+    });
+  }
+  return matches;
+}
+
+function findItalicMatches(
+  text: string,
+  lookup: Map<string, TransliterationEntry>,
+): ChipMatch[] {
+  const out: ChipMatch[] = [];
+  const regex = /\*([^\s*][^*]*?[^\s*]|[^\s*])\*/g;
+  let m: RegExpExecArray | null;
+  while ((m = regex.exec(text)) !== null) {
+    const inner = m[1];
+    const norm = normalize(inner);
+    const entry = lookup.get(norm);
+    if (entry) {
+      out.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        matchedText: inner,
+        term: entry.term,
+        kind: 'italic',
+      });
+    } else {
+      // Mark as plain italic — handled by leftover-text rendering
+      out.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        matchedText: inner,
+        // dummy term, filtered out before render
+        term: null as unknown as QuranVocabularyTerm,
+        kind: 'italic',
+      });
+    }
+  }
+  return out;
+}
+
+// ---------- Public renderer ----------
+
+interface TranslationProps {
+  text: string;
+  /** Optional list of root_buckwalters present in the verse. When
+   * provided, only word-family matches for these roots are chipped.
+   * Without it, no word-family chipping happens (italic-only mode). */
+  surveyedRootsInVerse?: string[];
+  /** Optional map from root_buckwalter to an ordered list of word-level
+   * context info (one entry per occurrence of the root in this verse).
+   * The Nth chipped match in the translation gets the Nth context entry —
+   * which lets the tooltip show the AI-derived meaning for THIS specific
+   * word rather than the generic root note. */
+  contextByRoot?: Map<string, WordContext[]>;
+}
+
+export function TranslationWithChips({
+  text,
+  surveyedRootsInVerse,
+  contextByRoot,
+}: TranslationProps) {
+  const lookup = useTermLookup();
+
+  const nodes = useMemo(() => {
+    if (!text) return [] as React.ReactNode[];
+    if (!lookup) return [text];
+
+    // 1. Find italic markers (transliterations).
+    const italicMatches = findItalicMatches(text, lookup);
+
+    // 2. Find whole-word matches in the chip_word_family of each
+    //    surveyed root in the verse. Only when surveyedRootsInVerse is
+    //    given — without it, we conservatively skip word matching.
+    const vocab: QuranVocabularyTerm[] = [];
+    if (vocabCache && surveyedRootsInVerse) {
+      vocab.push(...vocabCache);
+    }
+    const wordMatches = surveyedRootsInVerse
+      ? findWordFamilyMatches(text, vocab, surveyedRootsInVerse)
+      : [];
+
+    // 3. Combine matches, sorted by start index, dropping word matches
+    //    that fall inside an italic match (italic wins).
+    const all: ChipMatch[] = [...italicMatches, ...wordMatches]
+      .sort((a, b) => a.start - b.start);
+
+    const filtered: ChipMatch[] = [];
+    let cursor = 0;
+    for (const m of all) {
+      if (m.start < cursor) continue; // overlap, skip
+      filtered.push(m);
+      cursor = m.end;
+    }
+
+    // 4. Render — interleave plain text and chips. Track per-root
+    //    occurrence counter so the Nth chip for root R gets the Nth
+    //    word_pos's context.
+    const out: React.ReactNode[] = [];
+    let last = 0;
+    let key = 0;
+    const perRootCounter = new Map<string, number>();
+
+    for (const m of filtered) {
+      if (m.start > last) {
+        out.push(text.slice(last, m.start));
+      }
+      if (m.kind === 'italic' && !m.term) {
+        out.push(<em key={key++}>{m.matchedText}</em>);
+      } else {
+        const root = m.term.root_buckwalter;
+        const idx = perRootCounter.get(root) ?? 0;
+        perRootCounter.set(root, idx + 1);
+        const context = contextByRoot?.get(root)?.[idx] ?? null;
+        out.push(
+          <TermChip
+            key={key++}
+            transliteration={m.matchedText}
+            term={m.term}
+            wordContext={context}
+          />,
+        );
+      }
+      last = m.end;
+    }
+    if (last < text.length) {
+      out.push(text.slice(last));
+    }
+    return out;
+  }, [text, lookup, surveyedRootsInVerse, contextByRoot]);
+
+  return <>{nodes}</>;
+}
+
+// Legacy single-pass (kept for any callers that want italic-only)
+export function TranslationWithItalicChips({ text }: { text: string }) {
   const lookup = useTermLookup();
 
   const nodes = useMemo(() => {
     if (!text) return [] as React.ReactNode[];
     const out: React.ReactNode[] = [];
-    // Match *xxx* — non-greedy, no whitespace at start/end, allow Unicode letters
-    // and the common transliteration diacritics ā ī ū ḥ ṣ ṭ ẓ ḍ ʿ ʾ etc.
     const regex = /\*([^\s*][^*]*?[^\s*]|[^\s*])\*/g;
     let last = 0;
     let m: RegExpExecArray | null;
@@ -225,7 +461,6 @@ export function TranslationWithChips({ text }: { text: string }) {
           <TermChip key={key++} transliteration={inner} term={entry.term} />
         );
       } else {
-        // Italic but not a known term — render as plain emphasis.
         out.push(<em key={key++}>{inner}</em>);
       }
       last = regex.lastIndex;

@@ -3397,6 +3397,67 @@ def get_grammar_terms_all():
         conn.close()
 
 
+# English word families that should trigger a glossary chip when seen in
+# a verse translation, IF the verse's morphology contains the matching
+# root. Combines (a) the canonical's inflections (so "connect/connection"
+# lights up where Slw is used) with (b) the conventional ritualistic
+# English (so "prayer" also lights up — same root, broader meaning).
+# Words like bare "stand" / "fast" / "bow" are excluded because they're
+# too ambiguous to chip on word-match alone — the verse-page chips for
+# those roots only fire on transliteration markers.
+_CHIP_WORD_FAMILIES: dict[str, list[str]] = {
+    # Slw → connect (canonical) ∪ prayer (conventional)
+    "Slw":  ["connect", "connects", "connected", "connecting",
+             "connection", "connections",
+             "prayer", "prayers", "praying", "prayed", "prays"],
+    # zkw → grow (canonical) ∪ alms / zakah / purifying-due (conventional)
+    "zkw":  ["grow", "grows", "grew", "grown", "growing", "growth",
+             "alms", "almsgiving", "zakah", "zakāh", "zakat"],
+    # Swm → abstain (canonical) ∪ fasting (conventional)
+    "Swm":  ["abstain", "abstains", "abstained", "abstaining",
+             "abstention", "abstinence",
+             "fasting", "fasted", "fasts"],
+    # Hjj → argue (canonical) ∪ pilgrimage (conventional)
+    "Hjj":  ["argue", "argues", "argued", "arguing", "argument", "arguments",
+             "pilgrimage", "pilgrim", "pilgrims"],
+    # sjd → submit (canonical) ∪ prostrate/prostration (conventional)
+    "sjd":  ["submit", "submits", "submitted", "submitting", "submission",
+             "submissions", "submissive",
+             "prostrate", "prostrates", "prostrated", "prostrating",
+             "prostration", "prostrations"],
+    # rkE → humble (canonical) ∪ bowing (conventional, narrow)
+    "rkE":  ["humble", "humbles", "humbled", "humbling", "humbly",
+             "humility",
+             "bowing", "bowed"],
+    # snn → pattern (canonical) ∪ sunnah (conventional)
+    "snn":  ["pattern", "patterns", "patterned",
+             "sunnah", "sunna"],
+    # nsk → devotion (canonical)
+    "nsk":  ["devote", "devotes", "devoted", "devoting", "devotion",
+             "devotions", "devotional"],
+    # qwm → stand (canonical, broad) — only chip the conventional ritual word
+    # "establish" since bare "stand" is too ambiguous
+    "qwm":  ["establish", "establishes", "established", "establishing"],
+    # $Er → perceive (canonical) ∪ rites (conventional)
+    "$Er":  ["perceive", "perceives", "perceived", "perceiving",
+             "perception", "perceptible",
+             "rite", "rites", "ritual"],
+    # Emr → cultivate (canonical) ∪ umrah (conventional)
+    "Emr":  ["cultivate", "cultivates", "cultivated", "cultivating",
+             "cultivation",
+             "umrah", "ʿumrah"],
+    # *kr → remember (canonical, also conventional)
+    "*kr":  ["remember", "remembers", "remembered", "remembering",
+             "remembrance", "reminder", "reminders", "remind", "reminds",
+             "reminded", "reminding",
+             "mention", "mentions", "mentioned", "mentioning"],
+    # Thr → purify (canonical, also conventional)
+    "Thr":  ["purify", "purifies", "purified", "purifying", "purification",
+             "pure", "purity",
+             "ablution", "ablutions"],
+}
+
+
 @app.route("/api/quran-vocabulary")
 def get_quran_vocabulary():
     """Return the 13 surveyed ritualistic-vocabulary terms with their
@@ -3435,6 +3496,7 @@ def get_quran_vocabulary():
                 "confidence": r["confidence"],
                 "leave_untranslated": bool(r["leave_untranslated"]),
                 "hard_cases": hard_cases,
+                "chip_word_family": _CHIP_WORD_FAMILIES.get(r["root_buckwalter"], []),
             })
         return jsonify({"terms": terms})
     finally:
@@ -3739,6 +3801,31 @@ def semantic_search_api():
         conn.close()
 
 
+def _detail_excerpt(detailed: str | None, max_chars: int = 240) -> str | None:
+    """Trim meaning_detailed to a short excerpt for tooltip use.
+    Cuts at the nearest sentence boundary <= max_chars when possible,
+    falling back to a clean word-boundary cut otherwise."""
+    if not detailed:
+        return None
+    text = detailed.strip()
+    if len(text) <= max_chars:
+        return text
+    # Sentence boundary: prefer ". " or "! " or "? " up to max_chars
+    cutoff = max_chars
+    best = -1
+    for sep in (". ", "! ", "? ", "; "):
+        idx = text.rfind(sep, 0, cutoff)
+        if idx > best:
+            best = idx + 1  # include the punctuation
+    if best > max_chars * 0.5:
+        return text[: best].rstrip() + " …"
+    # Fall back to word boundary
+    space = text.rfind(" ", 0, cutoff)
+    if space < 0:
+        return text[: cutoff].rstrip() + "…"
+    return text[: space].rstrip() + " …"
+
+
 @app.route("/api/verse/<int:surah>:<int:ayah>/word-meanings")
 def get_word_meanings(surah: int, ayah: int):
     """Return AI word meanings for all words in a verse (for tooltips)."""
@@ -3763,6 +3850,7 @@ def get_word_meanings(surah: int, ayah: int):
             entry = {
                 "meaning_short": row["meaning_short"],
                 "has_detail": bool(row["meaning_detailed"]),
+                "meaning_excerpt": _detail_excerpt(row["meaning_detailed"]),
             }
             if row["preferred_translation"]:
                 entry["preferred_translation"] = row["preferred_translation"]
@@ -3857,6 +3945,15 @@ def get_word_detail(surah: int, ayah: int, pos: int):
         glosses = _fetch_word_glosses(conn, surah, ayah)
         conventional_gloss = glosses.get(pos, "")
 
+        # All distinct roots in the parent verse — used by the frontend
+        # TermChip layer to scope word-family chip matches.
+        verse_roots_rows = conn.execute(
+            "SELECT DISTINCT root_buckwalter FROM morphology "
+            "WHERE chapter = ? AND verse = ? AND root_buckwalter IS NOT NULL",
+            (surah, ayah),
+        ).fetchall()
+        verse_root_buckwalters = [r["root_buckwalter"] for r in verse_roots_rows]
+
         # Get cognate data
         cognate = _get_cognate(conn, main_root_bw) if main_root_bw else None
 
@@ -3878,6 +3975,14 @@ def get_word_detail(surah: int, ayah: int, pos: int):
                     (ch, v, main_lemma_bw),
                 ).fetchall()
                 occ_positions = [r["word_pos"] for r in occ_morph]
+
+                # All distinct roots in this other verse — for chip scoping.
+                occ_roots_rows = conn.execute(
+                    "SELECT DISTINCT root_buckwalter FROM morphology "
+                    "WHERE chapter = ? AND verse = ? AND root_buckwalter IS NOT NULL",
+                    (ch, v),
+                ).fetchall()
+                occ_verse_roots = [r["root_buckwalter"] for r in occ_roots_rows]
 
                 # Get verse text + translation
                 ov_row = conn.execute(
@@ -3905,6 +4010,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
                     "translation": _best_translation(conn, ch, v),
                     "conventional_gloss": occ_gloss,
                     "ai_meaning": occ_ai["meaning_short"] if occ_ai else None,
+                    "verse_root_buckwalters": occ_verse_roots,
                 })
                 count += 1
 
@@ -3923,6 +4029,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
             "cognate": cognate,
             "other_occurrences": other_occurrences,
             "total_lemma_occurrences": len(_lemma_inv.get(main_lemma_bw, set())) if main_lemma_bw else 0,
+            "verse_root_buckwalters": verse_root_buckwalters,
         }
 
         # Add AI meaning fields if available
