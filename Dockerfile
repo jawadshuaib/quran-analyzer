@@ -23,14 +23,13 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 # Pre-download sentence-transformer model so first search is fast
 RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
-# Copy application code
-COPY roots/backend/app.py ./app.py
-COPY roots/backend/api_v1.py ./api_v1.py
-COPY roots/backend/build_embeddings.py ./build_embeddings.py
-# Vocabulary Studio support modules — lazy-imported by /api/admin/vocab/* endpoints.
-# Without these the survey + apply-transliteration handlers raise ModuleNotFoundError.
-COPY roots/backend/term_survey.py ./term_survey.py
-COPY roots/backend/apply_hard_case_transliterations.py ./apply_hard_case_transliterations.py
+# Copy application code — all backend Python modules.
+# app.py is the entry point; the rest are CLI scripts and helpers that
+# various API endpoints lazy-import (vocab studio, bias pipeline, etc.).
+# Bringing them all in keeps the Dockerfile from drifting whenever a new
+# lazy import is added; the source files are kilobytes each so image
+# size impact is negligible.
+COPY roots/backend/*.py ./
 
 # Copy bundled fonts for video text overlays
 COPY roots/backend/data/fonts ./data/fonts
