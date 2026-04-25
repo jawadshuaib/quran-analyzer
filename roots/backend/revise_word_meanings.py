@@ -256,6 +256,53 @@ def call_claude(model: str, system: str, user: str, api_key: str) -> str:
     raise RuntimeError(f"Claude failed: {last_err}")
 
 
+def _repair_json_quotes(s: str) -> str:
+    """Heuristic: escape unescaped " inside JSON string values.
+
+    Claude occasionally returns JSON like:
+        "meaning_detailed": "The verb is "ṣabar" in the perfect tense..."
+    where the embedded "ṣabar" breaks parsing. We walk the string
+    character-by-character; when we're inside a string and see a ", we
+    look ahead — if the next non-whitespace char is one of `,}]:`, the
+    quote is a closer; otherwise it's embedded and we escape it.
+    """
+    out: list[str] = []
+    i = 0
+    n = len(s)
+    in_string = False
+    while i < n:
+        c = s[i]
+        if not in_string:
+            out.append(c)
+            if c == '"':
+                in_string = True
+            i += 1
+            continue
+        # We're inside a string value
+        if c == '\\' and i + 1 < n:
+            # Already-escaped char — copy both verbatim
+            out.append(c)
+            out.append(s[i + 1])
+            i += 2
+            continue
+        if c == '"':
+            j = i + 1
+            while j < n and s[j] in ' \t\r\n':
+                j += 1
+            if j >= n or s[j] in ',}]:':
+                # closer
+                out.append('"')
+                in_string = False
+            else:
+                # embedded — escape
+                out.append('\\"')
+            i += 1
+            continue
+        out.append(c)
+        i += 1
+    return ''.join(out)
+
+
 def parse_response(raw: str) -> dict:
     text = (raw or "").strip()
     text = re.sub(r"^```(?:json)?\s*\n?", "", text)
@@ -263,7 +310,13 @@ def parse_response(raw: str) -> dict:
     m = re.search(r"\{.*\}", text, re.DOTALL)
     if not m:
         raise ValueError(f"no JSON: {text[:300]!r}")
-    return json.loads(m.group())
+    json_text = m.group()
+    try:
+        return json.loads(json_text)
+    except json.JSONDecodeError:
+        # Common Claude failure: unescaped " inside a value. Try repair.
+        repaired = _repair_json_quotes(json_text)
+        return json.loads(repaired)
 
 
 def revise_one(conn, row: dict, hc: dict | None, canon: dict,
