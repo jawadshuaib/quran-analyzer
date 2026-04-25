@@ -63,6 +63,7 @@ export default function AdminVocabularyStudio() {
   const [wmProgress, setWmProgress] = useState<{
     processed: number; revised: number; errors: number; remaining: number;
     samples: Array<{ ref: string; before: string; after: string; hard_case?: boolean }>;
+    errors_detail: Array<{ ref: string; message: string; hard_case?: boolean }>;
   } | null>(null);
   const [wmReverting, setWmReverting] = useState(false);
 
@@ -72,6 +73,7 @@ export default function AdminVocabularyStudio() {
   const [gnProgress, setGnProgress] = useState<{
     processed: number; revised: number; errors: number; remaining: number;
     samples: Array<{ ref: string; before: string; after: string }>;
+    errors_detail: Array<{ ref: string; message: string }>;
   } | null>(null);
   const [gnReverting, setGnReverting] = useState(false);
 
@@ -189,11 +191,12 @@ export default function AdminVocabularyStudio() {
     }
     wmRunningRef.current = true;
     setWmRunning(true);
-    setWmProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [] });
+    setWmProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [], errors_detail: [] });
     setError('');
     setStatusMsg('');
     let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
-    let lastSamples: typeof wmProgress extends null ? never : NonNullable<typeof wmProgress>['samples'] = [];
+    let lastSamples: NonNullable<typeof wmProgress>['samples'] = [];
+    let allErrorsDetail: NonNullable<typeof wmProgress>['errors_detail'] = [];
     try {
       while (wmRunningRef.current) {
         const r = await reviseVocabWordMeanings(rootBw, { limit: 20 });
@@ -201,12 +204,16 @@ export default function AdminVocabularyStudio() {
         totalRevised += r.revised;
         totalErrors += r.errors;
         if (r.samples.length) lastSamples = r.samples;
+        if (r.errors_detail?.length) {
+          allErrorsDetail = [...allErrorsDetail, ...r.errors_detail].slice(-20);
+        }
         setWmProgress({
           processed: totalProcessed,
           revised: totalRevised,
           errors: totalErrors,
           remaining: r.remaining,
           samples: lastSamples,
+          errors_detail: allErrorsDetail,
         });
         // Two exit conditions: nothing left, or chunk did nothing (avoids
         // an infinite loop if the backend keeps returning processed=0).
@@ -246,11 +253,12 @@ export default function AdminVocabularyStudio() {
     }
     gnRunningRef.current = true;
     setGnRunning(true);
-    setGnProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [] });
+    setGnProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [], errors_detail: [] });
     setError('');
     setStatusMsg('');
     let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
     let lastSamples: NonNullable<typeof gnProgress>['samples'] = [];
+    let allErrorsDetail: NonNullable<typeof gnProgress>['errors_detail'] = [];
     try {
       while (gnRunningRef.current) {
         const r = await reviseVocabGrammarNotes(rootBw, { limit: 20 });
@@ -258,12 +266,16 @@ export default function AdminVocabularyStudio() {
         totalRevised += r.revised;
         totalErrors += r.errors;
         if (r.samples.length) lastSamples = r.samples;
+        if (r.errors_detail?.length) {
+          allErrorsDetail = [...allErrorsDetail, ...r.errors_detail].slice(-20);
+        }
         setGnProgress({
           processed: totalProcessed,
           revised: totalRevised,
           errors: totalErrors,
           remaining: r.remaining,
           samples: lastSamples,
+          errors_detail: allErrorsDetail,
         });
         if (r.remaining === 0 || r.processed === 0) break;
       }
@@ -639,6 +651,23 @@ export default function AdminVocabularyStudio() {
                   ))}
                 </ul>
               )}
+              {wmProgress.errors_detail.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-[11px] text-red-700 cursor-pointer hover:text-red-900">
+                    {wmProgress.errors_detail.length} error{wmProgress.errors_detail.length === 1 ? '' : 's'} — click to see details
+                  </summary>
+                  <ul className="mt-1.5 space-y-1 pl-2 border-l-2 border-red-200">
+                    {wmProgress.errors_detail.map((e, i) => (
+                      <li key={i} className="text-[11px] leading-relaxed text-red-700">
+                        <code className="text-red-800">{e.ref}</code>
+                        {e.hard_case && <span className="ml-1 text-red-400">[hard]</span>}
+                        {' — '}
+                        <span className="text-red-600">{e.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </div>
           )}
         </div>
@@ -711,6 +740,21 @@ export default function AdminVocabularyStudio() {
                     </li>
                   ))}
                 </ul>
+              )}
+              {gnProgress.errors_detail.length > 0 && (
+                <details className="mt-2">
+                  <summary className="text-[11px] text-red-700 cursor-pointer hover:text-red-900">
+                    {gnProgress.errors_detail.length} error{gnProgress.errors_detail.length === 1 ? '' : 's'} — click to see details
+                  </summary>
+                  <ul className="mt-1.5 space-y-1 pl-2 border-l-2 border-red-200">
+                    {gnProgress.errors_detail.map((e, i) => (
+                      <li key={i} className="text-[11px] leading-relaxed text-red-700">
+                        <code className="text-red-800">{e.ref}</code>{' — '}
+                        <span className="text-red-600">{e.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               )}
             </div>
           )}

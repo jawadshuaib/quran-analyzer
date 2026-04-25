@@ -140,6 +140,7 @@ export interface VocabReviseChunkResult {
   remaining: number;
   elapsed_ms: number;
   samples: Array<{ ref: string; before: string; after: string; hard_case?: boolean }>;
+  errors_detail?: Array<{ ref: string; message: string; hard_case?: boolean }>;
   revisions: VocabRevisions;
 }
 

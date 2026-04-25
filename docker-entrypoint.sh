@@ -1,6 +1,48 @@
 #!/bin/sh
 set -e
 
+# ============================================================================
+# Pre-deploy snapshot — defense in depth
+# ----------------------------------------------------------------------------
+# Take a point-in-time copy of the live DB BEFORE any destructive step.
+# Keeps the 3 most recent snapshots in /app/data/snapshots/ so the volume
+# never balloons. Uses sqlite3.Connection.backup() (online-safe; doesn't
+# require the app to be stopped). If the per-table restore logic below
+# ever has a bug or misses a new column, this snapshot is the recovery
+# path: stop the container, `cp` the snapshot back over quran.db, restart.
+# ============================================================================
+if [ -f /app/data/quran.db ]; then
+  echo "Snapshotting live DB before deploy..."
+  python3 -c "
+import sqlite3, os, datetime, glob
+snap_dir = '/app/data/snapshots'
+os.makedirs(snap_dir, exist_ok=True)
+ts = datetime.datetime.utcnow().strftime('%Y%m%d-%H%M%S')
+dst_path = os.path.join(snap_dir, f'quran-{ts}.db')
+try:
+    src = sqlite3.connect('/app/data/quran.db')
+    bak = sqlite3.connect(dst_path)
+    src.backup(bak)
+    bak.close()
+    src.close()
+    size_mb = os.path.getsize(dst_path) / 1024 / 1024
+    print(f'  Snapshot: {dst_path} ({size_mb:.1f} MB)')
+    # Rotate: keep only the 3 most recent snapshots.
+    snaps = sorted(glob.glob(os.path.join(snap_dir, 'quran-*.db')))
+    KEEP = 3
+    for old in snaps[:-KEEP]:
+        try:
+            os.remove(old)
+            print(f'  Pruned old snapshot: {os.path.basename(old)}')
+        except Exception as e:
+            print(f'  Prune warning: {e}')
+except Exception as e:
+    # Don't block deploy if snapshot fails — the per-table backups are
+    # still in place. But shout loudly so the operator notices.
+    print(f'  ERROR: snapshot failed: {e}')
+" 2>&1
+fi
+
 # Preserve user-generated data (assistant Q&A) across deploys
 if [ -f /app/data/quran.db ]; then
   echo "Backing up assistant conversations..."
@@ -173,6 +215,130 @@ try:
     conn.close()
 except Exception as e:
     print(f'  Runtime-state backup warning: {e}')
+" 2>&1
+fi
+
+# ============================================================================
+# Vocabulary Studio backup — preserve admin-curated semantic data
+# ----------------------------------------------------------------------------
+# These tables don't match the admin_/pipeline_/youtube_/tiktok_ prefixes
+# but are mutated by /admin/vocabulary/* (term surveys, hard-case
+# transliterations, word-meaning revisions, grammar-note revisions).
+# Pattern differs by table:
+#   term_surveys      — full table backup; restore via INSERT OR REPLACE
+#                       so the user's surveyed roots win over the seed.
+#   ai_word_meanings  — sparse: only rows where meaning_short_original IS
+#                       NOT NULL (the user-revised ones). Restore = UPDATE
+#                       matched-by-(chapter,verse,word_pos), so the seed's
+#                       ~6000 baseline rows stay intact.
+#   ai_grammar_notes  — sparse: rows where notes_markdown_original IS NOT
+#                       NULL. Restore = UPDATE matched-by-(chapter,verse).
+#   ai_translations   — sparse: rows where revised_text IS NOT NULL.
+#                       Restore = UPDATE matched-by-(chapter,verse).
+# ============================================================================
+if [ -f /app/data/quran.db ]; then
+  echo "Backing up vocabulary studio tables..."
+  python3 -c "
+import sqlite3
+src = '/app/data/quran.db'
+bak = '/tmp/vocab_backup.db'
+try:
+    conn = sqlite3.connect(src)
+    bak_conn = sqlite3.connect(bak)
+
+    def has_table(c, name):
+        return bool(c.execute(
+            \"SELECT 1 FROM sqlite_master WHERE type='table' AND name=?\",
+            (name,),
+        ).fetchone())
+
+    def has_column(c, table, col):
+        return any(
+            r[1] == col for r in c.execute(f'PRAGMA table_info(\"{table}\")')
+        )
+
+    # 1. term_surveys (full table) -----------------------------------------
+    if has_table(conn, 'term_surveys'):
+        cols = [r[1] for r in conn.execute('PRAGMA table_info(term_surveys)')]
+        col_list = ','.join(f'\"{c}\"' for c in cols)
+        # Recreate same schema in backup
+        schema = conn.execute(
+            \"SELECT sql FROM sqlite_master WHERE type='table' AND name='term_surveys'\"
+        ).fetchone()[0]
+        bak_conn.execute(schema)
+        rows = conn.execute(f'SELECT {col_list} FROM term_surveys').fetchall()
+        if rows:
+            placeholders = ','.join(['?'] * len(cols))
+            bak_conn.executemany(
+                f'INSERT INTO term_surveys ({col_list}) VALUES ({placeholders})',
+                rows,
+            )
+            print(f'  Backed up {len(rows)} term_surveys rows')
+
+    # 2. ai_word_meanings (sparse — only revised) --------------------------
+    if has_table(conn, 'ai_word_meanings') and has_column(conn, 'ai_word_meanings', 'meaning_short_original'):
+        # We need the columns we'll restore + the natural key
+        keep_cols = [
+            'chapter', 'verse', 'word_pos',
+            'meaning_short', 'meaning_detailed', 'preferred_translation',
+            'meaning_short_original', 'meaning_detailed_original',
+            'preferred_translation_original',
+        ]
+        keep_cols = [c for c in keep_cols if has_column(conn, 'ai_word_meanings', c)]
+        col_list = ','.join(f'\"{c}\"' for c in keep_cols)
+        bak_conn.execute(f'CREATE TABLE _wm_modified ({col_list})')
+        rows = conn.execute(
+            f'SELECT {col_list} FROM ai_word_meanings '
+            'WHERE meaning_short_original IS NOT NULL'
+        ).fetchall()
+        if rows:
+            placeholders = ','.join(['?'] * len(keep_cols))
+            bak_conn.executemany(
+                f'INSERT INTO _wm_modified ({col_list}) VALUES ({placeholders})',
+                rows,
+            )
+            print(f'  Backed up {len(rows)} ai_word_meanings revisions')
+
+    # 3. ai_grammar_notes (sparse — only revised) --------------------------
+    if has_table(conn, 'ai_grammar_notes') and has_column(conn, 'ai_grammar_notes', 'notes_markdown_original'):
+        keep_cols = ['chapter', 'verse', 'notes_markdown', 'notes_markdown_original']
+        keep_cols = [c for c in keep_cols if has_column(conn, 'ai_grammar_notes', c)]
+        col_list = ','.join(f'\"{c}\"' for c in keep_cols)
+        bak_conn.execute(f'CREATE TABLE _gn_modified ({col_list})')
+        rows = conn.execute(
+            f'SELECT {col_list} FROM ai_grammar_notes '
+            \"WHERE notes_markdown_original IS NOT NULL AND notes_markdown_original != ''\"
+        ).fetchall()
+        if rows:
+            placeholders = ','.join(['?'] * len(keep_cols))
+            bak_conn.executemany(
+                f'INSERT INTO _gn_modified ({col_list}) VALUES ({placeholders})',
+                rows,
+            )
+            print(f'  Backed up {len(rows)} ai_grammar_notes revisions')
+
+    # 4. ai_translations (sparse — only revised_text set) ------------------
+    if has_table(conn, 'ai_translations') and has_column(conn, 'ai_translations', 'revised_text'):
+        keep_cols = ['chapter', 'verse', 'revised_text']
+        col_list = ','.join(f'\"{c}\"' for c in keep_cols)
+        bak_conn.execute(f'CREATE TABLE _tr_modified ({col_list})')
+        rows = conn.execute(
+            f'SELECT {col_list} FROM ai_translations '
+            \"WHERE revised_text IS NOT NULL AND revised_text != ''\"
+        ).fetchall()
+        if rows:
+            placeholders = ','.join(['?'] * len(keep_cols))
+            bak_conn.executemany(
+                f'INSERT INTO _tr_modified ({col_list}) VALUES ({placeholders})',
+                rows,
+            )
+            print(f'  Backed up {len(rows)} ai_translations revisions')
+
+    bak_conn.commit()
+    bak_conn.close()
+    conn.close()
+except Exception as e:
+    print(f'  Vocabulary backup warning: {e}')
 " 2>&1
 fi
 
@@ -381,6 +547,154 @@ try:
     os.remove(bak)
 except Exception as e:
     print(f'  Verse themes restore warning: {e}')
+" 2>&1
+fi
+
+# ============================================================================
+# Vocabulary Studio restore — re-apply admin-curated semantic data
+# ----------------------------------------------------------------------------
+# Pairs with the backup step above. Each table is wrapped in its own
+# try/except so one bad table can't take down the rest.
+# ============================================================================
+if [ -f /tmp/vocab_backup.db ]; then
+  echo "Restoring vocabulary studio tables..."
+  python3 -c "
+import sqlite3, os
+bak = '/tmp/vocab_backup.db'
+dst = '/app/data/quran.db'
+bak_conn = sqlite3.connect(bak)
+dst_conn = sqlite3.connect(dst)
+
+def has_table(c, name):
+    return bool(c.execute(
+        \"SELECT 1 FROM sqlite_master WHERE type='table' AND name=?\",
+        (name,),
+    ).fetchone())
+
+def has_column(c, table, col):
+    return any(
+        r[1] == col for r in c.execute(f'PRAGMA table_info(\"{table}\")')
+    )
+
+def common_cols(a_conn, a_table, b_conn, b_table):
+    a = [r[1] for r in a_conn.execute(f'PRAGMA table_info(\"{a_table}\")')]
+    b = set(r[1] for r in b_conn.execute(f'PRAGMA table_info(\"{b_table}\")'))
+    return [c for c in a if c in b]
+
+# 1. term_surveys — INSERT OR REPLACE (user wins over seed) ----------------
+try:
+    if has_table(bak_conn, 'term_surveys') and has_table(dst_conn, 'term_surveys'):
+        cols = common_cols(bak_conn, 'term_surveys', dst_conn, 'term_surveys')
+        if cols:
+            col_list = ','.join(f'\"{c}\"' for c in cols)
+            placeholders = ','.join(['?'] * len(cols))
+            rows = bak_conn.execute(f'SELECT {col_list} FROM term_surveys').fetchall()
+            count = 0
+            for row in rows:
+                # Use root_buckwalter as the natural key (it has UNIQUE).
+                if 'root_buckwalter' not in cols:
+                    continue
+                rb_idx = cols.index('root_buckwalter')
+                root_bw = row[rb_idx]
+                # Delete the seed row for this root if any, then insert backup row.
+                dst_conn.execute(
+                    'DELETE FROM term_surveys WHERE root_buckwalter = ?', (root_bw,)
+                )
+                dst_conn.execute(
+                    f'INSERT INTO term_surveys ({col_list}) VALUES ({placeholders})',
+                    row,
+                )
+                count += 1
+            if count:
+                print(f'  Restored {count} term_surveys rows')
+except Exception as e:
+    print(f'  [term_surveys] restore error: {e}')
+
+# 2. ai_word_meanings — UPDATE matching rows -------------------------------
+try:
+    if has_table(bak_conn, '_wm_modified') and has_table(dst_conn, 'ai_word_meanings'):
+        # Make sure backup columns exist on destination (they may not if seed
+        # is older than the bias-revision pipeline). Idempotent ALTERs.
+        for col in ('meaning_short_original', 'meaning_detailed_original', 'preferred_translation_original'):
+            if not has_column(dst_conn, 'ai_word_meanings', col):
+                try:
+                    dst_conn.execute(f'ALTER TABLE ai_word_meanings ADD COLUMN {col} TEXT')
+                except Exception:
+                    pass
+        rows = bak_conn.execute(
+            'SELECT chapter, verse, word_pos, '
+            '       meaning_short, meaning_detailed, preferred_translation, '
+            '       meaning_short_original, meaning_detailed_original, '
+            '       preferred_translation_original '
+            'FROM _wm_modified'
+        ).fetchall()
+        count = 0
+        for r in rows:
+            res = dst_conn.execute(
+                'UPDATE ai_word_meanings SET '
+                '  meaning_short = ?, meaning_detailed = ?, preferred_translation = ?, '
+                '  meaning_short_original = ?, meaning_detailed_original = ?, '
+                '  preferred_translation_original = ? '
+                'WHERE chapter = ? AND verse = ? AND word_pos = ?',
+                (r[3], r[4], r[5], r[6], r[7], r[8], r[0], r[1], r[2]),
+            )
+            if res.rowcount:
+                count += 1
+        if count:
+            print(f'  Restored {count} ai_word_meanings revisions')
+except Exception as e:
+    print(f'  [ai_word_meanings] restore error: {e}')
+
+# 3. ai_grammar_notes — UPDATE matching rows -------------------------------
+try:
+    if has_table(bak_conn, '_gn_modified') and has_table(dst_conn, 'ai_grammar_notes'):
+        if not has_column(dst_conn, 'ai_grammar_notes', 'notes_markdown_original'):
+            try:
+                dst_conn.execute('ALTER TABLE ai_grammar_notes ADD COLUMN notes_markdown_original TEXT')
+            except Exception:
+                pass
+        rows = bak_conn.execute(
+            'SELECT chapter, verse, notes_markdown, notes_markdown_original FROM _gn_modified'
+        ).fetchall()
+        count = 0
+        for r in rows:
+            res = dst_conn.execute(
+                'UPDATE ai_grammar_notes SET '
+                '  notes_markdown = ?, notes_markdown_original = ? '
+                'WHERE chapter = ? AND verse = ?',
+                (r[2], r[3], r[0], r[1]),
+            )
+            if res.rowcount:
+                count += 1
+        if count:
+            print(f'  Restored {count} ai_grammar_notes revisions')
+except Exception as e:
+    print(f'  [ai_grammar_notes] restore error: {e}')
+
+# 4. ai_translations — UPDATE matching rows --------------------------------
+try:
+    if has_table(bak_conn, '_tr_modified') and has_table(dst_conn, 'ai_translations'):
+        rows = bak_conn.execute(
+            'SELECT chapter, verse, revised_text FROM _tr_modified'
+        ).fetchall()
+        count = 0
+        for r in rows:
+            res = dst_conn.execute(
+                'UPDATE ai_translations SET revised_text = ? '
+                'WHERE chapter = ? AND verse = ?',
+                (r[2], r[0], r[1]),
+            )
+            if res.rowcount:
+                count += 1
+        if count:
+            print(f'  Restored {count} ai_translations revisions')
+except Exception as e:
+    print(f'  [ai_translations] restore error: {e}')
+
+dst_conn.commit()
+dst_conn.close()
+bak_conn.close()
+os.remove(bak)
 " 2>&1
 fi
 

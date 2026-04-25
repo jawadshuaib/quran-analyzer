@@ -6053,18 +6053,28 @@ def admin_vocab_revise_word_meanings(root_bw: str):
 
         revised, errors = 0, 0
         samples: list[dict] = []
+        # errors_detail: per-row failure reasons. Surfaces what would
+        # otherwise only land in stderr, so the UI can show the operator
+        # exactly which rows failed and why (HTTP 5xx, malformed JSON, etc.).
+        errors_detail: list[dict] = []
         t0 = time.time()
         for row in batch:
             hc = hc_index.get((root_bw, row["chapter"], row["verse"]))
             before_short = row.get("meaning_short", "")
+            ref = f"{row['chapter']}:{row['verse']}/p{row['word_pos']}"
+            err_msg: str | None = None
+            outcome = "error"
             try:
                 outcome = rwm.revise_one(
                     conn, row, hc, canon, VOCAB_SONNET_MODEL, api_key, dry_run=False,
                 )
+                if outcome == "error":
+                    # revise_one swallowed the exception and returned "error".
+                    # Best we can do is a generic note.
+                    err_msg = "revise_one returned 'error' — see container stderr for details"
             except Exception as e:
-                outcome = "error"
-                print(f"[vocab/word-meanings] {row['chapter']}:{row['verse']}/p{row['word_pos']} {e}",
-                      file=sys.stderr)
+                err_msg = f"{type(e).__name__}: {e}"
+                print(f"[vocab/word-meanings] {ref} {err_msg}", file=sys.stderr)
             if outcome == "revised":
                 revised += 1
                 # Re-read to capture what got written
@@ -6073,13 +6083,18 @@ def admin_vocab_revise_word_meanings(root_bw: str):
                     (row["id"],),
                 ).fetchone()
                 samples.append({
-                    "ref": f"{row['chapter']}:{row['verse']}/p{row['word_pos']}",
+                    "ref": ref,
                     "before": before_short,
                     "after": new_short["meaning_short"] if new_short else "",
                     "hard_case": hc is not None,
                 })
             else:
                 errors += 1
+                errors_detail.append({
+                    "ref": ref,
+                    "hard_case": hc is not None,
+                    "message": (err_msg or outcome)[:300],
+                })
 
         elapsed_ms = int((time.time() - t0) * 1000)
         remaining = max(0, total_pending_before - len(batch))
@@ -6091,6 +6106,7 @@ def admin_vocab_revise_word_meanings(root_bw: str):
             "remaining": remaining,
             "elapsed_ms": elapsed_ms,
             "samples": samples[:5],
+            "errors_detail": errors_detail[:10],
             "revisions": _vocab_count_revisions(conn, root_bw),
         })
     finally:
@@ -6172,6 +6188,7 @@ def admin_vocab_revise_grammar_notes(root_bw: str):
 
         revised, errors = 0, 0
         samples: list[dict] = []
+        errors_detail: list[dict] = []
         t0 = time.time()
         for ch, vs in batch:
             before_row = conn.execute(
@@ -6179,15 +6196,20 @@ def admin_vocab_revise_grammar_notes(root_bw: str):
                 (ch, vs),
             ).fetchone()
             before_md = before_row["notes_markdown"] if before_row else ""
+            ref = f"{ch}:{vs}"
+            err_msg: str | None = None
+            outcome = "error"
             try:
                 outcome = rgn.revise_one(
                     conn, ch, vs, [root_bw],
                     VOCAB_SONNET_MODEL, api_key,
                     dry_run=False, force=force,
                 )
+                if outcome == "error":
+                    err_msg = "revise_one returned 'error' — see container stderr for details"
             except Exception as e:
-                outcome = "error"
-                print(f"[vocab/grammar-notes] {ch}:{vs} {e}", file=sys.stderr)
+                err_msg = f"{type(e).__name__}: {e}"
+                print(f"[vocab/grammar-notes] {ref} {err_msg}", file=sys.stderr)
             if outcome == "revised":
                 revised += 1
                 after_row = conn.execute(
@@ -6195,14 +6217,18 @@ def admin_vocab_revise_grammar_notes(root_bw: str):
                     (ch, vs),
                 ).fetchone()
                 samples.append({
-                    "ref": f"{ch}:{vs}",
+                    "ref": ref,
                     "before": (before_md or "")[:200],
                     "after": (after_row["notes_markdown"] if after_row else "")[:200],
                 })
-            elif outcome.startswith("skip"):
+            elif isinstance(outcome, str) and outcome.startswith("skip"):
                 pass  # already revised or no canon — not an error
             else:
                 errors += 1
+                errors_detail.append({
+                    "ref": ref,
+                    "message": (err_msg or str(outcome))[:300],
+                })
 
         elapsed_ms = int((time.time() - t0) * 1000)
         remaining = max(0, total_pending_before - len(batch))
@@ -6214,6 +6240,7 @@ def admin_vocab_revise_grammar_notes(root_bw: str):
             "remaining": remaining,
             "elapsed_ms": elapsed_ms,
             "samples": samples[:5],
+            "errors_detail": errors_detail[:10],
             "revisions": _vocab_count_revisions(conn, root_bw),
         })
     finally:
