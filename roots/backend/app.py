@@ -1281,14 +1281,15 @@ def _strip_bismillah(text, surah, ayah):
 
 
 def _best_translation(conn, surah, ayah):
-    """Return AI translation if available, otherwise fall back to conventional."""
+    """Return AI translation if available (preferring the revised text
+    when present), otherwise fall back to the conventional translation."""
     ai = conn.execute(
-        "SELECT translation_text FROM ai_translations "
+        "SELECT translation_text, revised_text FROM ai_translations "
         "WHERE chapter = ? AND verse = ? ORDER BY created_at DESC LIMIT 1",
         (surah, ayah),
     ).fetchone()
     if ai:
-        return ai["translation_text"]
+        return ai["revised_text"] or ai["translation_text"]
     conv = conn.execute(
         "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
         (surah, ayah),

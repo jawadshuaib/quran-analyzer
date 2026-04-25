@@ -6,6 +6,7 @@ import CognateTable from './CognateTable';
 import VerseRefText from './VerseRefText';
 import AskAssistant from './AskAssistant';
 import { buildWordContext } from '../utils/context-builders';
+import { TranslationWithChips } from './TermChip';
 
 interface Props {
   surah: number;
@@ -190,7 +191,9 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               );
             })}
           </div>
-          <p className="text-sm text-stone-500 italic">{data.translation}</p>
+          <p className="text-sm text-stone-500 italic">
+            <TranslationWithChips text={data.translation} />
+          </p>
         </div>
       </section>
 
@@ -345,7 +348,9 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                       );
                     })}
                   </div>
-                  <p className="text-sm text-stone-500 italic">{occ.translation}</p>
+                  <p className="text-sm text-stone-500 italic">
+                    <TranslationWithChips text={occ.translation} />
+                  </p>
                 </div>
               );
             })}
