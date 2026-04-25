@@ -86,9 +86,14 @@ CANONICAL_WORD_FAMILIES: dict[str, set[str]] = {
     # Emr → cultivate
     "cultivate": {"cultivate", "cultivates", "cultivated", "cultivating",
                   "cultivation", "cultivator", "cultivators"},
-    # *kr → invoke
-    "invoke":  {"invoke", "invokes", "invoked", "invoking", "invocation",
-                "invocations"},
+    # *kr → remember (also accept invoke/mention since they're commonly used
+    # for the same root in the active-devotional contexts)
+    "remember": {"remember", "remembers", "remembered", "remembering",
+                 "remembrance", "reminder", "reminders", "remind", "reminds",
+                 "reminded", "reminding", "mind", "mindful", "mindfulness",
+                 "mention", "mentions", "mentioned", "mentioning",
+                 "recall", "recalls", "recalled", "recalling",
+                 "invoke", "invokes", "invoked", "invocation"},
     # Thr → purify
     "purify":  {"purify", "purifies", "purified", "purifying", "purification",
                 "pure", "purity", "impurity", "impure"},

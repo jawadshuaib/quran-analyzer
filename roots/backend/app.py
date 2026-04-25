@@ -344,11 +344,17 @@ def _ensure_term_surveys_table():
                 surveyor_prompt_version TEXT NOT NULL DEFAULT 'v1',
                 surveyor_run_at TEXT DEFAULT CURRENT_TIMESTAMP,
 
-                canonical_english TEXT,       -- e.g. "sustained connection" for ṣalāh
+                canonical_english TEXT,       -- semantic anchor for the glossary
                 reasoning TEXT,               -- semantic thread through all usages
                 counter_examples_json TEXT,   -- JSON: [{ref, how_canonical_fits}, ...]
                 translation_note TEXT,        -- reader-facing note for public display
                 leave_untranslated INTEGER NOT NULL DEFAULT 0,
+                -- Verses where conventional English would have to invent (e.g.
+                -- "send blessings upon" for 33:56). Translation should use
+                -- pure transliteration on these, with the glossary tooltip
+                -- carrying the explanation. JSON list:
+                --   [{ref, arabic_word, transliteration, reason}, ...]
+                hard_cases_json TEXT,
                 confidence REAL,
                 raw_response TEXT
             )
@@ -3107,8 +3113,8 @@ def get_ai_translation(surah: int, ayah: int):
     conn = get_db()
     try:
         row = conn.execute(
-            "SELECT t.translation_text, t.departure_notes, t.created_at, "
-            "       c.config_name, c.model_name "
+            "SELECT t.translation_text, t.revised_text, t.departure_notes, "
+            "       t.created_at, c.config_name, c.model_name "
             "FROM ai_translations t "
             "JOIN ai_translation_configs c ON t.config_id = c.id "
             "WHERE t.chapter = ? AND t.verse = ? "
@@ -3119,10 +3125,17 @@ def get_ai_translation(surah: int, ayah: int):
         if not row:
             return jsonify({"error": "No AI translation available"}), 404
 
+        # Prefer revised_text when present (transliteration applied for
+        # hard-case verses); fall back to the original translation_text.
+        active = row["revised_text"] if row["revised_text"] else row["translation_text"]
+        was_revised = bool(row["revised_text"])
+
         return jsonify({
             "surah": surah,
             "ayah": ayah,
-            "translation": row["translation_text"],
+            "translation": active,
+            "translation_original": row["translation_text"] if was_revised else None,
+            "is_revised": was_revised,
             "departure_notes": row["departure_notes"],
             "config_name": row["config_name"],
             "model_name": row["model_name"],
@@ -3379,6 +3392,50 @@ def get_grammar_terms_all():
             "categories": GRAMMAR_CATEGORIES,
             "terms": [dict(r) for r in rows],
         })
+    finally:
+        conn.close()
+
+
+@app.route("/api/quran-vocabulary")
+def get_quran_vocabulary():
+    """Return the 13 surveyed ritualistic-vocabulary terms with their
+    canonical Qur'an-only renderings, translation notes, and hard-case
+    verse lists. Public, no auth — used by /quran-vocabulary frontend
+    page. Each term row:
+      {
+        root_buckwalter, root_arabic, canonical_english,
+        translation_note, occurrence_count, confidence,
+        hard_cases: [{ref, arabic_word, transliteration, reason}, ...]
+      }
+    """
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT root_buckwalter, root_arabic, canonical_english, "
+            "       translation_note, occurrence_count, confidence, "
+            "       leave_untranslated, hard_cases_json "
+            "FROM term_surveys "
+            "ORDER BY occurrence_count DESC"
+        ).fetchall()
+        terms = []
+        for r in rows:
+            hard_cases = []
+            if r["hard_cases_json"]:
+                try:
+                    hard_cases = json.loads(r["hard_cases_json"])
+                except Exception:
+                    hard_cases = []
+            terms.append({
+                "root_buckwalter": r["root_buckwalter"],
+                "root_arabic": r["root_arabic"],
+                "canonical_english": r["canonical_english"],
+                "translation_note": r["translation_note"],
+                "occurrence_count": r["occurrence_count"],
+                "confidence": r["confidence"],
+                "leave_untranslated": bool(r["leave_untranslated"]),
+                "hard_cases": hard_cases,
+            })
+        return jsonify({"terms": terms})
     finally:
         conn.close()
 
@@ -4385,6 +4442,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/grammar-glossary/?$", path):
         return True
+    if re.match(r"^/quran-vocabulary/?$", path):
+        return True
     if re.match(r"^/admin(/settings|/scheduler|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
@@ -4537,6 +4596,16 @@ def _get_seo_meta(path: str) -> dict:
             "description": "Definitions and examples for every Arabic grammar term used in al-nuqta's verse-level grammar notes \u2014 \u1e25\u0101l, i\u1e0d\u0101fa, jussive, mubtada, subjunctive, and 600+ more. Each entry links back to the verses that reference it.",
             "og_type": "article",
             "canonical": SITE_URL + "/grammar-glossary",
+            "robots": "index, follow",
+        }
+
+    # Quran vocabulary: /quran-vocabulary
+    if re.match(r"^/quran-vocabulary/?$", path):
+        return {
+            "title": "Qur'an Vocabulary \u2014 Abstract Meanings of \u1e63al\u0101h, zak\u0101h, \u1e25ajj | al-nuqta",
+            "description": "Some Qur'anic roots whose meaning is often narrowed when translated are explored in greater detail. For these roots, we trace every occurrence in the corpus and find the broader meaning that survives every usage.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/quran-vocabulary",
             "robots": "index, follow",
         }
 
@@ -4778,6 +4847,7 @@ def sitemap_xml():
     _add(SITE_URL + "/terms", "0.3")
     _add(SITE_URL + "/privacy/extension", "0.3")
     _add(SITE_URL + "/grammar-glossary", "0.6")
+    _add(SITE_URL + "/quran-vocabulary", "0.6")
 
     # All verse pages
     conn = get_db()

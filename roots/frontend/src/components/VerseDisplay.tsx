@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData } from '../types';
 import { searchWordsCount, fetchWordMeanings, fetchAITranslation } from '../api/quran';
+import { TranslationWithChips } from './TermChip';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
 import SelectionHeader from './SelectionHeader';
@@ -437,7 +438,9 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
       </div>
 
       <p className="text-stone-600 italic">
-        {aiTranslation ? aiTranslation.translation : data.translation}
+        <TranslationWithChips
+          text={aiTranslation ? aiTranslation.translation : data.translation}
+        />
       </p>
 
       {data.roots_summary.length > 0 && (

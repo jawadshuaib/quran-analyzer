@@ -129,6 +129,41 @@ export async function fetchAllGrammarTerms(): Promise<GrammarGlossaryResponse> {
   return res.json();
 }
 
+// ---------- Quran vocabulary (ritualistic terms) ----------
+
+export interface QuranVocabularyTerm {
+  root_buckwalter: string;
+  root_arabic: string;
+  canonical_english: string;
+  translation_note: string | null;
+  occurrence_count: number;
+  confidence: number | null;
+  leave_untranslated: boolean;
+  hard_cases: Array<{
+    ref: string;
+    arabic_word: string;
+    transliteration: string;
+    reason: string;
+  }>;
+}
+
+export interface QuranVocabularyResponse {
+  terms: QuranVocabularyTerm[];
+}
+
+export async function fetchQuranVocabulary(): Promise<QuranVocabularyResponse> {
+  const res = await fetch(`${BASE}/quran-vocabulary`);
+  if (!res.ok) throw new Error('Failed to load Quran vocabulary');
+  return res.json();
+}
+
+/** Slug for a vocabulary term — used as anchor on /quran-vocabulary so
+ * verse-level chips can deep-link to the right entry. */
+export function vocabTermSlug(rootBuckwalter: string): string {
+  // Buckwalter has chars like *, $, ', etc. — keep alphanumeric only
+  return rootBuckwalter.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+}
+
 /** Slug generator — must match the backend anchor scheme so tooltip deep links work. */
 export function grammarTermSlug(term: string): string {
   return term
