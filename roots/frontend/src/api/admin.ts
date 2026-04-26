@@ -410,6 +410,20 @@ export async function detectProperNouns(): Promise<{
   return data;
 }
 
+export async function clearProperNouns(force = false): Promise<{
+  ok: true;
+  cleared: number;
+  summary: ProperNounStats;
+}> {
+  const res = await authFetch(`${BASE}/proper-nouns/clear`, {
+    method: 'POST',
+    body: JSON.stringify({ force }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Clear failed');
+  return data;
+}
+
 export async function runProperNounsOllama(opts: {
   limit?: number;
   models?: string;

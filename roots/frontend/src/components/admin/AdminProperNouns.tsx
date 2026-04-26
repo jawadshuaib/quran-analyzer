@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   listProperNouns,
   detectProperNouns,
+  clearProperNouns,
   runProperNounsOllama,
   runProperNounsSonnet,
   reviewProperNoun,
@@ -50,6 +51,7 @@ export default function AdminProperNouns() {
 
   // Action runners (Stage 0/1/2)
   const [detecting, setDetecting] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const ollamaRunningRef = useRef(false);
   const [ollamaRunning, setOllamaRunning] = useState(false);
   const [ollamaProgress, setOllamaProgress] = useState<{ processed: number; remaining: number } | null>(null);
@@ -108,6 +110,36 @@ export default function AdminProperNouns() {
       setError(e instanceof Error ? e.message : 'Detection failed');
     } finally {
       setDetecting(false);
+    }
+  }
+
+  async function handleClear(force: boolean) {
+    const ok = await confirm({
+      title: force ? 'Force-clear ALL candidates?' : 'Clear all unreviewed candidates?',
+      message: force
+        ? 'Wipes the entire proper_noun_candidates table — including any that have been adjudicated, reviewed, or applied. Applied translations stay in ai_word_meanings (revert those individually first if you want them back).'
+        : 'Wipes candidates that haven\'t been adjudicated, reviewed, or applied yet. Useful when re-running Stage 0 after a heuristic update. Refuses if any candidate has review state — pass force-clear in that case.',
+      confirmLabel: force ? 'Force-clear' : 'Clear',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    setClearing(true);
+    setError('');
+    setStatusMsg('');
+    try {
+      const r = await clearProperNouns(force);
+      setStatusMsg(`Cleared ${r.cleared} candidate${r.cleared === 1 ? '' : 's'}.`);
+      await refresh();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Clear failed';
+      // If protected, offer force option in the error
+      if (msg.includes('force=true')) {
+        setError(`${msg} Click "Force-clear" instead if you really mean it.`);
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -342,6 +374,26 @@ export default function AdminProperNouns() {
         >
           {detecting ? 'Detecting…' : 'Detect candidates (Stage 0)'}
         </button>
+        {(stats?.total ?? 0) > 0 && (
+          <>
+            <button
+              onClick={() => handleClear(false)}
+              disabled={clearing}
+              className="text-xs px-3 py-2 rounded-md border border-stone-300 text-stone-600 hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
+              title="Wipes unreviewed candidates so Stage 0 can run from scratch with the latest heuristic"
+            >
+              {clearing ? 'Clearing…' : 'Clear unreviewed'}
+            </button>
+            <button
+              onClick={() => handleClear(true)}
+              disabled={clearing}
+              className="text-xs px-3 py-2 rounded-md border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50 cursor-pointer"
+              title="Force-wipes EVERYTHING in the table including reviewed and applied rows. Applied ai_word_meanings revisions are not touched."
+            >
+              Force-clear all
+            </button>
+          </>
+        )}
         <button
           onClick={handleRunOllama}
           disabled={!ollamaRunning && stage1Pending === 0}

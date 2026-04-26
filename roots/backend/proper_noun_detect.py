@@ -45,20 +45,49 @@ from app import get_db
 # Stage 0 configuration
 # ---------------------------------------------------------------------------
 
-# Tokens that are KNOWN proper nouns (real persons, places). Capitalized
-# tokens matching these are NOT flagged as candidates. Conservative list —
-# unknown capitalized tokens go to the LLMs to adjudicate. Match against
-# the lowercased token so case variants are handled uniformly.
+# --- Morphology pos filtering -------------------------------------------
+# Only these "content word" parts of speech can ever be proper-noun
+# calques. Filters out prefixes/suffixes/particles/pronouns/demonstratives
+# at the SQL level so we never even consider وَ / ٱل / ذَٰلِكَ / إِيَّاكَ /
+# ٱلَّذِينَ / مَا / لَا — the dominant noise source in the first run.
+CONTENT_POS = ("Proper Noun", "Noun", "Adjective", "Verb")
+
+# Prefer Proper Noun > Noun > Adjective > Verb when picking one row per
+# (chapter, verse, word_pos). The CASE expression below uses these ranks.
+POS_RANK = {"Proper Noun": 1, "Noun": 2, "Adjective": 3, "Verb": 4}
+
+
+# --- Compound markers (high-signal: Abu/Ibn/Dhu + X is a calque template) ---
+COMPOUND_MARKERS_EN = {"abu", "abi", "ibn", "bin", "ben", "umm", "bint",
+                      "dhul", "dhu", "dhat", "dhi", "dhāt", "dhū",
+                      "banu", "bani", "ahl", "aal", "al-",
+                      "ash-", "as-", "an-", "at-", "ath-", "adh-"}
+
+
+# --- Diacritic / transliteration signature ---------------------------------
+# Real proper-noun transliterations frequently carry these characters.
+# Plain English religious titles (Merciful, Wise, Fire) almost never do.
+TRANSLITERATION_PATTERN = re.compile(
+    # Underdots, macrons, ʿayn / hamza, characteristic Arabicist letters
+    r"[\u0100-\u017F\u1E00-\u1EFF\u02BB-\u02BD\u02BE\u02BFḤḥṢṣṬṭḌḍẒẓʿʾāēīōūĀĒĪŌŪñǧǦġĠḳḲ]"
+)
+
+
+# --- English allowlist of words that are CAPITALIZED but never proper-noun
+#     calques. We only consult this when no positive marker (compound /
+#     diacritic) is present — the positive markers are the primary filter.
 KNOWN_NAMES = {
-    # Divine
-    "allah", "god", "lord",
-    # Prophets / persons (English forms)
+    # Divine names / forms commonly capitalized
+    "allah", "god", "lord", "creator", "fashioner", "originator",
+    "ever-living", "self-subsisting", "self-sustaining",
+    # Prophets / persons (English + transliterations we already classify
+    # as known names)
     "muhammad", "mohammed", "ahmad",
     "moses", "musa", "aaron", "harun",
     "abraham", "ibrahim",
     "ishmael", "ismail",
     "isaac", "ishaq",
-    "jacob", "yaqub", "israel", "jacob's",
+    "jacob", "yaqub", "israel",
     "joseph", "yusuf",
     "david", "dawud",
     "solomon", "sulayman",
@@ -68,18 +97,13 @@ KNOWN_NAMES = {
     "noah", "nuh",
     "lot", "lut",
     "job", "ayub",
-    "jonah", "yunus", "dhun-nun",
+    "jonah", "yunus",
     "zechariah", "zakariyya",
     "john", "yahya",
     "elias", "elijah", "ilyas",
     "elisha", "alyasa",
     "shu'aib", "shuaib", "shoaib",
-    "salih",
-    "hud",
-    "luqman",
-    "khidr",
-    "imran",
-    # Pharaoh / kings
+    "salih", "hud", "luqman", "khidr", "imran",
     "pharaoh", "firawn",
     # Locales / tribes
     "mecca", "makka", "bakka",
@@ -87,19 +111,178 @@ KNOWN_NAMES = {
     "egypt", "misr",
     "babylon", "babil",
     "jerusalem", "bayt",
-    # English connectives / articles
-    "the", "of", "and", "or", "a", "an", "in", "on", "to", "at", "by",
-    "for", "with", "from", "but", "is", "are", "was", "were", "be",
-    "as", "if", "so", "no", "not",
-    # Common stopwords sometimes fall into translation idiosyncrasies
-    "indeed", "truly", "verily",
 }
 
-# Compound-name templates worth flagging (the second element is often
-# descriptive and translatable). The Buckwalter-form keys handle Arabic;
-# the English forms handle the surface translation.
-COMPOUND_MARKERS_EN = {"abu", "abi", "ibn", "bin", "umm", "bint", "dhul", "dhu", "dhat", "dhi"}
-COMPOUND_MARKERS_AR_LEMMAS = {">abN", "<bn", ">um", "<bn", "*Aw", "*At"}
+
+# Plain English words / religious titles that are commonly capitalized in
+# translations but are NOT proper-noun calques. They occur as labels for
+# divine attributes (the Merciful), eschatological referents (the Fire),
+# scriptural objects (the Book), and so on. We're aggressive here because
+# the positive signals (compound or diacritic) handle the real cases.
+COMMON_ENGLISH_TITLES = {
+    # Divine attributes / epithets
+    "merciful", "compassionate", "wise", "knowing", "mighty", "powerful",
+    "all-knowing", "all-wise", "all-mighty", "all-powerful", "all-hearing",
+    "all-seeing", "ever-watchful", "most", "exalted", "high", "great",
+    "supreme", "absolute", "unique", "everlasting", "eternal",
+    "self-subsisting", "self-sustaining", "ever-living", "subtle",
+    "appreciative", "forbearing", "forgiving", "oft-forgiving", "loving",
+    "gentle", "patient", "just", "true", "rich", "praiseworthy",
+    "majestic", "noble", "kind", "sublime", "first", "last",
+    "manifest", "hidden", "watchful", "guardian", "protector",
+    "preserver", "reckoner", "judge", "ruler", "sovereign", "king",
+    "originator", "evolver", "fashioner",
+    "oft-turning", "oft-returning", "ever-turning-back", "ever-watchful",
+    "self-standing", "self-existent",
+    "specially", "entirely", "especially",
+    # Eschatology / world / cosmos
+    "fire", "garden", "paradise", "hell", "hellfire", "hereafter",
+    "heaven", "heavens", "earth", "world", "blaze", "flame",
+    "throne", "footstool", "house", "mosque", "mount", "cave", "valley",
+    "ark", "tablet", "tablets", "scripture", "book", "scrolls",
+    "day", "night", "morning", "evening", "hour", "moment",
+    "judgment", "resurrection", "reckoning", "balance", "scale",
+    "later", "later-life", "now",
+    # Scriptural / theological terms
+    "spirit", "spirits", "angel", "angels", "messenger", "messengers",
+    "prophet", "prophets", "warner", "warners", "witness", "witnesses",
+    "believer", "believers", "disbeliever", "disbelievers", "hypocrite",
+    "hypocrites", "polytheist", "polytheists", "muslim", "muslims",
+    "jew", "jews", "christian", "christians", "nazarene", "nazarenes",
+    "magian", "sabian", "people", "children",
+    "covenant", "promise", "warning", "tidings", "news", "command",
+    "commands", "law", "laws", "decree", "decrees",
+    "sign", "signs", "verse", "verses", "remembrance", "reminder",
+    "guidance", "misguidance", "truth", "falsehood", "right", "wrong",
+    "religion", "faith", "belief", "trust", "deeds", "deed",
+    # Common English stopwords / sentence-initial capitalization
+    "the", "a", "an", "of", "and", "or", "but", "yet", "so", "if",
+    "as", "at", "by", "in", "on", "to", "for", "with", "from",
+    "into", "onto", "upon", "over", "under", "before", "after",
+    "during", "until", "since", "because", "while", "though", "although",
+    "even", "ever", "never", "only", "just", "also", "too",
+    "indeed", "truly", "verily", "behold", "rather", "now", "then",
+    "here", "there", "where", "why", "how", "when",
+    "who", "whom", "whose", "which", "what", "this", "that", "these",
+    "those", "such", "some", "every", "all", "each", "any", "no",
+    "both", "either", "neither", "one", "another", "other",
+    "shall", "will", "may", "must", "should", "could", "would",
+    "ought", "might", "can", "do", "does", "did", "done",
+    "is", "are", "was", "were", "be", "been", "being",
+    "have", "has", "had", "having",
+    "praise", "praised", "thanks", "glory", "glorified",
+    "indeed", "indeed,",
+    # Pronouns — capitalized in religious translations as a stylistic
+    # convention (referring to God/the Prophet) but never proper nouns.
+    "i", "me", "my", "mine", "myself",
+    "we", "us", "our", "ours", "ourselves",
+    "you", "your", "yours", "yourself", "yourselves",
+    "he", "him", "his", "himself",
+    "she", "her", "hers", "herself",
+    "it", "its", "itself",
+    "they", "them", "their", "theirs", "themselves",
+    "ye", "thou", "thee", "thy", "thine", "thyself",
+}
+
+
+_ENGLISH_TITLE_PREFIXES = ("ever-", "all-", "oft-", "most-", "self-")
+
+
+def _is_english_title_word(low: str) -> bool:
+    """True when a lowercased token (or hyphen-joined compound) is an
+    English religious epithet pattern that's never a proper-noun calque.
+    Catches: 'ever-merciful', 'all-knowing', 'oft-forgiving', 'self-
+    subsisting', 'most-merciful', etc. — without listing every variant."""
+    if not low:
+        return False
+    # Normalize Unicode hyphens to ASCII before matching
+    norm = low.replace("\u2011", "-").replace("\u2013", "-").replace("\u2014", "-")
+    if norm in KNOWN_NAMES or norm in COMMON_ENGLISH_TITLES:
+        return True
+    for p in _ENGLISH_TITLE_PREFIXES:
+        if norm.startswith(p):
+            return True
+    # Hyphenated compound where ALL parts are stoplisted English (e.g.
+    # "in-forgiveness", "covering-in-forgiveness", "turning-back").
+    if "-" in norm:
+        parts = [p for p in norm.split("-") if p]
+        if parts and all(p in KNOWN_NAMES or p in COMMON_ENGLISH_TITLES for p in parts):
+            return True
+    return False
+
+
+def _has_transliteration_marker(text: str) -> bool:
+    """True when text contains a non-ASCII letter (diacritic / macron /
+    underdot / hamza-letter / etc.) characteristic of Arabicist
+    transliterations. Plain English doesn't trip this."""
+    return bool(TRANSLITERATION_PATTERN.search(text or ""))
+
+
+# Buckwalter consonant → rough Latin character set. Used to decide
+# whether a capitalized English token "looks like" a transliteration of
+# the Arabic root vs an actual English translation. The Latin set is
+# intentionally generous (multiple plausible mappings per BW char) so we
+# accept variant transliterations.
+BW_LATIN_EQUIV = {
+    "A": "aā", "a": "aā", "i": "iī", "u": "uū", "o": "", "e": "e",
+    "y": "y", "w": "w",
+    "b": "b", "t": "t", "p": "h",
+    "g": "g", "d": "d", "D": "dḍ", "r": "r", "z": "z",
+    "s": "s", "S": "sṣ", "f": "f", "k": "k", "l": "l",
+    "m": "m", "n": "n",
+    "h": "h", "H": "hḥ", "q": "q",
+    "x": "kḵ", "$": "s",  # sh — match against 's' approximately
+    "T": "tṭ", "Z": "zẓ",
+    "E": "ʿ",  # ayn — often dropped in English; ʿ is a marker
+    "G": "g",  # gh
+    "`": "", "|": "aā",
+    ">": "aā", "<": "iī",
+    "&": "w", "*": "td",  # th/dh
+    "'": "ʾ",
+    "~": "", "F": "n", "N": "n", "K": "n",
+    "{": "aā", "}": "iʾ",
+}
+
+
+def _token_looks_like_transliteration(token: str, root_bw: str | None) -> bool:
+    """True when the lowercased token contains enough of the Arabic
+    root's consonant skeleton in order to plausibly BE a transliteration
+    of that root (vs an English translation). The threshold is purposely
+    generous: any 2+ consonants from the root that appear in the token
+    in the right order count as a match.
+
+    Discriminates "Lahab" (root lhb → l, h, b all in 'lahab') from
+    English glosses like "Possessor" (root mlk → m, l, k — only 'l' in
+    'possessor', miss).
+    """
+    if not token or not root_bw:
+        return False
+    # Pick out the consonant skeleton from BW (strip vowels + diacritics)
+    consonants = []
+    for c in root_bw:
+        latin = BW_LATIN_EQUIV.get(c, "").lower()
+        # Skip the BW chars that map to nothing or to vowels only
+        if latin and any(ch.isalpha() and ch not in "aeiouāēīōūʿʾ" for ch in latin):
+            consonants.append(latin)
+    if len(consonants) < 2:
+        return False
+
+    low = token.lower()
+    # Match consonants in order — try each consonant set against the rest
+    # of the token starting from the previous match position.
+    cursor = 0
+    matched = 0
+    for cset in consonants:
+        # cset can be a multi-char set of valid Latin chars (e.g. "ḥh")
+        for letter in cset:
+            if not letter.isalpha():
+                continue
+            idx = low.find(letter, cursor)
+            if idx >= 0:
+                cursor = idx + 1
+                matched += 1
+                break
+    return matched >= 2 and matched >= len(consonants) // 2 + (1 if len(consonants) <= 3 else 0)
 
 
 def _is_capitalized_token(s: str) -> bool:
@@ -119,18 +302,22 @@ def _is_capitalized_token(s: str) -> bool:
     return first_alpha.isupper()
 
 
-def _looks_like_proper_noun(translation: str) -> tuple[bool, str | None]:
+def _looks_like_proper_noun(translation: str, root_bw: str | None = None,
+                            morph_pos: str | None = None) -> tuple[bool, str | None]:
     """Decide whether a per-word translation looks like a transliterated
     proper noun. Returns (flagged, compound_marker_or_None).
 
-    A translation is flagged when:
-      - it has at least one capitalized token NOT in KNOWN_NAMES
-      - and the capitalized token isn't a sentence-start English word
-        (rough heuristic: tokens after the first that are capitalized are
-        more name-like; first-token capitalization is ambiguous)
+    Stricter version. Requires at least ONE positive marker:
+      (a) compound prefix (Abu / Ibn / Dhu / Bani / etc.) — high signal
+      (b) transliteration diacritic / macron / underdot anywhere
+      (c) morph_pos == "Proper Noun" (morphology already says it's a name)
+      (d) capitalized token whose letters resemble the Arabic root's
+          consonant skeleton (i.e. it BE a transliteration, not an
+          English translation that just happens to be capitalized).
 
-    Compound markers (Abu/Ibn/etc.) are detected too — those make the
-    candidate higher-priority since they're textbook calque sites.
+    Sentence-initial capitalization (i = 0) is ignored on its own.
+    Multi-token translations with no compound and no diacritic are
+    rejected unless one of their non-initial tokens resembles the root.
     """
     if not translation:
         return False, None
@@ -138,27 +325,100 @@ def _looks_like_proper_noun(translation: str) -> tuple[bool, str | None]:
     if not text:
         return False, None
 
-    tokens = re.split(r"\s+", text)
+    # Strong signal: any diacritic anywhere is enough.
+    if _has_transliteration_marker(text):
+        # Still need to detect compound marker for type/labeling.
+        for tok in re.split(r"\s+", text):
+            tok_norm = tok.replace("\u2011", "-").replace("\u2013", "-").replace("\u2014", "-")
+            clean = re.sub(r"[^A-Za-z'’\-]", "", tok_norm).strip().lower()
+            if clean in COMPOUND_MARKERS_EN:
+                return True, clean
+        return True, None
+
+    tokens = [t for t in re.split(r"\s+", text) if t]
     if not tokens:
         return False, None
 
+    # Special case: single-token gloss like "Lahab" / "Iram" / "Iblis".
+    # We need a stricter signal here because plain English single-token
+    # imperatives ("Eat" / "Strike" / "Say") and divine attributes
+    # ("Possessor" / "Holy") are commonly capitalized in translations.
+    # Accept only when one of:
+    #   - morph_pos == "Proper Noun" (morphology already classified it)
+    #   - the token resembles the Arabic root's consonant skeleton
+    if len(tokens) == 1:
+        tok = tokens[0]
+        # Normalize Unicode hyphens to ASCII before sanitizing — otherwise
+        # 'Ever‑turning‑back' (U+2011) gets stripped to 'Everturningback'
+        # and slips past the title-word allowlist.
+        tok_norm = tok.replace("\u2011", "-").replace("\u2013", "-").replace("\u2014", "-")
+        clean = re.sub(r"[^A-Za-z'’\-]", "", tok_norm).strip()
+        low = clean.lower()
+        if not _is_capitalized_token(tok):
+            return False, None
+        if _is_english_title_word(low):
+            return False, None
+        if low in COMPOUND_MARKERS_EN:
+            return False, None
+        if (morph_pos or "").strip() == "Proper Noun":
+            return True, None
+        if _token_looks_like_transliteration(low, root_bw):
+            return True, None
+        return False, None
+
     compound: str | None = None
-    flagged = False
+    candidate_capitalized = False
     for i, tok in enumerate(tokens):
-        clean = re.sub(r"[^A-Za-z'’\-]", "", tok).strip()
+        # Normalize Unicode hyphens to ASCII before sanitizing — otherwise
+        # 'Ever‑turning‑back' (U+2011) gets stripped to 'Everturningback'
+        # and slips past the title-word allowlist.
+        tok_norm = tok.replace("\u2011", "-").replace("\u2013", "-").replace("\u2014", "-")
+        clean = re.sub(r"[^A-Za-z'’\-]", "", tok_norm).strip()
         if not clean:
             continue
         low = clean.lower()
+
+        # Bare compound marker (token "Abu" / "Dhu" / "Bani") — high
+        # signal regardless of position.
         if low in COMPOUND_MARKERS_EN:
             compound = low
             continue
-        # Skip the first token if it's a normal-looking English word — a
-        # leading capital is just sentence case.
-        if i == 0 and low in KNOWN_NAMES:
+
+        # Hyphenated compound calque ("Dhul-Qarnayn", "Abu-Lahab",
+        # "Bani-Israel"). Treat regardless of position — the compound
+        # marker is itself a positive signal that overrides sentence-
+        # initial capitalization heuristics.
+        if "-" in low:
+            parts = [p for p in low.split("-") if p]
+            marker_parts = [p for p in parts if p in COMPOUND_MARKERS_EN]
+            if marker_parts:
+                compound = compound or marker_parts[0]
+                tail_parts = [p for p in parts if p not in COMPOUND_MARKERS_EN]
+                if any(t and t not in KNOWN_NAMES and t not in COMMON_ENGLISH_TITLES for t in tail_parts):
+                    candidate_capitalized = True
+                continue
+
+        # For non-compound tokens: sentence-initial uppercase isn't a
+        # signal — it's just convention. Skip i=0 unless it carried a
+        # compound marker (handled above).
+        if i == 0:
             continue
-        if _is_capitalized_token(tok) and low not in KNOWN_NAMES:
-            flagged = True
-    return flagged, compound
+        if not _is_capitalized_token(tok):
+            continue
+        if _is_english_title_word(low):
+            continue
+        # Multi-token branch needs the same transliteration check —
+        # otherwise "in the Garden" passes (Garden capitalized at i=2).
+        if (morph_pos or "").strip() == "Proper Noun":
+            candidate_capitalized = True
+        elif _token_looks_like_transliteration(low, root_bw):
+            candidate_capitalized = True
+
+    if compound:
+        return True, compound
+    if candidate_capitalized:
+        return True, None
+    return False, None
 
 
 def _is_indefinite_morphology_tag(tag: str | None) -> int:
@@ -181,41 +441,81 @@ def _is_indefinite_morphology_tag(tag: str | None) -> int:
 
 def stage0_detect(conn) -> dict:
     """Run Stage 0 mechanical pre-filter over the entire corpus.
-    Inserts new rows into proper_noun_candidates (UNIQUE on chapter,
-    verse, word_pos prevents duplicates). Returns counts.
+
+    Picks ONE content-word morphology row per (chapter, verse, word_pos)
+    — preferring Proper Noun > Noun > Adjective > Verb — and only flags
+    a candidate when the per-word English translation carries a positive
+    proper-noun signal (compound marker like Abu/Ibn/Dhu, or a
+    transliteration diacritic, or a capitalized token outside our
+    common-English-titles allowlist).
+
+    Inserts rows into proper_noun_candidates (UNIQUE on chapter, verse,
+    word_pos prevents duplicates). Returns counts.
     """
     print("Stage 0: building root-frequency index…")
     root_freq: dict[str, int] = {}
-    for r in conn.execute("SELECT root_buckwalter FROM morphology WHERE root_buckwalter IS NOT NULL"):
+    for r in conn.execute(
+        "SELECT root_buckwalter FROM morphology "
+        "WHERE root_buckwalter IS NOT NULL AND root_buckwalter != ''"
+    ):
         root_freq[r["root_buckwalter"]] = root_freq.get(r["root_buckwalter"], 0) + 1
     print(f"  {len(root_freq)} roots in morphology")
 
-    print("Stage 0: scanning translations for capitalized-token candidates…")
-    rows = conn.execute(
-        "SELECT m.chapter, m.verse, m.word_pos, "
-        "       m.form_arabic, m.root_buckwalter, m.lemma_buckwalter, m.tag, "
-        "       w.preferred_translation, w.meaning_short "
-        "FROM morphology m "
-        "LEFT JOIN ai_word_meanings w "
-        "  ON w.chapter=m.chapter AND w.verse=m.verse AND w.word_pos=m.word_pos "
-        "WHERE m.root_buckwalter IS NOT NULL "
-        "ORDER BY m.chapter, m.verse, m.word_pos"
-    ).fetchall()
-    print(f"  {len(rows)} morphology rows with roots")
+    # Pick one content-word row per (chapter, verse, word_pos), favoring
+    # Proper Noun > Noun > Adjective > Verb. Filters out Prefix / Suffix /
+    # Pronoun / Demonstrative / Particle / Conjunction / etc. at the SQL
+    # level so we never even look at them.
+    print("Stage 0: collecting content-word rows + translations…")
+    pos_placeholders = ",".join(["?"] * len(CONTENT_POS))
+    pos_case = (
+        "CASE m.pos "
+        + " ".join(f"WHEN '{p}' THEN {POS_RANK[p]}" for p in CONTENT_POS)
+        + " ELSE 99 END"
+    )
+    sql = f"""
+        WITH ranked AS (
+            SELECT m.chapter, m.verse, m.word_pos,
+                   m.form_arabic, m.root_buckwalter, m.lemma_buckwalter,
+                   m.tag, m.pos,
+                   ROW_NUMBER() OVER (
+                     PARTITION BY m.chapter, m.verse, m.word_pos
+                     ORDER BY {pos_case}
+                   ) AS rn
+            FROM morphology m
+            WHERE m.root_buckwalter IS NOT NULL
+              AND m.root_buckwalter != ''
+              AND m.pos IN ({pos_placeholders})
+        )
+        SELECT r.chapter, r.verse, r.word_pos,
+               r.form_arabic, r.root_buckwalter, r.lemma_buckwalter,
+               r.tag, r.pos,
+               w.preferred_translation, w.meaning_short
+        FROM ranked r
+        LEFT JOIN ai_word_meanings w
+               ON w.chapter=r.chapter AND w.verse=r.verse AND w.word_pos=r.word_pos
+        WHERE r.rn = 1
+        ORDER BY r.chapter, r.verse, r.word_pos
+    """
+    rows = conn.execute(sql, list(CONTENT_POS)).fetchall()
+    print(f"  {len(rows)} content-word positions to scan")
 
     inserted = 0
     skipped_existing = 0
     skipped_no_translation = 0
-    candidates_by_type: dict[str, int] = {"compound": 0, "single": 0}
+    skipped_no_signal = 0
+    by_type: dict[str, int] = {"compound": 0, "single": 0}
+    by_pos: dict[str, int] = {}
 
     for row in rows:
-        # Prefer judged translation, fall back to meaning_short
         translation = (row["preferred_translation"] or row["meaning_short"] or "").strip()
         if not translation:
             skipped_no_translation += 1
             continue
-        flagged, compound = _looks_like_proper_noun(translation)
-        if not flagged and not compound:
+        flagged, compound = _looks_like_proper_noun(
+            translation, row["root_buckwalter"], row["pos"],
+        )
+        if not flagged:
+            skipped_no_signal += 1
             continue
 
         ctype = "compound" if compound else "single"
@@ -238,7 +538,8 @@ def stage0_detect(conn) -> dict:
                 ),
             )
             inserted += 1
-            candidates_by_type[ctype] = candidates_by_type.get(ctype, 0) + 1
+            by_type[ctype] = by_type.get(ctype, 0) + 1
+            by_pos[row["pos"]] = by_pos.get(row["pos"], 0) + 1
         except sqlite3.IntegrityError:
             skipped_existing += 1
 
@@ -247,12 +548,16 @@ def stage0_detect(conn) -> dict:
     print(f"  Inserted:           {inserted}")
     print(f"  Already existed:    {skipped_existing}")
     print(f"  No translation:     {skipped_no_translation}")
-    print(f"  By type:            {candidates_by_type}")
+    print(f"  No proper-noun sig: {skipped_no_signal}")
+    print(f"  By type:            {by_type}")
+    print(f"  By morphology pos:  {by_pos}")
     return {
         "inserted": inserted,
         "skipped_existing": skipped_existing,
         "skipped_no_translation": skipped_no_translation,
-        "by_type": candidates_by_type,
+        "skipped_no_signal": skipped_no_signal,
+        "by_type": by_type,
+        "by_pos": by_pos,
     }
 
 

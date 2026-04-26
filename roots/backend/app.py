@@ -6868,6 +6868,45 @@ def admin_pn_apply(cid: int):
         conn.close()
 
 
+@app.route("/api/admin/proper-nouns/clear", methods=["POST"])
+@admin_required
+def admin_pn_clear():
+    """Wipe the entire proper_noun_candidates table. Useful when
+    re-running Stage 0 after a heuristic update. By default refuses if
+    any candidate has reviewed/adjudicated/applied state — operator must
+    pass {force: true} to override (and any applied translations should
+    be reverted first via the per-row revert)."""
+    body = request.get_json(silent=True) or {}
+    force = bool(body.get("force"))
+    conn = get_db()
+    try:
+        protected = conn.execute(
+            "SELECT COUNT(*) AS n FROM proper_noun_candidates "
+            "WHERE applied_at IS NOT NULL "
+            "   OR operator_action IS NOT NULL "
+            "   OR stage2_run_at IS NOT NULL"
+        ).fetchone()["n"]
+        if protected > 0 and not force:
+            return jsonify({
+                "error": (
+                    f"{protected} candidates have adjudication / review / "
+                    "applied state. Revert applied rows first, then pass "
+                    "force=true."
+                ),
+                "protected": int(protected),
+            }), 409
+        before = conn.execute("SELECT COUNT(*) AS n FROM proper_noun_candidates").fetchone()["n"]
+        conn.execute("DELETE FROM proper_noun_candidates")
+        conn.commit()
+        return jsonify({
+            "ok": True,
+            "cleared": int(before),
+            "summary": _pn_get_stats(conn),
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/proper-nouns/<int:cid>/revert", methods=["POST"])
 @admin_required
 def admin_pn_revert(cid: int):
