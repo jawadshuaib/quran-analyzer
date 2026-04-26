@@ -168,7 +168,9 @@ export default function AdminProperNouns() {
       while (ollamaRunningRef.current) {
         let r;
         try {
-          r = await runProperNounsOllama({ limit: 5, models: 'qwen' });
+          // Smaller batch keeps each request well under typical proxy
+          // timeouts (~60s) — Qwen 397B can take 10-15s per candidate.
+          r = await runProperNounsOllama({ limit: 3, models: 'qwen' });
           consecutiveFailures = 0;
         } catch (chunkErr) {
           consecutiveFailures++;
@@ -222,7 +224,7 @@ export default function AdminProperNouns() {
       while (sonnetRunningRef.current) {
         let r;
         try {
-          r = await runProperNounsSonnet({ limit: 5 });
+          r = await runProperNounsSonnet({ limit: 3 });
           consecutiveFailures = 0;
         } catch (chunkErr) {
           consecutiveFailures++;
