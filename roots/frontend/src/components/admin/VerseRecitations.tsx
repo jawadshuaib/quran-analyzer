@@ -160,6 +160,12 @@ export default function VerseRecitations() {
   // Batch-generate TTS for all preview verses without playing
   async function generateAll() {
     if (!selectedVoiceElId || previewVerses.length === 0) return;
+    const ok = await confirm({
+      title: 'Generate TTS for all verses?',
+      message: `Synthesizes audio for ${previewVerses.length} verse translation${previewVerses.length === 1 ? '' : 's'} via the ElevenLabs API. Cost depends on total character count; cached results will be reused on future playback.`,
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
     setGenerating(true);
     setPreviewError('');
     for (let i = 0; i < previewVerses.length; i++) {

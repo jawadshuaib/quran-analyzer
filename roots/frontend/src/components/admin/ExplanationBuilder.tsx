@@ -144,7 +144,14 @@ export default function ExplanationBuilder() {
     setShowSuggestModal(false);
   }
 
-  function handleRemoveVerseGroup(index: number) {
+  async function handleRemoveVerseGroup(index: number) {
+    const ok = await confirm({
+      title: 'Remove verse group?',
+      message: 'Removes the group from this explanation. The change will be persisted when you save.',
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     // Remove the verse segment and its preceding transition
     const newSegments = [...segments];
     // Find the actual index in segments array for this verse group
@@ -215,6 +222,12 @@ export default function ExplanationBuilder() {
   }
 
   async function handleGenerateClosing() {
+    const ok = await confirm({
+      title: 'Generate closing reflection?',
+      message: 'Makes a single Claude Sonnet call (~$0.01) to draft a closing reflection from the current verses.',
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
     setGeneratingClosing(true);
     setError('');
     try {
@@ -229,6 +242,12 @@ export default function ExplanationBuilder() {
 
   async function handleGenerateAllTTS() {
     if (!currentId || !voiceId) return;
+    const ok = await confirm({
+      title: 'Generate all TTS?',
+      message: 'Synthesizes audio for every segment via the ElevenLabs API. Cost depends on total character count across all transitions, verse translations, and the closing reflection.',
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
     // Save first to ensure segments are up to date
     setGeneratingTTS(true);
     setError('');

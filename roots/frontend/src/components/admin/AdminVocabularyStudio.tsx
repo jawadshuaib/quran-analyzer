@@ -14,6 +14,21 @@ import {
   revertVocabVerseTranslations,
 } from '../../api/admin';
 import type { VocabStudioState } from '../../api/admin';
+import { useConfirm } from './shared/useConfirm';
+
+// Rough Sonnet cost-per-row estimates (input + output tokens × current pricing).
+// Used only to give the operator a ballpark before kicking off a long bulk job.
+const COST_PER_WORD_MEANING = 0.005;
+const COST_PER_GRAMMAR_NOTE = 0.01;
+const COST_PER_VERSE_TRANSLATION = 0.03;
+const COST_PER_HARD_CASE = 0.02;
+
+function fmtCost(perRow: number, rows: number): string {
+  const total = perRow * rows;
+  if (total < 0.005) return '< $0.01';
+  if (total < 1) return `≈ $${total.toFixed(2)}`;
+  return `≈ $${total.toFixed(0)}`;
+}
 
 /**
  * Per-root studio. Routed at /admin/vocabulary/<root_buckwalter>.
@@ -38,6 +53,8 @@ export default function AdminVocabularyStudio() {
   const rootBw = decodeURIComponent(
     window.location.pathname.match(/^\/admin\/vocabulary\/([^/]+)/)?.[1] ?? '',
   );
+
+  const { confirm, dialog: confirmDialog } = useConfirm();
 
   const [state, setState] = useState<VocabStudioState | null>(null);
   const [error, setError] = useState('');
@@ -117,6 +134,14 @@ export default function AdminVocabularyStudio() {
   }, [rootBw]);
 
   async function handleRunSurvey(force: boolean) {
+    const ok = await confirm({
+      title: force ? `Re-survey ${rootBw}?` : `Run survey for ${rootBw}?`,
+      message: force
+        ? `Re-runs Claude Opus over all ${state?.occurrence_count ?? '?'} occurrences and overwrites the existing survey (current canonical: "${state?.survey?.canonical_english ?? '?'}"). ≈ $0.15. Takes 15-30s.`
+        : `Calls Claude Opus over all ${state?.occurrence_count ?? '?'} occurrences of this root to derive the abstract semantic core. ≈ $0.15. Takes 15-30s.`,
+      confirmLabel: force ? 'Re-survey' : 'Run survey',
+    });
+    if (!ok) return;
     setSurveying(true);
     setStatusMsg('');
     setError('');
@@ -152,9 +177,13 @@ export default function AdminVocabularyStudio() {
   }
 
   async function handleApplyTransliteration() {
-    if (!confirm('Apply transliteration to all hard-case verses for this root? Originals are preserved and any revision can be reverted per verse.')) {
-      return;
-    }
+    const hardCount = state?.revisions?.hard_cases_total ?? 0;
+    const ok = await confirm({
+      title: `Apply transliteration to ${hardCount} hard-case verse${hardCount === 1 ? '' : 's'}?`,
+      message: `Calls Claude Sonnet to rewrite each hard-case verse's translation using the Arabic transliteration. ${fmtCost(COST_PER_HARD_CASE, hardCount)}. Originals are preserved — any verse can be reverted individually.`,
+      confirmLabel: 'Apply',
+    });
+    if (!ok) return;
     setApplyingTransliteration(true);
     setError('');
     try {
@@ -169,6 +198,13 @@ export default function AdminVocabularyStudio() {
   }
 
   async function handleRevertVerse(chapter: number, verse: number) {
+    const ok = await confirm({
+      title: `Revert ${chapter}:${verse}?`,
+      message: 'Clears the transliteration revision for this single verse. The original translation will be restored.',
+      confirmLabel: 'Revert verse',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setError('');
     try {
       await revertVocabTransliteration(rootBw, chapter, verse);
@@ -179,6 +215,12 @@ export default function AdminVocabularyStudio() {
   }
 
   async function handleRegenerateNote() {
+    const ok = await confirm({
+      title: 'Regenerate translation note?',
+      message: `Single Claude Sonnet call (≈ $0.01) using the canonical "${canonical || '?'}" + reasoning + counter-examples. Overwrites the textarea above; you can still edit before saving.`,
+      confirmLabel: 'Regenerate',
+    });
+    if (!ok) return;
     setRegeneratingNote(true);
     setError('');
     setStatusMsg('');
@@ -201,6 +243,13 @@ export default function AdminVocabularyStudio() {
       setStatusMsg('Stopping after current batch…');
       return;
     }
+    const pending = (state?.revisions?.word_meanings_total ?? 0) - (state?.revisions?.word_meanings_revised ?? 0);
+    const ok = await confirm({
+      title: `Revise ${pending} word meaning${pending === 1 ? '' : 's'}?`,
+      message: `Claude Sonnet rewrites every ai_word_meanings row for this root using the canonical "${canonical || '?'}". ${fmtCost(COST_PER_WORD_MEANING, pending)}. Auto-loops in batches of 10. Originals are saved and revertable.`,
+      confirmLabel: 'Revise',
+    });
+    if (!ok) return;
     wmRunningRef.current = true;
     setWmRunning(true);
     setWmProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [], errors_detail: [] });
@@ -260,7 +309,14 @@ export default function AdminVocabularyStudio() {
   }
 
   async function handleRevertWordMeanings() {
-    if (!confirm('Revert all word-meanings revisions for this root? Originals will be restored from backup columns.')) return;
+    const count = state?.revisions?.word_meanings_revised ?? 0;
+    const ok = await confirm({
+      title: `Revert ${count} word-meaning revision${count === 1 ? '' : 's'}?`,
+      message: 'Restores meaning_short / meaning_detailed / preferred_translation from the *_original backup columns for every revised row, then clears the backups. This affects only this root\'s rows.',
+      confirmLabel: 'Revert all',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setWmReverting(true);
     setError('');
     try {
@@ -281,6 +337,13 @@ export default function AdminVocabularyStudio() {
       setStatusMsg('Stopping after current batch…');
       return;
     }
+    const pending = (state?.revisions?.grammar_notes_total ?? 0) - (state?.revisions?.grammar_notes_revised ?? 0);
+    const ok = await confirm({
+      title: `Revise ${pending} grammar note${pending === 1 ? '' : 's'}?`,
+      message: `Claude Sonnet rewrites notes_markdown on every grammar note for verses containing this root, using the canonical "${canonical || '?'}". ${fmtCost(COST_PER_GRAMMAR_NOTE, pending)}. Auto-loops in batches of 8. Preserves [[term]] markers; revertable.`,
+      confirmLabel: 'Revise',
+    });
+    if (!ok) return;
     gnRunningRef.current = true;
     setGnRunning(true);
     setGnProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [], errors_detail: [] });
@@ -336,7 +399,14 @@ export default function AdminVocabularyStudio() {
   }
 
   async function handleRevertGrammarNotes() {
-    if (!confirm('Revert all grammar-notes revisions for this root?')) return;
+    const count = state?.revisions?.grammar_notes_revised ?? 0;
+    const ok = await confirm({
+      title: `Revert ${count} grammar-note revision${count === 1 ? '' : 's'}?`,
+      message: 'Restores notes_markdown from the notes_markdown_original backup column for every revised verse, then clears the backups.',
+      confirmLabel: 'Revert all',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setGnReverting(true);
     setError('');
     try {
@@ -357,6 +427,13 @@ export default function AdminVocabularyStudio() {
       setStatusMsg('Stopping after current batch…');
       return;
     }
+    const pending = (state?.revisions?.verse_translations_total ?? 0) - (state?.revisions?.verse_translations_revised ?? 0);
+    const ok = await confirm({
+      title: `Revise ${pending} verse translation${pending === 1 ? '' : 's'}?`,
+      message: `Claude Sonnet rewrites both the verse's main English translation and its Translation Notes panel using the canonical "${canonical || '?'}". ${fmtCost(COST_PER_VERSE_TRANSLATION, pending)}. ~5-10s per verse. Auto-loops in batches of 3. Hard-case verses are excluded. Originals saved and revertable.`,
+      confirmLabel: 'Revise',
+    });
+    if (!ok) return;
     vtRunningRef.current = true;
     setVtRunning(true);
     setVtProgress({ processed: 0, revised: 0, errors: 0, remaining: 0, samples: [], errors_detail: [] });
@@ -415,7 +492,14 @@ export default function AdminVocabularyStudio() {
   }
 
   async function handleRevertVerseTranslations() {
-    if (!confirm('Revert all verse-translation revisions for this root? This restores both the translation text and Translation Notes for every affected verse.')) return;
+    const count = state?.revisions?.verse_translations_revised ?? 0;
+    const ok = await confirm({
+      title: `Revert ${count} verse-translation revision${count === 1 ? '' : 's'}?`,
+      message: 'Restores both the main translation (revised_text → NULL, falling back to translation_text) and the Translation Notes (departure_notes ← departure_notes_original) for every revised verse, then clears the backup column.',
+      confirmLabel: 'Revert all',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setVtReverting(true);
     setError('');
     try {
@@ -1003,6 +1087,7 @@ export default function AdminVocabularyStudio() {
           </ul>
         </details>
       </section>
+      {confirmDialog}
     </div>
   );
 }

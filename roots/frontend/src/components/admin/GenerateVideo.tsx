@@ -112,6 +112,12 @@ export default function GenerateVideo() {
 
   async function handleGenerate() {
     if (!resourceId || selectedIds.size === 0) return;
+    const ok = await confirm({
+      title: 'Generate video?',
+      message: `Renders ${selectedIds.size} verse${selectedIds.size === 1 ? '' : 's'} into a video. Uses the ElevenLabs API for narration and may take several minutes plus disk space for the rendered file.`,
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
     setGenError('');
     setGenerating(true);
     try {
@@ -160,6 +166,12 @@ export default function GenerateVideo() {
 
   async function handleGenerateDescription() {
     if (selectedIds.size === 0) return;
+    const ok = await confirm({
+      title: 'Generate description?',
+      message: 'Makes a single Claude Sonnet call (~$0.01) to draft a YouTube description from the selected verses.',
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
     setGeneratingDesc(true);
     setGenError('');
     try {

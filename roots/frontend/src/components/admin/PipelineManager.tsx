@@ -315,6 +315,12 @@ export default function PipelineManager() {
 
   async function handleGenerate() {
     if (!selectedId) return;
+    const ok = await confirm({
+      title: 'Generate pipeline video?',
+      message: 'Auto-picks verses and renders a new video. Uses the Claude API (verse selection + polishing + metadata) plus the ElevenLabs API for narration. May take several minutes.',
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
     setGenerating(true);
     setGenError('');
     try {
@@ -340,6 +346,13 @@ export default function PipelineManager() {
       setManualError('Title is required');
       return;
     }
+
+    const ok = await confirm({
+      title: 'Generate pipeline video?',
+      message: `Renders a new video for ${parsed.chapter}:${parsed.ayah_start}${parsed.ayah_end !== parsed.ayah_start ? `-${parsed.ayah_end}` : ''}. Uses the Claude API for verse polishing plus the ElevenLabs API for narration. May take several minutes.`,
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
 
     setGenerating(true);
     setGenError('');

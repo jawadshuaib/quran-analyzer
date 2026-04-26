@@ -66,6 +66,12 @@ export default function GenerateExplanationVideo() {
 
   async function handleGenerate() {
     if (!selectedId || !resourceId) return;
+    const ok = await confirm({
+      title: 'Generate explanation video?',
+      message: 'Renders this explanation into a video. Uses any pre-generated TTS plus video render time and disk space; may take several minutes.',
+      confirmLabel: 'Generate',
+    });
+    if (!ok) return;
     setGenError('');
     setGenerating(true);
     try {
