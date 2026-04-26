@@ -209,9 +209,24 @@ export default function AdminVocabularyStudio() {
     let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
     let lastSamples: NonNullable<typeof wmProgress>['samples'] = [];
     let allErrorsDetail: NonNullable<typeof wmProgress>['errors_detail'] = [];
+    let consecutiveFailures = 0;
     try {
       while (wmRunningRef.current) {
-        const r = await reviseVocabWordMeanings(rootBw, { limit: 20 });
+        let r;
+        try {
+          r = await reviseVocabWordMeanings(rootBw, { limit: 10 });
+          consecutiveFailures = 0;
+        } catch (chunkErr) {
+          // Transient — proxy timeout, network blip, brief Anthropic 5xx.
+          // Don't kill the auto-loop; back off and retry up to 3 times.
+          consecutiveFailures++;
+          const msg = chunkErr instanceof Error ? chunkErr.message : String(chunkErr);
+          if (consecutiveFailures >= 3) throw chunkErr;
+          const waitSec = 2 ** consecutiveFailures;
+          setStatusMsg(`Network error (${consecutiveFailures}/3): ${msg.slice(0, 80)}. Retrying in ${waitSec}s…`);
+          await new Promise((resolve) => setTimeout(resolve, waitSec * 1000));
+          continue;
+        }
         totalProcessed += r.processed;
         totalRevised += r.revised;
         totalErrors += r.errors;
@@ -227,6 +242,9 @@ export default function AdminVocabularyStudio() {
           samples: lastSamples,
           errors_detail: allErrorsDetail,
         });
+        if (r.remaining > 0 && r.processed > 0) {
+          setStatusMsg(`Auto-continuing… ${totalRevised} revised, ${r.remaining} remaining`);
+        }
         // Two exit conditions: nothing left, or chunk did nothing (avoids
         // an infinite loop if the backend keeps returning processed=0).
         if (r.remaining === 0 || r.processed === 0) break;
@@ -271,9 +289,22 @@ export default function AdminVocabularyStudio() {
     let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
     let lastSamples: NonNullable<typeof gnProgress>['samples'] = [];
     let allErrorsDetail: NonNullable<typeof gnProgress>['errors_detail'] = [];
+    let consecutiveFailures = 0;
     try {
       while (gnRunningRef.current) {
-        const r = await reviseVocabGrammarNotes(rootBw, { limit: 20 });
+        let r;
+        try {
+          r = await reviseVocabGrammarNotes(rootBw, { limit: 8 });
+          consecutiveFailures = 0;
+        } catch (chunkErr) {
+          consecutiveFailures++;
+          const msg = chunkErr instanceof Error ? chunkErr.message : String(chunkErr);
+          if (consecutiveFailures >= 3) throw chunkErr;
+          const waitSec = 2 ** consecutiveFailures;
+          setStatusMsg(`Network error (${consecutiveFailures}/3): ${msg.slice(0, 80)}. Retrying in ${waitSec}s…`);
+          await new Promise((resolve) => setTimeout(resolve, waitSec * 1000));
+          continue;
+        }
         totalProcessed += r.processed;
         totalRevised += r.revised;
         totalErrors += r.errors;
@@ -289,6 +320,9 @@ export default function AdminVocabularyStudio() {
           samples: lastSamples,
           errors_detail: allErrorsDetail,
         });
+        if (r.remaining > 0 && r.processed > 0) {
+          setStatusMsg(`Auto-continuing… ${totalRevised} revised, ${r.remaining} remaining`);
+        }
         if (r.remaining === 0 || r.processed === 0) break;
       }
       setStatusMsg(`Grammar-notes revision complete: ${totalRevised} revised, ${totalErrors} errors.`);
@@ -331,9 +365,25 @@ export default function AdminVocabularyStudio() {
     let totalProcessed = 0, totalRevised = 0, totalErrors = 0;
     let lastSamples: NonNullable<typeof vtProgress>['samples'] = [];
     let allErrorsDetail: NonNullable<typeof vtProgress>['errors_detail'] = [];
+    let consecutiveFailures = 0;
     try {
       while (vtRunningRef.current) {
-        const r = await reviseVocabVerseTranslations(rootBw, { limit: 10 });
+        let r;
+        try {
+          // Smaller batch (3 verses, ~15-30s) keeps each request well
+          // under common proxy timeouts (~60s) so the auto-loop doesn't
+          // get killed mid-chunk.
+          r = await reviseVocabVerseTranslations(rootBw, { limit: 3 });
+          consecutiveFailures = 0;
+        } catch (chunkErr) {
+          consecutiveFailures++;
+          const msg = chunkErr instanceof Error ? chunkErr.message : String(chunkErr);
+          if (consecutiveFailures >= 3) throw chunkErr;
+          const waitSec = 2 ** consecutiveFailures;
+          setStatusMsg(`Network error (${consecutiveFailures}/3): ${msg.slice(0, 80)}. Retrying in ${waitSec}s…`);
+          await new Promise((resolve) => setTimeout(resolve, waitSec * 1000));
+          continue;
+        }
         totalProcessed += r.processed;
         totalRevised += r.revised;
         totalErrors += r.errors;
@@ -349,6 +399,9 @@ export default function AdminVocabularyStudio() {
           samples: lastSamples,
           errors_detail: allErrorsDetail,
         });
+        if (r.remaining > 0 && r.processed > 0) {
+          setStatusMsg(`Auto-continuing… ${totalRevised} revised, ${r.remaining} remaining`);
+        }
         if (r.remaining === 0 || r.processed === 0) break;
       }
       setStatusMsg(`Verse-translation revision complete: ${totalRevised} revised, ${totalErrors} errors.`);
@@ -869,7 +922,7 @@ export default function AdminVocabularyStudio() {
             </div>
           </div>
           <p className="text-xs text-stone-500 mb-2">
-            Rewrites the verse's main English translation (<code className="text-[11px]">revised_text</code>) and the Translation Notes panel below it (<code className="text-[11px]">departure_notes</code>) on every <code className="text-[11px]">ai_translations</code> row whose verse contains this root, swapping conventional vocabulary for "{canonical || '?'}". Hard-case verses are excluded — they're handled by the transliteration pipeline above. Originals saved to <code className="text-[11px]">departure_notes_original</code>; revert restores both fields. Slower than other panels (~5–10s per verse, batches of 10).
+            Rewrites the verse's main English translation (<code className="text-[11px]">revised_text</code>) and the Translation Notes panel below it (<code className="text-[11px]">departure_notes</code>) on every <code className="text-[11px]">ai_translations</code> row whose verse contains this root, swapping conventional vocabulary for "{canonical || '?'}". Hard-case verses are excluded — they're handled by the transliteration pipeline above. Originals saved to <code className="text-[11px]">departure_notes_original</code>; revert restores both fields. Slowest panel (~5–10s per verse, batches of 3 — auto-continues across chunks until done; one click runs the whole set).
           </p>
           {vtProgress && (
             <div className="mt-2 rounded-md bg-stone-50 border border-stone-200 px-3 py-2">
