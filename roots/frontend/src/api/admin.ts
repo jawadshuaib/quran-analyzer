@@ -325,6 +325,169 @@ export async function searchAdminRoots(query: string): Promise<RootSearchHit[]> 
   return res.json();
 }
 
+// --------------- Proper Nouns ---------------
+
+export interface ProperNounCandidate {
+  id: number;
+  chapter: number;
+  verse: number;
+  word_pos: number;
+  arabic_word: string | null;
+  root_buckwalter: string | null;
+  lemma_buckwalter: string | null;
+  surface_translation: string | null;
+  candidate_type: string | null;
+
+  is_indefinite: number;
+  root_quran_frequency: number | null;
+  has_compound_marker: string | null;
+
+  qwen_verdict: string | null;
+  qwen_confidence: number | null;
+  qwen_reasoning: string | null;
+  gptoss_verdict: string | null;
+  gptoss_confidence: number | null;
+  gptoss_reasoning: string | null;
+  stage1_run_at: string | null;
+
+  sonnet_verdict: string | null;
+  sonnet_alternatives: Array<{ translation: string; rationale: string }>;
+  sonnet_reasoning: string | null;
+  sonnet_supporting_refs: string[];
+  stage2_run_at: string | null;
+
+  operator_action: string | null;
+  operator_translation: string | null;
+  operator_notes: string | null;
+  reviewed_at: string | null;
+
+  applied_at: string | null;
+  applied_to_verses: Array<{ chapter: number; verse: number; word_pos: number; original_translation: string | null; original_source: string | null }>;
+}
+
+export interface ProperNounStats {
+  total: number;
+  stage1_done: number;
+  stage2_done: number;
+  literal: number;
+  name: number;
+  ambiguous: number;
+  approved: number;
+  rejected: number;
+  applied: number;
+}
+
+export async function listProperNouns(params: {
+  status?: string;
+  verdict?: string;
+  type?: string;
+  root?: string;
+  limit?: number;
+  offset?: number;
+  order?: string;
+} = {}): Promise<{ candidates: ProperNounCandidate[]; total_matched: number; limit: number; offset: number; stats: ProperNounStats }> {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== '') q.set(k, String(v));
+  }
+  const res = await authFetch(`${BASE}/proper-nouns?${q.toString()}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to list candidates');
+  return data;
+}
+
+export async function detectProperNouns(): Promise<{
+  ok: true;
+  inserted: number;
+  skipped_existing: number;
+  skipped_no_translation: number;
+  by_type: Record<string, number>;
+  summary: ProperNounStats;
+}> {
+  const res = await authFetch(`${BASE}/proper-nouns/detect`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Stage 0 detection failed');
+  return data;
+}
+
+export async function runProperNounsOllama(opts: {
+  limit?: number;
+  models?: string;
+  refresh?: boolean;
+} = {}): Promise<{
+  ok: true;
+  processed: number;
+  qwen_ok: number;
+  qwen_err: number;
+  gptoss_ok: number;
+  gptoss_err: number;
+  remaining: number;
+  elapsed_ms: number;
+  summary: ProperNounStats;
+}> {
+  const res = await authFetch(`${BASE}/proper-nouns/run-ollama`, {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Stage 1 (Ollama) failed');
+  return data;
+}
+
+export async function runProperNounsSonnet(opts: {
+  limit?: number;
+  refresh?: boolean;
+  only_disagreement?: boolean;
+} = {}): Promise<{
+  ok: true;
+  processed: number;
+  adjudicated: number;
+  errors: number;
+  errors_detail?: Array<{ ref: string; message: string }>;
+  remaining: number;
+  elapsed_ms: number;
+  summary: ProperNounStats;
+}> {
+  const res = await authFetch(`${BASE}/proper-nouns/run-sonnet`, {
+    method: 'POST',
+    body: JSON.stringify(opts),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Stage 2 (Sonnet) failed');
+  return data;
+}
+
+export async function reviewProperNoun(
+  id: number,
+  body: { action: 'approved' | 'rejected' | 'edited'; translation?: string | null; notes?: string | null },
+): Promise<{ ok: true; candidate: ProperNounCandidate }> {
+  const res = await authFetch(`${BASE}/proper-nouns/${id}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Review failed');
+  return data;
+}
+
+export async function applyProperNoun(
+  id: number,
+): Promise<{ ok: true; candidate: ProperNounCandidate; summary: ProperNounStats }> {
+  const res = await authFetch(`${BASE}/proper-nouns/${id}/apply`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Apply failed');
+  return data;
+}
+
+export async function revertProperNoun(
+  id: number,
+): Promise<{ ok: true; reverted: number; candidate: ProperNounCandidate; summary: ProperNounStats }> {
+  const res = await authFetch(`${BASE}/proper-nouns/${id}/revert`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Revert failed');
+  return data;
+}
+
 // --------------- Reciters ---------------
 
 export interface Reciter {

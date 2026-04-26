@@ -367,6 +367,79 @@ def _ensure_term_surveys_table():
 _ensure_term_surveys_table()
 
 
+def _ensure_proper_noun_candidates_table():
+    """Per-occurrence candidates flagged as potentially-mistranslated proper
+    nouns (e.g. 'Abu Lahab' kept verbatim when literal Arabic is descriptive).
+    Populated by proper_noun_detect.py (Stage 0 + Stage 1) and
+    proper_noun_adjudicate.py (Stage 2). Reviewed via the admin UI."""
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS proper_noun_candidates (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                word_pos INTEGER NOT NULL,
+
+                arabic_word TEXT,
+                root_buckwalter TEXT,
+                lemma_buckwalter TEXT,
+                surface_translation TEXT,
+                -- 'compound' (Abu/Ibn/Dhu + X), 'single' (lone capitalized
+                -- transliteration), 'phrase' (multi-token name spans)
+                candidate_type TEXT,
+
+                -- Stage 0: cheap mechanical evidence
+                is_indefinite INTEGER DEFAULT 0,
+                root_quran_frequency INTEGER,
+                has_compound_marker TEXT,
+
+                -- Stage 1: Ollama cloud (qwen + gptoss)
+                qwen_verdict TEXT,
+                qwen_confidence REAL,
+                qwen_reasoning TEXT,
+                gptoss_verdict TEXT,
+                gptoss_confidence REAL,
+                gptoss_reasoning TEXT,
+                stage1_run_at TEXT,
+
+                -- Stage 2: Sonnet adjudication
+                sonnet_verdict TEXT,
+                sonnet_alternatives_json TEXT,
+                sonnet_reasoning TEXT,
+                sonnet_supporting_refs_json TEXT,
+                stage2_run_at TEXT,
+
+                -- Operator review
+                operator_action TEXT,
+                operator_translation TEXT,
+                operator_notes TEXT,
+                reviewed_at TEXT,
+
+                -- Application
+                applied_at TEXT,
+                applied_to_verses_json TEXT,
+
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(chapter, verse, word_pos)
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pnc_status "
+            "ON proper_noun_candidates(operator_action, sonnet_verdict)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_pnc_root "
+            "ON proper_noun_candidates(root_buckwalter)"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_proper_noun_candidates_table()
+
+
 def _ensure_judge_columns():
     """Add preferred_translation and preferred_source columns if missing."""
     conn = get_db()
@@ -4573,7 +4646,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/quran-vocabulary/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/vocabulary(/[^/]+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
 
@@ -6454,6 +6527,390 @@ def admin_vocab_revert_verse_translations(root_bw: str):
             "reverted": reverted,
             "revisions": _vocab_count_revisions(conn, root_bw),
         })
+    finally:
+        conn.close()
+
+
+# =========================================================================
+# Admin: Proper Nouns review queue
+# -------------------------------------------------------------------------
+# Two-stage detection pipeline. Stage 0 (mechanical) and Stage 1 (Ollama
+# cloud) live in proper_noun_detect.py; Stage 2 (Sonnet adjudication) in
+# proper_noun_adjudicate.py. The endpoints here drive them from the admin
+# UI and host the operator review + apply/revert flow.
+#
+# Apply pattern: on approve, we capture the row's CURRENT preferred_
+# translation in applied_to_verses_json so revert is self-contained — no
+# need for a parallel *_original_pn column collision with the vocab
+# studio's backups.
+# =========================================================================
+
+
+def _pn_get_stats(conn) -> dict:
+    """Counts that drive the dashboard at the top of the review queue."""
+    row = conn.execute(
+        "SELECT "
+        "  COUNT(*) AS total, "
+        "  SUM(CASE WHEN stage1_run_at IS NOT NULL THEN 1 ELSE 0 END) AS stage1_done, "
+        "  SUM(CASE WHEN stage2_run_at IS NOT NULL THEN 1 ELSE 0 END) AS stage2_done, "
+        "  SUM(CASE WHEN sonnet_verdict = 'literal' THEN 1 ELSE 0 END) AS literal, "
+        "  SUM(CASE WHEN sonnet_verdict = 'name' THEN 1 ELSE 0 END) AS name, "
+        "  SUM(CASE WHEN sonnet_verdict = 'ambiguous' THEN 1 ELSE 0 END) AS ambiguous, "
+        "  SUM(CASE WHEN operator_action = 'approved' THEN 1 ELSE 0 END) AS approved, "
+        "  SUM(CASE WHEN operator_action = 'rejected' THEN 1 ELSE 0 END) AS rejected, "
+        "  SUM(CASE WHEN applied_at IS NOT NULL THEN 1 ELSE 0 END) AS applied "
+        "FROM proper_noun_candidates"
+    ).fetchone()
+    return {k: int(row[k] or 0) for k in row.keys()}
+
+
+def _pn_serialize(c) -> dict:
+    """Turn a sqlite3.Row into a JSON-safe dict, parsing JSON columns."""
+    out = dict(c)
+    for k in ("sonnet_alternatives_json", "sonnet_supporting_refs_json", "applied_to_verses_json"):
+        try:
+            out[k.replace("_json", "")] = json.loads(out[k]) if out.get(k) else []
+        except Exception:
+            out[k.replace("_json", "")] = []
+    return out
+
+
+@app.route("/api/admin/proper-nouns", methods=["GET"])
+@admin_required
+def admin_pn_list():
+    """List candidates with optional filters.
+    Query params:
+      status        = pending | adjudicated | approved | rejected | applied
+      verdict       = literal | name | ambiguous (Sonnet's verdict)
+      type          = compound | single
+      root          = Buckwalter root
+      limit         = (default 200; max 1000)
+      offset        = (default 0)
+      order         = recent | rooted | random (default: rooted = root, ref)
+    """
+    status = (request.args.get("status") or "").strip().lower()
+    verdict = (request.args.get("verdict") or "").strip().lower()
+    ctype = (request.args.get("type") or "").strip().lower()
+    root = (request.args.get("root") or "").strip()
+    limit = max(1, min(1000, int(request.args.get("limit") or 200)))
+    offset = max(0, int(request.args.get("offset") or 0))
+    order = (request.args.get("order") or "rooted").strip().lower()
+
+    where, params = ["1=1"], []
+    if status == "pending":
+        where.append("stage2_run_at IS NULL")
+    elif status == "adjudicated":
+        where.append("stage2_run_at IS NOT NULL AND operator_action IS NULL")
+    elif status == "approved":
+        where.append("operator_action = 'approved' AND applied_at IS NULL")
+    elif status == "rejected":
+        where.append("operator_action = 'rejected'")
+    elif status == "applied":
+        where.append("applied_at IS NOT NULL")
+    if verdict in ("literal", "name", "ambiguous"):
+        where.append("sonnet_verdict = ?")
+        params.append(verdict)
+    if ctype in ("compound", "single", "phrase"):
+        where.append("candidate_type = ?")
+        params.append(ctype)
+    if root:
+        where.append("root_buckwalter = ?")
+        params.append(root)
+
+    order_sql = {
+        "recent": "ORDER BY id DESC",
+        "rooted": "ORDER BY root_buckwalter, chapter, verse, word_pos",
+        "random": "ORDER BY RANDOM()",
+    }.get(order, "ORDER BY root_buckwalter, chapter, verse, word_pos")
+
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM proper_noun_candidates WHERE "
+            + " AND ".join(where) + f" {order_sql} LIMIT ? OFFSET ?",
+            (*params, limit, offset),
+        ).fetchall()
+        total = conn.execute(
+            "SELECT COUNT(*) AS n FROM proper_noun_candidates WHERE "
+            + " AND ".join(where), params
+        ).fetchone()["n"]
+        return jsonify({
+            "candidates": [_pn_serialize(r) for r in rows],
+            "total_matched": int(total),
+            "limit": limit, "offset": offset,
+            "stats": _pn_get_stats(conn),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/proper-nouns/detect", methods=["POST"])
+@admin_required
+def admin_pn_detect():
+    """Stage 0 mechanical pre-filter. Sync — runs in ~10-30s; inserts
+    new rows where missing (idempotent). Returns counts."""
+    import proper_noun_detect as pnd
+    conn = get_db()
+    try:
+        stats = pnd.stage0_detect(conn)
+        return jsonify({"ok": True, **stats, "summary": _pn_get_stats(conn)})
+    except Exception as e:
+        return jsonify({"error": f"Stage 0 failed: {e}"}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/proper-nouns/run-ollama", methods=["POST"])
+@admin_required
+def admin_pn_run_ollama():
+    """Stage 1: run Ollama cloud (Qwen and/or gpt-oss) on a chunk of
+    candidates without stage1_run_at.
+    Body: { limit?: 5, models?: 'qwen' | 'qwen,gptoss', refresh?: false }"""
+    body = request.get_json(silent=True) or {}
+    limit = max(1, min(20, int(body.get("limit") or 5)))
+    models = body.get("models") or "qwen"
+    if isinstance(models, str):
+        models = [m.strip() for m in models.split(",") if m.strip()]
+    refresh = bool(body.get("refresh"))
+
+    conn = get_db()
+    try:
+        api_key_row = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key='ollama_api_key'"
+        ).fetchone()
+        api_key = (api_key_row["value"] if api_key_row else "") or ""
+        if not api_key:
+            return jsonify({"error": "No ollama_api_key in admin_preferences."}), 400
+
+        import proper_noun_detect as pnd
+        # Find pending count BEFORE running so the UI knows remaining
+        pending_before = conn.execute(
+            "SELECT COUNT(*) AS n FROM proper_noun_candidates "
+            + ("" if refresh else "WHERE stage1_run_at IS NULL")
+        ).fetchone()["n"]
+
+        t0 = time.time()
+        stats = pnd.stage1_run(conn, api_key, models, limit, refresh)
+        elapsed_ms = int((time.time() - t0) * 1000)
+
+        remaining = max(0, int(pending_before) - int(stats.get("total", 0)))
+        return jsonify({
+            "ok": True,
+            "processed": int(stats.get("total", 0)),
+            "qwen_ok": stats.get("qwen_ok", 0),
+            "qwen_err": stats.get("qwen_err", 0),
+            "gptoss_ok": stats.get("gptoss_ok", 0),
+            "gptoss_err": stats.get("gptoss_err", 0),
+            "remaining": remaining,
+            "elapsed_ms": elapsed_ms,
+            "summary": _pn_get_stats(conn),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/proper-nouns/run-sonnet", methods=["POST"])
+@admin_required
+def admin_pn_run_sonnet():
+    """Stage 2: Claude Sonnet adjudication on a chunk of candidates that
+    have stage1 done but not stage2. Body: { limit?: 5, only_disagreement?: false, refresh?: false }"""
+    body = request.get_json(silent=True) or {}
+    limit = max(1, min(20, int(body.get("limit") or 5)))
+    refresh = bool(body.get("refresh"))
+    only_disagreement = bool(body.get("only_disagreement"))
+
+    api_key = _get_claude_api_key()
+    if not api_key:
+        return jsonify({"error": "No CLAUDE_API_KEY in admin_preferences."}), 400
+
+    conn = get_db()
+    try:
+        import proper_noun_adjudicate as pna
+        targets = pna.collect_targets(conn, refresh, only_disagreement)
+        total_pending_before = len(targets)
+        batch = targets[:limit]
+
+        t0 = time.time()
+        adjudicated, errors = 0, 0
+        errors_detail: list[dict] = []
+        for c in batch:
+            ref = f"{c['chapter']}:{c['verse']}/p{c['word_pos']}"
+            try:
+                outcome = pna.adjudicate_one(conn, c, pna.DEFAULT_MODEL, api_key, dry_run=False)
+                if outcome == "adjudicated":
+                    adjudicated += 1
+                else:
+                    errors += 1
+                    errors_detail.append({"ref": ref, "message": outcome})
+            except Exception as e:
+                errors += 1
+                msg = f"{type(e).__name__}: {e}"
+                errors_detail.append({"ref": ref, "message": msg[:300]})
+                print(f"[pn/sonnet] {ref} {msg}", file=sys.stderr)
+
+        elapsed_ms = int((time.time() - t0) * 1000)
+        remaining = max(0, total_pending_before - len(batch))
+        return jsonify({
+            "ok": True,
+            "processed": len(batch),
+            "adjudicated": adjudicated,
+            "errors": errors,
+            "errors_detail": errors_detail[:10],
+            "remaining": remaining,
+            "elapsed_ms": elapsed_ms,
+            "summary": _pn_get_stats(conn),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/proper-nouns/<int:cid>", methods=["POST"])
+@admin_required
+def admin_pn_review(cid: int):
+    """Operator review action.
+    Body: { action: 'approved'|'rejected'|'edited', translation?: str, notes?: str }"""
+    body = request.get_json(silent=True) or {}
+    action = (body.get("action") or "").strip().lower()
+    if action not in ("approved", "rejected", "edited"):
+        return jsonify({"error": "action must be approved/rejected/edited"}), 400
+    translation = (body.get("translation") or "").strip() or None
+    notes = (body.get("notes") or "").strip() or None
+    if action in ("approved", "edited") and not translation:
+        return jsonify({"error": "approved/edited actions require a translation"}), 400
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM proper_noun_candidates WHERE id = ?", (cid,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "candidate not found"}), 404
+        conn.execute(
+            "UPDATE proper_noun_candidates SET "
+            "  operator_action = ?, operator_translation = ?, operator_notes = ?, "
+            "  reviewed_at = datetime('now') "
+            "WHERE id = ?",
+            (action, translation, notes, cid),
+        )
+        conn.commit()
+        updated = conn.execute(
+            "SELECT * FROM proper_noun_candidates WHERE id = ?", (cid,)
+        ).fetchone()
+        return jsonify({"ok": True, "candidate": _pn_serialize(updated)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/proper-nouns/<int:cid>/apply", methods=["POST"])
+@admin_required
+def admin_pn_apply(cid: int):
+    """Apply an approved/edited candidate's translation to ai_word_meanings.
+    Captures the prior preferred_translation so revert is self-contained.
+    Returns the updated candidate row."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM proper_noun_candidates WHERE id = ?", (cid,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "candidate not found"}), 404
+        if row["operator_action"] not in ("approved", "edited"):
+            return jsonify({"error": "candidate is not approved/edited"}), 400
+        translation = row["operator_translation"]
+        if not translation:
+            return jsonify({"error": "no operator_translation set"}), 400
+        if row["applied_at"]:
+            return jsonify({"error": "already applied"}), 409
+
+        # Capture the original BEFORE updating.
+        wm = conn.execute(
+            "SELECT id, preferred_translation, preferred_source "
+            "FROM ai_word_meanings "
+            "WHERE chapter = ? AND verse = ? AND word_pos = ?",
+            (row["chapter"], row["verse"], row["word_pos"]),
+        ).fetchone()
+        if not wm:
+            return jsonify({
+                "error": (
+                    f"no ai_word_meanings row at "
+                    f"{row['chapter']}:{row['verse']}/p{row['word_pos']} — "
+                    "cannot apply"
+                )
+            }), 404
+
+        applied_to: list[dict] = [{
+            "chapter": row["chapter"],
+            "verse": row["verse"],
+            "word_pos": row["word_pos"],
+            "original_translation": wm["preferred_translation"],
+            "original_source": wm["preferred_source"],
+        }]
+        conn.execute(
+            "UPDATE ai_word_meanings SET "
+            "  preferred_translation = ?, "
+            "  preferred_source = 'proper_noun_pipeline' "
+            "WHERE id = ?",
+            (translation, wm["id"]),
+        )
+        conn.execute(
+            "UPDATE proper_noun_candidates SET "
+            "  applied_at = datetime('now'), applied_to_verses_json = ? "
+            "WHERE id = ?",
+            (json.dumps(applied_to), cid),
+        )
+        conn.commit()
+        updated = conn.execute(
+            "SELECT * FROM proper_noun_candidates WHERE id = ?", (cid,)
+        ).fetchone()
+        return jsonify({"ok": True, "candidate": _pn_serialize(updated),
+                        "summary": _pn_get_stats(conn)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/proper-nouns/<int:cid>/revert", methods=["POST"])
+@admin_required
+def admin_pn_revert(cid: int):
+    """Undo a previously-applied candidate. Reads applied_to_verses_json
+    and restores the saved preferred_translation/preferred_source on each
+    ai_word_meanings row, then clears applied_at."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM proper_noun_candidates WHERE id = ?", (cid,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "candidate not found"}), 404
+        if not row["applied_at"]:
+            return jsonify({"error": "candidate is not applied"}), 400
+        try:
+            applied = json.loads(row["applied_to_verses_json"] or "[]")
+        except Exception:
+            applied = []
+        for entry in applied:
+            conn.execute(
+                "UPDATE ai_word_meanings SET "
+                "  preferred_translation = ?, preferred_source = ? "
+                "WHERE chapter = ? AND verse = ? AND word_pos = ?",
+                (
+                    entry.get("original_translation"),
+                    entry.get("original_source"),
+                    entry["chapter"], entry["verse"], entry["word_pos"],
+                ),
+            )
+        conn.execute(
+            "UPDATE proper_noun_candidates SET "
+            "  applied_at = NULL, applied_to_verses_json = NULL "
+            "WHERE id = ?",
+            (cid,),
+        )
+        conn.commit()
+        updated = conn.execute(
+            "SELECT * FROM proper_noun_candidates WHERE id = ?", (cid,)
+        ).fetchone()
+        return jsonify({"ok": True, "reverted": len(applied),
+                        "candidate": _pn_serialize(updated),
+                        "summary": _pn_get_stats(conn)})
     finally:
         conn.close()
 

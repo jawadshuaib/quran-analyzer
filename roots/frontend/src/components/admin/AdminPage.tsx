@@ -16,8 +16,10 @@ import PipelineManager from './PipelineManager';
 import SchedulerPage from './SchedulerPage';
 import AdminVocabulary from './AdminVocabulary';
 import AdminVocabularyStudio from './AdminVocabularyStudio';
+import AdminRevisions from './AdminRevisions';
+import AdminProperNouns from './AdminProperNouns';
 
-type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'vocabulary' | 'vocabulary-studio';
+type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -31,9 +33,11 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/media\/?$/.test(path)) return 'media';
   if (/^\/admin\/scheduler\/?$/.test(path)) return 'scheduler';
   if (/^\/admin\/settings\/?$/.test(path)) return 'settings';
+  if (/^\/admin\/revisions\/?$/.test(path)) return 'revisions';
   if (/^\/admin\/vocabulary\/?$/.test(path)) return 'vocabulary';
   const m = path.match(/^\/admin\/vocabulary\/([^/]+)\/?$/);
   if (m) return 'vocabulary-studio';
+  if (/^\/admin\/proper-nouns\/?$/.test(path)) return 'proper-nouns';
   return 'dashboard';
 }
 
@@ -124,10 +128,10 @@ export default function AdminPage() {
               Scheduler
             </a>
             <a
-              href="/admin/vocabulary"
-              className={`text-sm ${route === 'vocabulary' || route === 'vocabulary-studio' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+              href="/admin/revisions"
+              className={`text-sm ${route === 'revisions' || route === 'vocabulary' || route === 'vocabulary-studio' || route === 'proper-nouns' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
             >
-              Vocabulary
+              Revisions
             </a>
             <a
               href="/admin/settings"
@@ -166,6 +170,18 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+      {(route === 'vocabulary' || route === 'vocabulary-studio' || route === 'proper-nouns') && (
+        <div className="max-w-5xl mx-auto px-4 py-2">
+          <div className="flex items-center gap-1.5 text-xs text-stone-400">
+            <a href="/admin/revisions" className="hover:text-stone-600">Revisions</a>
+            <span>/</span>
+            <span className="text-stone-600">
+              {(route === 'vocabulary' || route === 'vocabulary-studio') && 'Vocabulary'}
+              {route === 'proper-nouns' && 'Proper Nouns'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="max-w-5xl mx-auto px-4 py-8">
@@ -186,8 +202,10 @@ export default function AdminPage() {
         {route === 'explanations' && <ExplanationBuilder />}
         {route === 'generate-explanation' && <GenerateExplanationVideo />}
         {route === 'pipelines' && <PipelineManager />}
+        {route === 'revisions' && <AdminRevisions />}
         {route === 'vocabulary' && <AdminVocabulary />}
         {route === 'vocabulary-studio' && <AdminVocabularyStudio />}
+        {route === 'proper-nouns' && <AdminProperNouns />}
       </div>
     </div>
   );

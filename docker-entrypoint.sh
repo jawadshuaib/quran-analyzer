@@ -275,6 +275,23 @@ try:
             )
             print(f'  Backed up {len(rows)} term_surveys rows')
 
+    # 1b. proper_noun_candidates (full table — admin-curated review queue) -
+    if has_table(conn, 'proper_noun_candidates'):
+        cols = [r[1] for r in conn.execute('PRAGMA table_info(proper_noun_candidates)')]
+        col_list = ','.join(f'\"{c}\"' for c in cols)
+        schema = conn.execute(
+            \"SELECT sql FROM sqlite_master WHERE type='table' AND name='proper_noun_candidates'\"
+        ).fetchone()[0]
+        bak_conn.execute(schema)
+        rows = conn.execute(f'SELECT {col_list} FROM proper_noun_candidates').fetchall()
+        if rows:
+            placeholders = ','.join(['?'] * len(cols))
+            bak_conn.executemany(
+                f'INSERT INTO proper_noun_candidates ({col_list}) VALUES ({placeholders})',
+                rows,
+            )
+            print(f'  Backed up {len(rows)} proper_noun_candidates rows')
+
     # 2. ai_word_meanings (sparse — only revised) --------------------------
     if has_table(conn, 'ai_word_meanings') and has_column(conn, 'ai_word_meanings', 'meaning_short_original'):
         # We need the columns we'll restore + the natural key
@@ -619,6 +636,28 @@ try:
                 print(f'  Restored {count} term_surveys rows')
 except Exception as e:
     print(f'  [term_surveys] restore error: {e}')
+
+# 1b. proper_noun_candidates — full-table replace (no seed data exists) -----
+try:
+    if has_table(bak_conn, 'proper_noun_candidates') and has_table(dst_conn, 'proper_noun_candidates'):
+        cols = common_cols(bak_conn, 'proper_noun_candidates', dst_conn, 'proper_noun_candidates')
+        if cols:
+            col_list = ','.join(f'\"{c}\"' for c in cols)
+            placeholders = ','.join(['?'] * len(cols))
+            rows = bak_conn.execute(f'SELECT {col_list} FROM proper_noun_candidates').fetchall()
+            count = 0
+            # Wipe the (probably-empty) seed copy first, then bulk-insert.
+            dst_conn.execute('DELETE FROM proper_noun_candidates')
+            for row in rows:
+                dst_conn.execute(
+                    f'INSERT INTO proper_noun_candidates ({col_list}) VALUES ({placeholders})',
+                    row,
+                )
+                count += 1
+            if count:
+                print(f'  Restored {count} proper_noun_candidates rows')
+except Exception as e:
+    print(f'  [proper_noun_candidates] restore error: {e}')
 
 # 2. ai_word_meanings — UPDATE matching rows -------------------------------
 try:
