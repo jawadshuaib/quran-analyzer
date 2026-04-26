@@ -200,38 +200,36 @@ def build_prompt(conn, candidate: dict) -> str:
 
 
 def call_claude(model: str, system: str, user: str, api_key: str) -> str:
-    last_err = None
-    for attempt in range(1, 4):
-        try:
-            resp = requests.post(
-                ANTHROPIC_URL,
-                headers={
-                    "Content-Type": "application/json",
-                    "x-api-key": api_key,
-                    "anthropic-version": "2023-06-01",
-                },
-                json={
-                    "model": model,
-                    "max_tokens": 2500,
-                    "temperature": 0.2,
-                    "system": system,
-                    "messages": [{"role": "user", "content": user}],
-                },
-                timeout=90,
-            )
-        except requests.RequestException as e:
-            last_err = f"req: {e}"
-        else:
-            if resp.status_code == 200:
-                return "".join(
-                    b.get("text", "")
-                    for b in resp.json().get("content", [])
-                    if b.get("type") == "text"
-                ).strip()
-            last_err = f"HTTP {resp.status_code}: {resp.text[:300]}"
-        if attempt < 3:
-            time.sleep(2 ** attempt)
-    raise RuntimeError(f"Claude failed: {last_err}")
+    """Single-attempt Sonnet call with a 45s timeout. The frontend
+    retry-with-backoff loop handles transient failures; doing multi-
+    attempt retries here just stretches a slow chunk past the proxy
+    timeout in front of the API."""
+    try:
+        resp = requests.post(
+            ANTHROPIC_URL,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": model,
+                "max_tokens": 2500,
+                "temperature": 0.2,
+                "system": system,
+                "messages": [{"role": "user", "content": user}],
+            },
+            timeout=45,
+        )
+    except requests.RequestException as e:
+        raise RuntimeError(f"Claude request failed: {e}") from e
+    if resp.status_code != 200:
+        raise RuntimeError(f"Claude HTTP {resp.status_code}: {resp.text[:300]}")
+    return "".join(
+        b.get("text", "")
+        for b in resp.json().get("content", [])
+        if b.get("type") == "text"
+    ).strip()
 
 
 def parse_response(raw: str) -> dict:

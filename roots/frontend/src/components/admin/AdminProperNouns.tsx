@@ -168,9 +168,11 @@ export default function AdminProperNouns() {
       while (ollamaRunningRef.current) {
         let r;
         try {
-          // Smaller batch keeps each request well under typical proxy
-          // timeouts (~60s) — Qwen 397B can take 10-15s per candidate.
-          r = await runProperNounsOllama({ limit: 3, models: 'qwen' });
+          // One candidate per chunk — Qwen 397B's response time on
+          // Ollama Cloud is variable (10-30s) and any limit > 1 risks
+          // exceeding the proxy timeout. The auto-loop overhead is
+          // negligible compared to the LLM call itself.
+          r = await runProperNounsOllama({ limit: 1, models: 'qwen' });
           consecutiveFailures = 0;
         } catch (chunkErr) {
           consecutiveFailures++;

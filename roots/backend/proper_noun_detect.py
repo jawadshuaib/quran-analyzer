@@ -30,7 +30,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 import re
 import sqlite3
 import sys
@@ -660,7 +659,12 @@ def _build_stage1_prompt(conn, candidate: dict) -> str:
     return "\n".join(parts)
 
 
-def call_ollama(model: str, system: str, user: str, api_key: str, timeout: int = 120) -> tuple[str, int]:
+def call_ollama(model: str, system: str, user: str, api_key: str, timeout: int = 45) -> tuple[str, int]:
+    """Single-attempt Ollama Cloud call with a tight per-request timeout
+    so it can't blow past the proxy timeout in front of the API. The
+    frontend's auto-loop has its own retry-with-backoff layer; doing
+    multi-attempt retries here just stretches the total request time
+    past what Cloudflare/Caddy will tolerate."""
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     payload = {
         "model": model,
@@ -672,21 +676,14 @@ def call_ollama(model: str, system: str, user: str, api_key: str, timeout: int =
         "options": {"temperature": 0.2},
     }
     t0 = time.time()
-    last_err = None
-    for attempt in range(1, 4):
-        try:
-            resp = requests.post(OLLAMA_CLOUD_URL, headers=headers, json=payload, timeout=timeout)
-            if resp.status_code == 200:
-                content = resp.json().get("message", {}).get("content", "")
-                return content, int((time.time() - t0) * 1000)
-            if 400 <= resp.status_code < 500 and resp.status_code != 429:
-                raise RuntimeError(f"Ollama {resp.status_code}: {resp.text[:300]}")
-            last_err = f"HTTP {resp.status_code}"
-        except requests.RequestException as e:
-            last_err = f"req: {e}"
-        if attempt < 3:
-            time.sleep(random.uniform(2, 6) * attempt)
-    raise RuntimeError(f"Ollama failed: {last_err}")
+    try:
+        resp = requests.post(OLLAMA_CLOUD_URL, headers=headers, json=payload, timeout=timeout)
+    except requests.RequestException as e:
+        raise RuntimeError(f"Ollama request failed: {e}") from e
+    if resp.status_code != 200:
+        raise RuntimeError(f"Ollama HTTP {resp.status_code}: {resp.text[:300]}")
+    content = resp.json().get("message", {}).get("content", "")
+    return content, int((time.time() - t0) * 1000)
 
 
 def _parse_stage1_response(raw: str) -> dict:
