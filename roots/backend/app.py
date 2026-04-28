@@ -102,6 +102,70 @@ def _surah_name(ch: int) -> str:
     return SURAH_NAMES[ch] if ch < len(SURAH_NAMES) else f"Surah {ch}"
 
 
+# Arabic surah names — index 0 unused so SURAH_NAMES_ARABIC[1] = الفاتحة
+SURAH_NAMES_ARABIC = [
+    "", "الفاتحة", "البقرة", "آل عمران", "النساء", "المائدة",
+    "الأنعام", "الأعراف", "الأنفال", "التوبة", "يونس",
+    "هود", "يوسف", "الرعد", "إبراهيم", "الحجر",
+    "النحل", "الإسراء", "الكهف", "مريم", "طه",
+    "الأنبياء", "الحج", "المؤمنون", "النور", "الفرقان",
+    "الشعراء", "النمل", "القصص", "العنكبوت", "الروم",
+    "لقمان", "السجدة", "الأحزاب", "سبأ", "فاطر",
+    "يس", "الصافات", "ص", "الزمر", "غافر",
+    "فصلت", "الشورى", "الزخرف", "الدخان", "الجاثية",
+    "الأحقاف", "محمد", "الفتح", "الحجرات", "ق",
+    "الذاريات", "الطور", "النجم", "القمر", "الرحمن",
+    "الواقعة", "الحديد", "المجادلة", "الحشر", "الممتحنة",
+    "الصف", "الجمعة", "المنافقون", "التغابن", "الطلاق",
+    "التحريم", "الملك", "القلم", "الحاقة", "المعارج",
+    "نوح", "الجن", "المزمل", "المدثر", "القيامة",
+    "الإنسان", "المرسلات", "النبأ", "النازعات", "عبس",
+    "التكوير", "الانفطار", "المطففين", "الانشقاق", "البروج",
+    "الطارق", "الأعلى", "الغاشية", "الفجر", "البلد",
+    "الشمس", "الليل", "الضحى", "الشرح", "التين",
+    "العلق", "القدر", "البينة", "الزلزلة", "العاديات",
+    "القارعة", "التكاثر", "العصر", "الهمزة", "الفيل",
+    "قريش", "الماعون", "الكوثر", "الكافرون", "النصر",
+    "المسد", "الإخلاص", "الفلق", "الناس",
+]
+
+# Short English meaning of each surah's name. Used by the homepage
+# Surah list and reader header. Index 0 unused.
+SURAH_MEANINGS = [
+    "", "The Opening", "The Cow", "Family of Imran", "The Women", "The Table Spread",
+    "The Cattle", "The Heights", "The Spoils of War", "The Repentance", "Jonah",
+    "Hud", "Joseph", "The Thunder", "Abraham", "The Rocky Tract",
+    "The Bee", "The Night Journey", "The Cave", "Mary", "Ta-Ha",
+    "The Prophets", "The Pilgrimage", "The Believers", "The Light", "The Criterion",
+    "The Poets", "The Ant", "The Stories", "The Spider", "The Romans",
+    "Luqman", "The Prostration", "The Confederates", "Sheba", "The Originator",
+    "Ya-Sin", "Those Who Set the Ranks", "Sad", "The Troops", "The Forgiver",
+    "Explained in Detail", "The Consultation", "The Gold Adornments", "The Smoke", "The Crouching",
+    "The Curved Sandhills", "Muhammad", "The Victory", "The Chambers", "Qaf",
+    "The Wind That Scatter", "The Mount", "The Star", "The Moon", "The Most Merciful",
+    "The Inevitable", "The Iron", "The Pleading Woman", "The Gathering", "The Examined One",
+    "The Ranks", "Friday", "The Hypocrites", "Mutual Disillusion", "The Divorce",
+    "The Prohibition", "The Sovereignty", "The Pen", "The Inevitable Reality", "The Ascending Stairways",
+    "Noah", "The Jinn", "The Enshrouded One", "The Cloaked One", "The Resurrection",
+    "Man", "Those Sent Forth", "The Tidings", "Those Who Pull Out", "He Frowned",
+    "The Folding Up", "The Cleaving", "The Defrauding", "The Splitting", "The Constellations",
+    "The Night Visitor", "The Most High", "The Overwhelming Calamity", "The Dawn", "The City",
+    "The Sun", "The Night", "The Forenoon", "The Relief", "The Fig",
+    "The Clinging Substance", "The Power", "The Clear Proof", "The Earthquake", "The Coursers",
+    "The Striking Calamity", "Rivalry in Increase", "The Time", "The Slanderer", "The Elephant",
+    "Quraysh", "Small Kindnesses", "The Abundance", "The Disbelievers", "The Help",
+    "The Palm Fiber", "The Sincerity", "The Daybreak", "Mankind",
+]
+
+
+def _surah_arabic(ch: int) -> str:
+    return SURAH_NAMES_ARABIC[ch] if ch < len(SURAH_NAMES_ARABIC) else ""
+
+
+def _surah_meaning(ch: int) -> str:
+    return SURAH_MEANINGS[ch] if ch < len(SURAH_MEANINGS) else ""
+
+
 def get_db():
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
@@ -2828,6 +2892,8 @@ def get_verse(surah: int, ayah: int):
 
 @app.route("/api/surahs")
 def get_surahs():
+    """List all 114 surahs with English + Arabic names + verse counts.
+    Used by the search bar surah picker and the homepage reader index."""
     conn = get_db()
     try:
         rows = conn.execute(
@@ -2837,14 +2903,84 @@ def get_surahs():
         surahs = []
         for row in rows:
             ch = row["chapter"]
-            name = _surah_name(ch)
             surahs.append({
                 "number": ch,
-                "name": name,
+                "name": _surah_name(ch),
+                "name_arabic": _surah_arabic(ch),
+                "meaning": _surah_meaning(ch),
                 "verse_count": row["verse_count"],
             })
 
         return jsonify(surahs)
+    finally:
+        conn.close()
+
+
+@app.route("/api/surah/<int:surah>")
+def get_surah(surah: int):
+    """Bulk-fetch every verse of one surah for the reader page. Returns
+    Arabic text + English translation + flags indicating which verses
+    have AI translation notes / grammar notes available (for the gutter
+    icons in reader mode). Per-word data is omitted; the reader fetches
+    that on demand only when the user has the word-by-word toggle on
+    and is viewing the page (we still load it via /api/verse/<ref> per
+    verse since most readers don't need it).
+    """
+    if not 1 <= surah <= 114:
+        return jsonify({"error": "surah must be 1-114"}), 400
+    conn = get_db()
+    try:
+        verse_rows = conn.execute(
+            "SELECT verse, text_uthmani FROM verses "
+            "WHERE chapter = ? ORDER BY verse",
+            (surah,),
+        ).fetchall()
+        if not verse_rows:
+            return jsonify({"error": f"surah {surah} not found"}), 404
+
+        # Pull translations + departure-note flags in bulk
+        trans_rows = conn.execute(
+            "SELECT verse, translation_text, revised_text, departure_notes "
+            "FROM ai_translations WHERE chapter = ?",
+            (surah,),
+        ).fetchall()
+        trans_by_verse = {
+            r["verse"]: {
+                "translation": (r["revised_text"] or r["translation_text"] or ""),
+                "has_translation_note": bool(r["departure_notes"]),
+            }
+            for r in trans_rows
+        }
+
+        # Grammar-note presence (just a flag, not the full markdown)
+        gn_rows = conn.execute(
+            "SELECT verse FROM ai_grammar_notes "
+            "WHERE chapter = ? AND notes_markdown IS NOT NULL "
+            "  AND TRIM(notes_markdown) != ''",
+            (surah,),
+        ).fetchall()
+        has_grammar = {r["verse"] for r in gn_rows}
+
+        verses = []
+        for r in verse_rows:
+            v = r["verse"]
+            tr = trans_by_verse.get(v, {})
+            verses.append({
+                "verse": v,
+                "text_uthmani": _strip_bismillah(r["text_uthmani"], surah, v),
+                "translation": tr.get("translation", ""),
+                "has_translation_note": bool(tr.get("has_translation_note")),
+                "has_grammar_note": v in has_grammar,
+            })
+
+        return jsonify({
+            "surah": surah,
+            "name": _surah_name(surah),
+            "name_arabic": _surah_arabic(surah),
+            "meaning": _surah_meaning(surah),
+            "verse_count": len(verses),
+            "verses": verses,
+        })
     finally:
         conn.close()
 
@@ -4646,6 +4782,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/quran-vocabulary/?$", path):
         return True
+    if re.match(r"^/read/\d+(:\d+)?/?$", path):
+        return True
     if re.match(r"^/admin(/settings|/scheduler|/revisions|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
@@ -4680,6 +4818,29 @@ def _get_seo_meta(path: str) -> dict:
             "description": "Terms of service for al-nuqta.com — permitted use, disclaimers, and scholarly caveats.",
             "og_type": "article",
             "canonical": SITE_URL + "/terms",
+            "robots": "index, follow",
+        }
+
+    # Reader page: /read/2 or /read/2:255
+    m = re.match(r"^/read/(\d+)(?::(\d+))?/?$", path)
+    if m:
+        surah = int(m.group(1))
+        verse_anchor = int(m.group(2)) if m.group(2) else None
+        name = _surah_name(surah)
+        arabic = _surah_arabic(surah)
+        meaning = _surah_meaning(surah)
+        canonical = f"{SITE_URL}/read/{surah}"
+        if verse_anchor:
+            canonical += f":{verse_anchor}"
+        return {
+            "title": f"Read Surah {name} ({arabic}) | al-nuqta",
+            "description": (
+                f"Read Surah {name} — {meaning} — verse by verse "
+                f"with English translation. Quranic Arabic with optional "
+                f"word-by-word, in-line notes, and bookmarks."
+            ),
+            "og_type": "article",
+            "canonical": canonical,
             "robots": "index, follow",
         }
 

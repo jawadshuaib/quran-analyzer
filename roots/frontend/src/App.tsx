@@ -24,6 +24,7 @@ import TermsPage from './components/TermsPage';
 import GrammarGlossaryPage from './components/GrammarGlossaryPage';
 import QuranVocabularyPage from './components/QuranVocabularyPage';
 import LearningPage from './components/learning/LearningPage';
+import ReaderPage from './components/reader/ReaderPage';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
 import SavedItemsPanel from './components/SavedItemsPanel';
@@ -77,6 +78,15 @@ function isLearningPath(): boolean {
   return /^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(window.location.pathname);
 }
 
+function getReaderFromPath(): { surah: number; verse?: number } | null {
+  const m = window.location.pathname.match(/^\/read\/(\d+)(?::(\d+))?\/?$/);
+  if (!m) return null;
+  const surah = parseInt(m[1], 10);
+  if (!surah || surah < 1 || surah > 114) return null;
+  const verse = m[2] ? parseInt(m[2], 10) : undefined;
+  return { surah, verse };
+}
+
 function isKnownRoute(): boolean {
   const path = window.location.pathname;
   if (path === '/') return true;
@@ -87,6 +97,7 @@ function isKnownRoute(): boolean {
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
+  if (/^\/read\/\d+(:\d+)?\/?$/.test(path)) return true;
   if (/^\/settings\/?$/.test(path)) return true;
   if (/^\/developers\/?$/.test(path)) return true;
   if (/^\/methodology\/?$/.test(path)) return true;
@@ -169,8 +180,11 @@ function TopExtensionBar({ storeUrl }: { storeUrl: string }) {
 function SiteFooter() {
   return (
     <footer className="py-6 border-t border-card-border text-center text-[11.5px] text-ink-muted tracking-wide">
-      <div>open corpus &middot; non-commercial &middot; built by and for students of the text</div>
-      <div className="mt-1.5">
+      <div>
+        <a href="/grammar-glossary" className="hover:text-ink-secondary">Grammar</a>
+        <span className="mx-2">&middot;</span>
+        <a href="/developers" className="hover:text-ink-secondary">API</a>
+        <span className="mx-2">&middot;</span>
         <a href="/privacy" className="hover:text-ink-secondary">Privacy</a>
         <span className="mx-2">&middot;</span>
         <a href="/terms" className="hover:text-ink-secondary">Terms</a>
@@ -201,6 +215,22 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <LearningPage />
+        <SiteFooter />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  const readerParams = getReaderFromPath();
+  if (readerParams) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1">
+          <ReaderPage surah={readerParams.surah} initialVerse={readerParams.verse} />
+        </div>
         <SiteFooter />
         <SavedItemsPanel />
       </div>

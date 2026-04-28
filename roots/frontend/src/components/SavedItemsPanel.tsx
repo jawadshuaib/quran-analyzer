@@ -34,9 +34,17 @@ const TYPE_ICONS: Record<SavedItemType, ReactNode> = {
 /** Global event name to notify when saved items change */
 export const SAVED_ITEMS_CHANGED = 'saved-items-changed';
 
+/** Open the saved-items panel from anywhere. Optional `tab` hint will
+ *  pre-select a tab once the panel grows tabs (Phase C). */
+export const OPEN_SAVED_PANEL = 'open-saved-panel';
+
 /** Call this from any component after toggling a save to refresh the panel */
 export function notifySavedItemsChanged() {
   window.dispatchEvent(new CustomEvent(SAVED_ITEMS_CHANGED));
+}
+
+export function openSavedPanel(tab: 'saved' | 'notes' = 'saved') {
+  window.dispatchEvent(new CustomEvent(OPEN_SAVED_PANEL, { detail: { tab } }));
 }
 
 interface ThemeData {
@@ -104,6 +112,16 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
       window.removeEventListener('storage', handler);
     };
   }, [refresh]);
+
+  // Open the panel when something fires the global open event (e.g. the
+  // Saved / Notes links in the top nav).
+  useEffect(() => {
+    function onOpen() {
+      setOpen(true);
+    }
+    window.addEventListener(OPEN_SAVED_PANEL, onOpen);
+    return () => window.removeEventListener(OPEN_SAVED_PANEL, onOpen);
+  }, []);
 
   // Fetch themes when panel opens or items change
   useEffect(() => {

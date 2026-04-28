@@ -74,7 +74,31 @@ export interface VerseData {
 export interface SurahInfo {
   number: number;
   name: string;
+  /** Arabic name (added 2026-04-26 — older API responses may omit this) */
+  name_arabic?: string;
+  /** Short English meaning, e.g. "The Opening" for Al-Fatihah */
+  meaning?: string;
   verse_count: number;
+}
+
+/** Response from /api/surah/<n> — bulk fetch all verses of one surah
+ *  for the reader page. Per-word data is omitted; the reader fetches it
+ *  on demand via /api/verse/<ref> when word-by-word mode is on. */
+export interface SurahData {
+  surah: number;
+  name: string;
+  name_arabic: string;
+  meaning: string;
+  verse_count: number;
+  verses: SurahVerse[];
+}
+
+export interface SurahVerse {
+  verse: number;
+  text_uthmani: string;
+  translation: string;
+  has_translation_note: boolean;
+  has_grammar_note: boolean;
 }
 
 export interface SharedRoot {

@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -17,6 +17,15 @@ export async function fetchVerse(surah: number, ayah: number): Promise<VerseData
 export async function fetchSurahs(): Promise<SurahInfo[]> {
   const res = await fetch(`${BASE}/surahs`);
   if (!res.ok) throw new Error('Failed to load surah list');
+  return res.json();
+}
+
+export async function fetchSurah(surah: number): Promise<SurahData> {
+  const res = await fetch(`${BASE}/surah/${surah}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Failed to load surah ${surah}`);
+  }
   return res.json();
 }
 

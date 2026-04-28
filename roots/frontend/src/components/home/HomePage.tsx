@@ -1,8 +1,8 @@
 import { useSEO } from '../../hooks/useSEO';
 import HeroSection from './HeroSection';
+import ContinueReading from './ContinueReading';
 import VerseOfTheDay from './VerseOfTheDay';
-import LearningPathCard from './LearningPathCard';
-import ApiCard from './ApiCard';
+import SurahList from './SurahList';
 
 interface Props {
   onNavigateVerse: (surah: number, ayah: number) => void;
@@ -28,9 +28,9 @@ export default function HomePage({ onNavigateVerse, onFullSemanticSearch, loadin
         loading={loading}
         searchAnchorRef={searchAnchorRef}
       />
+      <ContinueReading />
       <VerseOfTheDay onNavigate={onNavigateVerse} />
-      <LearningPathCard />
-      <ApiCard />
+      <SurahList />
     </div>
   );
 }
