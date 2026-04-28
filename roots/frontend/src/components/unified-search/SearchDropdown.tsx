@@ -1,6 +1,7 @@
 import type { UnifiedSearchState } from '../../hooks/useUnifiedSearch';
 import type { RootSearchResult, SemanticSearchResult } from '../../api/quran';
 import type { ParsedVerseRef } from '../../utils/search-classifier';
+import type { SurahMatch } from '../../utils/surah-search';
 import VerseRefSuggestion from './VerseRefSuggestion';
 import RootResultItem from './RootResultItem';
 import SemanticResultItem from './SemanticResultItem';
@@ -11,6 +12,7 @@ interface Props {
   onSelectVerse: (verseRef: ParsedVerseRef) => void;
   onSelectRoot: (root: RootSearchResult) => void;
   onSelectSemantic: (result: SemanticSearchResult) => void;
+  onSelectSurah: (surah: SurahMatch) => void;
   onFullSearch: () => void;
   onHoverIndex: (index: number) => void;
   listboxId: string;
@@ -22,22 +24,26 @@ export default function SearchDropdown({
   onSelectVerse,
   onSelectRoot,
   onSelectSemantic,
+  onSelectSurah,
   onFullSearch,
   onHoverIndex,
   listboxId,
 }: Props) {
-  const { verseRef, rootResults, rootLoading, semanticResults, semanticLoading, activeIndex, intent } = state;
+  const { verseRef, rootResults, rootLoading, semanticResults, semanticLoading, surahMatches, activeIndex, intent } = state;
   const showVerseRef = verseRef && !verseRef.partial;
+  const hasSurahs = surahMatches.length > 0;
   const hasRoots = rootResults.length > 0;
   const hasSemantic = semanticResults.length > 0;
   const showFullSearchFooter = intent !== 'verse_ref' && state.query.trim().length >= 3;
-  const hasAnything = showVerseRef || hasRoots || hasSemantic || rootLoading || semanticLoading || showFullSearchFooter;
+  const hasAnything = showVerseRef || hasSurahs || hasRoots || hasSemantic || rootLoading || semanticLoading || showFullSearchFooter;
 
   if (!hasAnything) return null;
 
-  // Pre-compute flat indices for each item
+  // Pre-compute flat indices in the same order as resolveIndex():
+  //   verse-ref → surah matches → roots → semantic
   let nextIdx = 0;
   const verseIdx = showVerseRef ? nextIdx++ : -1;
+  const surahIndices = surahMatches.map(() => nextIdx++);
   const rootIndices = rootResults.map(() => nextIdx++);
   const semanticIndices = semanticResults.map(() => nextIdx++);
 
@@ -59,6 +65,47 @@ export default function SearchDropdown({
           onHover={() => onHoverIndex(verseIdx)}
           id={`search-item-${verseIdx}`}
         />
+      )}
+
+      {/* Surah-name matches — shown right after the verse-ref preview
+          because typing a surah name is an unambiguous navigation
+          intent ("take me to Ar-Rahman") and shouldn't be buried under
+          root or semantic results. */}
+      {hasSurahs && (
+        <>
+          <li className="px-4 pt-3 pb-1 border-t border-stone-100" role="presentation">
+            <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
+              Surahs
+            </span>
+          </li>
+          {surahMatches.map((surah, i) => (
+            <li
+              key={surah.number}
+              id={`search-item-${surahIndices[i]}`}
+              role="option"
+              aria-selected={activeIndex === surahIndices[i]}
+              onClick={() => onSelectSurah(surah)}
+              onMouseMove={() => onHoverIndex(surahIndices[i])}
+              className={`px-4 py-2.5 cursor-pointer transition-colors flex items-center gap-3 ${
+                activeIndex === surahIndices[i] ? 'bg-stone-100' : 'hover:bg-stone-50'
+              }`}
+            >
+              <span className="font-mono text-[11px] text-stone-400 min-w-[1.75rem]">
+                {surah.number}
+              </span>
+              {surah.name_arabic && (
+                <span className="font-serif text-base text-stone-800 min-w-[5.5rem]" lang="ar" dir="rtl">
+                  {surah.name_arabic}
+                </span>
+              )}
+              <span className="text-sm text-stone-700">{surah.name}</span>
+              {surah.meaning && (
+                <span className="text-xs text-stone-400 truncate">· {surah.meaning}</span>
+              )}
+              <span className="ml-auto text-[11px] text-stone-300">Read →</span>
+            </li>
+          ))}
+        </>
       )}
 
       {/* Root results section */}

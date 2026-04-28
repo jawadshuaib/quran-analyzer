@@ -4,6 +4,7 @@ import SearchDropdown from './unified-search/SearchDropdown';
 import { getSurahName } from '../utils/surah-names';
 import type { RootSearchResult, SemanticSearchResult } from '../api/quran';
 import type { ParsedVerseRef } from '../utils/search-classifier';
+import type { SurahMatch } from '../utils/surah-search';
 
 /** Imperative handle to fill text into the search bar from outside */
 export interface UnifiedSearchHandle {
@@ -81,6 +82,14 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
     onNavigateVerse(result.surah, result.ayah);
   }, [close, setQuery, onNavigateVerse]);
 
+  const handleSelectSurah = useCallback((surah: SurahMatch) => {
+    close();
+    setQuery('');
+    // Surah → reader mode (not the verse-research view). Hard-navigate so
+    // the page mounts fresh under /read/<n>.
+    window.location.href = `/read/${surah.number}`;
+  }, [close, setQuery]);
+
   const handleFullSearch = useCallback(() => {
     const trimmed = state.query.trim();
     if (!trimmed) return;
@@ -108,6 +117,8 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
         const { category, localIndex } = resolved;
         if (category === 'verse' && state.verseRef) {
           handleSelectVerse(state.verseRef);
+        } else if (category === 'surah' && state.surahMatches[localIndex]) {
+          handleSelectSurah(state.surahMatches[localIndex]);
         } else if (category === 'root' && state.rootResults[localIndex]) {
           handleSelectRoot(state.rootResults[localIndex]);
         } else if (category === 'semantic' && state.semanticResults[localIndex]) {
@@ -182,6 +193,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           onSelectVerse={handleSelectVerse}
           onSelectRoot={handleSelectRoot}
           onSelectSemantic={handleSelectSemantic}
+          onSelectSurah={handleSelectSurah}
           onFullSearch={handleFullSearch}
           onHoverIndex={setActiveIndex}
           listboxId={LISTBOX_ID}
