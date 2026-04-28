@@ -8,6 +8,7 @@ import SelectionHeader from './SelectionHeader';
 import VerseRefText from './VerseRefText';
 import MethodologyTooltip from './MethodologyTooltip';
 import SaveButton from './SaveButton';
+import NoteButton from './NoteButton';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
 import { splitDepartureNotes } from '../utils/departure-notes';
 
@@ -274,8 +275,8 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
       className="relative rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
       onClick={clearAll}
     >
-      {/* Save heart — top-left, floating on card border */}
-      <div className="absolute -top-2.5 -left-2.5 z-10 rounded-full bg-white shadow-sm">
+      {/* Save + note buttons — top-left, floating on card border */}
+      <div className="absolute -top-2.5 -left-2.5 z-10 flex items-center gap-1 rounded-full bg-white shadow-sm pr-1">
         <SaveButton
           type="verse"
           itemKey={`${data.surah}:${data.ayah}`}
@@ -284,6 +285,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           subtitle={data.translation}
           onToggle={() => notifySavedItemsChanged()}
         />
+        <NoteButton surah={data.surah} ayah={data.ayah} accent="violet" />
       </div>
       {hasSelection && (
         <SelectionHeader

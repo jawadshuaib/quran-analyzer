@@ -6,6 +6,14 @@ import {
   type SavedItem,
   type SavedItemType,
 } from '../utils/saved-items';
+import {
+  getAllNotes as userNotesGetAll,
+  deleteNote as userNotesDelete,
+  setNote as userNotesSet,
+  subscribeToNotes,
+} from '../utils/user-notes';
+import { getSurahName } from '../utils/surah-names';
+import NoteEditor from './NoteEditor';
 
 const TYPE_LABELS: Record<SavedItemType, string> = {
   verse: 'Verses',
@@ -60,13 +68,18 @@ interface Props {
   onNavigate?: (href: string) => void;
 }
 
+type FilterValue = SavedItemType | 'all' | 'notes';
+
 export default function SavedItemsPanel({ onNavigate }: Props) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<SavedItem[]>([]);
   const [count, setCount] = useState(() => getSavedCount());
-  const [filter, setFilter] = useState<SavedItemType | 'all'>('all');
+  const [filter, setFilter] = useState<FilterValue>('all');
   const [verseThemes, setVerseThemes] = useState<VerseThemes>({});
   const [groupByTheme, setGroupByTheme] = useState(true);
+  // User notes (mirrored from quranExplorer.notes). Updated reactively
+  // so toggling between Saved + Notes tabs reflects current state.
+  const [notesMap, setNotesMap] = useState<Record<string, string>>(() => userNotesGetAll());
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Refresh items from localStorage
@@ -114,13 +127,23 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
   }, [refresh]);
 
   // Open the panel when something fires the global open event (e.g. the
-  // Saved / Notes links in the top nav).
+  // Saved / Notes links in the top nav). The event detail can include
+  // a tab hint so we open straight on Notes when the Notes link is clicked.
   useEffect(() => {
-    function onOpen() {
+    function onOpen(e: Event) {
       setOpen(true);
+      const detail = (e as CustomEvent).detail as { tab?: 'saved' | 'notes' } | undefined;
+      if (detail?.tab === 'notes') setFilter('notes');
+      else if (detail?.tab === 'saved') setFilter('all');
     }
     window.addEventListener(OPEN_SAVED_PANEL, onOpen);
     return () => window.removeEventListener(OPEN_SAVED_PANEL, onOpen);
+  }, []);
+
+  // Mirror the user's notes for the Notes tab. Updates as the user
+  // adds/removes notes from anywhere on the site.
+  useEffect(() => {
+    return subscribeToNotes(() => setNotesMap(userNotesGetAll()));
   }, []);
 
   // Fetch themes when panel opens or items change
@@ -164,7 +187,10 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     [onNavigate],
   );
 
-  const filtered = filter === 'all' ? items : items.filter((i) => i.type === filter);
+  const filtered =
+    filter === 'all' || filter === 'notes'
+      ? items
+      : items.filter((i) => i.type === filter);
 
   // Count by type for filter badges
   const countByType: Record<SavedItemType, number> = { verse: 0, word: 0, root: 0 };
@@ -172,18 +198,27 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     countByType[item.type]++;
   }
 
-  // Group verses by theme (or separate types when mixed)
+  // Notes — sorted by ref for stable display
+  const notesEntries = Object.entries(notesMap).sort(([a], [b]) => {
+    const [as, av] = a.split(':').map(Number);
+    const [bs, bv] = b.split(':').map(Number);
+    return as !== bs ? as - bs : av - bv;
+  });
+  const notesCount = notesEntries.length;
+
+  // Group verses by theme (or separate types when mixed) — only on Saved tab
   const verseCount = countByType.verse;
   const nonVerseCount = countByType.word + countByType.root;
   const hasMixedTypes = verseCount > 0 && nonVerseCount > 0;
-  const shouldGroup = groupByTheme && (verseCount >= 2 || hasMixedTypes) && (filter === 'all' || filter === 'verse');
+  const shouldGroup = filter !== 'notes' && groupByTheme && (verseCount >= 2 || hasMixedTypes) && (filter === 'all' || filter === 'verse');
 
   const groupedContent = useGroupedByTheme(filtered, verseThemes, shouldGroup);
 
-  // Don't render anything if no saved items
-  if (count === 0 && !open) return null;
+  // Don't render anything if no saved items AND no notes
+  if (count === 0 && notesCount === 0 && !open) return null;
 
   // Floating button (closed state)
+  const totalCount = count + notesCount;
   if (!open) {
     return (
       <button
@@ -193,7 +228,7 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
                    hover:bg-rose-600 hover:shadow-xl hover:shadow-rose-300
                    transition-all duration-200
                    px-4 py-3 sm:px-5 sm:py-3.5"
-        title={`${count} saved item${count !== 1 ? 's' : ''}`}
+        title={`${count} saved · ${notesCount} note${notesCount !== 1 ? 's' : ''}`}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -204,12 +239,12 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
           <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
         </svg>
         <span className="text-sm font-medium hidden sm:inline">
-          Saved ({count})
+          Saved &amp; Notes ({totalCount})
         </span>
         {/* Mobile-only count badge */}
         <span className="sm:hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center
                          rounded-full bg-white text-rose-600 text-[10px] font-bold shadow-sm">
-          {count}
+          {totalCount}
         </span>
       </button>
     );
@@ -272,14 +307,16 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
       </div>
 
       {/* Type filter tabs */}
-      {items.length > 0 && (
-        <div className="flex items-center gap-1 px-3 py-2 border-b border-stone-100">
-          <FilterTab
-            label="All"
-            count={items.length}
-            active={filter === 'all'}
-            onClick={() => setFilter('all')}
-          />
+      {(items.length > 0 || notesCount > 0) && (
+        <div className="flex items-center gap-1 px-3 py-2 border-b border-stone-100 overflow-x-auto">
+          {items.length > 0 && (
+            <FilterTab
+              label="All"
+              count={items.length}
+              active={filter === 'all'}
+              onClick={() => setFilter('all')}
+            />
+          )}
           {(['verse', 'word', 'root'] as SavedItemType[]).map((t) =>
             countByType[t] > 0 ? (
               <FilterTab
@@ -291,12 +328,40 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
               />
             ) : null,
           )}
+          {notesCount > 0 && (
+            <FilterTab
+              label="Notes"
+              count={notesCount}
+              active={filter === 'notes'}
+              onClick={() => setFilter('notes')}
+            />
+          )}
         </div>
       )}
 
       {/* Items list */}
       <div className="flex-1 overflow-y-auto overscroll-contain" style={{ maxHeight: '60vh' }}>
-        {filtered.length === 0 ? (
+        {filter === 'notes' ? (
+          notesEntries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <p className="text-sm text-stone-400">No notes yet</p>
+              <p className="text-xs text-stone-300 mt-1">
+                Tap the pencil on any verse to add one
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-stone-100">
+              {notesEntries.map(([key, text]) => (
+                <NoteRow
+                  key={key}
+                  refKey={key}
+                  text={text}
+                  onNavigate={() => handleNavigate(`/verse/${key}`)}
+                />
+              ))}
+            </ul>
+          )
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -474,7 +539,7 @@ function FilterTab({
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors
+      className={`flex-shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors
                   ${active
                     ? 'bg-rose-100 text-rose-700'
                     : 'text-stone-400 hover:text-stone-600 hover:bg-stone-100'}`}
@@ -482,5 +547,92 @@ function FilterTab({
       {label}
       <span className="ml-1 text-[10px] opacity-70">{count}</span>
     </button>
+  );
+}
+
+// --------------------------------------------------------------------
+// NoteRow — one entry in the Notes filter tab.
+// --------------------------------------------------------------------
+
+function NoteRow({
+  refKey,
+  text,
+  onNavigate,
+}: {
+  refKey: string;
+  text: string;
+  onNavigate: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [surahN, verseN] = refKey.split(':').map(Number);
+
+  function handleSave(newText: string) {
+    if (newText.trim()) {
+      userNotesSet(surahN, verseN, newText);
+    } else {
+      userNotesDelete(surahN, verseN);
+    }
+  }
+
+  if (editing) {
+    return (
+      <li className="px-3 py-3 bg-stone-50/50">
+        <div className="flex items-baseline justify-between mb-2">
+          <span className="text-[11px] font-medium text-rose-600">
+            {getSurahName(surahN)} · {refKey}
+          </span>
+        </div>
+        <NoteEditor
+          initial={text}
+          onSave={handleSave}
+          onClose={() => setEditing(false)}
+          accent="violet"
+        />
+      </li>
+    );
+  }
+
+  return (
+    <li className="group flex items-start gap-2 px-3 py-3 hover:bg-stone-50">
+      <div
+        className="flex-1 min-w-0 cursor-pointer"
+        onClick={onNavigate}
+      >
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="text-[11px] font-medium text-rose-600">
+            {getSurahName(surahN)} · {refKey}
+          </span>
+        </div>
+        <p className="text-xs text-stone-700 leading-relaxed line-clamp-3 whitespace-pre-line">
+          {text}
+        </p>
+      </div>
+      <div className="flex flex-col items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          className="text-[10px] text-stone-400 hover:text-violet-600"
+          aria-label="Edit note"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (confirm('Delete this note? This cannot be undone.')) {
+              userNotesDelete(surahN, verseN);
+            }
+          }}
+          className="text-[10px] text-stone-400 hover:text-red-600"
+          aria-label="Delete note"
+        >
+          Delete
+        </button>
+      </div>
+    </li>
   );
 }

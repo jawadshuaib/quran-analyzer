@@ -12,6 +12,7 @@ import VerseRefText from '../VerseRefText';
 import { NotesBody } from '../GrammarNotes';
 import { splitDepartureNotes } from '../../utils/departure-notes';
 import { TranslationWithChips } from '../TermChip';
+import NoteEditor from '../NoteEditor';
 
 interface Props {
   surah: number;
@@ -210,11 +211,13 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
 
         {/* Inline expansions (only one open at a time) */}
         {activePanel === 'note' && (
-          <NoteEditor
-            initial={note}
-            onSave={handleSaveNote}
-            onClose={() => setActivePanel(null)}
-          />
+          <div className="mt-4">
+            <NoteEditor
+              initial={note}
+              onSave={handleSaveNote}
+              onClose={() => setActivePanel(null)}
+            />
+          </div>
         )}
         {activePanel === 'verse-notes' && (
           <VerseNotesPanel
@@ -278,71 +281,6 @@ function GutterIcon({ label, active, onClick, href, children }: GutterIconProps)
       {children}
       {tooltip}
     </button>
-  );
-}
-
-// ----- Inline note editor --------------------------------------------------
-
-function NoteEditor({
-  initial,
-  onSave,
-  onClose,
-}: {
-  initial: string;
-  onSave: (text: string) => void;
-  onClose: () => void;
-}) {
-  const [text, setText] = useState(initial);
-
-  function handleSave() {
-    onSave(text);
-    onClose();
-  }
-
-  function handleDelete() {
-    onSave('');
-    onClose();
-  }
-
-  return (
-    <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-3">
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Your note for this verse — saved locally, never sent anywhere."
-        rows={4}
-        className="w-full bg-white border border-card-border rounded-md px-3 py-2 text-sm leading-relaxed focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/20"
-        autoFocus
-      />
-      <div className="mt-2 flex items-center justify-between text-[11px]">
-        <span className="text-ink-muted">Stored locally in your browser.</span>
-        <div className="flex items-center gap-2">
-          {initial && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="text-red-700 hover:underline cursor-pointer"
-            >
-              Delete
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-ink-muted hover:text-ink-secondary cursor-pointer"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleSave}
-            className="bg-gold/90 text-white px-3 py-1.5 rounded-md hover:bg-gold transition-colors cursor-pointer"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
