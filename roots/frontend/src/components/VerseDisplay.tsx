@@ -9,6 +9,7 @@ import VerseRefText from './VerseRefText';
 import MethodologyTooltip from './MethodologyTooltip';
 import SaveButton from './SaveButton';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
+import { splitDepartureNotes } from '../utils/departure-notes';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -17,12 +18,6 @@ interface Props {
   onWordSearch?: (terms: SearchTerm[], queryVerse: { surah: number; ayah: number }) => void;
   wordSearchLoading?: boolean;
   onNavigate?: (surah: number, ayah: number) => void;
-}
-
-/** Split departure notes into separate lines at " - " when preceded by "." within 3 chars. */
-function splitDepartureNotes(text: string): string[] {
-  const processed = text.replace(/(\..{0,2}) - /g, '$1\n- ');
-  return processed.split('\n');
 }
 
 /** Return the primary content segment of a word, skipping prefixes/suffixes/pronouns. */

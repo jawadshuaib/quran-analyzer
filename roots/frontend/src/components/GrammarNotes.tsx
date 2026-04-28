@@ -117,9 +117,12 @@ export default function GrammarNotes({ surah, ayah }: Props) {
 // --------------------------------------------------------------------
 // NotesBody — parses [[term]] markers and replaces them with <GrammarChip>.
 // Also respects blank lines as paragraph breaks.
+//
+// Exported so the reader (ReaderVerse's combined-notes panel) can render
+// grammar notes the same way the research view does, without copy-paste.
 // --------------------------------------------------------------------
 
-function NotesBody({ markdown, terms }: { markdown: string; terms: Record<string, GrammarTerm> }) {
+export function NotesBody({ markdown, terms }: { markdown: string; terms: Record<string, GrammarTerm> }) {
   // Split on blank lines into paragraphs
   const paragraphs = markdown.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   return (

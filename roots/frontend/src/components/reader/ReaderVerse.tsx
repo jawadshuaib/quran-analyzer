@@ -8,6 +8,9 @@ import {
 import { getNote, setNote, subscribeToNotes } from '../../utils/user-notes';
 import { getSurahName } from '../../utils/surah-names';
 import { fetchAITranslation, fetchGrammarNotes } from '../../api/quran';
+import VerseRefText from '../VerseRefText';
+import { NotesBody } from '../GrammarNotes';
+import { splitDepartureNotes } from '../../utils/departure-notes';
 
 interface Props {
   surah: number;
@@ -357,27 +360,31 @@ function VerseNotesPanel({
     <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-4 space-y-4">
       {translation?.departure_notes && (
         <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold">
-              Translation Notes
-            </h4>
-          </div>
-          <div className="text-sm leading-relaxed text-ink-secondary whitespace-pre-line">
-            {translation.departure_notes}
+          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
+            Translation Notes
+          </h4>
+          {/* VerseRefText auto-links verse refs (2:155), Arabic root refs
+              (ر ح م), and italicizes quoted strings — same hover-preview
+              behavior as the research view, so notes feel consistent
+              across both surfaces. */}
+          <div className="text-sm leading-relaxed text-ink-secondary">
+            {splitDepartureNotes(translation.departure_notes).map((line, i) => (
+              <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
+                <VerseRefText text={line} />
+              </p>
+            ))}
           </div>
         </div>
       )}
       {grammar?.notes_markdown && (
         <div className={translation?.departure_notes ? 'pt-3 border-t border-card-border/70' : ''}>
-          <div className="flex items-center justify-between mb-1.5">
-            <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold">
-              Grammar Notes
-            </h4>
-          </div>
+          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
+            Grammar Notes
+          </h4>
+          {/* NotesBody renders [[term]] markers as the same wavy-underline
+              chips with hover-popover definition cards used on /verse/<ref>. */}
           <div className="text-sm leading-relaxed text-ink-secondary">
-            {/* [[term]] markers come from the data; render plain for now —
-                research view at /verse/<ref> shows the chip-popover variant. */}
-            {grammar.notes_markdown.replace(/\[\[([^\]]+)\]\]/g, '$1')}
+            <NotesBody markdown={grammar.notes_markdown} terms={grammar.terms} />
           </div>
         </div>
       )}
