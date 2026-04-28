@@ -26,6 +26,10 @@ export default function ReaderPage({ surah, initialVerse }: Props) {
   const [data, setData] = useState<SurahData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  // Compact-header mode kicks in once the user has scrolled past the
+  // initial full hero. The hero is sticky throughout — it just shrinks
+  // so it doesn't eat half the viewport while reading.
+  const [compactHeader, setCompactHeader] = useState(false);
 
   // For the IntersectionObserver — we need refs to each verse block.
   // A keyed-by-verse-number map keeps it simple.
@@ -56,6 +60,17 @@ export default function ReaderPage({ surah, initialVerse }: Props) {
       }, 50);
     }
   }, [data, initialVerse]);
+
+  // Toggle compact header once the user has scrolled past the initial
+  // full-size hero (~200 pixels). Cheap scroll listener.
+  useEffect(() => {
+    function check() {
+      setCompactHeader(window.scrollY > 200);
+    }
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  }, []);
 
   // Track which verse is most-visible, write last-read marker (debounced).
   useEffect(() => {
@@ -118,49 +133,83 @@ export default function ReaderPage({ surah, initialVerse }: Props) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 pb-16">
-      {/* Surah header */}
-      <header className="pt-6 pb-8 text-center border-b border-card-border mb-8">
-        <p className="text-[11px] tracking-[0.08em] uppercase text-ink-muted mb-2">
-          Surah {data.surah} of 114
-        </p>
-        <h1 className="font-serif text-4xl sm:text-5xl text-ink mb-2" lang="ar">
-          {data.name_arabic}
-        </h1>
-        <p className="font-serif text-lg text-ink-secondary">
-          {data.name}
-          {data.meaning && (
-            <span className="text-ink-muted"> · {data.meaning}</span>
+    <>
+      {/* Sticky surah header — full-width strip below the top nav. Starts
+          full-size and shrinks once the user scrolls past it, so the
+          surah info stays visible without eating the viewport while
+          reading. */}
+      <header
+        className={`sticky top-[56px] sm:top-[64px] z-20 w-full border-b border-card-border bg-cream/95 backdrop-blur-sm transition-all duration-200 ${
+          compactHeader ? 'py-2.5 sm:py-3' : 'pt-6 pb-8'
+        }`}
+      >
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          {compactHeader ? (
+            // Compact form — single line, optimized for "I just need
+            // to know which surah I'm in"
+            <div className="flex items-center justify-center gap-3 flex-wrap text-sm">
+              <span className="font-mono text-[11px] text-ink-muted">
+                {data.surah}
+              </span>
+              <h1 className="font-serif text-xl sm:text-2xl text-ink leading-none" lang="ar">
+                {data.name_arabic}
+              </h1>
+              <span className="text-ink-muted">·</span>
+              <span className="font-serif text-ink-secondary">
+                {data.name}
+              </span>
+              <span className="hidden sm:inline text-ink-muted text-xs">
+                · {data.verse_count} verses
+              </span>
+            </div>
+          ) : (
+            // Full hero — only on initial scroll position
+            <>
+              <p className="text-[11px] tracking-[0.08em] uppercase text-ink-muted mb-2">
+                Surah {data.surah} of 114
+              </p>
+              <h1 className="font-serif text-4xl sm:text-5xl text-ink mb-2" lang="ar">
+                {data.name_arabic}
+              </h1>
+              <p className="font-serif text-lg text-ink-secondary">
+                {data.name}
+                {data.meaning && (
+                  <span className="text-ink-muted"> · {data.meaning}</span>
+                )}
+              </p>
+              <p className="text-xs text-ink-muted mt-2">
+                {data.verse_count} {data.verse_count === 1 ? 'verse' : 'verses'}
+              </p>
+              <SurahNav surah={data.surah} />
+            </>
           )}
-        </p>
-        <p className="text-xs text-ink-muted mt-2">
-          {data.verse_count} {data.verse_count === 1 ? 'verse' : 'verses'}
-        </p>
-        <SurahNav surah={data.surah} />
+        </div>
       </header>
 
-      {/* Verses */}
-      <div className="space-y-1">
-        {data.verses.map((v) => (
-          <ReaderVerse
-            key={v.verse}
-            ref={(el) => setVerseRef(v.verse, el)}
-            surah={data.surah}
-            verse={v}
-            highlighted={initialVerse === v.verse}
-          />
-        ))}
-      </div>
+      <div className="max-w-3xl mx-auto px-4 pb-16">
+        {/* Verses */}
+        <div className="space-y-1 mt-6">
+          {data.verses.map((v) => (
+            <ReaderVerse
+              key={v.verse}
+              ref={(el) => setVerseRef(v.verse, el)}
+              surah={data.surah}
+              verse={v}
+              highlighted={initialVerse === v.verse}
+            />
+          ))}
+        </div>
 
-      {/* Footer nav: previous / next surah */}
-      <div className="mt-12 flex items-center justify-between text-sm">
-        <SurahNavLink direction="prev" current={data.surah} />
-        <a href="/" className="text-ink-muted hover:text-ink-secondary">
-          Surah list
-        </a>
-        <SurahNavLink direction="next" current={data.surah} />
+        {/* Footer nav: previous / next surah */}
+        <div className="mt-12 flex items-center justify-between text-sm">
+          <SurahNavLink direction="prev" current={data.surah} />
+          <a href="/" className="text-ink-muted hover:text-ink-secondary">
+            Surah list
+          </a>
+          <SurahNavLink direction="next" current={data.surah} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

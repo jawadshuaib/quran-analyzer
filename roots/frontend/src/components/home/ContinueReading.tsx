@@ -29,7 +29,7 @@ export default function ContinueReading() {
   return (
     <a
       href={`/read/${surah}:${verse}`}
-      className="group mt-8 flex items-center justify-between gap-4 rounded-xl border border-gold/30 bg-gold/5 px-4 py-3.5 hover:border-gold hover:bg-gold/10 transition-colors"
+      className="group mt-8 mb-10 sm:mb-12 flex items-center justify-between gap-4 rounded-xl border border-gold/30 bg-gold/5 px-4 py-3.5 hover:border-gold hover:bg-gold/10 transition-colors"
     >
       <div className="min-w-0">
         <div className="text-[11px] uppercase tracking-wide text-gold mb-0.5">
