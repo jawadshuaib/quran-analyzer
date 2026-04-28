@@ -99,6 +99,18 @@ export interface SurahVerse {
   translation: string;
   has_translation_note: boolean;
   has_grammar_note: boolean;
+  /** Present when /api/surah/<n>?include=words was requested. */
+  words?: SurahVerseWord[];
+  /** Present when ?include=surveyed_roots was requested. Subset of roots
+   *  in this verse that have a term_surveys row — used by the chip
+   *  tooltip layer in reader translations. */
+  surveyed_roots?: string[];
+}
+
+export interface SurahVerseWord {
+  position: number;
+  form_arabic: string;
+  translation: string;
 }
 
 export interface SharedRoot {

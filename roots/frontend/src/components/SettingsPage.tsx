@@ -8,11 +8,16 @@ import {
   setModel,
   AVAILABLE_MODELS,
 } from '../utils/assistant-storage';
+import {
+  isWordByWordEnabled,
+  setWordByWordEnabled,
+} from '../utils/reader-prefs';
 
 export default function SettingsPage() {
   const [key, setKey] = useState('');
   const [saved, setSaved] = useState(false);
   const [selectedModel, setSelectedModel] = useState(getModel());
+  const [wordByWord, setWordByWord] = useState(isWordByWordEnabled());
   const hasKey = !!getApiKey();
 
   useSEO({
@@ -57,6 +62,37 @@ export default function SettingsPage() {
           Personalize how al-nuqta works for you.
         </p>
       </div>
+
+      {/* Reading section */}
+      <section className="rounded-xl border border-stone-200 bg-white p-5 mb-6">
+        <h2 className="text-lg font-semibold text-stone-800 mb-1">Reading</h2>
+        <p className="text-sm text-stone-500 mb-4">
+          Tweak how the reader at <code className="text-xs bg-stone-100 rounded px-1">/read/&lt;surah&gt;</code> presents each verse.
+        </p>
+
+        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
+          <input
+            type="checkbox"
+            checked={wordByWord}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setWordByWord(next);
+              setWordByWordEnabled(next);
+            }}
+            className="mt-0.5 accent-amber-600 w-4 h-4"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-stone-800">
+              Word-by-word translation
+            </div>
+            <p className="mt-0.5 text-xs text-stone-500 leading-relaxed">
+              Show a small English gloss directly under each Arabic word in the
+              reader, in addition to the full sentence translation. Helpful for
+              following along closely; turn it off for faster reading.
+            </p>
+          </div>
+        </label>
+      </section>
 
       {/* Intro */}
       <section className="rounded-xl border border-stone-200 bg-white p-5 mb-6">

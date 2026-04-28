@@ -11,10 +11,16 @@ import { fetchAITranslation, fetchGrammarNotes } from '../../api/quran';
 import VerseRefText from '../VerseRefText';
 import { NotesBody } from '../GrammarNotes';
 import { splitDepartureNotes } from '../../utils/departure-notes';
+import { TranslationWithChips } from '../TermChip';
 
 interface Props {
   surah: number;
   verse: SurahVerse;
+  /** When true, renders an Arabic-+-English-gloss row beneath the
+   *  Arabic text in addition to the full sentence translation. The
+   *  reader fetches verse.words only when this is on, so absence of
+   *  the array also means "skip word-by-word render". */
+  wordByWord?: boolean;
   /** Light highlight applied for ~2s after deep-link landing on this
    *  verse via /read/<surah>:<verse>. Helps the user spot where they
    *  were dropped. */
@@ -38,7 +44,7 @@ interface Props {
  * around.
  */
 const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
-  { surah, verse, highlighted },
+  { surah, verse, wordByWord, highlighted },
   ref,
 ) {
   const verseKey = `${surah}:${verse.verse}`;
@@ -157,11 +163,49 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
 
       {/* Right column — verse content */}
       <div className="min-w-0">
-        <div className="font-serif text-2xl sm:text-3xl leading-[2.2] text-ink mb-3 text-right" lang="ar" dir="rtl">
-          {verse.text_uthmani}
-        </div>
+        {wordByWord && verse.words && verse.words.length > 0 ? (
+          // Word-by-word: each Arabic word with English gloss directly
+          // beneath. Reads right-to-left for the Arabic, but the gloss
+          // pair flows naturally inside each cell. Wraps to multiple
+          // rows on narrow screens.
+          <div
+            className="mb-3 flex flex-wrap-reverse justify-end gap-x-4 gap-y-3 text-right"
+            lang="ar"
+            dir="rtl"
+          >
+            {verse.words.map((w) => (
+              <span
+                key={w.position}
+                className="inline-flex flex-col items-center min-w-[3.5rem] max-w-[14rem]"
+              >
+                <span className="font-serif text-2xl sm:text-3xl leading-tight text-ink">
+                  {w.form_arabic}
+                </span>
+                {w.translation && (
+                  <span
+                    lang="en"
+                    dir="ltr"
+                    className="mt-1 text-[11px] sm:text-xs text-ink-muted leading-tight text-center"
+                  >
+                    {w.translation}
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="font-serif text-2xl sm:text-3xl leading-[2.2] text-ink mb-3 text-right" lang="ar" dir="rtl">
+            {verse.text_uthmani}
+          </div>
+        )}
         <div className="text-[15px] sm:text-base leading-relaxed text-ink-secondary">
-          {verse.translation}
+          {/* TranslationWithChips auto-applies the surveyed-roots chip
+              tooltip layer (italic markers + word-family matches),
+              same behavior as the research view at /verse/<ref>. */}
+          <TranslationWithChips
+            text={verse.translation}
+            surveyedRootsInVerse={verse.surveyed_roots}
+          />
         </div>
 
         {/* Inline expansions (only one open at a time) */}

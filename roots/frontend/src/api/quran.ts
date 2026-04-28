@@ -20,8 +20,15 @@ export async function fetchSurahs(): Promise<SurahInfo[]> {
   return res.json();
 }
 
-export async function fetchSurah(surah: number): Promise<SurahData> {
-  const res = await fetch(`${BASE}/surah/${surah}`);
+export async function fetchSurah(
+  surah: number,
+  opts: { includeWords?: boolean; includeSurveyedRoots?: boolean } = {},
+): Promise<SurahData> {
+  const include: string[] = [];
+  if (opts.includeWords) include.push('words');
+  if (opts.includeSurveyedRoots) include.push('surveyed_roots');
+  const qs = include.length ? `?include=${include.join(',')}` : '';
+  const res = await fetch(`${BASE}/surah/${surah}${qs}`);
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `Failed to load surah ${surah}`);

@@ -2918,16 +2918,27 @@ def get_surahs():
 
 @app.route("/api/surah/<int:surah>")
 def get_surah(surah: int):
-    """Bulk-fetch every verse of one surah for the reader page. Returns
-    Arabic text + English translation + flags indicating which verses
-    have AI translation notes / grammar notes available (for the gutter
-    icons in reader mode). Per-word data is omitted; the reader fetches
-    that on demand only when the user has the word-by-word toggle on
-    and is viewing the page (we still load it via /api/verse/<ref> per
-    verse since most readers don't need it).
+    """Bulk-fetch every verse of one surah for the reader page.
+
+    Default response includes Arabic text + English translation + flags
+    for translation-notes / grammar-notes presence (used by the reader
+    gutter icons).
+
+    Optional ?include=words,surveyed_roots query param:
+      - words: per-verse `words: [{position, form_arabic, translation}]`
+        for the word-by-word reader view
+      - surveyed_roots: per-verse `surveyed_roots: [<root_buckwalter>]`
+        — the subset of roots in the verse that have a term_surveys row,
+        used by the chip-tooltip layer in the reader translation
     """
     if not 1 <= surah <= 114:
         return jsonify({"error": "surah must be 1-114"}), 400
+    include = set(
+        i.strip() for i in (request.args.get("include") or "").split(",") if i.strip()
+    )
+    include_words = "words" in include
+    include_surveyed = "surveyed_roots" in include
+
     conn = get_db()
     try:
         verse_rows = conn.execute(
@@ -2961,17 +2972,60 @@ def get_surah(surah: int):
         ).fetchall()
         has_grammar = {r["verse"] for r in gn_rows}
 
+        # Optional: per-word data (form_arabic + preferred_translation)
+        words_by_verse: dict[int, list[dict]] = {}
+        if include_words:
+            wm_rows = conn.execute(
+                "SELECT m.verse, m.word_pos, m.form_arabic, "
+                "       w.preferred_translation, w.meaning_short "
+                "FROM morphology m "
+                "LEFT JOIN ai_word_meanings w "
+                "  ON w.chapter=m.chapter AND w.verse=m.verse AND w.word_pos=m.word_pos "
+                "WHERE m.chapter = ? "
+                "GROUP BY m.verse, m.word_pos "
+                "ORDER BY m.verse, m.word_pos",
+                (surah,),
+            ).fetchall()
+            for r in wm_rows:
+                words_by_verse.setdefault(r["verse"], []).append({
+                    "position": r["word_pos"],
+                    "form_arabic": r["form_arabic"],
+                    "translation": r["preferred_translation"] or r["meaning_short"] or "",
+                })
+
+        # Optional: surveyed_roots per verse — root_buckwalters that
+        # both appear in the verse AND have a term_surveys row. Lets
+        # the reader's chip layer know which words to make tooltipped.
+        surveyed_by_verse: dict[int, list[str]] = {}
+        if include_surveyed:
+            sr_rows = conn.execute(
+                "SELECT m.verse, m.root_buckwalter "
+                "FROM morphology m "
+                "JOIN term_surveys t ON t.root_buckwalter = m.root_buckwalter "
+                "WHERE m.chapter = ? AND m.root_buckwalter IS NOT NULL "
+                "GROUP BY m.verse, m.root_buckwalter "
+                "ORDER BY m.verse",
+                (surah,),
+            ).fetchall()
+            for r in sr_rows:
+                surveyed_by_verse.setdefault(r["verse"], []).append(r["root_buckwalter"])
+
         verses = []
         for r in verse_rows:
             v = r["verse"]
             tr = trans_by_verse.get(v, {})
-            verses.append({
+            entry: dict = {
                 "verse": v,
                 "text_uthmani": _strip_bismillah(r["text_uthmani"], surah, v),
                 "translation": tr.get("translation", ""),
                 "has_translation_note": bool(tr.get("has_translation_note")),
                 "has_grammar_note": v in has_grammar,
-            })
+            }
+            if include_words:
+                entry["words"] = words_by_verse.get(v, [])
+            if include_surveyed:
+                entry["surveyed_roots"] = surveyed_by_verse.get(v, [])
+            verses.append(entry)
 
         return jsonify({
             "surah": surah,
