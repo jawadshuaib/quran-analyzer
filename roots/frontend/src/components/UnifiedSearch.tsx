@@ -154,7 +154,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (state.query.trim()) open(); }}
-          placeholder={compact ? 'Search…' : 'Search by verse, root, or phrase'}
+          placeholder='Search by verse, root, or phrase'
           role="combobox"
           aria-expanded={state.isOpen}
           aria-controls={LISTBOX_ID}

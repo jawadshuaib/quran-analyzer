@@ -132,7 +132,7 @@ export default function NavBar({
             }`}
             aria-hidden={!compact}
           >
-            <div className="w-full max-w-[300px]">
+            <div className="w-full max-w-[360px]">
               <UnifiedSearch
                 onNavigateVerse={handleNavigateVerse}
                 onFullSemanticSearch={handleFullSemanticSearch}
