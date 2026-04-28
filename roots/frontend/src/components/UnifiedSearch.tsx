@@ -17,11 +17,14 @@ interface Props {
   loading?: boolean;
   /** Optional ref to expose fill() method to parent */
   handleRef?: MutableRefObject<UnifiedSearchHandle | null>;
+  /** Compact variant for use inside the sticky NavBar — smaller padding,
+   *  no centering, smaller font. */
+  compact?: boolean;
 }
 
 const LISTBOX_ID = 'unified-search-listbox';
 
-export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, loading, handleRef }: Props) {
+export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, loading, handleRef, compact }: Props) {
   const { state, setQuery, close, open, setActiveIndex, moveUp, moveDown } = useUnifiedSearch();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -130,10 +133,15 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
   const activeDescendant = state.activeIndex >= 0 ? `search-item-${state.activeIndex}` : undefined;
 
   return (
-    <div ref={wrapperRef} className="relative w-full max-w-lg mx-auto">
+    <div
+      ref={wrapperRef}
+      className={compact ? "relative w-full" : "relative w-full max-w-lg mx-auto"}
+    >
       <div className="relative">
         <svg
-          className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-muted pointer-events-none"
+          className={`absolute top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none ${
+            compact ? 'left-3 w-4 h-4' : 'left-4 w-5 h-5'
+          }`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -146,7 +154,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => { if (state.query.trim()) open(); }}
-          placeholder='Search by verse, root, or phrase'
+          placeholder={compact ? 'Search…' : 'Search by verse, root, or phrase'}
           role="combobox"
           aria-expanded={state.isOpen}
           aria-controls={LISTBOX_ID}
@@ -154,13 +162,15 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           aria-autocomplete="list"
           autoComplete="off"
           spellCheck={false}
-          className="w-full rounded-xl sm:rounded-[14px] border border-black/15 bg-white pl-10 pr-10 py-2.5 sm:py-3.5 text-sm sm:text-[17px]
-                     placeholder:text-ink-muted focus:border-gold focus:ring-[6px] focus:ring-gold/10 focus:outline-none
-                     shadow-[0_1px_2px_rgba(0,0,0,0.03),0_0_0_6px_rgba(186,117,23,0.06)]"
+          className={
+            compact
+              ? "w-full rounded-lg border border-black/15 bg-white pl-9 pr-9 py-1.5 text-[13px] placeholder:text-ink-muted focus:border-gold focus:ring-[3px] focus:ring-gold/10 focus:outline-none"
+              : "w-full rounded-xl sm:rounded-[14px] border border-black/15 bg-white pl-10 pr-10 py-2.5 sm:py-3.5 text-sm sm:text-[17px] placeholder:text-ink-muted focus:border-gold focus:ring-[6px] focus:ring-gold/10 focus:outline-none shadow-[0_1px_2px_rgba(0,0,0,0.03),0_0_0_6px_rgba(186,117,23,0.06)]"
+          }
         />
         {anyLoading && (
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+          <div className={`absolute top-1/2 -translate-y-1/2 ${compact ? 'right-2.5' : 'right-3.5'}`}>
+            <div className={`animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600 ${compact ? 'h-3 w-3' : 'h-4 w-4'}`} />
           </div>
         )}
       </div>

@@ -355,6 +355,11 @@ export default function App() {
   const [semanticLoading, setSemanticLoading] = useState(false);
   const [semanticError, setSemanticError] = useState('');
   const semanticRef = useRef<HTMLDivElement>(null);
+  // Anchor used by NavBar to know when to swap its right-side links for
+  // a compact search. Attached to whichever prominent search bar is
+  // shown on the current page (hero on homepage, active-state search on
+  // verse page); when the user scrolls past it, the nav swaps.
+  const searchAnchorRef = useRef<HTMLDivElement>(null);
 
   // featuredVerses removed — now handled by VerseOfTheDay in HomePage
 
@@ -492,7 +497,12 @@ export default function App() {
     {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
 
     {/* NavBar — full-width, spans across */}
-    <NavBar currentPath={currentPath} />
+    <NavBar
+      currentPath={currentPath}
+      searchAnchorRef={searchAnchorRef}
+      onNavigateVerse={handleSearch}
+      onFullSemanticSearch={handleSemanticSearch}
+    />
 
     {/* Homepage idle state — show the full redesigned homepage */}
     {isIdle && (
@@ -501,6 +511,7 @@ export default function App() {
           onNavigateVerse={handleSearch}
           onFullSemanticSearch={handleSemanticSearch}
           loading={loading}
+          searchAnchorRef={searchAnchorRef}
         />
       </div>
     )}
@@ -508,7 +519,7 @@ export default function App() {
     {/* Active state — searching or viewing a verse */}
     {!isIdle && (
       <div className="mx-auto max-w-3xl px-4 py-10 flex-1 w-full">
-        <div className="mb-8">
+        <div className="mb-8" ref={searchAnchorRef}>
           <UnifiedSearch
             onNavigateVerse={handleSearch}
             onFullSemanticSearch={handleSemanticSearch}

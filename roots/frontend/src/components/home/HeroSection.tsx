@@ -15,9 +15,13 @@ interface Props {
   onNavigateVerse: (surah: number, ayah: number) => void;
   onFullSemanticSearch: (query: string) => void;
   loading?: boolean;
+  /** When provided, the wrapper around the prominent search input is
+   *  attached to this ref so the NavBar can use it as the trigger
+   *  point for swapping its right-side links to a compact search. */
+  searchAnchorRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export default function HeroSection({ onNavigateVerse, onFullSemanticSearch, loading }: Props) {
+export default function HeroSection({ onNavigateVerse, onFullSemanticSearch, loading, searchAnchorRef }: Props) {
   // Track which chips have appeared (index-based)
   const [visibleCount, setVisibleCount] = useState(0);
   const searchRef = useRef<UnifiedSearchHandle | null>(null);
@@ -51,12 +55,14 @@ export default function HeroSection({ onNavigateVerse, onFullSemanticSearch, loa
         Quran uses it elsewhere.
       </p>
 
-      <UnifiedSearch
-        onNavigateVerse={onNavigateVerse}
-        onFullSemanticSearch={onFullSemanticSearch}
-        loading={loading}
-        handleRef={searchRef}
-      />
+      <div ref={searchAnchorRef}>
+        <UnifiedSearch
+          onNavigateVerse={onNavigateVerse}
+          onFullSemanticSearch={onFullSemanticSearch}
+          loading={loading}
+          handleRef={searchRef}
+        />
+      </div>
 
       {/* "Try" chips — staggered pop-in */}
       <div className="flex items-center justify-center gap-2 flex-wrap mt-5 min-h-[32px]">
