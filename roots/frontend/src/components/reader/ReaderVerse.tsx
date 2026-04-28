@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useState } from 'react';
-import type { SurahVerse } from '../../types';
+import type { SurahVerse, AITranslationData, GrammarNotesData } from '../../types';
 import { toggleSavedItem, isSaved } from '../../utils/saved-items';
 import {
   notifySavedItemsChanged,
@@ -7,6 +7,7 @@ import {
 } from '../SavedItemsPanel';
 import { getNote, setNote, subscribeToNotes } from '../../utils/user-notes';
 import { getSurahName } from '../../utils/surah-names';
+import { fetchAITranslation, fetchGrammarNotes } from '../../api/quran';
 
 interface Props {
   surah: number;
@@ -20,13 +21,18 @@ interface Props {
 /**
  * One verse block in the reader. The left "gutter" holds subtle
  * affordance icons — they appear ONLY when relevant data exists for
- * that verse, so a verse without a note / grammar note / saved state
- * shows an empty gutter and stays visually quiet.
+ * that verse, so a verse without notes / saved state shows an empty
+ * gutter and stays visually quiet.
+ *
+ * Translation notes and grammar notes share a single "Notes" icon: if
+ * either one exists for this verse, the icon is shown, and clicking
+ * expands a single panel that renders whichever sections are
+ * available. They're related concepts and a combined panel reads
+ * better than two competing affordances.
  *
  * Each icon click expands a small inline panel BELOW this verse
  * (constrained to this block) so the surrounding content never moves
- * around. Phase B will wire grammar / related-verses panels; Phase A
- * has notes + save + research-link working.
+ * around.
  */
 const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   { surah, verse, highlighted },
@@ -35,10 +41,9 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   const verseKey = `${surah}:${verse.verse}`;
   const [note, setNoteState] = useState<string>(() => getNote(surah, verse.verse));
   const [saved, setSaved] = useState<boolean>(() => isSaved('verse', verseKey));
-  const [activePanel, setActivePanel] = useState<'note' | 'translation-note' | null>(null);
+  const [activePanel, setActivePanel] = useState<'note' | 'verse-notes' | null>(null);
   const [highlightFlash, setHighlightFlash] = useState(highlighted);
 
-  // Sync notes / saved state across tabs + components
   useEffect(() => {
     return subscribeToNotes(() => {
       setNoteState(getNote(surah, verse.verse));
@@ -66,14 +71,14 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }, [highlighted]);
 
   function handleSave() {
-    const isSaved = toggleSavedItem({
+    const isSavedNow = toggleSavedItem({
       type: 'verse',
       key: verseKey,
       label: `${getSurahName(surah)} ${verseKey}`,
       href: `/verse/${verseKey}`,
       subtitle: verse.translation.slice(0, 80),
     });
-    setSaved(isSaved);
+    setSaved(isSavedNow);
     notifySavedItemsChanged();
   }
 
@@ -83,7 +88,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }
 
   const hasNote = !!note.trim();
-  const hasTranslationNote = !!verse.has_translation_note;
+  const hasVerseNotes = verse.has_translation_note || verse.has_grammar_note;
 
   return (
     <article
@@ -100,11 +105,17 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
           {verse.verse}
         </span>
         <div className="flex flex-col items-center gap-1.5 mt-1">
-          {hasTranslationNote && (
+          {hasVerseNotes && (
             <GutterIcon
-              label="Translation note"
-              active={activePanel === 'translation-note'}
-              onClick={() => setActivePanel(activePanel === 'translation-note' ? null : 'translation-note')}
+              label={
+                verse.has_translation_note && verse.has_grammar_note
+                  ? 'Translation + grammar notes'
+                  : verse.has_translation_note
+                    ? 'Translation notes'
+                    : 'Grammar notes'
+              }
+              active={activePanel === 'verse-notes'}
+              onClick={() => setActivePanel(activePanel === 'verse-notes' ? null : 'verse-notes')}
             >
               <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
                 <path d="M8 1a1 1 0 011 1v.5h2A1.5 1.5 0 0112.5 4v9A1.5 1.5 0 0111 14.5H5A1.5 1.5 0 013.5 13V4A1.5 1.5 0 015 2.5h2V2a1 1 0 011-1zm0 1.6V3h-1.5V2.6a.4.4 0 01.4-.4h.7a.4.4 0 01.4.4zM6 7h4a.5.5 0 010 1H6a.5.5 0 010-1zm0 2h4a.5.5 0 010 1H6a.5.5 0 010-1z" />
@@ -112,7 +123,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             </GutterIcon>
           )}
           <GutterIcon
-            label={saved ? 'Saved' : 'Save verse'}
+            label={saved ? 'Unsave verse' : 'Save verse'}
             active={saved}
             onClick={handleSave}
           >
@@ -158,8 +169,13 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             onClose={() => setActivePanel(null)}
           />
         )}
-        {activePanel === 'translation-note' && (
-          <TranslationNotePanel surah={surah} verse={verse.verse} />
+        {activePanel === 'verse-notes' && (
+          <VerseNotesPanel
+            surah={surah}
+            verse={verse.verse}
+            hasTranslation={verse.has_translation_note}
+            hasGrammar={verse.has_grammar_note}
+          />
         )}
       </div>
     </article>
@@ -179,15 +195,29 @@ interface GutterIconProps {
 }
 
 function GutterIcon({ label, active, onClick, href, children }: GutterIconProps) {
-  const cls = `flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
+  const cls = `relative group flex items-center justify-center w-6 h-6 rounded-full transition-colors ${
     active
       ? 'text-gold bg-gold/10'
       : 'text-ink-muted/60 hover:text-gold hover:bg-gold/10'
   }`;
+  // Custom tooltip — appears on hover after only ~80ms (vs ~700ms for
+  // the browser's native `title`), stays under the icon and arrow up.
+  const tooltip = (
+    <span
+      role="tooltip"
+      className="pointer-events-none absolute left-full ml-2 top-1/2 -translate-y-1/2 z-20
+                 whitespace-nowrap rounded-md bg-ink text-cream text-[11px] font-medium px-2 py-1
+                 opacity-0 transition-opacity duration-75 delay-75
+                 group-hover:opacity-100 group-focus-visible:opacity-100"
+    >
+      {label}
+    </span>
+  );
   if (href) {
     return (
-      <a href={href} title={label} aria-label={label} className={cls} target="_blank" rel="noopener noreferrer">
+      <a href={href} aria-label={label} className={cls} target="_blank" rel="noopener noreferrer">
         {children}
+        {tooltip}
       </a>
     );
   }
@@ -195,11 +225,11 @@ function GutterIcon({ label, active, onClick, href, children }: GutterIconProps)
     <button
       type="button"
       onClick={onClick}
-      title={label}
       aria-label={label}
       className={`${cls} cursor-pointer`}
     >
       {children}
+      {tooltip}
     </button>
   );
 }
@@ -269,24 +299,98 @@ function NoteEditor({
   );
 }
 
-// ----- Translation-note panel (Phase B will fetch the actual note) ---------
+// ----- Combined translation + grammar notes panel --------------------------
 
-function TranslationNotePanel({ surah, verse }: { surah: number; verse: number }) {
+function VerseNotesPanel({
+  surah,
+  verse,
+  hasTranslation,
+  hasGrammar,
+}: {
+  surah: number;
+  verse: number;
+  hasTranslation: boolean;
+  hasGrammar: boolean;
+}) {
+  const [translation, setTranslation] = useState<AITranslationData | null>(null);
+  const [grammar, setGrammar] = useState<GrammarNotesData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    Promise.all([
+      hasTranslation ? fetchAITranslation(surah, verse).catch(() => null) : Promise.resolve(null),
+      hasGrammar ? fetchGrammarNotes(surah, verse).catch(() => null) : Promise.resolve(null),
+    ]).then(([t, g]) => {
+      if (cancelled) return;
+      setTranslation(t);
+      setGrammar(g);
+      setLoading(false);
+      if (!t && !g) setError('No notes available for this verse.');
+    });
+    return () => { cancelled = true; };
+  }, [surah, verse, hasTranslation, hasGrammar]);
+
+  if (loading) {
+    return (
+      <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-3">
+        <div className="flex items-center gap-2 text-xs text-ink-muted">
+          <span className="h-3 w-3 animate-spin rounded-full border-2 border-card-border border-t-gold" />
+          Loading notes…
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-3 text-xs text-ink-muted">
+        {error}
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-3 text-sm">
-      <p className="text-ink-secondary mb-2">
-        Translation notes for this verse are coming next phase. For now,
-        click{' '}
+    <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-4 space-y-4">
+      {translation?.departure_notes && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold">
+              Translation Notes
+            </h4>
+          </div>
+          <div className="text-sm leading-relaxed text-ink-secondary whitespace-pre-line">
+            {translation.departure_notes}
+          </div>
+        </div>
+      )}
+      {grammar?.notes_markdown && (
+        <div className={translation?.departure_notes ? 'pt-3 border-t border-card-border/70' : ''}>
+          <div className="flex items-center justify-between mb-1.5">
+            <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold">
+              Grammar Notes
+            </h4>
+          </div>
+          <div className="text-sm leading-relaxed text-ink-secondary">
+            {/* [[term]] markers come from the data; render plain for now —
+                research view at /verse/<ref> shows the chip-popover variant. */}
+            {grammar.notes_markdown.replace(/\[\[([^\]]+)\]\]/g, '$1')}
+          </div>
+        </div>
+      )}
+      <div className="pt-2 text-[11px] text-ink-muted text-right">
         <a
           href={`/verse/${surah}:${verse}`}
+          className="hover:text-gold"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-gold hover:underline"
         >
-          open in research view
-        </a>{' '}
-        to see them.
-      </p>
+          Open in research view ↗
+        </a>
+      </div>
     </div>
   );
 }
