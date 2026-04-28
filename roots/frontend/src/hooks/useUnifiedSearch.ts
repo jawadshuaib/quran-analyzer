@@ -76,6 +76,27 @@ const ROOT_DEBOUNCE = 200;
 const SEMANTIC_DEBOUNCE = 400;
 const VERSE_PREVIEW_DEBOUNCE = 150;
 
+// Semantic-search gating — semantic is the expensive query (embedding
+// inference + vector search, ~200-500ms each). We only auto-fire it
+// when the input clearly looks like a phrase-meaning lookup, not a
+// root/name/transliteration. Cheaper categories (verse-ref + surah +
+// root) always run because they're either in-memory or a quick DB
+// lookup.
+//
+// Gates ALL must hold for auto-fire:
+//   1. Query has whitespace            (semantic is for phrases)
+//   2. >= 2 words                       (filters "Ar-Rahman" with hyphens)
+//   3. >= SEMANTIC_MIN_CHARS chars      (filters "the cow" — surah match
+//                                        already nails that case)
+//   4. No verse-ref + ayah parse        (user is navigating)
+//   5. No exact/prefix surah match      (user typed a surah name; that's
+//                                        the answer, no need to embed)
+//
+// User can ALWAYS bypass these with the dropdown's "Search all verses
+// for X" footer (Enter key), so the gates only suppress AUTO-fire,
+// never the manual fallback.
+const SEMANTIC_MIN_CHARS = 10;
+
 export function useUnifiedSearch() {
   const [state, setState] = useState<UnifiedSearchState>({
     query: '',
@@ -223,8 +244,23 @@ export function useUnifiedSearch() {
       setState((p) => ({ ...p, rootResults: [], rootLoading: false }));
     }
 
-    // Fire semantic search
-    if (intent === 'root_and_semantic' && trimmed.length >= 5) {
+    // Semantic search — applies the gates documented above.
+    const hasSpace = /\s/.test(trimmed);
+    const wordCount = hasSpace
+      ? trimmed.split(/\s+/).filter(Boolean).length
+      : (trimmed ? 1 : 0);
+    const hasStrongSurahMatch =
+      initialSurahMatches.length > 0 && initialSurahMatches[0].score <= 1;
+    const verseRefSettled = !!verseRef && !verseRef.partial;
+    const semanticAutoFire =
+      intent === 'root_and_semantic' &&
+      hasSpace &&
+      wordCount >= 2 &&
+      trimmed.length >= SEMANTIC_MIN_CHARS &&
+      !verseRefSettled &&
+      !hasStrongSurahMatch;
+
+    if (semanticAutoFire) {
       setState((p) => ({ ...p, semanticLoading: true }));
       semanticTimerRef.current = setTimeout(() => {
         semanticAbortRef.current?.abort();
