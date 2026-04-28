@@ -81,6 +81,86 @@ function normalize(s: string): string {
     .trim();
 }
 
+/** Phonetic-class substitutions for common Arabic-to-Latin
+ *  transliteration variation. Each rule maps a digraph (or short
+ *  cluster) to a set of alternatives a non-specialist transliterator
+ *  might pick. Real-world examples we want to catch:
+ *
+ *    Al-Kawthar / Al-Kawsar / Al-Kausar / Al-Kowsar / Al-Kawser
+ *    Adh-Dhariyat / Adh-Zariyat / Az-Zariyat
+ *    Al-Khidr / Al-Kidr / Al-Hidr
+ *    Al-Ghashiyah / Al-Gashiyah
+ *    Quraysh / Kuraysh / Kuraish
+ *    Yusuf / Yousuf / Yousef / Joseph
+ *
+ *  Each rule independently fans out the variant set; combinatorial
+ *  growth is bounded because most names contain at most one digraph.
+ *  We cap at MAX_VARIANTS per name to avoid pathological blowup on
+ *  hypothetical names with many overlapping clusters. */
+const DIGRAPH_RULES: Array<{ from: string; alts: string[] }> = [
+  // ث: thaa — Indo-Pak transliterations often write 's' or 't'
+  { from: 'th', alts: ['th', 's', 't', 'z'] },
+  // ذ: dhaal
+  { from: 'dh', alts: ['dh', 'd', 'z', 'j'] },
+  // خ: khaa
+  { from: 'kh', alts: ['kh', 'k', 'h', 'ch'] },
+  // غ: ghain
+  { from: 'gh', alts: ['gh', 'g', 'q'] },
+  // ش: shiin — usually consistent, but Persian/Pashto sometimes ch
+  { from: 'sh', alts: ['sh', 's', 'ch'] },
+  // English Anglicizations
+  { from: 'ph', alts: ['ph', 'f'] },
+  { from: 'ck', alts: ['ck', 'k'] },
+];
+
+/** Single-letter phonetic equivalents that don't form digraphs.
+ *  Applied AFTER digraph expansion so we don't accidentally split
+ *  digraphs like 'th' by re-mapping its 't'. */
+const SINGLE_LETTER_RULES: Array<{ from: string; alts: string[] }> = [
+  // ق: qaaf — very commonly written as 'k' by non-specialists
+  { from: 'q', alts: ['q', 'k', 'g'] },
+];
+
+const MAX_VARIANTS = 32;
+
+function applyRules(
+  variants: Set<string>,
+  rules: Array<{ from: string; alts: string[] }>,
+): Set<string> {
+  for (const rule of rules) {
+    if (variants.size >= MAX_VARIANTS) break;
+    if (rule.alts.length <= 1) continue;
+    const next = new Set<string>();
+    for (const v of variants) {
+      if (!v.includes(rule.from)) {
+        next.add(v);
+        continue;
+      }
+      for (const alt of rule.alts) {
+        next.add(v.split(rule.from).join(alt));
+        if (next.size >= MAX_VARIANTS) break;
+      }
+      if (next.size >= MAX_VARIANTS) break;
+    }
+    variants = next;
+  }
+  return variants;
+}
+
+/** Generate phonetic-variant set for a normalized name.
+ *  Always includes the original; variants are bounded. */
+function phoneticVariants(normalized: string): string[] {
+  if (!normalized) return [];
+  let set: Set<string> = new Set([normalized]);
+  set = applyRules(set, DIGRAPH_RULES);
+  set = applyRules(set, SINGLE_LETTER_RULES);
+  return Array.from(set);
+}
+
+// Module-level cache of pre-computed variants per surah number.
+// Computed once on first matchSurahs call after the list is loaded.
+const variantCache = new Map<number, string[]>();
+
 /** Levenshtein edit distance between two strings, capped to maxOk+1
  *  for early exit. Returns +Infinity if it would exceed the cap.
  *
@@ -126,19 +206,35 @@ export function matchSurahs(
   type Candidate = SurahMatch;
   const candidates: Candidate[] = [];
 
-  // Edit-distance budget scales with query length so a 4-letter query
-  // tolerates 1 typo, a 12-letter query tolerates up to 3.
-  const editBudget = Math.max(1, Math.min(3, Math.floor(q.length / 4)));
+  // Edit-distance budget scales with query length. ~1 typo per 3
+  // characters (capped at 3 total). At length 6 — typical for short
+  // surah names — this allows 2 edits, which is what catches double
+  // phonetic variations like "yousef" → "yusuf" (insert + substitute)
+  // without exploding the false-positive rate on shorter queries.
+  const editBudget = Math.max(1, Math.min(3, Math.floor(q.length / 3)));
 
   for (const s of surahs) {
-    const fields: Array<[string, 'name' | 'arabic' | 'meaning']> = [
-      [s.name, 'name'],
-      [s.name_arabic || '', 'arabic'],
-      [s.meaning || '', 'meaning'],
-    ];
+    // Get-or-build phonetic variants for the English name. The Arabic
+    // name and meaning don't get phonetic expansion — those match
+    // directly because Latin-letter variation doesn't apply to them.
+    let nameVariants = variantCache.get(s.number);
+    if (!nameVariants) {
+      nameVariants = phoneticVariants(normalize(s.name));
+      variantCache.set(s.number, nameVariants);
+    }
+
     let best: { score: number; field: 'name' | 'arabic' | 'meaning' } | null = null;
-    for (const [text, field] of fields) {
-      const t = normalize(text);
+
+    // Score against each phonetic variant of the English name + the
+    // Arabic name + the meaning.
+    type Candidate = { text: string; field: 'name' | 'arabic' | 'meaning' };
+    const fields: Candidate[] = [
+      ...nameVariants.map((v): Candidate => ({ text: v, field: 'name' })),
+      { text: normalize(s.name_arabic || ''), field: 'arabic' },
+      { text: normalize(s.meaning || ''), field: 'meaning' },
+    ];
+
+    for (const { text: t, field } of fields) {
       if (!t) continue;
       let score: number | null = null;
       if (t === q) score = 0;
