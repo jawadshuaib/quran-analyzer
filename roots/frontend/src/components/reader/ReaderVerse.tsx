@@ -13,6 +13,8 @@ import { NotesBody } from '../GrammarNotes';
 import { splitDepartureNotes } from '../../utils/departure-notes';
 import { TranslationWithChips } from '../TermChip';
 import NoteEditor from '../NoteEditor';
+import WordTooltip from '../WordTooltip';
+import type { Word, Segment } from '../../types';
 
 interface Props {
   surah: number;
@@ -53,6 +55,15 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   const [saved, setSaved] = useState<boolean>(() => isSaved('verse', verseKey));
   const [activePanel, setActivePanel] = useState<'note' | 'verse-notes' | null>(null);
   const [highlightFlash, setHighlightFlash] = useState(highlighted);
+  // Track which word position is hovered (or focus-active) for the
+  // morphology tooltip. -1 = no hover.
+  const [hoveredWord, setHoveredWord] = useState<number>(-1);
+
+  // Per-word Arabic for the word-by-word display. We split the verse's
+  // Uthmani text on whitespace — same approach /verse/<ref> uses —
+  // because each whitespace-separated token is one user-visible word
+  // and corresponds to one word_pos in the morphology table.
+  const uthmaniWords = verse.text_uthmani.split(/\s+/).filter(Boolean);
 
   useEffect(() => {
     return subscribeToNotes(() => {
@@ -166,37 +177,60 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
       <div className="min-w-0">
         {wordByWord && verse.words && verse.words.length > 0 ? (
           // Word-by-word: each Arabic word with English gloss directly
-          // beneath. The container is dir="rtl" so words flow right-to-
-          // left and wrap top-to-bottom, matching natural Arabic reading
-          // order. NOTE: in RTL flexbox `justify-end` pushes items to
-          // the LEFT (because "end" is the LEFT side when reading right-
-          // to-left), so we use `justify-start` to align to the RIGHT.
-          // Likewise plain `flex-wrap` (not -reverse) keeps the second
-          // row BELOW the first.
+          // beneath. dir="rtl" + justify-start aligns words to the
+          // right edge with natural right-to-left reading order; plain
+          // flex-wrap keeps subsequent rows below the first.
+          //
+          // Visible Arabic per word comes from text_uthmani split by
+          // whitespace — same approach as /verse/<ref> — so compound
+          // words like فَصَلِّ stay visually intact instead of being
+          // split into prefix-only display fragments.
           <div
             className="mb-3 flex flex-wrap justify-start gap-x-4 gap-y-3"
             lang="ar"
             dir="rtl"
           >
-            {verse.words.map((w) => (
-              <span
-                key={w.position}
-                className="inline-flex flex-col items-center min-w-[3.5rem] max-w-[14rem]"
-              >
-                <span className="font-serif text-2xl sm:text-3xl leading-tight text-ink">
-                  {w.form_arabic}
-                </span>
-                {w.translation && (
-                  <span
-                    lang="en"
-                    dir="ltr"
-                    className="mt-1 text-[11px] sm:text-xs text-ink-muted leading-tight text-center"
-                  >
-                    {w.translation}
+            {verse.words.map((w) => {
+              const display = uthmaniWords[w.position - 1] ?? joinSegmentArabic(w.segments);
+              const isActive = hoveredWord === w.position;
+              const wordObj: Word = {
+                position: w.position,
+                segments: w.segments as Segment[],
+                translation: w.translation || undefined,
+              };
+              return (
+                <span
+                  key={w.position}
+                  className="relative inline-flex flex-col items-center min-w-[3.5rem] max-w-[14rem] cursor-help"
+                  onMouseEnter={() => setHoveredWord(w.position)}
+                  onMouseLeave={() => setHoveredWord((p) => (p === w.position ? -1 : p))}
+                  onFocus={() => setHoveredWord(w.position)}
+                  onBlur={() => setHoveredWord((p) => (p === w.position ? -1 : p))}
+                  tabIndex={0}
+                >
+                  <span className="font-serif text-2xl sm:text-3xl leading-tight text-ink">
+                    {display}
                   </span>
-                )}
-              </span>
-            ))}
+                  {w.translation && (
+                    <span
+                      lang="en"
+                      dir="ltr"
+                      className="mt-1 text-[11px] sm:text-xs text-ink-muted leading-tight text-center"
+                    >
+                      {w.translation}
+                    </span>
+                  )}
+                  {isActive && (
+                    <WordTooltip
+                      word={wordObj}
+                      aiMeaning={w.translation || undefined}
+                      preferredTranslation={w.translation || undefined}
+                      wordDetailUrl={`/word/${surah}:${verse.verse}/${w.position}`}
+                    />
+                  )}
+                </span>
+              );
+            })}
           </div>
         ) : (
           <div className="font-serif text-2xl sm:text-3xl leading-[2.2] text-ink mb-3 text-right" lang="ar" dir="rtl">
@@ -286,6 +320,14 @@ function GutterIcon({ label, active, onClick, href, children }: GutterIconProps)
       {tooltip}
     </button>
   );
+}
+
+// ----- Helpers -------------------------------------------------------------
+
+/** Fallback when text_uthmani's whitespace-split has fewer tokens than
+ *  expected — concatenate every segment's form_arabic for the word. */
+function joinSegmentArabic(segments: Array<{ form_arabic: string }>): string {
+  return segments.map((s) => s.form_arabic || '').join('');
 }
 
 // ----- Combined translation + grammar notes panel --------------------------

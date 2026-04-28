@@ -2972,25 +2972,74 @@ def get_surah(surah: int):
         ).fetchall()
         has_grammar = {r["verse"] for r in gn_rows}
 
-        # Optional: per-word data (form_arabic + preferred_translation)
+        # Optional: per-word data (full segments + translation). Grouped
+        # by word_pos so prefixes/suffixes/content all live under one
+        # word entry — earlier we only kept ONE segment per word_pos
+        # (arbitrary which one) which made compound words like فَصَلِّ
+        # show up as just the prefix فَ in the reader's word-by-word view.
         words_by_verse: dict[int, list[dict]] = {}
         if include_words:
-            wm_rows = conn.execute(
-                "SELECT m.verse, m.word_pos, m.form_arabic, "
-                "       w.preferred_translation, w.meaning_short "
-                "FROM morphology m "
-                "LEFT JOIN ai_word_meanings w "
-                "  ON w.chapter=m.chapter AND w.verse=m.verse AND w.word_pos=m.word_pos "
-                "WHERE m.chapter = ? "
-                "GROUP BY m.verse, m.word_pos "
-                "ORDER BY m.verse, m.word_pos",
+            morph_rows = conn.execute(
+                "SELECT verse, word_pos, segment, "
+                "       form_arabic, form_buckwalter, tag, pos, "
+                "       root_arabic, root_buckwalter, "
+                "       lemma_arabic, lemma_buckwalter "
+                "FROM morphology "
+                "WHERE chapter = ? "
+                "ORDER BY verse, word_pos, segment",
                 (surah,),
             ).fetchall()
-            for r in wm_rows:
-                words_by_verse.setdefault(r["verse"], []).append({
-                    "position": r["word_pos"],
+            wm_rows = conn.execute(
+                "SELECT verse, word_pos, preferred_translation, meaning_short "
+                "FROM ai_word_meanings WHERE chapter = ?",
+                (surah,),
+            ).fetchall()
+            wm_by_key: dict[tuple[int, int], dict] = {
+                (r["verse"], r["word_pos"]): r for r in wm_rows
+            }
+
+            # Walk morphology in order, building (verse → list of words),
+            # each word being { position, segments[], translation }.
+            # Multiple segments at the same (verse, word_pos) are
+            # accumulated under that word's segments list.
+            cur_key: tuple[int, int] | None = None
+            cur_segs: list[dict] = []
+            for r in morph_rows:
+                key = (r["verse"], r["word_pos"])
+                if key != cur_key:
+                    if cur_key is not None:
+                        wm = wm_by_key.get(cur_key)
+                        words_by_verse.setdefault(cur_key[0], []).append({
+                            "position": cur_key[1],
+                            "segments": cur_segs,
+                            "translation": (
+                                (wm["preferred_translation"] if wm else None)
+                                or (wm["meaning_short"] if wm else None)
+                                or ""
+                            ),
+                        })
+                    cur_key = key
+                    cur_segs = []
+                cur_segs.append({
                     "form_arabic": r["form_arabic"],
-                    "translation": r["preferred_translation"] or r["meaning_short"] or "",
+                    "form_buckwalter": r["form_buckwalter"],
+                    "tag": r["tag"],
+                    "pos": r["pos"],
+                    "root_arabic": r["root_arabic"],
+                    "root_buckwalter": r["root_buckwalter"],
+                    "lemma_arabic": r["lemma_arabic"],
+                    "lemma_buckwalter": r["lemma_buckwalter"],
+                })
+            if cur_key is not None:
+                wm = wm_by_key.get(cur_key)
+                words_by_verse.setdefault(cur_key[0], []).append({
+                    "position": cur_key[1],
+                    "segments": cur_segs,
+                    "translation": (
+                        (wm["preferred_translation"] if wm else None)
+                        or (wm["meaning_short"] if wm else None)
+                        or ""
+                    ),
                 })
 
         # Optional: surveyed_roots per verse — root_buckwalters that

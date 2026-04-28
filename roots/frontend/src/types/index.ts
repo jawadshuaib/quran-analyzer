@@ -109,8 +109,25 @@ export interface SurahVerse {
 
 export interface SurahVerseWord {
   position: number;
-  form_arabic: string;
+  /** All morphology segments for this word position, ordered. The
+   *  reader composes the visible Arabic by joining segment.form_arabic
+   *  (or simply uses text_uthmani split-by-whitespace). The full
+   *  segment list is what powers the hover-tooltip morphology + root
+   *  information. Mirrors the shape of `Word.segments` on the verse
+   *  page so WordTooltip can render it directly. */
+  segments: SurahVerseWordSegment[];
   translation: string;
+}
+
+export interface SurahVerseWordSegment {
+  form_arabic: string;
+  form_buckwalter: string;
+  tag: string;
+  pos: string;
+  root_arabic: string;
+  root_buckwalter: string;
+  lemma_arabic: string;
+  lemma_buckwalter: string;
 }
 
 export interface SharedRoot {
