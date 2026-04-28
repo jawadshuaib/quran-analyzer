@@ -166,11 +166,15 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
       <div className="min-w-0">
         {wordByWord && verse.words && verse.words.length > 0 ? (
           // Word-by-word: each Arabic word with English gloss directly
-          // beneath. Reads right-to-left for the Arabic, but the gloss
-          // pair flows naturally inside each cell. Wraps to multiple
-          // rows on narrow screens.
+          // beneath. The container is dir="rtl" so words flow right-to-
+          // left and wrap top-to-bottom, matching natural Arabic reading
+          // order. NOTE: in RTL flexbox `justify-end` pushes items to
+          // the LEFT (because "end" is the LEFT side when reading right-
+          // to-left), so we use `justify-start` to align to the RIGHT.
+          // Likewise plain `flex-wrap` (not -reverse) keeps the second
+          // row BELOW the first.
           <div
-            className="mb-3 flex flex-wrap-reverse justify-end gap-x-4 gap-y-3 text-right"
+            className="mb-3 flex flex-wrap justify-start gap-x-4 gap-y-3"
             lang="ar"
             dir="rtl"
           >
