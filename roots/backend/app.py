@@ -4948,6 +4948,14 @@ def _get_seo_meta(path: str) -> dict:
             "og_type": "article",
             "canonical": canonical,
             "robots": "index, follow",
+            # Custom hint that _build_meta_tags uses to emit a richer
+            # JSON-LD block (Article + isPartOf Qur'an Book) plus a
+            # BreadcrumbList for SERP rich-snippet support.
+            "ld_type": "Surah",
+            "surah_number": surah,
+            "surah_name_english": name,
+            "surah_name_arabic": arabic,
+            "surah_meaning": meaning,
         }
 
     # Verse page: /verse/2:255
@@ -5191,10 +5199,14 @@ def _build_meta_tags(meta: dict) -> str:
         f'<meta name="twitter:image" content="{og_image}" />',
     ]
 
-    # JSON-LD structured data
+    # JSON-LD structured data — list of dicts. Most pages emit a single
+    # block; some pages (e.g. surah readers) emit multiple, like an
+    # Article + a BreadcrumbList, which is supported by all major
+    # search engines.
     ld_type = meta.get("ld_type")
+    ld_blocks: list[dict] = []
     if ld_type == "Course":
-        ld = {
+        ld_blocks.append({
             "@context": "https://schema.org",
             "@type": "Course",
             "name": title,
@@ -5213,9 +5225,9 @@ def _build_meta_tags(meta: dict) -> str:
                 "courseMode": "online",
                 "courseWorkload": "PT1H",
             },
-        }
+        })
     elif og_type == "website":
-        ld = {
+        ld_blocks.append({
             "@context": "https://schema.org",
             "@type": "WebSite",
             "name": "al-nuqta",
@@ -5225,9 +5237,57 @@ def _build_meta_tags(meta: dict) -> str:
                 "target": f"{SITE_URL}/verse/{{surah}}:{{ayah}}",
                 "query-input": "required name=surah,ayah",
             },
-        }
+        })
+    elif ld_type == "Surah":
+        # Surah reader: emit Article (enriched with articleSection +
+        # isPartOf Qur'an Book) and a BreadcrumbList. Both feed Google
+        # rich-snippet rendering — the Article gives a headline +
+        # publisher summary, the BreadcrumbList replaces the URL slug
+        # in SERPs with "al-nuqta › Read › Surah Name".
+        surah_num = meta.get("surah_number")
+        surah_en = meta.get("surah_name_english", "")
+        surah_ar = meta.get("surah_name_arabic", "")
+        ld_blocks.append({
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": title,
+            "description": desc,
+            "url": canonical,
+            "articleSection": "Qur'an",
+            "isPartOf": {
+                "@type": "Book",
+                "name": "The Qur'an",
+                "alternateName": "Holy Qur'an",
+                "inLanguage": "ar",
+                "numberOfPages": 114,
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": "al-nuqta",
+                "url": SITE_URL,
+            },
+        })
+        crumb_label = f"Surah {surah_en}" + (f" ({surah_ar})" if surah_ar else "")
+        # Two-level breadcrumb: Home → Surah X. We deliberately don't
+        # add an intermediate "Read the Qur'an" level because there's
+        # no dedicated /read landing page — the homepage hosts the
+        # 114-surah list directly. Two ListItems with the same URL is
+        # a Schema.org smell that some search engines warn about.
+        ld_blocks.append({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "al-nuqta", "item": SITE_URL + "/"},
+                {"@type": "ListItem", "position": 2, "name": crumb_label, "item": canonical},
+            ],
+        })
+        # Mention the surah number explicitly via aria-style data —
+        # Article doesn't have a built-in "chapter number" field, so we
+        # tuck it into the description if missing. (Already in title.)
+        if surah_num:
+            ld_blocks[0]["position"] = surah_num
     else:
-        ld = {
+        ld_blocks.append({
             "@context": "https://schema.org",
             "@type": "Article",
             "headline": title,
@@ -5238,9 +5298,10 @@ def _build_meta_tags(meta: dict) -> str:
                 "name": "al-nuqta",
                 "url": SITE_URL,
             },
-        }
-    ld_json = json.dumps(ld, ensure_ascii=False).replace("<", "\\u003c")
-    tags.append(f'<script type="application/ld+json">{ld_json}</script>')
+        })
+    for block in ld_blocks:
+        ld_json = json.dumps(block, ensure_ascii=False).replace("<", "\\u003c")
+        tags.append(f'<script type="application/ld+json">{ld_json}</script>')
 
     return "\n    ".join(tags)
 
