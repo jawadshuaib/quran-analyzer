@@ -14016,8 +14016,12 @@ if SERVE_STATIC:
                 if 1 <= a <= max_a:
                     if b is None:
                         return redirect(f"/verse/{n}:{a}", code=301)
-                    if a < b <= max_a:
-                        return redirect(f"/read/{n}:{a}-{b}", code=301)
+                    # Clamp the upper bound: /36:32-100 → /read/36:32-83
+                    # since the surah ends at 83. Better UX than 404 —
+                    # the user clearly meant "from a to the end".
+                    end = min(b, max_a)
+                    if end > a:
+                        return redirect(f"/read/{n}:{a}-{end}", code=301)
 
         # Read and cache index.html template
         if _index_html_cache is None:

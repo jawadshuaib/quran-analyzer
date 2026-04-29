@@ -89,10 +89,13 @@ function getReaderFromPath(): { surah: number; verse?: number; endVerse?: number
   const max = getSurahMaxAyah(surah);
   if (!max) return null;
   const verse = m[2] ? parseInt(m[2], 10) : undefined;
-  const endVerse = m[3] ? parseInt(m[3], 10) : undefined;
+  let endVerse = m[3] ? parseInt(m[3], 10) : undefined;
   if (verse !== undefined && (verse < 1 || verse > max)) return null;
   if (endVerse !== undefined) {
-    if (verse === undefined || endVerse <= verse || endVerse > max) return null;
+    if (verse === undefined || endVerse <= verse) return null;
+    // Clamp end to the surah length so /read/36:32-100 reads from 32
+    // to the end (83) instead of 404'ing.
+    if (endVerse > max) endVerse = max;
   }
   return { surah, verse, endVerse };
 }
@@ -114,8 +117,12 @@ function maybeRedirectShortPath(): boolean {
   if (a == null) target = `/read/${n}`;
   else if (a < 1 || a > max) return false;
   else if (b == null) target = `/verse/${n}:${a}`;
-  else if (b > a && b <= max) target = `/read/${n}:${a}-${b}`;
-  else return false;
+  else {
+    // Clamp the upper bound to the surah length — /36:32-100 → /read/36:32-83.
+    const end = Math.min(b, max);
+    if (end <= a) return false;
+    target = `/read/${n}:${a}-${end}`;
+  }
   window.location.replace(target);
   return true;
 }
