@@ -78,13 +78,39 @@ function isLearningPath(): boolean {
   return /^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(window.location.pathname);
 }
 
-function getReaderFromPath(): { surah: number; verse?: number } | null {
-  const m = window.location.pathname.match(/^\/read\/(\d+)(?::(\d+))?\/?$/);
+function getReaderFromPath(): { surah: number; verse?: number; endVerse?: number } | null {
+  // /read/<n>            → whole surah
+  // /read/<n>:<v>        → deep-link to verse v
+  // /read/<n>:<a>-<b>    → show only verses a..b of surah n
+  const m = window.location.pathname.match(/^\/read\/(\d+)(?::(\d+)(?:-(\d+))?)?\/?$/);
   if (!m) return null;
   const surah = parseInt(m[1], 10);
   if (!surah || surah < 1 || surah > 114) return null;
   const verse = m[2] ? parseInt(m[2], 10) : undefined;
-  return { surah, verse };
+  const endVerse = m[3] ? parseInt(m[3], 10) : undefined;
+  if (endVerse !== undefined && verse !== undefined && endVerse <= verse) return null;
+  return { surah, verse, endVerse };
+}
+
+/** Catch shortcut URLs the user types by hand and redirect to canonical:
+ *    /<n>          → /read/<n>
+ *    /<n>:<v>      → /verse/<n>:<v>
+ *    /<n>:<a>-<b>  → /read/<n>:<a>-<b>
+ *  Returns true if a redirect is in flight; the caller should bail out. */
+function maybeRedirectShortPath(): boolean {
+  const m = window.location.pathname.match(/^\/(\d+)(?::(\d+)(?:-(\d+))?)?\/?$/);
+  if (!m) return false;
+  const n = parseInt(m[1], 10);
+  if (!(n >= 1 && n <= 114)) return false;
+  const a = m[2] ? parseInt(m[2], 10) : null;
+  const b = m[3] ? parseInt(m[3], 10) : null;
+  let target: string;
+  if (a == null) target = `/read/${n}`;
+  else if (b == null) target = `/verse/${n}:${a}`;
+  else if (b > a) target = `/read/${n}:${a}-${b}`;
+  else return false;
+  window.location.replace(target);
+  return true;
 }
 
 function isKnownRoute(): boolean {
@@ -97,7 +123,7 @@ function isKnownRoute(): boolean {
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
-  if (/^\/read\/\d+(:\d+)?\/?$/.test(path)) return true;
+  if (/^\/read\/\d+(:\d+(-\d+)?)?\/?$/.test(path)) return true;
   if (/^\/settings\/?$/.test(path)) return true;
   if (/^\/developers\/?$/.test(path)) return true;
   if (/^\/methodology\/?$/.test(path)) return true;
@@ -194,6 +220,14 @@ function SiteFooter() {
 }
 
 export default function App() {
+  // Short-form path redirects (/<n>, /<n>:<v>, /<n>:<a>-<b>) — handled
+  // by Flask in production, but we run this client-side too so the
+  // Vite dev server gets the same behavior. Bail early so the rest of
+  // App doesn't render a 404 flash before the redirect lands.
+  if (typeof window !== 'undefined' && maybeRedirectShortPath()) {
+    return null;
+  }
+
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [extensionCheckDone, setExtensionCheckDone] = useState(false);
   const [extensionConfig, setExtensionConfig] = useState<{ id: string; storeUrl: string }>({
@@ -229,7 +263,11 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <div className="flex-1">
-          <ReaderPage surah={readerParams.surah} initialVerse={readerParams.verse} />
+          <ReaderPage
+            surah={readerParams.surah}
+            initialVerse={readerParams.verse}
+            endVerse={readerParams.endVerse}
+          />
         </div>
         <SiteFooter />
         <SavedItemsPanel />

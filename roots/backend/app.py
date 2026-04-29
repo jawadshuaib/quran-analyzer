@@ -4953,7 +4953,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/quran-vocabulary/?$", path):
         return True
-    if re.match(r"^/read/\d+(:\d+)?/?$", path):
+    if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
     if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
@@ -13973,6 +13973,25 @@ if SERVE_STATIC:
         file_path = os.path.join(STATIC_DIR, path)
         if path and os.path.isfile(file_path):
             return send_from_directory(STATIC_DIR, path)
+
+        # Shortcut URLs the user might type by hand:
+        #   /<n>           → /read/<n>           (read whole surah)
+        #   /<n>:<v>       → /verse/<n>:<v>      (research a single ayah)
+        #   /<n>:<a>-<b>   → /read/<n>:<a>-<b>   (read a passage)
+        # Only redirect when the surah/ayah numbers are plausible so we
+        # don't trap unrelated paths.
+        m = re.match(r"^(\d+)(?::(\d+)(?:-(\d+))?)?/?$", path)
+        if m:
+            n = int(m.group(1))
+            if 1 <= n <= 114:
+                a = int(m.group(2)) if m.group(2) else None
+                b = int(m.group(3)) if m.group(3) else None
+                if a is None:
+                    return redirect(f"/read/{n}", code=301)
+                if b is None:
+                    return redirect(f"/verse/{n}:{a}", code=301)
+                if b > a:
+                    return redirect(f"/read/{n}:{a}-{b}", code=301)
 
         # Read and cache index.html template
         if _index_html_cache is None:

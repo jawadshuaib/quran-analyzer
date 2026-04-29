@@ -15,6 +15,10 @@ interface Props {
    *  /read/<surah>:<verse>). The user can land directly on a verse
    *  via the homepage "Continue reading" card. */
   initialVerse?: number;
+  /** When set together with initialVerse, the reader shows ONLY verses
+   *  initialVerse..endVerse of the surah (e.g. /read/36:32-34). Used
+   *  for sharing a passage rather than a whole surah. */
+  endVerse?: number;
 }
 
 /**
@@ -29,7 +33,8 @@ interface Props {
  * localStorage so the homepage's "Continue reading" card can take
  * them back where they left off.
  */
-export default function ReaderPage({ surah, initialVerse }: Props) {
+export default function ReaderPage({ surah, initialVerse, endVerse }: Props) {
+  const isRange = endVerse !== undefined && initialVerse !== undefined && endVerse > initialVerse;
   const [data, setData] = useState<SurahData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -157,19 +162,34 @@ export default function ReaderPage({ surah, initialVerse }: Props) {
         <SurahNav surah={data.surah} />
       </header>
 
+      {isRange && (
+        <div className="mb-6 rounded-lg border border-card-border bg-cream/50 px-4 py-3 text-sm text-ink-secondary flex items-center justify-between gap-3">
+          <span>
+            Showing verses <strong>{initialVerse}–{endVerse}</strong> of Surah {data.name}.
+          </span>
+          <a href={`/read/${data.surah}`} className="text-gold hover:underline whitespace-nowrap">
+            Read full surah →
+          </a>
+        </div>
+      )}
+
       {/* Verses */}
       <div className="space-y-1">
-        {data.verses.map((v) => (
-          <ReaderVerse
-            key={v.verse}
-            ref={(el) => setVerseRef(v.verse, el)}
-            surah={data.surah}
-            verse={v}
-            wordByWord={wordByWord}
-            reciter={reciter}
-            highlighted={initialVerse === v.verse}
-          />
-        ))}
+        {data.verses
+          .filter((v) =>
+            !isRange ? true : (v.verse >= (initialVerse as number) && v.verse <= (endVerse as number)),
+          )
+          .map((v) => (
+            <ReaderVerse
+              key={v.verse}
+              ref={(el) => setVerseRef(v.verse, el)}
+              surah={data.surah}
+              verse={v}
+              wordByWord={wordByWord}
+              reciter={reciter}
+              highlighted={initialVerse === v.verse}
+            />
+          ))}
       </div>
 
       {/* Footer nav: previous / next surah */}
