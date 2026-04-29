@@ -9,6 +9,7 @@ import VerseRefText from './VerseRefText';
 import MethodologyTooltip from './MethodologyTooltip';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
+import VersePlayButton from './VersePlayButton';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
 import { splitDepartureNotes } from '../utils/departure-notes';
 
@@ -285,6 +286,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           subtitle={data.translation}
           onToggle={() => notifySavedItemsChanged()}
         />
+        <VersePlayButton surah={data.surah} ayah={data.ayah} />
         <NoteButton surah={data.surah} ayah={data.ayah} accent="violet" />
       </div>
       {hasSelection && (
