@@ -14,6 +14,26 @@ export async function fetchVerse(surah: number, ayah: number): Promise<VerseData
   return res.json();
 }
 
+export interface DefaultReciter {
+  id: number;
+  name: string;
+  folder: string;
+  audio_base: string;
+}
+
+export async function fetchDefaultReciter(): Promise<DefaultReciter> {
+  const res = await fetch(`${BASE}/reciter/default`);
+  if (!res.ok) throw new Error('Failed to load default reciter');
+  return res.json();
+}
+
+/** Build the per-verse audio URL for the configured default reciter. */
+export function reciterAudioUrl(r: DefaultReciter, surah: number, ayah: number): string {
+  const s = String(surah).padStart(3, '0');
+  const a = String(ayah).padStart(3, '0');
+  return `${r.audio_base}/${r.folder}/${s}${a}.mp3`;
+}
+
 export async function fetchSurahs(): Promise<SurahInfo[]> {
   const res = await fetch(`${BASE}/surahs`);
   if (!res.ok) throw new Error('Failed to load surah list');

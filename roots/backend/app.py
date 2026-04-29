@@ -4955,7 +4955,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
         return True
     return False
 
@@ -7419,6 +7419,51 @@ def admin_reciters():
         if _reciters_cache:
             return jsonify(_reciters_cache)
         return jsonify({"error": f"Failed to fetch reciters: {e}"}), 502
+
+
+# --------------- Public: Default reciter ---------------
+#
+# The reader's per-verse play button needs to know which reciter to
+# play. Admin sets a `default_reciter_id` in admin_preferences via the
+# Verse Settings page; this endpoint exposes that selection (and the
+# audio folder for URL construction) to the public reader. Falls back
+# to Mishari Alafasy (id=7) if no preference is saved.
+
+_DEFAULT_RECITER_ID = 7
+_DEFAULT_RECITER_NAME = "Mishary Rashid Alafasy"
+
+
+@app.route("/api/reciter/default", methods=["GET"])
+def public_default_reciter():
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'default_reciter_id'"
+        ).fetchone()
+        try:
+            reciter_id = int(row["value"]) if row and row["value"] else _DEFAULT_RECITER_ID
+        except (TypeError, ValueError):
+            reciter_id = _DEFAULT_RECITER_ID
+    finally:
+        conn.close()
+
+    folder = _get_reciter_folder(reciter_id)
+    name = _DEFAULT_RECITER_NAME
+    # Try to enrich with the friendly name from the cached reciter list.
+    if _reciters_cache:
+        for r in _reciters_cache:
+            if r.get("id") == reciter_id:
+                name = (r.get("reciter_name") or name)
+                style = r.get("style")
+                if style:
+                    name = f"{name} ({style})"
+                break
+    return jsonify({
+        "id": reciter_id,
+        "name": name,
+        "folder": folder,
+        "audio_base": "https://verses.quran.com",
+    })
 
 
 # --------------- Admin: Recitation preview ---------------

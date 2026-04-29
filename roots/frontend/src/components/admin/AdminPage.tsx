@@ -18,8 +18,9 @@ import AdminVocabulary from './AdminVocabulary';
 import AdminVocabularyStudio from './AdminVocabularyStudio';
 import AdminRevisions from './AdminRevisions';
 import AdminProperNouns from './AdminProperNouns';
+import VerseSettings from './VerseSettings';
 
-type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns';
+type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns' | 'verse-settings';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -38,8 +39,51 @@ function getAdminRoute(): AdminRoute {
   const m = path.match(/^\/admin\/vocabulary\/([^/]+)\/?$/);
   if (m) return 'vocabulary-studio';
   if (/^\/admin\/proper-nouns\/?$/.test(path)) return 'proper-nouns';
+  if (/^\/admin\/verse-settings\/?$/.test(path)) return 'verse-settings';
   return 'dashboard';
 }
+
+interface AdminSection {
+  href: string;
+  label: string;
+  description: string;
+  matches: (route: AdminRoute) => boolean;
+}
+
+const ADMIN_SECTIONS: AdminSection[] = [
+  {
+    href: '/admin/media',
+    label: 'Media',
+    description: 'Recitations, background videos, music, video pipelines.',
+    matches: (r) =>
+      r === 'media' || r === 'recitations' || r === 'resources' || r === 'music' ||
+      r === 'generate' || r === 'explanations' || r === 'generate-explanation' || r === 'pipelines',
+  },
+  {
+    href: '/admin/scheduler',
+    label: 'Scheduler',
+    description: 'YouTube upload schedule and queued runs.',
+    matches: (r) => r === 'scheduler',
+  },
+  {
+    href: '/admin/revisions',
+    label: 'Revisions',
+    description: 'Vocabulary surveys and proper-noun edits.',
+    matches: (r) => r === 'revisions' || r === 'vocabulary' || r === 'vocabulary-studio' || r === 'proper-nouns',
+  },
+  {
+    href: '/admin/verse-settings',
+    label: 'Verse Settings',
+    description: 'Default reciter for the public reader.',
+    matches: (r) => r === 'verse-settings',
+  },
+  {
+    href: '/admin/settings',
+    label: 'Settings',
+    description: 'API keys, OAuth credentials, integrations.',
+    matches: (r) => r === 'settings',
+  },
+];
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -115,30 +159,18 @@ export default function AdminPage() {
             >
               Dashboard
             </a>
-            <a
-              href="/admin/media"
-              className={`text-sm ${route === 'media' || route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation' || route === 'pipelines' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Media
-            </a>
-            <a
-              href="/admin/scheduler"
-              className={`text-sm ${route === 'scheduler' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Scheduler
-            </a>
-            <a
-              href="/admin/revisions"
-              className={`text-sm ${route === 'revisions' || route === 'vocabulary' || route === 'vocabulary-studio' || route === 'proper-nouns' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Revisions
-            </a>
-            <a
-              href="/admin/settings"
-              className={`text-sm ${route === 'settings' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              Settings
-            </a>
+            {/* Section links live in the dashboard tile grid when the
+                user is on /admin. Once they drill into a section, the
+                links reappear in the nav for quick lateral movement. */}
+            {route !== 'dashboard' && ADMIN_SECTIONS.map((s) => (
+              <a
+                key={s.href}
+                href={s.href}
+                className={`text-sm ${s.matches(route) ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+              >
+                {s.label}
+              </a>
+            ))}
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-stone-400">{username}</span>
@@ -190,6 +222,18 @@ export default function AdminPage() {
             <h1 className="text-xl font-semibold text-stone-800 mb-2">Admin Dashboard</h1>
             <p className="text-sm text-stone-500 mb-6">Welcome back, {username}.</p>
             <DashboardAlerts />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {ADMIN_SECTIONS.map((s) => (
+                <a
+                  key={s.href}
+                  href={s.href}
+                  className="block rounded-xl border border-stone-200 bg-white px-5 py-4 hover:border-stone-400 hover:shadow-sm transition"
+                >
+                  <div className="text-sm font-semibold text-stone-800">{s.label}</div>
+                  <div className="text-xs text-stone-500 mt-1">{s.description}</div>
+                </a>
+              ))}
+            </div>
           </div>
         )}
         {route === 'settings' && <AdminSettings />}
@@ -206,6 +250,7 @@ export default function AdminPage() {
         {route === 'vocabulary' && <AdminVocabulary />}
         {route === 'vocabulary-studio' && <AdminVocabularyStudio />}
         {route === 'proper-nouns' && <AdminProperNouns />}
+        {route === 'verse-settings' && <VerseSettings />}
       </div>
     </div>
   );

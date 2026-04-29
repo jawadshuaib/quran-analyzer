@@ -348,7 +348,7 @@ export default function App() {
     );
   }
 
-  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(currentPath)) {
+  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/verse-settings|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines)?)?\/?$/.test(currentPath)) {
     return <AdminPage />;
   }
 

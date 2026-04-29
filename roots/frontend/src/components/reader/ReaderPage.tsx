@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { fetchSurah } from '../../api/quran';
+import { fetchSurah, fetchDefaultReciter } from '../../api/quran';
 import type { SurahData } from '../../types';
+import type { DefaultReciter } from '../../api/quran';
 import { setLastRead } from '../../utils/last-read';
 import {
   isWordByWordEnabled,
@@ -33,6 +34,11 @@ export default function ReaderPage({ surah, initialVerse }: Props) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [wordByWord, setWordByWord] = useState(() => isWordByWordEnabled());
+  const [reciter, setReciter] = useState<DefaultReciter | null>(null);
+
+  useEffect(() => {
+    fetchDefaultReciter().then(setReciter).catch(() => { /* play button silently disabled */ });
+  }, []);
 
   const verseRefs = useRef<Map<number, HTMLElement>>(new Map());
   const lastWrittenRef = useRef<number>(0);
@@ -160,6 +166,7 @@ export default function ReaderPage({ surah, initialVerse }: Props) {
             surah={data.surah}
             verse={v}
             wordByWord={wordByWord}
+            reciter={reciter}
             highlighted={initialVerse === v.verse}
           />
         ))}

@@ -15,6 +15,13 @@ import { TranslationWithChips } from '../TermChip';
 import NoteEditor from '../NoteEditor';
 import WordTooltip from '../WordTooltip';
 import type { Word, Segment } from '../../types';
+import type { DefaultReciter } from '../../api/quran';
+import { reciterAudioUrl } from '../../api/quran';
+import {
+  getVerseAudioStatus,
+  toggleVerseAudio,
+  subscribeVerseAudio,
+} from '../../utils/verse-audio';
 
 interface Props {
   surah: number;
@@ -24,6 +31,9 @@ interface Props {
    *  reader fetches verse.words only when this is on, so absence of
    *  the array also means "skip word-by-word render". */
   wordByWord?: boolean;
+  /** When set, the gutter shows a play button that streams this verse's
+   *  recitation from the configured default reciter. */
+  reciter?: DefaultReciter | null;
   /** Light highlight applied for ~2s after deep-link landing on this
    *  verse via /read/<surah>:<verse>. Helps the user spot where they
    *  were dropped. */
@@ -47,7 +57,7 @@ interface Props {
  * around.
  */
 const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
-  { surah, verse, wordByWord, highlighted },
+  { surah, verse, wordByWord, reciter, highlighted },
   ref,
 ) {
   const verseKey = `${surah}:${verse.verse}`;
@@ -58,6 +68,13 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   // Track which word position is hovered (or focus-active) for the
   // morphology tooltip. -1 = no hover.
   const [hoveredWord, setHoveredWord] = useState<number>(-1);
+  const [audioState, setAudioState] = useState(() => getVerseAudioStatus(verseKey));
+
+  useEffect(() => {
+    const update = () => setAudioState(getVerseAudioStatus(verseKey));
+    update();
+    return subscribeVerseAudio(update);
+  }, [verseKey]);
 
   // Per-word Arabic for the word-by-word display. We split the verse's
   // Uthmani text on whitespace — same approach /verse/<ref> uses —
@@ -121,8 +138,36 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
       }`}
     >
       {/* Left gutter — verse number + subtle icons (only when relevant) */}
-      <div className="flex flex-col items-end gap-1.5 pt-1 text-ink-muted">
-        <span className="font-mono text-[12px] text-ink-muted/80 leading-none">
+      <div className="flex flex-col items-center gap-1.5 pt-1 text-ink-muted">
+        {reciter && (
+          <GutterIcon
+            label={
+              audioState === 'playing'
+                ? 'Stop recitation'
+                : audioState === 'loading'
+                  ? 'Loading recitation…'
+                  : `Play recitation (${reciter.name})`
+            }
+            active={audioState !== 'idle'}
+            onClick={() => toggleVerseAudio(verseKey, reciterAudioUrl(reciter, surah, verse.verse))}
+          >
+            {audioState === 'loading' ? (
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M8 2a6 6 0 016 6" strokeLinecap="round" />
+              </svg>
+            ) : audioState === 'playing' ? (
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
+                <rect x="4" y="3" width="3" height="10" rx="0.5" />
+                <rect x="9" y="3" width="3" height="10" rx="0.5" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
+                <path d="M5 3.2v9.6a.5.5 0 00.76.43l8-4.8a.5.5 0 000-.86l-8-4.8A.5.5 0 005 3.2z" />
+              </svg>
+            )}
+          </GutterIcon>
+        )}
+        <span className="font-mono text-[12px] text-ink-muted/80 leading-none self-end">
           {verse.verse}
         </span>
         <div className="flex flex-col items-center gap-1.5 mt-1">
