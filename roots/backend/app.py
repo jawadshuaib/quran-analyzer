@@ -14031,32 +14031,33 @@ if SERVE_STATIC:
         # Inject SEO meta tags
         req_path = "/" + path if path else "/"
 
-        # Unknown paths: return a minimal 404 with noindex — do NOT serve
-        # the full SPA, which search engines may treat as a soft 404.
-        if not _is_known_spa_path(req_path):
-            not_found_html = (
-                '<!DOCTYPE html><html><head>'
-                '<meta charset="utf-8">'
+        # Unknown paths: still serve the SPA shell so React can render
+        # the friendly NotFound page (verse of the day, recovery links).
+        # We return HTTP 404 and tag the page noindex,nofollow so search
+        # engines don't index unknown URLs as if they were real pages.
+        is_unknown = not _is_known_spa_path(req_path)
+
+        if is_unknown:
+            meta_tags = (
                 '<meta name="robots" content="noindex, nofollow">'
-                '<title>Page Not Found | al-nuqta</title>'
-                '</head><body>'
-                '<h1>404 — Page Not Found</h1>'
-                f'<p>Go to <a href="/">al-nuqta</a></p>'
-                '</body></html>'
+                '<meta property="og:title" content="Page Not Found | al-nuqta">'
             )
-            return Response(not_found_html, mimetype="text/html", status=404)
-
-        meta = _get_seo_meta(req_path)
-        meta_tags = _build_meta_tags(meta)
-
-        # Generate noscript content for LLM/bot crawlers that don't execute JS
-        noscript_html = _build_noscript_content(req_path)
+            page_title = "404 — Page Not Found | al-nuqta"
+            noscript_html = (
+                '<noscript><h1>404 — Page Not Found</h1>'
+                '<p>Go to <a href="/">al-nuqta</a></p></noscript>'
+            )
+        else:
+            meta = _get_seo_meta(req_path)
+            meta_tags = _build_meta_tags(meta)
+            page_title = meta["title"]
+            noscript_html = _build_noscript_content(req_path)
 
         html_doc = _index_html_cache
         html_doc = html_doc.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
         html_doc = html_doc.replace(
             "<title>al-nuqta</title>",
-            f"<title>{html.escape(meta['title'])}</title>",
+            f"<title>{html.escape(page_title)}</title>",
         )
         if noscript_html:
             html_doc = html_doc.replace(
@@ -14064,7 +14065,7 @@ if SERVE_STATIC:
                 f'<div id="root"></div>\n{noscript_html}',
             )
 
-        return Response(html_doc, mimetype="text/html", status=200)
+        return Response(html_doc, mimetype="text/html", status=404 if is_unknown else 200)
 
 
 if __name__ == "__main__":
