@@ -4928,13 +4928,16 @@ def _get_seo_meta(path: str) -> dict:
     m = re.match(r"^/read/(\d+)(?::(\d+))?/?$", path)
     if m:
         surah = int(m.group(1))
-        verse_anchor = int(m.group(2)) if m.group(2) else None
         name = _surah_name(surah)
         arabic = _surah_arabic(surah)
         meaning = _surah_meaning(surah)
+        # Canonical always points at /read/<n> — the verse-anchor URL
+        # (/read/<n>:<v>) loads identical content; the verse number is
+        # just a deep-link fragment that the React reader uses to
+        # scroll into view. Telling Google "/read/<n>" is the canonical
+        # version prevents duplicate-content indexing of the same page
+        # 286× for Surah Al-Baqarah.
         canonical = f"{SITE_URL}/read/{surah}"
-        if verse_anchor:
-            canonical += f":{verse_anchor}"
         return {
             "title": f"Read Surah {name} ({arabic}) | al-nuqta",
             "description": (
@@ -5314,6 +5317,13 @@ def sitemap_xml():
     _add(SITE_URL + "/privacy/extension", "0.3")
     _add(SITE_URL + "/grammar-glossary", "0.6")
     _add(SITE_URL + "/quran-vocabulary", "0.6")
+
+    # All 114 surah reader pages — high priority because they're the
+    # main entry points users land on for "read Surah X" searches.
+    # /read/<n> only — verse-anchor variants (/read/<n>:<v>) share
+    # the same canonical and shouldn't be re-listed.
+    for surah_num in range(1, 115):
+        _add(f"{SITE_URL}/read/{surah_num}", "0.8")
 
     # All verse pages
     conn = get_db()
@@ -13565,6 +13575,94 @@ def _build_noscript_content(path: str) -> str:
                     parts.append(f'<p>Roots in this verse: {", ".join(root_links)}</p>')
         finally:
             conn.close()
+
+    # Reader page: /read/<n> or /read/<n>:<v>
+    # The reader's main draw is "the entire surah on one page" — so
+    # we render every verse here as static HTML so Googlebot, GPTBot,
+    # Claude-Web, and any other crawler that doesn't execute JS sees
+    # the full surah text + English translation, with the surah
+    # header as the H1. The verse-deep-link variant (/read/2:255)
+    # produces the same content; the canonical points at /read/2 so
+    # Google indexes a single page per surah.
+    m = re.match(r'^/read/(\d+)(?::\d+)?/?$', path)
+    if m:
+        surah = int(m.group(1))
+        if 1 <= surah <= 114:
+            conn = get_db()
+            try:
+                verse_rows = conn.execute(
+                    "SELECT verse, text_uthmani FROM verses "
+                    "WHERE chapter = ? ORDER BY verse",
+                    (surah,),
+                ).fetchall()
+                if verse_rows:
+                    trans_rows = conn.execute(
+                        "SELECT verse, translation_text, revised_text "
+                        "FROM ai_translations WHERE chapter = ?",
+                        (surah,),
+                    ).fetchall()
+                    trans_by_verse = {
+                        r["verse"]: (r["revised_text"] or r["translation_text"] or "")
+                        for r in trans_rows
+                    }
+
+                    name = _surah_name(surah)
+                    arabic_name = _surah_arabic(surah)
+                    meaning = _surah_meaning(surah)
+                    parts.append(
+                        f'<h1>Surah {html.escape(name)}'
+                        + (f' &mdash; {html.escape(arabic_name)}' if arabic_name else '')
+                        + '</h1>'
+                    )
+                    header_bits = [f'Surah {surah} of 114']
+                    if meaning:
+                        header_bits.append(html.escape(meaning))
+                    header_bits.append(f'{len(verse_rows)} verses')
+                    parts.append(f'<p>{" &middot; ".join(header_bits)}</p>')
+                    parts.append(
+                        '<p>Read this surah verse by verse with English '
+                        'translation. The al-nuqta reader supports optional '
+                        'word-by-word display, hover tooltips for surveyed '
+                        'roots, personal notes, and saved bookmarks &mdash; '
+                        'all stored locally in your browser. For deeper '
+                        f'research on any verse, see '
+                        f'<a href="/verse/{surah}:1">/verse/{surah}:1</a>.</p>'
+                    )
+
+                    # Prev / next surah crumbs
+                    nav_bits = []
+                    if surah > 1:
+                        nav_bits.append(
+                            f'<a href="/read/{surah - 1}">&larr; Surah '
+                            f'{html.escape(_surah_name(surah - 1))}</a>'
+                        )
+                    nav_bits.append('<a href="/">All surahs</a>')
+                    if surah < 114:
+                        nav_bits.append(
+                            f'<a href="/read/{surah + 1}">Surah '
+                            f'{html.escape(_surah_name(surah + 1))} &rarr;</a>'
+                        )
+                    parts.append(f'<p>{" &middot; ".join(nav_bits)}</p>')
+
+                    parts.append('<ol>')
+                    for r in verse_rows:
+                        v = r["verse"]
+                        ar = _strip_bismillah(r["text_uthmani"], surah, v)
+                        tr = trans_by_verse.get(v, "")
+                        parts.append(
+                            f'<li id="v{v}" value="{v}">'
+                            + (
+                                f'<p dir="rtl" lang="ar">{html.escape(ar)}</p>'
+                                if ar else ''
+                            )
+                            + (f'<p>{html.escape(tr)}</p>' if tr else '')
+                            + f'<p><a href="/verse/{surah}:{v}">'
+                            + f'Research verse {surah}:{v} &rarr;</a></p>'
+                            + '</li>'
+                        )
+                    parts.append('</ol>')
+            finally:
+                conn.close()
 
     # Root page: /root/X
     m = re.match(r'^/root/(.+)$', path)
