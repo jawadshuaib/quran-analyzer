@@ -1603,6 +1603,49 @@ _CLAUDE_API_KEY = _CLAUDE_API_KEY_ENV  # backward-compat alias for CLI scripts
 
 
 _claude_key_cache: dict = {"key": None, "ts": 0.0}
+_ga_id_cache: dict = {"id": None, "ts": 0.0}
+
+
+def _get_google_analytics_id() -> str:
+    """Read the GA4 Measurement ID from admin_preferences. Cached for 60s
+    so we don't hit the DB on every page render. Returns '' if unset."""
+    now = time.time()
+    if _ga_id_cache["id"] is not None and now - _ga_id_cache["ts"] < 60:
+        return _ga_id_cache["id"]
+    val = ""
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT value FROM admin_preferences WHERE key = 'google_analytics_id'"
+            ).fetchone()
+            if row and row["value"]:
+                val = (row["value"] or "").strip()
+        finally:
+            conn.close()
+    except Exception:
+        pass
+    _ga_id_cache["id"] = val
+    _ga_id_cache["ts"] = now
+    return val
+
+
+def _build_ga_snippet(ga_id: str) -> str:
+    """Standard gtag.js bootstrap. Only emit if ga_id looks like a GA4
+    Measurement ID (G-XXXXX) — anything else is silently dropped so a
+    typo'd value can't inject random script tags."""
+    import re as _re
+    if not _re.match(r"^G-[A-Z0-9]{4,20}$", ga_id):
+        return ""
+    return (
+        f'<script async src="https://www.googletagmanager.com/gtag/js?id={ga_id}"></script>'
+        '<script>'
+        'window.dataLayer = window.dataLayer || [];'
+        'function gtag(){dataLayer.push(arguments);}'
+        'gtag(\'js\', new Date());'
+        f'gtag(\'config\', \'{ga_id}\');'
+        '</script>'
+    )
 
 
 def _get_claude_api_key() -> str:
@@ -6032,6 +6075,9 @@ def admin_save_preferences():
         conn.commit()
         if "claude_api_key" in body:
             _invalidate_claude_key_cache()
+        if "google_analytics_id" in body:
+            _ga_id_cache["id"] = None
+            _ga_id_cache["ts"] = 0.0
         return jsonify({"message": "Saved"})
     finally:
         conn.close()
@@ -14067,6 +14113,14 @@ if SERVE_STATIC:
             "<title>al-nuqta</title>",
             f"<title>{html.escape(page_title)}</title>",
         )
+        # Inject Google Analytics if the admin has set a Measurement ID.
+        # Skipped on /admin paths so admin activity isn't counted as user
+        # traffic.
+        ga_id = _get_google_analytics_id()
+        if ga_id and not req_path.startswith("/admin"):
+            ga_snippet = _build_ga_snippet(ga_id)
+            if ga_snippet:
+                html_doc = html_doc.replace("</head>", f"{ga_snippet}</head>", 1)
         if noscript_html:
             html_doc = html_doc.replace(
                 '<div id="root"></div>',

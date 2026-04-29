@@ -92,22 +92,90 @@ function formatAge(days: number): string {
   return d === 1 ? '1 day' : `${d} days`;
 }
 
+/** Settings are grouped into categories so the page is scannable.
+ *  Each section anchors via id so the side nav can scroll to it. */
+const SETTINGS_GROUPS: Array<{
+  title: string;
+  blurb?: string;
+  sections: Array<{ id: string; label: string; render: () => React.ReactElement }>;
+}> = [
+  {
+    title: 'Account',
+    sections: [
+      { id: 'change-password', label: 'Change password', render: () => <ChangePasswordSection /> },
+    ],
+  },
+  {
+    title: 'Site & analytics',
+    blurb: 'How visitors discover, track, and install al-nuqta.',
+    sections: [
+      { id: 'google-analytics', label: 'Google Analytics', render: () => <GoogleAnalyticsSection /> },
+      { id: 'chrome-extension', label: 'Chrome extension', render: () => <ChromeExtensionSection /> },
+    ],
+  },
+  {
+    title: 'AI providers',
+    blurb: 'API keys for translation, voice, and reasoning models.',
+    sections: [
+      { id: 'claude-api', label: 'Claude API', render: () => <ClaudeApiSection /> },
+      { id: 'ollama', label: 'Ollama', render: () => <OllamaSection /> },
+      { id: 'elevenlabs', label: 'ElevenLabs', render: () => <ElevenLabsSection /> },
+    ],
+  },
+  {
+    title: 'Social distribution',
+    blurb: 'OAuth credentials for video uploads.',
+    sections: [
+      { id: 'youtube', label: 'YouTube', render: () => <YoutubeSection /> },
+      { id: 'tiktok', label: 'TikTok', render: () => <TiktokSection /> },
+    ],
+  },
+];
+
 export default function AdminSettings() {
   return (
-    <div className="space-y-10">
-      <ChangePasswordSection />
-      <hr className="border-stone-200" />
-      <ClaudeApiSection />
-      <hr className="border-stone-200" />
-      <ElevenLabsSection />
-      <hr className="border-stone-200" />
-      <OllamaSection />
-      <hr className="border-stone-200" />
-      <YoutubeSection />
-      <hr className="border-stone-200" />
-      <TiktokSection />
-      <hr className="border-stone-200" />
-      <ChromeExtensionSection />
+    <div className="flex flex-col lg:flex-row gap-8">
+      {/* Sticky side nav — collapses to a horizontal pill bar on mobile. */}
+      <aside className="lg:w-56 lg:flex-shrink-0">
+        <nav className="lg:sticky lg:top-6 space-y-5">
+          {SETTINGS_GROUPS.map((g) => (
+            <div key={g.title}>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-stone-400 mb-1.5">
+                {g.title}
+              </p>
+              <ul className="space-y-0.5">
+                {g.sections.map((s) => (
+                  <li key={s.id}>
+                    <a
+                      href={`#${s.id}`}
+                      className="block rounded-md px-2 py-1 text-sm text-stone-600 hover:bg-stone-100 hover:text-stone-900 transition-colors"
+                    >
+                      {s.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="flex-1 min-w-0 space-y-12">
+        {SETTINGS_GROUPS.map((g) => (
+          <section key={g.title} className="space-y-8">
+            <div>
+              <h1 className="text-xl font-semibold text-stone-800">{g.title}</h1>
+              {g.blurb && <p className="text-sm text-stone-500 mt-0.5">{g.blurb}</p>}
+            </div>
+            {g.sections.map((s, i) => (
+              <div key={s.id} id={s.id} className="scroll-mt-6">
+                {i > 0 && <hr className="border-stone-200 mb-8" />}
+                {s.render()}
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
@@ -974,6 +1042,101 @@ function TiktokSection() {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Google Analytics Configuration                                    */
+/* ------------------------------------------------------------------ */
+
+function GoogleAnalyticsSection() {
+  const [gaId, setGaId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    getPreferences().then((prefs) => {
+      if (prefs.google_analytics_id) setGaId(prefs.google_analytics_id);
+    });
+  }, []);
+
+  const looksValid = /^G-[A-Z0-9]{4,20}$/.test(gaId.trim());
+  const isEmpty = !gaId.trim();
+  const showFormatHint = !isEmpty && !looksValid;
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg('');
+    try {
+      await savePreferences({ google_analytics_id: gaId.trim() });
+      setMsg(gaId.trim() ? 'Saved — tracking is now live on public pages.' : 'Cleared.');
+      setTimeout(() => setMsg(''), 3500);
+    } catch {
+      setMsg('Failed to save');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <h2 className="text-lg font-semibold text-stone-800">Google Analytics</h2>
+        {looksValid && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700">
+            Tracking
+          </span>
+        )}
+      </div>
+      <p className="text-sm text-stone-500 mb-4">
+        Paste your GA4 Measurement ID (looks like <code className="px-1 bg-stone-100 rounded text-xs">G-XXXXXXXXXX</code>)
+        and we'll inject the gtag snippet on every public page. Admin pages
+        (<code className="px-1 bg-stone-100 rounded text-xs">/admin/*</code>) are excluded so your own activity doesn't pollute the data.
+      </p>
+
+      <details className="mb-4 max-w-2xl text-xs text-stone-600">
+        <summary className="cursor-pointer text-stone-500 hover:text-stone-700">
+          How to find your Measurement ID
+        </summary>
+        <ol className="mt-2 pl-5 list-decimal space-y-1 leading-relaxed">
+          <li>Go to <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" className="underline">analytics.google.com</a> → your al-nuqta property.</li>
+          <li>Open <b>Admin</b> (gear icon, bottom-left) → <b>Data Streams</b> → click your web stream.</li>
+          <li>Copy the <b>Measurement ID</b> shown in the top-right of the stream details (starts with <code className="px-1 bg-stone-100 rounded">G-</code>).</li>
+          <li>Paste it below and click Save. Visit any public page and verify in GA4 <b>Reports → Realtime</b>.</li>
+        </ol>
+      </details>
+
+      <div className="max-w-md">
+        <label className="block text-sm font-medium text-stone-700 mb-1">Measurement ID</label>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={gaId}
+            onChange={(e) => setGaId(e.target.value)}
+            className="flex-1 px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            placeholder="G-XXXXXXXXXX"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+          />
+          <button
+            onClick={handleSave}
+            disabled={saving || (!isEmpty && !looksValid)}
+            title={showFormatHint ? 'Format must be G- followed by 4-20 letters/digits' : undefined}
+            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+        {showFormatHint && (
+          <p className="mt-1 text-xs text-amber-600">
+            That doesn't look like a GA4 ID. Expected format: <code className="px-1 bg-amber-50 rounded">G-XXXXXXXXXX</code>.
+          </p>
+        )}
+        {msg && <p className="mt-1 text-xs text-stone-500">{msg}</p>}
+        <p className="mt-2 text-[11px] text-stone-400">
+          Leave blank to disable tracking entirely.
+        </p>
       </div>
     </div>
   );
