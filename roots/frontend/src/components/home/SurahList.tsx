@@ -55,9 +55,6 @@ export default function SurahList() {
         <h2 className="font-serif text-xl font-medium tracking-tight text-ink">
           Read the Qur&apos;an
         </h2>
-        <p className="text-xs text-ink-muted mt-1">
-          {surahs.length} surahs · click any to start reading
-        </p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
