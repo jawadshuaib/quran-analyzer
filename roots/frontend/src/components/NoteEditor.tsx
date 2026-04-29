@@ -48,8 +48,7 @@ export default function NoteEditor({ initial, onSave, onClose, accent = 'gold' }
         className={`w-full bg-white border border-card-border rounded-md px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 ${focusRing}`}
         autoFocus
       />
-      <div className="mt-2 flex items-center justify-between text-[11px]">
-        <span className="text-ink-muted">Stored locally in your browser.</span>
+      <div className="mt-2 flex items-center justify-end text-[11px]">
         <div className="flex items-center gap-2">
           {initial && (
             <button
