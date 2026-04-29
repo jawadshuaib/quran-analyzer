@@ -772,4 +772,10 @@ if [ -d /app/seed-mnemonic-images ] && [ "$(ls -A /app/seed-mnemonic-images 2>/d
   cp /app/seed-mnemonic-images/* /app/data/mnemonic_images/
 fi
 
+# Run cognate languages migration (idempotent — skips if already applied)
+if [ -f /app/normalize_cognate_languages.py ]; then
+  echo "Running cognate languages migration..."
+  python3 /app/normalize_cognate_languages.py 2>&1
+fi
+
 exec "$@"
