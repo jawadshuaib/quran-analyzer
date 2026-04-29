@@ -67,8 +67,12 @@ export default function NoteButton({ surah, ayah, accent = 'violet' }: Props) {
       </button>
 
       {open && (
+        // Anchored to the floating-button pill, but the pill itself is
+        // only ~100px wide — without an explicit width the editor would
+        // collapse to that. Use a fixed width that fits a typical verse
+        // card, capped to viewport so it doesn't overflow on mobile.
         <div
-          className="absolute z-20 left-0 right-0 top-8 mx-2"
+          className="absolute z-20 left-0 top-8 w-[min(28rem,calc(100vw-2.5rem))]"
           onClick={(e) => e.stopPropagation()}
         >
           <NoteEditor
