@@ -102,6 +102,29 @@ def _surah_name(ch: int) -> str:
     return SURAH_NAMES[ch] if ch < len(SURAH_NAMES) else f"Surah {ch}"
 
 
+# Verse counts per surah (index 0 unused). Static table — the canonical
+# Quran has fixed verse counts so we don't need a DB hit per redirect.
+SURAH_VERSE_COUNTS = [
+    0, 7, 286, 200, 176, 120, 165, 206, 75, 129, 109,
+    123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
+    112, 78, 118, 64, 77, 227, 93, 88, 69, 60,
+    34, 30, 73, 54, 45, 83, 182, 88, 75, 85,
+    54, 53, 89, 59, 37, 35, 38, 29, 18, 45,
+    60, 49, 62, 55, 78, 96, 29, 22, 24, 13,
+    14, 11, 11, 18, 12, 12, 30, 52, 52, 44,
+    28, 28, 20, 56, 40, 31, 50, 40, 46, 42,
+    29, 19, 36, 25, 22, 17, 19, 26, 30, 20,
+    15, 21, 11, 8, 8, 19, 5, 8, 8, 11,
+    11, 8, 3, 9, 5, 4, 7, 3, 6, 3,
+    5, 4, 5, 6,
+]
+
+
+def _surah_max_ayah(ch: int) -> int:
+    """Highest ayah number in surah `ch`. Returns 0 for invalid surahs."""
+    return SURAH_VERSE_COUNTS[ch] if 1 <= ch < len(SURAH_VERSE_COUNTS) else 0
+
+
 # Arabic surah names — index 0 unused so SURAH_NAMES_ARABIC[1] = الفاتحة
 SURAH_NAMES_ARABIC = [
     "", "الفاتحة", "البقرة", "آل عمران", "النساء", "المائدة",
@@ -13978,20 +14001,23 @@ if SERVE_STATIC:
         #   /<n>           → /read/<n>           (read whole surah)
         #   /<n>:<v>       → /verse/<n>:<v>      (research a single ayah)
         #   /<n>:<a>-<b>   → /read/<n>:<a>-<b>   (read a passage)
-        # Only redirect when the surah/ayah numbers are plausible so we
-        # don't trap unrelated paths.
+        # Only redirect when the surah AND ayah numbers actually exist;
+        # otherwise we'd 301 garbage like /36:9999 to a guaranteed 404
+        # downstream and waste a hop. Fall through to the 404 branch.
         m = re.match(r"^(\d+)(?::(\d+)(?:-(\d+))?)?/?$", path)
         if m:
             n = int(m.group(1))
             if 1 <= n <= 114:
                 a = int(m.group(2)) if m.group(2) else None
                 b = int(m.group(3)) if m.group(3) else None
+                max_a = _surah_max_ayah(n)
                 if a is None:
                     return redirect(f"/read/{n}", code=301)
-                if b is None:
-                    return redirect(f"/verse/{n}:{a}", code=301)
-                if b > a:
-                    return redirect(f"/read/{n}:{a}-{b}", code=301)
+                if 1 <= a <= max_a:
+                    if b is None:
+                        return redirect(f"/verse/{n}:{a}", code=301)
+                    if a < b <= max_a:
+                        return redirect(f"/read/{n}:{a}-{b}", code=301)
 
         # Read and cache index.html template
         if _index_html_cache is None:

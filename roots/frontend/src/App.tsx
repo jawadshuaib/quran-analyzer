@@ -30,6 +30,7 @@ import AskAssistant from './components/AskAssistant';
 import SavedItemsPanel from './components/SavedItemsPanel';
 import AdminPage from './components/admin/AdminPage';
 import { buildVerseContext } from './utils/context-builders';
+import { getSurahMaxAyah } from './utils/surah-names';
 
 // Fallback values used until /api/public/chrome-extension-info resolves.
 // Admin can change these at runtime from Admin Settings — useful when
@@ -85,10 +86,14 @@ function getReaderFromPath(): { surah: number; verse?: number; endVerse?: number
   const m = window.location.pathname.match(/^\/read\/(\d+)(?::(\d+)(?:-(\d+))?)?\/?$/);
   if (!m) return null;
   const surah = parseInt(m[1], 10);
-  if (!surah || surah < 1 || surah > 114) return null;
+  const max = getSurahMaxAyah(surah);
+  if (!max) return null;
   const verse = m[2] ? parseInt(m[2], 10) : undefined;
   const endVerse = m[3] ? parseInt(m[3], 10) : undefined;
-  if (endVerse !== undefined && verse !== undefined && endVerse <= verse) return null;
+  if (verse !== undefined && (verse < 1 || verse > max)) return null;
+  if (endVerse !== undefined) {
+    if (verse === undefined || endVerse <= verse || endVerse > max) return null;
+  }
   return { surah, verse, endVerse };
 }
 
@@ -101,13 +106,15 @@ function maybeRedirectShortPath(): boolean {
   const m = window.location.pathname.match(/^\/(\d+)(?::(\d+)(?:-(\d+))?)?\/?$/);
   if (!m) return false;
   const n = parseInt(m[1], 10);
-  if (!(n >= 1 && n <= 114)) return false;
+  const max = getSurahMaxAyah(n);
+  if (!max) return false;
   const a = m[2] ? parseInt(m[2], 10) : null;
   const b = m[3] ? parseInt(m[3], 10) : null;
   let target: string;
   if (a == null) target = `/read/${n}`;
+  else if (a < 1 || a > max) return false;
   else if (b == null) target = `/verse/${n}:${a}`;
-  else if (b > a) target = `/read/${n}:${a}-${b}`;
+  else if (b > a && b <= max) target = `/read/${n}:${a}-${b}`;
   else return false;
   window.location.replace(target);
   return true;
