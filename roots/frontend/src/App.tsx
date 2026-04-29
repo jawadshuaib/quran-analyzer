@@ -100,13 +100,15 @@ function getReaderFromPath(): { surah: number; verse?: number; endVerse?: number
   return { surah, verse, endVerse };
 }
 
-/** Catch shortcut URLs the user types by hand and redirect to canonical:
- *    /<n>          → /read/<n>
- *    /<n>:<v>      → /verse/<n>:<v>
- *    /<n>:<a>-<b>  → /read/<n>:<a>-<b>
+/** Catch shortcut URLs the user types by hand and redirect to canonical.
+ *  The user doesn't know the canonical separator, so accept any of
+ *  `:`, `/`, `.` between surah and ayah, and any of `-`, `:`, `/`, `.`
+ *  between range endpoints. Examples that all work:
+ *    /36, /36:3, /36/3, /36.3,
+ *    /36:3-6, /36/3-6, /36/3:6, /36:3/6, /36/3/6
  *  Returns true if a redirect is in flight; the caller should bail out. */
 function maybeRedirectShortPath(): boolean {
-  const m = window.location.pathname.match(/^\/(\d+)(?::(\d+)(?:-(\d+))?)?\/?$/);
+  const m = window.location.pathname.match(/^\/(\d+)(?:[/:.](\d+)(?:[-/:.](\d+))?)?\/?$/);
   if (!m) return false;
   const n = parseInt(m[1], 10);
   const max = getSurahMaxAyah(n);

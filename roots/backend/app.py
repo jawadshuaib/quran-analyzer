@@ -13997,14 +13997,22 @@ if SERVE_STATIC:
         if path and os.path.isfile(file_path):
             return send_from_directory(STATIC_DIR, path)
 
-        # Shortcut URLs the user might type by hand:
-        #   /<n>           → /read/<n>           (read whole surah)
-        #   /<n>:<v>       → /verse/<n>:<v>      (research a single ayah)
-        #   /<n>:<a>-<b>   → /read/<n>:<a>-<b>   (read a passage)
-        # Only redirect when the surah AND ayah numbers actually exist;
-        # otherwise we'd 301 garbage like /36:9999 to a guaranteed 404
-        # downstream and waste a hop. Fall through to the 404 branch.
-        m = re.match(r"^(\d+)(?::(\d+)(?:-(\d+))?)?/?$", path)
+        # Shortcut URLs the user might type by hand. The user doesn't
+        # know the canonical separator, so accept any of :, /, . between
+        # surah and ayah, and any of -, :, /, . between range endpoints.
+        # All of these resolve correctly:
+        #   /36          → /read/36
+        #   /36:3        → /verse/36:3
+        #   /36/3        → /verse/36:3
+        #   /36.3        → /verse/36:3
+        #   /36:3-6      → /read/36:3-6     (canonical range)
+        #   /36/3-6      → /read/36:3-6
+        #   /36/3:6      → /read/36:3-6
+        #   /36:3/6      → /read/36:3-6
+        #   /36/3/6      → /read/36:3-6
+        # Validation still applies — invalid surah or ayah falls through
+        # to the friendly 404, never an unconditional redirect.
+        m = re.match(r"^(\d+)(?:[/:.](\d+)(?:[-/:.](\d+))?)?/?$", path)
         if m:
             n = int(m.group(1))
             if 1 <= n <= 114:
