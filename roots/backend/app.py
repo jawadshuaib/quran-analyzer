@@ -2977,6 +2977,13 @@ def get_surah(surah: int):
         # word entry — earlier we only kept ONE segment per word_pos
         # (arbitrary which one) which made compound words like فَصَلِّ
         # show up as just the prefix فَ in the reader's word-by-word view.
+        #
+        # When ai_word_meanings has no row for a position (~800 such
+        # gaps in the corpus), we fall back to the root's primary
+        # meaning from ai_root_meanings (which covers all 1642 roots).
+        # The frontend renders fallback glosses with a different style
+        # so the reader knows it's a root-level hint, not a verb-form
+        # gloss.
         words_by_verse: dict[int, list[dict]] = {}
         if include_words:
             morph_rows = conn.execute(
@@ -2998,8 +3005,87 @@ def get_surah(surah: int):
                 (r["verse"], r["word_pos"]): r for r in wm_rows
             }
 
+            # word_glosses is the conventional Quran.com-style per-word
+            # English source. It covers ~4100 positions where the AI-
+            # generated ai_word_meanings has gaps (the dataset the
+            # /verse/<ref> research view uses for its word-by-word
+            # column). Pre-load for this surah.
+            wg_rows = conn.execute(
+                "SELECT verse, word_pos, translation_en "
+                "FROM word_glosses WHERE chapter = ?",
+                (surah,),
+            ).fetchall()
+            wg_by_key: dict[tuple[int, int], str] = {
+                (r["verse"], r["word_pos"]): (r["translation_en"] or "").strip()
+                for r in wg_rows
+            }
+
+            # Pre-load ai_root_meanings for the LAST-RESORT fallback
+            # (when neither AI nor conventional has a per-word entry —
+            # only ~16 such positions in the entire corpus). Tiny
+            # table; one query covers the full corpus.
+            root_meaning_rows = conn.execute(
+                "SELECT root_buckwalter, primary_meaning FROM ai_root_meanings"
+            ).fetchall()
+            root_meaning_map: dict[str, str] = {
+                r["root_buckwalter"]: (r["primary_meaning"] or "").strip()
+                for r in root_meaning_rows
+            }
+
+            def _content_root(segs: list[dict]) -> str | None:
+                """Pick the content-word segment's root for fallback
+                gloss. Skips prefixes / suffixes / pronouns / particles.
+                Returns the buckwalter string or None."""
+                content_pos = ("Proper Noun", "Noun", "Verb", "Adjective")
+                for s in segs:
+                    if s.get("pos") in content_pos and s.get("root_buckwalter"):
+                        return s["root_buckwalter"]
+                # Fallback: any segment with a root
+                for s in segs:
+                    if s.get("root_buckwalter"):
+                        return s["root_buckwalter"]
+                return None
+
+            def _emit_word(verse_n: int, word_pos: int, segs: list[dict]):
+                # Resolve gloss with a clear priority chain:
+                #   1. AI-judged preferred_translation (best per-word)
+                #   2. AI meaning_short
+                #   3. Conventional word_glosses.translation_en
+                #   4. Root-level ai_root_meanings.primary_meaning
+                #   5. Empty string
+                # Source is "word" for 1-3 (real per-word data), "root"
+                # for 4 (root-level hint). The frontend styles "root"
+                # entries distinctly so users know the gloss is the
+                # root's primary meaning, not a per-form translation.
+                key = (verse_n, word_pos)
+                wm = wm_by_key.get(key)
+                preferred = (wm["preferred_translation"] if wm else None) or ""
+                short = (wm["meaning_short"] if wm else None) or ""
+                translation = (preferred or short).strip()
+                source = ""
+                if translation:
+                    source = "word"
+                else:
+                    wg = wg_by_key.get(key, "")
+                    if wg:
+                        translation = wg
+                        source = "word"
+                    else:
+                        rbw = _content_root(segs)
+                        if rbw:
+                            primary = root_meaning_map.get(rbw, "").strip()
+                            if primary:
+                                translation = primary
+                                source = "root"
+                words_by_verse.setdefault(verse_n, []).append({
+                    "position": word_pos,
+                    "segments": segs,
+                    "translation": translation,
+                    "translation_source": source,
+                })
+
             # Walk morphology in order, building (verse → list of words),
-            # each word being { position, segments[], translation }.
+            # each word being { position, segments[], translation, source }.
             # Multiple segments at the same (verse, word_pos) are
             # accumulated under that word's segments list.
             cur_key: tuple[int, int] | None = None
@@ -3008,16 +3094,7 @@ def get_surah(surah: int):
                 key = (r["verse"], r["word_pos"])
                 if key != cur_key:
                     if cur_key is not None:
-                        wm = wm_by_key.get(cur_key)
-                        words_by_verse.setdefault(cur_key[0], []).append({
-                            "position": cur_key[1],
-                            "segments": cur_segs,
-                            "translation": (
-                                (wm["preferred_translation"] if wm else None)
-                                or (wm["meaning_short"] if wm else None)
-                                or ""
-                            ),
-                        })
+                        _emit_word(cur_key[0], cur_key[1], cur_segs)
                     cur_key = key
                     cur_segs = []
                 cur_segs.append({
@@ -3031,16 +3108,7 @@ def get_surah(surah: int):
                     "lemma_buckwalter": r["lemma_buckwalter"],
                 })
             if cur_key is not None:
-                wm = wm_by_key.get(cur_key)
-                words_by_verse.setdefault(cur_key[0], []).append({
-                    "position": cur_key[1],
-                    "segments": cur_segs,
-                    "translation": (
-                        (wm["preferred_translation"] if wm else None)
-                        or (wm["meaning_short"] if wm else None)
-                        or ""
-                    ),
-                })
+                _emit_word(cur_key[0], cur_key[1], cur_segs)
 
         # Optional: surveyed_roots per verse — root_buckwalters that
         # both appear in the verse AND have a term_surveys row. Lets

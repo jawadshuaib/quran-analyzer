@@ -215,9 +215,20 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
                     <span
                       lang="en"
                       dir="ltr"
-                      className="mt-1 text-[11px] sm:text-xs text-ink-muted leading-tight text-center"
+                      className={`mt-1 text-[11px] sm:text-xs leading-tight text-center ${
+                        w.translation_source === 'root'
+                          ? 'italic text-ink-muted/70'
+                          : 'text-ink-muted'
+                      }`}
+                      title={
+                        w.translation_source === 'root'
+                          ? 'Per-word translation unavailable; showing the root’s primary meaning as a hint.'
+                          : undefined
+                      }
                     >
-                      {w.translation}
+                      {w.translation_source === 'root'
+                        ? `(${w.translation.toLowerCase()})`
+                        : w.translation}
                     </span>
                   )}
                   {isActive && (

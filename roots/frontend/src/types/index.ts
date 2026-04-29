@@ -117,6 +117,14 @@ export interface SurahVerseWord {
    *  page so WordTooltip can render it directly. */
   segments: SurahVerseWordSegment[];
   translation: string;
+  /** Where the per-word translation came from:
+   *    'word' — real per-word source (ai_word_meanings or word_glosses)
+   *    'root' — fallback to the root's primary meaning (last resort,
+   *             rendered with italics + parens to flag it's a hint,
+   *             not a verb-form gloss)
+   *    ''     — no gloss available
+   */
+  translation_source?: 'word' | 'root' | '';
 }
 
 export interface SurahVerseWordSegment {
