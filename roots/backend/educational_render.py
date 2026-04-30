@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -221,27 +222,91 @@ def _wrap_for_overlay(text: str, width_chars: int) -> str:
 
 
 # Header template — define styles once, then dump dialogue lines.
+# Yellow-gold #FFD700 in ASS BGR. Used for the highlighted Arabic
+# word, the matching English phrase in the translation, and the
+# Reference badge.
+_HIGHLIGHT_COLOR_ASS = "&H0000D7FF"
+
+
+def _strip_uthmani_marks(text: str) -> str:
+    """Remove Quranic-script marks libass struggles to render.
+
+    Mirrors the helper in app.py used by the recitation pipeline:
+      U+0671 (ٱ alef wasla) → U+0627 (ا plain alef)
+      U+0653 maddah, U+0654 hamza-above, U+0670 superscript alef,
+      U+06D6-U+06ED small high/low marks (cancels out the broken-square
+      glyphs that show on many Liberation/Amiri builds).
+    """
+    if not text:
+        return text
+    out = text.replace("ٱ", "ا")
+    return re.sub(r"[ٰٓٔۖ-ۭ]", "", out)
+
+
 def _format_arabic_with_highlight(text: str, target_word_pos: int) -> str:
-    """Wrap the target word (1-indexed) in inline gold-color ASS tags.
+    """Wrap the target word (1-indexed) in inline gold-yellow ASS tags.
     Splits by whitespace; word_pos matches the same 1-indexed position
-    used in morphology and the reader UI. Falls back to unhighlighted
+    used in morphology and the reader UI. Strips Uthmani marks first
+    so libass renders the verse cleanly. Falls back to unhighlighted
     text if word_pos is out of range."""
-    words = (text or "").split()
+    text = _strip_uthmani_marks(text or "")
+    words = text.split()
     idx = target_word_pos - 1
     if idx < 0 or idx >= len(words):
-        return _ass_escape(text or "")
+        return _ass_escape(text)
     before = " ".join(words[:idx])
     target = words[idx]
     after = " ".join(words[idx + 1:])
     parts = []
     if before:
         parts.append(_ass_escape(before) + " ")
-    # \c switches the primary colour; \r resets to the line's style.
-    # Gold matches the Reference badge color.
-    parts.append("{\\c&H006E9BB8&}" + _ass_escape(target) + "{\\r}")
+    # \c switches primary colour; \r resets to the line's style.
+    # Gold-yellow matches the Reference badge so the eye links
+    # the badge → the highlighted word → the English equivalent.
+    parts.append(f"{{\\c{_HIGHLIGHT_COLOR_ASS}&}}" + _ass_escape(target) + "{\\r}")
     if after:
         parts.append(" " + _ass_escape(after))
     return "".join(parts)
+
+
+# Strip leading/trailing parentheticals — "(as) few" → "few",
+# "[remember] when" → "when". Used so a per-word gloss like
+# "(as) few" matches "few" in the verse translation.
+_PARENTHETICAL_RE = re.compile(r"\s*[(\[][^\])]*[)\]]\s*")
+
+
+def _format_translation_with_highlight(text: str, gloss: str | None) -> str:
+    """If `gloss` appears (case-insensitively, ignoring parentheticals)
+    in `text`, wrap that range in inline gold-yellow ASS tags. Otherwise
+    return the translation as-is. Operator gets a visual link between
+    the highlighted Arabic word and the corresponding English phrase."""
+    if not text:
+        return ""
+    safe = _ass_escape(text)
+    if not gloss:
+        return safe
+    needle = _PARENTHETICAL_RE.sub("", gloss).strip().strip(",.;:")
+    if not needle or len(needle) < 2:
+        return safe
+    # Case-insensitive substring search on the unescaped text.
+    lower = text.lower()
+    idx = lower.find(needle.lower())
+    if idx < 0:
+        # Try just the head word as a last resort — "your eyes" → "eyes".
+        head = needle.split()[-1] if needle.split() else ""
+        if len(head) < 3:
+            return safe
+        idx = lower.find(head.lower())
+        if idx < 0:
+            return safe
+        needle = head
+    end = idx + len(needle)
+    # Recompute the highlighted span on the original (case-preserved)
+    # text and rebuild the escaped output around it.
+    pre = _ass_escape(text[:idx])
+    mid = _ass_escape(text[idx:end])
+    post = _ass_escape(text[end:])
+    return pre + f"{{\\c{_HIGHLIGHT_COLOR_ASS}&}}" + mid + "{\\r}" + post
 
 
 def _wrap_arabic(text: str, width_chars: int = 28) -> str:
@@ -264,6 +329,12 @@ class WordOriginsSegment:
     arabic_text: str
     translation: str
     target_word_pos: int
+    # Per-word English gloss for the target Arabic word. When non-empty
+    # and the gloss text appears as a substring in `translation`, the
+    # renderer highlights that span in gold so the viewer can see the
+    # English equivalent of the highlighted Arabic word. Optional —
+    # falls back to a plain translation when missing.
+    target_gloss: str | None = None
 
 
 def _build_ass_word_origins(
@@ -310,26 +381,39 @@ def _build_ass_word_origins(
     timings = [(starts[i], starts[i] + durations[i]) for i in range(len(segments))]
     timings[-1] = (timings[-1][0], audio_duration)
 
+    # Vertical layout (1080x1920):
+    #   Reference   y≈ 80–180  (Style: Alignment 8, anchored top-center)
+    #   Arabic      \pos(540, 720)   — pushed up from middle so the eye
+    #                                   lands on the verse first
+    #   Translation \pos(540, 1240)  — sits below the verse with gap
+    cx = VIDEO_WIDTH // 2
+    arabic_y = 720
+    translation_y = 1240
+
     for seg, (s, e) in zip(segments, timings):
-        # Reference badge (top, gold) — fades in slightly later than
+        # Reference badge (top-center) — fades in slightly later than
         # the verse so the eye lands on the Arabic first.
         ref = f"Quran {seg.chapter}:{seg.verse}"
         lines.append(
             f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Reference,,0,0,0,,"
             f"{{\\fad(450,300)}}{_ass_escape(ref)}"
         )
-        # Arabic verse with the target word highlighted in gold.
-        # libass handles word-boundary wrapping (WrapStyle 0 in header).
+        # Arabic verse — absolute-positioned so it's in the upper
+        # third instead of dead-center. Target word highlighted in
+        # gold-yellow via inline color tags. libass handles
+        # word-boundary wrapping around the absolute position.
         ar = _format_arabic_with_highlight(seg.arabic_text, seg.target_word_pos)
         lines.append(
             f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},ArabicVerse,,0,0,0,,"
-            f"{{\\fad(400,300)}}{ar}"
+            f"{{\\fad(400,300)\\pos({cx},{arabic_y})}}{ar}"
         )
-        # English translation below the verse, also auto-wrapped.
+        # English translation below the verse, with the gloss-matched
+        # phrase highlighted in the same gold-yellow when found.
         if seg.translation:
+            tr = _format_translation_with_highlight(seg.translation, seg.target_gloss)
             lines.append(
                 f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Translation,,0,0,0,,"
-                f"{{\\fad(500,300)}}{_ass_escape(seg.translation)}"
+                f"{{\\fad(500,300)\\pos({cx},{translation_y})}}{tr}"
             )
 
     # Outro card — al-nuqta branding. Identical to the translation_hides
@@ -371,9 +455,9 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Hook,{font_sans},78,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,0,5,80,80,0,1
 Style: Body,{font_sans},58,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,80,80,0,1
 Style: Small,{font_sans},42,&H00CFCFCF,&H000000FF,&H00000000,&H80000000,0,1,0,0,100,100,0,0,1,2,0,5,80,80,0,1
-Style: Reference,{font_sans},58,&H006E9BB8,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,2,2,8,80,80,120,1
-Style: ArabicVerse,{font_arabic},94,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,2,5,70,70,0,1
-Style: Translation,{font_sans},52,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,2,2,2,70,70,150,1
+Style: Reference,{font_sans},86,&H0000D7FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,2,8,40,40,80,1
+Style: ArabicVerse,{font_arabic},108,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,4,3,5,60,60,0,1
+Style: Translation,{font_sans},58,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,2,5,60,60,0,1
 Style: OutroSite,{font_sans},90,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0
 Style: OutroTag,{font_sans},48,&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0
 
@@ -546,13 +630,42 @@ def _build_word_origins_ass_for_row(
     if not src_verse_row:
         raise RenderError(f"source verse {rd['chapter']}:{rd['verse']} not found")
 
+    def _gloss_for(c: int, v: int, p: int) -> str | None:
+        """Best per-word English for the target Arabic word. Tries
+        ai_word_meanings.preferred_translation / meaning_short first
+        (curated when present), then word_glosses.translation_en
+        (broader coverage)."""
+        try:
+            wm = conn.execute(
+                "SELECT COALESCE(preferred_translation, meaning_short) AS t "
+                "FROM ai_word_meanings WHERE chapter=? AND verse=? AND word_pos=? LIMIT 1",
+                (c, v, p),
+            ).fetchone()
+            if wm and wm["t"]:
+                return (wm["t"] or "").strip()
+        except Exception:
+            pass
+        try:
+            wg = conn.execute(
+                "SELECT translation_en FROM word_glosses "
+                "WHERE chapter=? AND verse=? AND word_pos=? LIMIT 1",
+                (c, v, p),
+            ).fetchone()
+            if wg and wg["translation_en"]:
+                return wg["translation_en"].strip()
+        except Exception:
+            pass
+        return None
+
+    src_word_pos = int(rd.get("anchor_word_pos") or 1)
     segments: list[WordOriginsSegment] = [
         WordOriginsSegment(
             chapter=rd["chapter"],
             verse=rd["verse"],
             arabic_text=src_verse_row["text_uthmani"],
             translation=(src_translation_row["text_en"] if src_translation_row else ""),
-            target_word_pos=int(rd.get("anchor_word_pos") or 1),
+            target_word_pos=src_word_pos,
+            target_gloss=_gloss_for(rd["chapter"], rd["verse"], src_word_pos),
         ),
     ]
 
@@ -575,11 +688,13 @@ def _build_word_origins_ass_for_row(
             raise RenderError(
                 f"selected_verse_ref {c}:{v} missing from payload other_verses"
             )
+        ow_pos = int(ov.get("word_pos") or 1)
         segments.append(WordOriginsSegment(
             chapter=c, verse=v,
             arabic_text=ov.get("text_uthmani") or "",
             translation=ov.get("translation") or "",
-            target_word_pos=int(ov.get("word_pos") or 1),
+            target_word_pos=ow_pos,
+            target_gloss=_gloss_for(c, v, ow_pos),
         ))
 
     # If for any reason we have fewer than 3 segments (e.g., LLM gave
