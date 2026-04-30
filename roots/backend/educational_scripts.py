@@ -76,14 +76,18 @@ Voiceover discipline (CRITICAL — voiceover_long and voiceover_short are read a
 - NEVER drop Arabic-script characters into the voiceover — the reciter's audio handles the Arabic. Voiceover is English only.
 - Other beats (hook / verse_intro / insight / close) may use proper transliterations sparingly because they're for on-screen display, not narration. But voiceover_long and voiceover_short must read aloud cleanly.
 
-Output schema (all keys required, all strings):
+Output schema (all keys required, all strings unless noted):
 {
-  "hook":          "1 sentence, ≤22 words, hooks attention",
-  "verse_intro":   "1 sentence introducing the verse reference and what it says",
-  "insight":       "2-4 sentences delivering the actual payload",
+  "hook":          "1 sentence, ≤22 words. For Word Origins, MUST start with 'Did you know'. Other types may use any opener.",
+  "tidbit_about_root": "(Word Origins ONLY) 1-2 sentences with one striking fact about the root's meaning, history, or oldest attestation. Empty string '' for other types.",
+  "tidbit_about_quran_usage": "(Word Origins ONLY) 1-2 sentences about how the Quran uses this word across different verses — the unifying theme, or a surprising contrast. Empty string '' for other types.",
+  "tidbit_about_semitic": "(Word Origins ONLY) 1-2 sentences zooming out to Semitic-language depth: how the cognates trace the meaning across cultures and millennia. Empty string '' for other types.",
+  "selected_verse_refs": "(Word Origins ONLY) Array of EXACTLY two {\"chapter\":N,\"verse\":N,\"why\":\"<short reason\"} objects. MUST be picked from `other_verses` in the payload — do not invent references. Each `why` is a 4-8 word note for the operator. Empty array [] for other types.",
+  "verse_intro":   "(non-Word Origins) 1 sentence introducing the verse reference and what it says. Empty for Word Origins.",
+  "insight":       "(non-Word Origins) 2-4 sentences delivering the payload. Empty for Word Origins.",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
-  "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. Include the verse reference said aloud once. DO NOT include the Arabic recitation — the reciter's audio plays separately.",
-  "voiceover_short": "Concatenated narration ≤120 words, suitable for a sub-55-second Short. Skip the verse-intro recap; lead with the hook, deliver the insight, close. Same exclusion: do not include Arabic recitation in the narration.",
+  "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. DO NOT include Arabic recitation — the reciter's audio plays separately. For Word Origins, structure the narration as: (1) hook + tidbit_about_root narrated over the source verse on screen, (2) tidbit_about_quran_usage narrated over selected_verse_refs[0], (3) tidbit_about_semitic narrated over selected_verse_refs[1]. The video shows the verses; the narration is the connective tissue.",
+  "voiceover_short": "Concatenated narration ≤120 words, suitable for a sub-55-second Short. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
   "languages_referenced": ["list of language names actually mentioned in voiceover_long, copied exactly from the payload"],
   "notes": "any caveats; empty string if none"
 }
@@ -238,6 +242,34 @@ def _fetch_word(conn, chapter: int, verse: int, word_pos: int) -> dict | None:
     return dict(row) if row else None
 
 
+def _fetch_other_quran_verses_with_root(
+    conn, root_buckwalter: str, *, exclude_chapter: int, exclude_verse: int,
+    limit: int = 8,
+) -> list[dict]:
+    """Find other Quran verses that contain the given Buckwalter root.
+    Returns up to `limit` rows: chapter, verse, word_pos (where the
+    root sits in that verse), text_uthmani, translation. Used to give
+    the LLM a pool of "other verses with this word" to cite — the
+    new Word Origins template features 2 of them inline."""
+    rows = conn.execute(
+        """
+        SELECT m.chapter, m.verse, MIN(m.word_pos) AS word_pos,
+               v.text_uthmani,
+               (SELECT text_en FROM translations t
+                WHERE t.chapter = m.chapter AND t.verse = m.verse) AS translation
+        FROM morphology m
+        JOIN verses v ON v.chapter = m.chapter AND v.verse = m.verse
+        WHERE m.root_buckwalter = ?
+          AND NOT (m.chapter = ? AND m.verse = ?)
+        GROUP BY m.chapter, m.verse
+        ORDER BY RANDOM()
+        LIMIT ?
+        """,
+        (root_buckwalter, exclude_chapter, exclude_verse, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def _fetch_cognate_chain(conn, root_buckwalter: str) -> list[dict]:
     """All derivatives for a root, ordered oldest first."""
     sr = _bw_to_sr(root_buckwalter)
@@ -328,6 +360,13 @@ def enrich_payload(conn: sqlite3.Connection, row: dict) -> dict:
             "transliteration": _bw_to_sr(word["root_buckwalter"]),
         }
         base["derivatives"] = derivs
+        # Other verses in the Quran that use the same root — the LLM
+        # picks two of these to feature in the new Word Origins
+        # template (one per "tidbit" segment after the source verse).
+        base["other_verses"] = _fetch_other_quran_verses_with_root(
+            conn, word["root_buckwalter"],
+            exclude_chapter=chapter, exclude_verse=verse, limit=8,
+        )
 
     elif vtype == "translation_hides":
         note = _fetch_departure_note(conn, chapter, verse)
@@ -370,6 +409,7 @@ def _build_user_prompt(payload: dict) -> str:
         word = payload["word"]
         root = payload["root"]
         derivs = payload["derivatives"]
+        other_verses = payload.get("other_verses", [])
         # Compact derivative listing — one line each, dates included so
         # the LLM can build a timeline.
         deriv_lines = []
@@ -385,19 +425,55 @@ def _build_user_prompt(payload: dict) -> str:
             if fam:
                 line += f"  (family: {fam})"
             deriv_lines.append(line)
+
+        # Other Quran verses with the same root. We hand the LLM the
+        # full list and ask it to pick the two most thematically
+        # interesting ones to feature on screen.
+        other_lines = []
+        for ov in other_verses:
+            tr = (ov.get("translation") or "").strip().replace("\n", " ")
+            if len(tr) > 220:
+                tr = tr[:217] + "..."
+            other_lines.append(
+                f"- {ov['chapter']}:{ov['verse']} — {tr}"
+            )
+        other_block = (
+            "\n".join(other_lines)
+            if other_lines
+            else "(none — root only appears in the source verse)"
+        )
+
         body = (
-            "Series: Word Origins. Trace this Arabic word's root across Semitic.\n\n"
+            "Series: Word Origins. The video shows three Arabic verses on screen "
+            "with the target word highlighted; your narration is the connective "
+            "tissue that plays over them.\n\n"
+            "VIDEO STRUCTURE you are writing for:\n"
+            "  Segment 1: Source verse on screen — narration is "
+            "    [hook starting with 'Did you know...'] + [tidbit_about_root].\n"
+            "  Segment 2: selected_verse_refs[0] on screen — narration is "
+            "    [tidbit_about_quran_usage] explaining how the Quran uses this word.\n"
+            "  Segment 3: selected_verse_refs[1] on screen — narration is "
+            "    [tidbit_about_semitic] connecting the root to its Semitic cognates.\n"
+            "  (al-nuqta outro card — not your concern.)\n\n"
             f"{header}\n"
             f"Word in this verse: {word['form_arabic']} ({word['form_buckwalter']})\n"
             f"Root: {root['arabic']} (Buckwalter: {root['buckwalter']}, "
             f"transliteration: {root['transliteration']})\n\n"
-            "Cognate derivatives (oldest first — pick 2-4 most striking for the script):\n"
+            "Cognate derivatives (oldest first — pick 2-4 to weave into "
+            "tidbit_about_semitic):\n"
             + "\n".join(deriv_lines)
-            + "\n\nGuidance for this script:\n"
-            "- Hook on the cross-language link a viewer wouldn't expect.\n"
-            "- Pick at most 4 cognates to name. Don't try to list all.\n"
-            "- If two languages give different but related meanings, that's the payload — show how the meaning shifts across the family.\n"
-            "- Languages_referenced must contain ONLY languages from the list above."
+            + "\n\nOther Quran verses that use this same root — pick TWO for "
+            "selected_verse_refs (segments 2 and 3 of the video). Choose verses "
+            "whose context contrasts or expands the meaning shown in the source "
+            "verse, so each on-screen verse adds something new:\n"
+            f"{other_block}"
+            + "\n\nGuidance:\n"
+            "- The hook MUST start with 'Did you know'.\n"
+            "- selected_verse_refs[0] is the verse for tidbit_about_quran_usage.\n"
+            "- selected_verse_refs[1] is the verse for tidbit_about_semitic.\n"
+            "- selected_verse_refs MUST come from the list above — do not invent.\n"
+            "- Languages_referenced must contain ONLY languages from the cognate list.\n"
+            "- Leave verse_intro and insight as empty strings ''."
         )
 
     elif vtype == "translation_hides":
@@ -513,14 +589,57 @@ def _lang_matches(declared: str, allowed_pool: list[str]) -> str | None:
 def _validate(script: dict, payload: dict) -> list[str]:
     """Return list of validation errors. Empty = OK."""
     errors: list[str] = []
-    required = (
-        "hook", "verse_intro", "insight", "close",
-        "voiceover_long", "voiceover_short",
-    )
+
+    # Required fields differ by type. Word Origins now uses the
+    # 3-segment template (did_you_know via hook, three tidbits, two
+    # selected_verse_refs); the legacy beats verse_intro and insight
+    # are not required for it. Other types still use the original
+    # 4-beat template.
+    if payload.get("type") == "word_origins":
+        required = (
+            "hook",
+            "tidbit_about_root",
+            "tidbit_about_quran_usage",
+            "tidbit_about_semitic",
+            "close",
+            "voiceover_long", "voiceover_short",
+        )
+    else:
+        required = (
+            "hook", "verse_intro", "insight", "close",
+            "voiceover_long", "voiceover_short",
+        )
     for k in required:
         v = script.get(k)
         if not isinstance(v, str) or not v.strip():
             errors.append(f"missing or empty: {k}")
+
+    # Word Origins extras: hook framing + selected_verse_refs grounding.
+    if payload.get("type") == "word_origins":
+        hook = (script.get("hook") or "").strip().lower()
+        if hook and not hook.startswith("did you know"):
+            errors.append("hook must start with 'Did you know' for Word Origins")
+
+        refs = script.get("selected_verse_refs")
+        if not isinstance(refs, list) or len(refs) != 2:
+            errors.append("selected_verse_refs must be an array of exactly 2 entries")
+        else:
+            allowed = {(o["chapter"], o["verse"]) for o in payload.get("other_verses", [])}
+            for i, r in enumerate(refs):
+                if not isinstance(r, dict):
+                    errors.append(f"selected_verse_refs[{i}] is not an object")
+                    continue
+                try:
+                    c = int(r.get("chapter"))
+                    v = int(r.get("verse"))
+                except (TypeError, ValueError):
+                    errors.append(f"selected_verse_refs[{i}] missing chapter/verse")
+                    continue
+                if (c, v) not in allowed:
+                    errors.append(
+                        f"selected_verse_refs[{i}] {c}:{v} is not in payload "
+                        f"other_verses pool — pick from the candidate list"
+                    )
 
     # Voiceover must be TTS-friendly. Scan for academic/IPA marks
     # and inline Arabic — both will trip ElevenLabs. The sanitizer
@@ -618,6 +737,13 @@ def _validation_retry_message(errors: list[str], payload: dict) -> str:
             "including any apostrophes:\n"
             + ", ".join(langs)
         )
+        ovs = payload.get("other_verses") or []
+        if ovs:
+            msg += (
+                "\n\nThe ONLY verses you may put in selected_verse_refs are "
+                "from this list (chapter:verse, exact integers):\n"
+                + ", ".join(f"{o['chapter']}:{o['verse']}" for o in ovs)
+            )
     return msg
 
 

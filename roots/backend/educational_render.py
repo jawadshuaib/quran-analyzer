@@ -221,6 +221,143 @@ def _wrap_for_overlay(text: str, width_chars: int) -> str:
 
 
 # Header template — define styles once, then dump dialogue lines.
+def _format_arabic_with_highlight(text: str, target_word_pos: int) -> str:
+    """Wrap the target word (1-indexed) in inline gold-color ASS tags.
+    Splits by whitespace; word_pos matches the same 1-indexed position
+    used in morphology and the reader UI. Falls back to unhighlighted
+    text if word_pos is out of range."""
+    words = (text or "").split()
+    idx = target_word_pos - 1
+    if idx < 0 or idx >= len(words):
+        return _ass_escape(text or "")
+    before = " ".join(words[:idx])
+    target = words[idx]
+    after = " ".join(words[idx + 1:])
+    parts = []
+    if before:
+        parts.append(_ass_escape(before) + " ")
+    # \c switches the primary colour; \r resets to the line's style.
+    # Gold matches the Reference badge color.
+    parts.append("{\\c&H006E9BB8&}" + _ass_escape(target) + "{\\r}")
+    if after:
+        parts.append(" " + _ass_escape(after))
+    return "".join(parts)
+
+
+def _wrap_arabic(text: str, width_chars: int = 28) -> str:
+    """Wrap by word so long verses fit on screen. Preserves any inline
+    ASS color tags by splitting on visible spaces only — the
+    `_format_arabic_with_highlight` output uses spaces between words
+    even after the highlight tags, so simple split-and-rejoin works."""
+    # Split into [pre-tag, color-tag, target, color-end, post-tag] safely
+    # by extracting the plain text first, wrapping that, then re-applying
+    # the highlight at the corresponding word index.
+    # Simpler approach: textwrap on the rendered string. ASS tags are
+    # treated as part of words; libass tolerates them mid-line.
+    return "\\N".join(textwrap.wrap(text, width=width_chars) or [text])
+
+
+@dataclass
+class WordOriginsSegment:
+    chapter: int
+    verse: int
+    arabic_text: str
+    translation: str
+    target_word_pos: int
+
+
+def _build_ass_word_origins(
+    *,
+    segments: list[WordOriginsSegment],
+    audio_duration: float,
+    voiceover_text: str,
+    beat_word_counts: list[int],
+) -> str:
+    """Word Origins template: three segments, each shows a Quran verse
+    on screen with the target word highlighted in gold. Narration
+    plays underneath; we DO NOT show the script text on screen.
+
+    Layout per segment (1080x1920):
+      - Top: gold "Quran X:Y" reference badge
+      - Center: Arabic verse (RTL, large Amiri), target word in gold
+      - Below: English translation in smaller white
+    """
+    lines: list[str] = []
+    if not segments:
+        raise RenderError("word_origins template needs at least 1 segment")
+    if not audio_duration or audio_duration <= 0:
+        raise RenderError("invalid audio_duration for word_origins template")
+
+    # Allocate audio time to segments proportional to the narration
+    # word counts (hook+tidbit_root → seg 1, tidbit_quran → seg 2,
+    # tidbit_semitic → seg 3). Falls back to equal thirds if the
+    # weights aren't available.
+    if beat_word_counts and len(beat_word_counts) == len(segments):
+        total = sum(max(w, 1) for w in beat_word_counts)
+        weights = [max(w, 1) / total for w in beat_word_counts]
+    else:
+        weights = [1.0 / len(segments)] * len(segments)
+
+    durations = [audio_duration * w for w in weights]
+    # Floor 4s per segment so the verse has time to land visually.
+    MIN_PER_SEG = 4.0
+    total_floor = MIN_PER_SEG * len(segments)
+    if sum(durations) < total_floor:
+        durations = [audio_duration / len(segments)] * len(segments)
+    starts: list[float] = [0.0]
+    for d in durations[:-1]:
+        starts.append(starts[-1] + d)
+    timings = [(starts[i], starts[i] + durations[i]) for i in range(len(segments))]
+    timings[-1] = (timings[-1][0], audio_duration)
+
+    for seg, (s, e) in zip(segments, timings):
+        # Reference badge (top, gold) — fades in slightly later than
+        # the verse so the eye lands on the Arabic first.
+        ref = f"Quran {seg.chapter}:{seg.verse}"
+        lines.append(
+            f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Reference,,0,0,0,,"
+            f"{{\\fad(450,300)}}{_ass_escape(ref)}"
+        )
+        # Arabic verse with the target word highlighted in gold.
+        # libass handles word-boundary wrapping (WrapStyle 0 in header).
+        ar = _format_arabic_with_highlight(seg.arabic_text, seg.target_word_pos)
+        lines.append(
+            f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},ArabicVerse,,0,0,0,,"
+            f"{{\\fad(400,300)}}{ar}"
+        )
+        # English translation below the verse, also auto-wrapped.
+        if seg.translation:
+            lines.append(
+                f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Translation,,0,0,0,,"
+                f"{{\\fad(500,300)}}{_ass_escape(seg.translation)}"
+            )
+
+    # Outro card — al-nuqta branding. Identical to the translation_hides
+    # template so all series share the same close.
+    narration_end = audio_duration
+    outro_end = audio_duration + OUTRO_DUR
+    cx = VIDEO_WIDTH // 2
+    site_y = VIDEO_HEIGHT // 2 - 60
+    tag_y = VIDEO_HEIGHT // 2 + 60
+    lines.append(
+        f"Dialogue: 0,{_ass_time(narration_end)},{_ass_time(outro_end)},OutroSite,,0,0,0,,"
+        f"{{\\fad(800,0)\\pos({cx},{site_y})}}al-nuqta.com"
+    )
+    lines.append(
+        f"Dialogue: 0,{_ass_time(narration_end)},{_ass_time(outro_end)},OutroTag,,0,0,0,,"
+        f"{{\\fad(1200,0)\\pos({cx},{tag_y})}}A Root Based Translation of the Quran"
+    )
+    # voiceover_text isn't used in the visual layer — narration is the
+    # audio track only. Suppress the unused-arg warning.
+    del voiceover_text
+
+    header = _ASS_HEADER.format(
+        w=VIDEO_WIDTH, h=VIDEO_HEIGHT,
+        font_sans=FONT_SANS, font_arabic=FONT_ARABIC,
+    )
+    return header + "\n".join(lines) + "\n"
+
+
 _ASS_HEADER = """[Script Info]
 ScriptType: v4.00+
 PlayResX: {w}
@@ -235,6 +372,8 @@ Style: Hook,{font_sans},78,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,1
 Style: Body,{font_sans},58,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,80,80,0,1
 Style: Small,{font_sans},42,&H00CFCFCF,&H000000FF,&H00000000,&H80000000,0,1,0,0,100,100,0,0,1,2,0,5,80,80,0,1
 Style: Reference,{font_sans},36,&H006E9BB8,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,2,0,8,80,80,140,1
+Style: ArabicVerse,{font_arabic},78,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,80,80,0,1
+Style: Translation,{font_sans},42,&H00DBDBDB,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,80,80,160,1
 Style: OutroSite,{font_sans},90,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0
 Style: OutroTag,{font_sans},48,&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0
 
@@ -293,7 +432,8 @@ def _build_ass_translation_hides(
     )
 
     header = _ASS_HEADER.format(
-        w=VIDEO_WIDTH, h=VIDEO_HEIGHT, font_sans=FONT_SANS,
+        w=VIDEO_WIDTH, h=VIDEO_HEIGHT,
+        font_sans=FONT_SANS, font_arabic=FONT_ARABIC,
     )
     return header + "\n".join(lines) + "\n"
 
@@ -351,6 +491,93 @@ def _compose_mp4(
 # --------------------------------------------------------------------------
 #  Public entrypoint
 # --------------------------------------------------------------------------
+
+def _build_word_origins_ass_for_row(
+    conn, rd: dict, script: dict, audio_duration: float, voiceover: str,
+) -> str:
+    """Glue between the row/script and the word_origins ASS builder.
+    Looks up the source verse + the two selected_verse_refs in the
+    payload, picks the word position for each (where the same root
+    appears), and assembles the segment list."""
+    payload_json = rd.get("payload_json") or "{}"
+    try:
+        payload = json.loads(payload_json)
+    except Exception:
+        payload = {}
+
+    # Source verse — from the candidate row itself.
+    src_verse_row = conn.execute(
+        "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+        (rd["chapter"], rd["verse"]),
+    ).fetchone()
+    src_translation_row = conn.execute(
+        "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+        (rd["chapter"], rd["verse"]),
+    ).fetchone()
+    if not src_verse_row:
+        raise RenderError(f"source verse {rd['chapter']}:{rd['verse']} not found")
+
+    segments: list[WordOriginsSegment] = [
+        WordOriginsSegment(
+            chapter=rd["chapter"],
+            verse=rd["verse"],
+            arabic_text=src_verse_row["text_uthmani"],
+            translation=(src_translation_row["text_en"] if src_translation_row else ""),
+            target_word_pos=int(rd.get("anchor_word_pos") or 1),
+        ),
+    ]
+
+    # selected_verse_refs[0..1] from script — match against payload's
+    # other_verses to pull the word_pos. Validation guarantees these
+    # refs come from the candidate pool, so the lookup should succeed.
+    pool: dict[tuple[int, int], dict] = {
+        (o["chapter"], o["verse"]): o
+        for o in (payload.get("other_verses") or [])
+    }
+    refs = script.get("selected_verse_refs") or []
+    for r in refs[:2]:
+        try:
+            c = int(r["chapter"]); v = int(r["verse"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        ov = pool.get((c, v))
+        if not ov:
+            # Validation should have prevented this, but be defensive.
+            raise RenderError(
+                f"selected_verse_ref {c}:{v} missing from payload other_verses"
+            )
+        segments.append(WordOriginsSegment(
+            chapter=c, verse=v,
+            arabic_text=ov.get("text_uthmani") or "",
+            translation=ov.get("translation") or "",
+            target_word_pos=int(ov.get("word_pos") or 1),
+        ))
+
+    # If for any reason we have fewer than 3 segments (e.g., LLM gave
+    # only 1 ref, or pool had < 2 — extremely rare), pad by duplicating
+    # the source verse so the layout doesn't collapse.
+    while len(segments) < 3:
+        segments.append(segments[0])
+    segments = segments[:3]
+
+    # Beat-weight allocation: hook+tidbit_root → seg 1,
+    # tidbit_quran_usage → seg 2, tidbit_semitic → seg 3.
+    def _wc(s: str) -> int:
+        import re as _re
+        return len(_re.findall(r"\b\w[\w'-]*\b", s or ""))
+    beat_word_counts = [
+        _wc(script.get("hook", "")) + _wc(script.get("tidbit_about_root", "")),
+        _wc(script.get("tidbit_about_quran_usage", "")),
+        _wc(script.get("tidbit_about_semitic", "")) + _wc(script.get("close", "")),
+    ]
+
+    return _build_ass_word_origins(
+        segments=segments,
+        audio_duration=audio_duration,
+        voiceover_text=voiceover,
+        beat_word_counts=beat_word_counts,
+    )
+
 
 def render_video(
     conn,
@@ -423,18 +650,15 @@ def render_video(
     # 3. beat timings
     timings = _build_beat_timings(beats, audio_duration)
 
-    # 4. ASS subtitle file (per-type — Phase 3a does Translation Hides)
-    if rd["type"] == "translation_hides":
-        ass_text = _build_ass_translation_hides(
-            chapter=rd["chapter"],
-            verse=rd["verse"],
-            beats=beats,
-            timings=timings,
-            audio_duration=audio_duration,
+    # 4. ASS subtitle file — per-type template selection
+    if rd["type"] == "word_origins":
+        ass_text = _build_word_origins_ass_for_row(
+            conn, rd, script, audio_duration, voiceover,
         )
     else:
-        # Other types still fall back to the Translation Hides layout
-        # for now — visual differentiation lands in Phase 3b/c.
+        # Translation Hides + Grammar Insights both use the beat-overlay
+        # template for now (script text on screen). Visual differentiation
+        # for Grammar Insights lands later.
         ass_text = _build_ass_translation_hides(
             chapter=rd["chapter"],
             verse=rd["verse"],

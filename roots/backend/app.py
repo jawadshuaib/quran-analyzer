@@ -7882,6 +7882,11 @@ def admin_educational_generate_script(video_id: int):
                     "verse_intro": script.get("verse_intro"),
                     "insight": script.get("insight"),
                     "close": script.get("close"),
+                    # Word Origins template fields (empty for other types)
+                    "tidbit_about_root": script.get("tidbit_about_root", ""),
+                    "tidbit_about_quran_usage": script.get("tidbit_about_quran_usage", ""),
+                    "tidbit_about_semitic": script.get("tidbit_about_semitic", ""),
+                    "selected_verse_refs": script.get("selected_verse_refs", []),
                     "voiceover_short": script.get("voiceover_short"),
                     "voiceover_short_raw": script.get("voiceover_short_raw"),
                     "voiceover_long_raw": script.get("voiceover_long_raw"),
