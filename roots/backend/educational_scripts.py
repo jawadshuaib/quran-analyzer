@@ -74,7 +74,7 @@ Output schema (all keys required, all strings):
   "verse_intro":   "1 sentence introducing the verse reference and what it says",
   "insight":       "2-4 sentences delivering the actual payload",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
-  "voiceover_long":  "Concatenated narration ~250-340 words, smooth flow, suitable for ElevenLabs TTS. Include the verse reference said aloud once. DO NOT include the Arabic recitation — the reciter's audio plays separately.",
+  "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. Include the verse reference said aloud once. DO NOT include the Arabic recitation — the reciter's audio plays separately.",
   "voiceover_short": "Concatenated narration ≤120 words, suitable for a sub-55-second Short. Skip the verse-intro recap; lead with the hook, deliver the insight, close. Same exclusion: do not include Arabic recitation in the narration.",
   "languages_referenced": ["list of language names actually mentioned in voiceover_long, copied exactly from the payload"],
   "notes": "any caveats; empty string if none"
@@ -376,13 +376,17 @@ def _word_count(s: str) -> int:
     return len(re.findall(r"\b\w[\w'-]*\b", s or ""))
 
 
-_LANG_PUNCT_RE = re.compile(r"['‘’ʼʻ\.\-]", re.UNICODE)
+# Apostrophes / quote-marks / academic transliteration marks the LLM
+# might use interchangeably for the same language. ʿ (U+02BF) and ʾ
+# (U+02BE) are the canonical IPA-ish marks for ayin / hamza; the LLM
+# also ships curly quotes, modifier letters, plain ASCII, etc.
+_LANG_PUNCT_RE = re.compile(r"['‘’ʼʻʿʾ`.\-]", re.UNICODE)
 _LANG_WS_RE = re.compile(r"\s+", re.UNICODE)
 
 
 def _normalize_lang(s: str) -> str:
-    """Lowercase, drop apostrophes/dots/hyphens entirely (Ge'ez ≈ Geez),
-    then collapse whitespace. Multi-word names stay separated, but
+    """Lowercase, drop apostrophes/dots/hyphens entirely (Ge'ez ≈ Geez ≈ Geʿez),
+    then collapse whitespace. Multi-word names stay separated so
     'Modern Hebrew' still substring-matches 'hebrew'."""
     s = (s or "").lower()
     s = _LANG_PUNCT_RE.sub("", s)  # drop, don't replace with space
@@ -421,11 +425,16 @@ def _validate(script: dict, payload: dict) -> list[str]:
         if not isinstance(v, str) or not v.strip():
             errors.append(f"missing or empty: {k}")
 
-    # Length budgets
+    # Length budgets. Floor of 180 (~75s narration at 150 wpm) is the
+    # minimum that justifies a long-form video over a Short. Ceiling of
+    # 380 keeps the long form under ~2:30 to fit YT recommendation
+    # patterns. Short form ≤130 leaves room for the ~10s recitation
+    # overlay so the rendered Short stays under 60s (someone-else-audio
+    # policy).
     long_wc = _word_count(script.get("voiceover_long", ""))
     short_wc = _word_count(script.get("voiceover_short", ""))
-    if long_wc < 200 or long_wc > 380:
-        errors.append(f"voiceover_long word count {long_wc} outside 200-380")
+    if long_wc < 180 or long_wc > 380:
+        errors.append(f"voiceover_long word count {long_wc} outside 180-380")
     if short_wc > 130:
         errors.append(f"voiceover_short word count {short_wc} exceeds 130 (Shorts cap)")
 
@@ -451,13 +460,25 @@ def _validation_retry_message(errors: list[str], payload: dict) -> str:
     msg = (
         "Your previous response failed validation:\n"
         + "\n".join(f"  - {e}" for e in errors)
-        + "\n\nFix and respond with the corrected JSON."
+        + "\n\nFix and respond with the corrected JSON. Keep ALL fields from "
+        "the previous response that were valid; only modify what's broken. "
+        "Output the FULL JSON object again."
+    )
+    # Spell out the length budget concretely — the most common retry
+    # failure is undershooting the long voiceover.
+    msg += (
+        "\n\nLength budgets:"
+        "\n  - voiceover_long: must be 220-340 words (aim for ~280). "
+        "If you're under, expand by adding context to the insight or close — "
+        "more concrete examples from the structured payload."
+        "\n  - voiceover_short: ≤120 words. Keep it tight."
     )
     if payload.get("type") == "word_origins":
         langs = sorted({d["language"] for d in payload.get("derivatives", []) if d.get("language")})
         msg += (
             "\n\nThe ONLY languages you may name in voiceover_long, voiceover_short, "
-            "or languages_referenced are these — copy the spelling exactly:\n"
+            "or languages_referenced are these — copy the spelling exactly, "
+            "including any apostrophes:\n"
             + ", ".join(langs)
         )
     return msg
