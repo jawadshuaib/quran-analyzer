@@ -1559,6 +1559,22 @@ export interface ScriptEdits {
   voiceover_short?: string;
 }
 
+/** Kick off Phase 3 rendering for one variant. Returns 202 — the
+ *  render runs in a background thread on the server; poll
+ *  getEducationalVideoDetail() to watch the status transition
+ *  rendering → rendered (or failed). */
+export async function renderEducationalVideo(
+  id: number,
+  format: 'long' | 'short',
+): Promise<void> {
+  const res = await authFetch(`${BASE}/educational/${id}/render`, {
+    method: 'POST',
+    body: JSON.stringify({ format }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to start render');
+}
+
 /** Save operator edits to a generated script. The backend sanitizes
  *  voiceover bodies and re-validates length / TTS-friendliness /
  *  language grounding. On validation failure throws an Error whose

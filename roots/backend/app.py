@@ -5890,10 +5890,18 @@ def _create_admin_token(user_id: int, username: str, pw_changed_at: int = 0) -> 
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
+        # Bearer header is the primary path. Fall back to a `?token=`
+        # query-string for cases where the browser can't set headers
+        # — chiefly, <video> / <audio> / <a target="_blank"> tags
+        # that need to authenticate a binary GET. Same JWT, same
+        # validation downstream, so the security model is unchanged.
         auth_header = request.headers.get("Authorization", "")
-        if not auth_header.startswith("Bearer "):
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        elif request.args.get("token"):
+            token = request.args["token"]
+        else:
             return jsonify({"error": "Missing token"}), 401
-        token = auth_header[7:]
         try:
             payload = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
@@ -8012,6 +8020,131 @@ def admin_educational_edit_script(video_id: int):
                 "languages_referenced", "notes",
             )},
         })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/<int:video_id>/render", methods=["POST"])
+@admin_required
+def admin_educational_render(video_id: int):
+    """Phase 3: composite the script into an MP4. Spawns a daemon
+    thread so the request returns immediately; the operator polls
+    GET /api/admin/educational/<id> for status transitions
+    rendering → rendered (or failed).
+
+    Body: {"format": "long" | "short"}
+    """
+    if not _EDU_OK:
+        return _edu_unavailable()
+    body = request.get_json(silent=True) or {}
+    fmt = body.get("format", "long")
+    if fmt not in ("long", "short"):
+        return jsonify({"error": "format must be 'long' or 'short'"}), 400
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM educational_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "video not found"}), 404
+        rd = dict(row)
+        if rd["status"] not in ("script_ready", "rendered", "failed"):
+            return jsonify({
+                "error": f"cannot render while status={rd['status']}"
+            }), 409
+
+        # Pull required credentials NOW so the background thread doesn't
+        # have to handle "key missing" — fail fast if the admin hasn't
+        # configured ElevenLabs.
+        elevenlabs_key = (conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
+        ).fetchone() or {}).get("value") if False else None
+        prefs_row = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
+        ).fetchone()
+        elevenlabs_key = prefs_row["value"] if prefs_row and prefs_row["value"] else None
+        if not elevenlabs_key:
+            return jsonify({
+                "error": "ElevenLabs API key not set (Admin → Settings → ElevenLabs)"
+            }), 400
+
+        # Pick a voice — prefer the one specified in the body, else the
+        # first configured voice. Mirrors the recitation pipeline's
+        # voice selection.
+        voice_id = body.get("voice_id")
+        if not voice_id:
+            v = conn.execute(
+                "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
+            ).fetchone()
+            if not v:
+                return jsonify({
+                    "error": "No voices configured (Admin → Settings → ElevenLabs → Voices)"
+                }), 400
+            voice_id = v["voice_id"]
+
+        # Mark as rendering BEFORE spawning the thread so a fast poll
+        # doesn't catch it still in script_ready.
+        conn.execute(
+            "UPDATE educational_videos SET status='rendering', "
+            "       error_message=NULL, format=?, completed_at=NULL "
+            "WHERE id = ?",
+            (fmt, video_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    def _do_render():
+        import educational_render as _r
+        # Each thread gets its own connection.
+        c = get_db()
+        try:
+            try:
+                filename, size = _r.render_video(
+                    c, video_id,
+                    format=fmt,
+                    elevenlabs_api_key=elevenlabs_key,
+                    voice_id=voice_id,
+                )
+            except Exception as exc:  # noqa: BLE001 — we want any error captured
+                c.execute(
+                    "UPDATE educational_videos SET status='failed', "
+                    "       error_message=? WHERE id=?",
+                    (f"render: {exc}"[:1000], video_id),
+                )
+                c.commit()
+                return
+            c.execute(
+                "UPDATE educational_videos SET status='rendered', "
+                "       filename=?, file_size=?, completed_at=CURRENT_TIMESTAMP "
+                "WHERE id=?",
+                (filename, size, video_id),
+            )
+            c.commit()
+        finally:
+            c.close()
+
+    threading.Thread(target=_do_render, daemon=True).start()
+    return jsonify({"id": video_id, "status": "rendering", "format": fmt}), 202
+
+
+@app.route("/api/admin/educational/<int:video_id>/video", methods=["GET"])
+@admin_required
+def admin_educational_video_file(video_id: int):
+    """Stream the rendered MP4 for a video row. Used by the preview
+    player and the download link."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT filename FROM educational_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row or not row["filename"]:
+            return jsonify({"error": "no rendered file"}), 404
+        import educational_render as _r
+        return send_from_directory(_r.OUTPUT_DIR, row["filename"], mimetype="video/mp4")
     finally:
         conn.close()
 

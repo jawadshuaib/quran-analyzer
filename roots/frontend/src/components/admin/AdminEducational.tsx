@@ -7,6 +7,7 @@ import {
   getEducationalVideoDetail,
   generateEducationalScript,
   editEducationalScript,
+  renderEducationalVideo,
   type EducationalPool,
   type EducationalCandidate,
   type EducationalType,
@@ -280,6 +281,14 @@ function VideosPanel({ type }: { type: EducationalType }) {
       .finally(() => { if (!cancelled) setLoading(false); });
   }, [type, bumpKey]);
 
+  // While any row is in 'rendering', poll the list every 4s so the
+  // status pill flips to 'rendered' or 'failed' without a manual refresh.
+  useEffect(() => {
+    if (!videos.some((v) => v.status === 'rendering')) return;
+    const t = setInterval(() => setBumpKey((k) => k + 1), 4000);
+    return () => clearInterval(t);
+  }, [videos]);
+
   return (
     <section>
       <div className="flex items-baseline justify-between mb-3">
@@ -378,12 +387,25 @@ function VideoActions({
     }
   }
 
-  const canGenerate = v.status === 'candidate' || v.status === 'failed';
-  const hasScript = v.status !== 'candidate' && v.status !== 'failed';
+  async function handleRender(format: 'long' | 'short') {
+    setBusy(true);
+    try {
+      await renderEducationalVideo(v.id, format);
+      onChange();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const noScript = v.status === 'candidate' || v.status === 'failed';
+  const isRendering = v.status === 'rendering';
+  const isRendered = v.status === 'rendered' || v.status === 'uploaded';
 
   return (
     <div className="flex items-center gap-2 flex-shrink-0">
-      {canGenerate && (
+      {noScript && (
         <button
           onClick={handleGenerate}
           disabled={busy}
@@ -393,7 +415,7 @@ function VideoActions({
           {busy ? 'Generating…' : v.status === 'failed' ? 'Retry' : 'Generate script'}
         </button>
       )}
-      {hasScript && (
+      {!noScript && !isRendering && (
         <>
           <button
             onClick={handleGenerate}
@@ -401,7 +423,7 @@ function VideoActions({
             className="px-2.5 py-1 rounded-md border border-stone-300 text-stone-700 text-xs font-medium hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
             title="Re-run the generator. The previous script is overwritten."
           >
-            {busy ? '…' : 'Regenerate'}
+            Regenerate
           </button>
           <button
             onClick={onPreview}
@@ -409,7 +431,39 @@ function VideoActions({
           >
             {expanded ? 'Hide' : 'Preview'}
           </button>
+          <button
+            onClick={() => handleRender('long')}
+            disabled={busy}
+            className="px-2.5 py-1 rounded-md bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+            title="Phase 3: ElevenLabs TTS + ffmpeg compose. Renders the long form (~2:00 mp4)."
+          >
+            Render long
+          </button>
+          <button
+            onClick={() => handleRender('short')}
+            disabled={busy}
+            className="px-2.5 py-1 rounded-md bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+            title="Render the short form (sub-60s mp4 for YouTube Shorts / TikTok)."
+          >
+            Render short
+          </button>
         </>
+      )}
+      {isRendering && (
+        <span className="text-xs text-amber-600 font-medium animate-pulse">
+          Rendering…
+        </span>
+      )}
+      {isRendered && !isRendering && (
+        <a
+          href={`/api/admin/educational/${v.id}/video?token=${encodeURIComponent(localStorage.getItem('admin_token') || '')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2.5 py-1 rounded-md border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 cursor-pointer"
+          title={`Format: ${v.format ?? '?'} · ${v.file_size ? Math.round(v.file_size / 1024) + ' KB' : ''}`}
+        >
+          Open mp4
+        </a>
       )}
     </div>
   );
@@ -504,6 +558,52 @@ function VideoExpandedPanel({ videoId, bumpKey }: { videoId: number; bumpKey: nu
       )}
       {s.notes && (
         <div className="text-xs italic text-stone-500">Notes: {s.notes}</div>
+      )}
+
+      {/* Inline player — shown only when an mp4 has been rendered.
+          The 9:16 aspect ratio matches our render output. Auth on the
+          backend uses Bearer token via authFetch; the <video> element
+          can't send headers, so the endpoint accepts a query-string
+          token alternative... actually we use cookie-less auth, so we
+          rely on the operator clicking "Open mp4" in a new tab where
+          their session token is included. For an inline preview we
+          just embed a controls-only video pointing at the same URL —
+          works for the same-origin admin session since the backend
+          allows the GET when the request originates from a logged-in
+          tab via the Authorization header... but <video> can't send
+          one. Fall back to the new-tab link instead of broken inline. */}
+      {detail.filename && (
+        <div className="pt-2 border-t border-stone-200">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-1">
+            Rendered video ({detail.format ?? 'unknown'})
+          </div>
+          <div className="text-xs text-stone-600 mb-2">
+            {detail.file_size ? `${Math.round(detail.file_size / 1024)} KB` : ''}
+            {detail.completed_at && (
+              <span className="text-stone-400"> · {formatDate(detail.completed_at)}</span>
+            )}
+          </div>
+          {/* Inline 9:16 player. Width is capped so portrait videos
+              don't dominate the panel; click "Open mp4" for a fuller
+              view. Token is appended to the src so the unauthenticated
+              <video> request still passes admin_required. */}
+          <video
+            controls
+            preload="metadata"
+            className="w-48 max-w-full rounded-md border border-stone-300 bg-stone-900"
+            src={`/api/admin/educational/${detail.id}/video?token=${encodeURIComponent(localStorage.getItem('admin_token') || '')}`}
+          />
+          <div className="mt-1">
+            <a
+              href={`/api/admin/educational/${detail.id}/video?token=${encodeURIComponent(localStorage.getItem('admin_token') || '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-emerald-700 underline hover:no-underline"
+            >
+              Open full mp4 →
+            </a>
+          </div>
+        </div>
       )}
     </div>
   );
