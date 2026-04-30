@@ -648,7 +648,18 @@ export async function uploadResource(file: File): Promise<Resource> {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(res.status === 413 ? 'File too large (max 500MB)' : `Upload failed (${res.status})`);
+    // Flask itself allows 500MB, but a 413 here usually means the
+    // host's reverse proxy (nginx/Caddy/Cloudflare) is enforcing its
+    // default ~1MB limit before the request reaches Flask. The fix is
+    // host-side, not in this app. Surface that explicitly so the
+    // operator doesn't waste time tweaking app-side config.
+    throw new Error(
+      res.status === 413
+        ? 'Upload rejected by reverse proxy (HTTP 413). The Flask app allows 500MB, '
+          + 'but the host\'s nginx/Caddy is capping uploads. Raise '
+          + 'client_max_body_size on the host (see DEPLOY.md).'
+        : `Upload failed (${res.status})`,
+    );
   }
   if (!res.ok) throw new Error((data.error as string) || 'Upload failed');
   return data as unknown as Resource;
@@ -710,7 +721,12 @@ export async function uploadMusicTrack(file: File): Promise<MusicTrack> {
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error(res.status === 413 ? 'File too large' : `Upload failed (${res.status})`);
+    throw new Error(
+      res.status === 413
+        ? 'Upload rejected by reverse proxy (HTTP 413). Raise '
+          + 'client_max_body_size on the host (see DEPLOY.md).'
+        : `Upload failed (${res.status})`,
+    );
   }
   if (!res.ok) throw new Error((data.error as string) || 'Upload failed');
   return data as unknown as MusicTrack;
