@@ -7662,6 +7662,33 @@ os.makedirs(_GENERATED_VIDEOS_DIR, exist_ok=True)
 _MUSIC_DIR = os.path.join(os.path.dirname(__file__), "data", "music")
 os.makedirs(_MUSIC_DIR, exist_ok=True)
 
+
+# --------------- Default video metadata (Ollama-down fallback) ---------------
+# When the metadata-generation Ollama call fails (service down, timeout,
+# parse error), we still want the upload to publish with reasonable
+# title/description/tags rather than "Pipeline video 47" or an empty
+# blob. These are deliberately generic so they fit any verse selection.
+_DEFAULT_YT_TITLE = "Verses of the Quran"
+_DEFAULT_YT_DESCRIPTION = (
+    "A passage from the Quran with English translation and recitation. "
+    "Brought to you by al-nuqta.com — A Root Based Translation of the Quran. "
+    "Explore the morphology, etymology, and Semitic cognates behind every "
+    "word of the Qur'an at https://al-nuqta.com.\n\n"
+    "#Quran #IslamicVideos #QuranTranslation"
+)
+# Kept under YouTube's 500-char total tag limit by design.
+_DEFAULT_YT_TAGS: tuple[str, ...] = (
+    "Quran", "Quran recitation", "Quran translation",
+    "Islam", "Islamic videos", "Quran in English",
+    "Holy Quran", "Quranic verses", "al-nuqta",
+)
+# TikTok caption — same idea, single string with hashtags inline.
+_DEFAULT_TIKTOK_CAPTION = (
+    "A passage from the Quran with English translation. "
+    "Explore root-by-root analysis at al-nuqta.com "
+    "#Quran #IslamicVideos #QuranTranslation"
+)
+
 _FFMPEG = "ffmpeg"
 _FFPROBE = "ffprobe"
 
@@ -13553,9 +13580,15 @@ def _perform_youtube_upload(
         if not os.path.isfile(filepath):
             return {"ok": False, "error": "Video file missing on disk", "status": 404}
 
-        # Resolve metadata: caller overrides > stored columns > blank fallback
-        final_title = (title or row["youtube_title"] or f"Pipeline video {video_id}").strip()[:100]
-        final_description = (description or row["youtube_description"] or "").strip()[:5000]
+        # Resolve metadata: caller overrides > stored columns > generic
+        # Quran-themed fallback. When Ollama is down (or hasn't run yet)
+        # the stored youtube_* columns are empty; we still want the
+        # video to publish with a sensible title/description rather
+        # than "Pipeline video 47" or a blank field.
+        final_title = (title or row["youtube_title"] or _DEFAULT_YT_TITLE).strip()[:100]
+        final_description = (
+            description or row["youtube_description"] or _DEFAULT_YT_DESCRIPTION
+        ).strip()[:5000]
 
         if tags is None:
             try:
@@ -13564,6 +13597,8 @@ def _perform_youtube_upload(
                 tags_in = []
         else:
             tags_in = tags
+        if not tags_in:
+            tags_in = list(_DEFAULT_YT_TAGS)
 
         final_tags: list[str] = []
         for t in tags_in or []:
@@ -14059,12 +14094,17 @@ def admin_upload_pipeline_video_to_tiktok(video_id: int):
         return jsonify({"error": "Video file missing on disk"}), 404
 
     # Fall back to YouTube-style metadata if no caption provided.
+    # When Ollama is down both youtube_title and youtube_description
+    # are empty; the result is a blank TikTok caption. Use the same
+    # generic Quran-themed fallback as the YouTube uploader does.
     if not caption:
         caption = (
             (row["youtube_title"] or "").strip()
             + "\n\n"
             + (row["youtube_description"] or "").strip()
         ).strip()[:2200]
+    if not caption:
+        caption = _DEFAULT_TIKTOK_CAPTION
 
     try:
         access_token = _tiktok_get_access_token()
