@@ -7811,6 +7811,123 @@ def admin_educational_queue():
         conn.close()
 
 
+@app.route("/api/admin/educational/<int:video_id>/generate-script", methods=["POST"])
+@admin_required
+def admin_educational_generate_script(video_id: int):
+    """Phase 2: generate a 4-beat script + long/short voiceovers for a
+    candidate row. On success the row moves to status='script_ready'.
+    On validation/LLM failure it moves to status='failed' with the
+    error captured in error_message — operator can fix the upstream
+    data and Regenerate."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    import educational_scripts as _scripts
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM educational_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "video not found"}), 404
+        rd = dict(row)
+        if rd["status"] not in ("candidate", "script_ready", "failed"):
+            return jsonify({
+                "error": f"cannot regenerate script while status={rd['status']}"
+            }), 409
+
+        try:
+            payload = _scripts.enrich_payload(conn, rd)
+        except _scripts.ScriptGenError as e:
+            conn.execute(
+                "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
+                (f"payload: {e}", video_id),
+            )
+            conn.commit()
+            return jsonify({"error": f"payload: {e}"}), 422
+
+        api_key = _get_claude_api_key()
+        try:
+            script = _scripts.generate_script(payload, api_key=api_key)
+        except _scripts.ScriptGenError as e:
+            conn.execute(
+                "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
+                (str(e), video_id),
+            )
+            conn.commit()
+            return jsonify({"error": str(e)}), 502
+
+        # Persist the script + the structured payload that grounded it
+        # so Phase 3 (rendering) doesn't have to re-fetch.
+        conn.execute(
+            "UPDATE educational_videos SET "
+            "  payload_json = ?, "
+            "  script_json = ?, "
+            "  voiceover_text = ?, "
+            "  status = 'script_ready', "
+            "  error_message = NULL "
+            "WHERE id = ?",
+            (
+                json.dumps(payload, ensure_ascii=False),
+                json.dumps({
+                    "hook": script.get("hook"),
+                    "verse_intro": script.get("verse_intro"),
+                    "insight": script.get("insight"),
+                    "close": script.get("close"),
+                    "voiceover_short": script.get("voiceover_short"),
+                    "languages_referenced": script.get("languages_referenced", []),
+                    "notes": script.get("notes", ""),
+                    "model": script.get("model"),
+                }, ensure_ascii=False),
+                script.get("voiceover_long"),
+                video_id,
+            ),
+        )
+        conn.commit()
+        return jsonify({
+            "id": video_id,
+            "status": "script_ready",
+            "script": {
+                "hook": script.get("hook"),
+                "verse_intro": script.get("verse_intro"),
+                "insight": script.get("insight"),
+                "close": script.get("close"),
+                "voiceover_long": script.get("voiceover_long"),
+                "voiceover_short": script.get("voiceover_short"),
+                "languages_referenced": script.get("languages_referenced", []),
+                "notes": script.get("notes", ""),
+            },
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/<int:video_id>", methods=["GET"])
+@admin_required
+def admin_educational_video_detail(video_id: int):
+    """Full row including script_json + voiceover_text — used by the UI
+    to render the script preview after generation."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM educational_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        d = dict(row)
+        # Surface the parsed script JSON for UI ergonomics.
+        if d.get("script_json"):
+            try:
+                d["script"] = json.loads(d["script_json"])
+            except Exception:
+                d["script"] = None
+        return jsonify(d)
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/educational/videos", methods=["GET"])
 @admin_required
 def admin_educational_videos_list():

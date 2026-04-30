@@ -4,10 +4,13 @@ import {
   getEducationalCandidates,
   queueEducationalCandidate,
   getEducationalVideos,
+  getEducationalVideoDetail,
+  generateEducationalScript,
   type EducationalPool,
   type EducationalCandidate,
   type EducationalType,
   type EducationalVideo,
+  type EducationalVideoDetail,
 } from '../../api/admin';
 
 /**
@@ -263,6 +266,8 @@ function CandidateRow({
 function VideosPanel({ type }: { type: EducationalType }) {
   const [videos, setVideos] = useState<EducationalVideo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bumpKey, setBumpKey] = useState(0);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,13 +276,21 @@ function VideosPanel({ type }: { type: EducationalType }) {
       .then((rows) => { if (!cancelled) setVideos(rows); })
       .catch(() => { if (!cancelled) setVideos([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
-  }, [type]);
+  }, [type, bumpKey]);
 
   return (
     <section>
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-400 mb-3">
-        Queued & generated
-      </h2>
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-400">
+          Queued & generated
+        </h2>
+        <button
+          onClick={() => setBumpKey((k) => k + 1)}
+          className="text-xs text-stone-500 hover:text-stone-800 cursor-pointer"
+        >
+          Refresh
+        </button>
+      </div>
       {loading ? (
         <div className="text-sm text-stone-400">Loading…</div>
       ) : videos.length === 0 ? (
@@ -285,40 +298,212 @@ function VideosPanel({ type }: { type: EducationalType }) {
           Nothing queued for this series yet.
         </div>
       ) : (
-        <div className="border border-stone-200 rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-50 text-xs text-stone-500">
-              <tr>
-                <th className="text-left px-3 py-2 font-medium">Verse</th>
-                <th className="text-left px-3 py-2 font-medium">Anchor</th>
-                <th className="text-left px-3 py-2 font-medium">Status</th>
-                <th className="text-left px-3 py-2 font-medium">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {videos.map((v) => (
-                <tr key={v.id} className="border-t border-stone-100">
-                  <td className="px-3 py-2 font-mono text-stone-700">
-                    {v.chapter}:{v.verse}
-                  </td>
-                  <td className="px-3 py-2 text-stone-500 font-mono text-xs">
-                    {v.anchor_word_pos != null && `p${v.anchor_word_pos}`}
-                    {v.anchor_insight_id || ''}
-                    {v.anchor_word_pos == null && !v.anchor_insight_id && '—'}
-                  </td>
-                  <td className="px-3 py-2">
-                    <StatusPill status={v.status} />
-                  </td>
-                  <td className="px-3 py-2 text-stone-400 text-xs">
-                    {formatDate(v.created_at)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="border border-stone-200 rounded-lg overflow-hidden bg-white">
+          {videos.map((v) => (
+            <VideoRow
+              key={v.id}
+              video={v}
+              expanded={expandedId === v.id}
+              onToggle={() => setExpandedId(expandedId === v.id ? null : v.id)}
+              onChange={() => setBumpKey((k) => k + 1)}
+            />
+          ))}
         </div>
       )}
     </section>
+  );
+}
+
+function VideoRow({
+  video: v,
+  expanded,
+  onToggle,
+  onChange,
+}: {
+  video: EducationalVideo;
+  expanded: boolean;
+  onToggle: () => void;
+  onChange: () => void;
+}) {
+  return (
+    <div className="border-b border-stone-100 last:border-b-0">
+      <div className="flex items-center gap-3 px-3 py-2 text-sm">
+        <span className="font-mono text-stone-700 w-20 flex-shrink-0">
+          {v.chapter}:{v.verse}
+        </span>
+        <span className="text-stone-500 font-mono text-xs w-32 flex-shrink-0 truncate">
+          {v.anchor_word_pos != null && `p${v.anchor_word_pos}`}
+          {v.anchor_insight_id || ''}
+          {v.anchor_word_pos == null && !v.anchor_insight_id && '—'}
+        </span>
+        <div className="flex-shrink-0">
+          <StatusPill status={v.status} />
+        </div>
+        <span className="flex-1 text-stone-400 text-xs truncate">
+          {v.error_message || formatDate(v.created_at)}
+        </span>
+        <VideoActions video={v} onChange={onChange} onPreview={onToggle} expanded={expanded} />
+      </div>
+      {expanded && <VideoExpandedPanel videoId={v.id} bumpKey={v.id} />}
+    </div>
+  );
+}
+
+function VideoActions({
+  video: v,
+  onChange,
+  onPreview,
+  expanded,
+}: {
+  video: EducationalVideo;
+  onChange: () => void;
+  onPreview: () => void;
+  expanded: boolean;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleGenerate() {
+    setBusy(true);
+    try {
+      await generateEducationalScript(v.id);
+      onChange();
+    } catch (e) {
+      // The backend records the error on the row; refresh to surface it.
+      onChange();
+      alert(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const canGenerate = v.status === 'candidate' || v.status === 'failed';
+  const hasScript = v.status !== 'candidate' && v.status !== 'failed';
+
+  return (
+    <div className="flex items-center gap-2 flex-shrink-0">
+      {canGenerate && (
+        <button
+          onClick={handleGenerate}
+          disabled={busy}
+          className="px-2.5 py-1 rounded-md bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          title="Phase 2: call Claude to draft a hook + verse intro + insight + close, plus long & short voiceovers."
+        >
+          {busy ? 'Generating…' : v.status === 'failed' ? 'Retry' : 'Generate script'}
+        </button>
+      )}
+      {hasScript && (
+        <>
+          <button
+            onClick={handleGenerate}
+            disabled={busy}
+            className="px-2.5 py-1 rounded-md border border-stone-300 text-stone-700 text-xs font-medium hover:bg-stone-50 disabled:opacity-50 cursor-pointer"
+            title="Re-run the generator. The previous script is overwritten."
+          >
+            {busy ? '…' : 'Regenerate'}
+          </button>
+          <button
+            onClick={onPreview}
+            className="px-2.5 py-1 rounded-md border border-stone-300 text-stone-700 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+          >
+            {expanded ? 'Hide' : 'Preview'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function VideoExpandedPanel({ videoId, bumpKey }: { videoId: number; bumpKey: number }) {
+  const [detail, setDetail] = useState<EducationalVideoDetail | null>(null);
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setDetail(null);
+    setErr('');
+    getEducationalVideoDetail(videoId)
+      .then((d) => { if (!cancelled) setDetail(d); })
+      .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)); });
+  }, [videoId, bumpKey]);
+
+  if (err) return <div className="px-3 py-3 text-sm text-red-600 bg-red-50">{err}</div>;
+  if (!detail) return <div className="px-3 py-3 text-sm text-stone-400">Loading…</div>;
+  const s = detail.script;
+  if (!s) {
+    return (
+      <div className="px-3 py-3 text-sm text-stone-500 bg-stone-50">
+        No script generated yet.
+      </div>
+    );
+  }
+  const longText = detail.voiceover_text || s.voiceover_long;
+  return (
+    <div className="px-3 py-3 bg-stone-50 border-t border-stone-200 space-y-3">
+      <ScriptBeat label="Hook" text={s.hook} />
+      <ScriptBeat label="Verse intro" text={s.verse_intro} />
+      <ScriptBeat label="Insight" text={s.insight} />
+      <ScriptBeat label="Close" text={s.close} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-stone-200">
+        <VoiceoverBlock
+          label="Long voiceover"
+          subtitle="≈250–340 words · regular YouTube"
+          text={longText}
+        />
+        <VoiceoverBlock
+          label="Short voiceover"
+          subtitle="≤120 words · sub-55s Shorts (recitation cap)"
+          text={s.voiceover_short}
+        />
+      </div>
+
+      {s.languages_referenced && s.languages_referenced.length > 0 && (
+        <div className="text-xs text-stone-500">
+          <span className="font-medium text-stone-600">Languages cited: </span>
+          {s.languages_referenced.join(', ')}
+        </div>
+      )}
+      {s.notes && (
+        <div className="text-xs italic text-stone-500">Notes: {s.notes}</div>
+      )}
+    </div>
+  );
+}
+
+function ScriptBeat({ label, text }: { label: string; text: string }) {
+  return (
+    <div>
+      <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-0.5">
+        {label}
+      </div>
+      <p className="text-sm text-stone-700 leading-relaxed">{text}</p>
+    </div>
+  );
+}
+
+function VoiceoverBlock({
+  label,
+  subtitle,
+  text,
+}: {
+  label: string;
+  subtitle: string;
+  text: string;
+}) {
+  const wc = (text || '').match(/\b\w[\w'-]*\b/g)?.length ?? 0;
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-0.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+          {label}
+        </span>
+        <span className="text-[10px] text-stone-400 font-mono">{wc} words</span>
+      </div>
+      <div className="text-[11px] text-stone-400 mb-1">{subtitle}</div>
+      <pre className="whitespace-pre-wrap font-sans text-xs text-stone-700 leading-relaxed bg-white border border-stone-200 rounded-md p-2 max-h-48 overflow-auto">
+        {text}
+      </pre>
+    </div>
   );
 }
 

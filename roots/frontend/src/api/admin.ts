@@ -1511,6 +1511,39 @@ export async function queueEducationalCandidate(
   if (!res.ok) throw new Error(data.error || 'Failed to queue candidate');
 }
 
+export interface EducationalScript {
+  hook: string;
+  verse_intro: string;
+  insight: string;
+  close: string;
+  voiceover_long: string;
+  voiceover_short: string;
+  languages_referenced: string[];
+  notes?: string;
+}
+
+export interface EducationalVideoDetail extends EducationalVideo {
+  payload_json: string | null;
+  script_json: string | null;
+  voiceover_text: string | null;
+  /** Convenience — backend parses script_json for the UI. */
+  script?: EducationalScript | null;
+}
+
+export async function getEducationalVideoDetail(id: number): Promise<EducationalVideoDetail> {
+  const res = await authFetch(`${BASE}/educational/${id}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch video');
+  return data;
+}
+
+export async function generateEducationalScript(id: number): Promise<EducationalScript> {
+  const res = await authFetch(`${BASE}/educational/${id}/generate-script`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to generate script');
+  return data.script;
+}
+
 export async function getEducationalVideos(
   type?: EducationalType,
 ): Promise<EducationalVideo[]> {
