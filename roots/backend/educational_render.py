@@ -544,20 +544,29 @@ def _compose_mp4(
     # Warm-charcoal fallback — matches al-nuqta's dark accent.
     bg_color = "0x2D2620"
 
+    # Outro dim — drops a 75% black box over the entire frame from the
+    # moment the narration ends so the al-nuqta splash text reads
+    # cleanly against a near-black background instead of the still
+    # animating bg video. Mirrors the Arabic pipeline's outro dim.
+    outro_dim = (
+        f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.75:t=fill"
+        f":enable='gte(t\\,{audio_duration:.3f})'"
+    )
+
     if background_video_path and os.path.isfile(background_video_path):
         # Loop the bg video for the entire run, scale to fill 1080x1920
-        # (cover, not contain), crop the overflow, then dim 40% so the
-        # subtitle layer reads against any source brightness. Trimming
-        # to total_duration prevents "video is longer than audio" warnings.
+        # (cover, not contain), crop the overflow, dim during narration
+        # so foreground text reads, then dim deeper during the outro.
         vf = (
             f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
             f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},"
             "setsar=1,"
             "format=yuv420p,"
-            # Brightness/contrast dim — eq = brightness factor (-0.25 to
-            # darken) and saturation 0.85 keeps the bg from competing
+            # Brightness/contrast dim during narration — eq=brightness
+            # darkens, saturation 0.85 keeps the bg from competing
             # with the gold accents in the foreground text.
             "eq=brightness=-0.20:saturation=0.85,"
+            f"{outro_dim},"
             f"trim=duration={total_duration},setpts=PTS-STARTPTS"
         )
         cmd = [
@@ -578,6 +587,9 @@ def _compose_mp4(
             output_path,
         ]
     else:
+        # Solid-bg path also gets the outro dim so the splash card
+        # has the same visual treatment whether or not a tagged
+        # background video was found.
         cmd = [
             "ffmpeg", "-y",
             "-f", "lavfi",
@@ -585,7 +597,8 @@ def _compose_mp4(
             "-i", audio_path,
             "-filter_complex",
             (
-                f"[0:v]ass='{ass_path}'[v];"
+                f"[0:v]{outro_dim}[bg];"
+                f"[bg]ass='{ass_path}'[v];"
                 f"[1:a]apad=whole_dur={total_duration}[a]"
             ),
             "-map", "[v]", "-map", "[a]",
