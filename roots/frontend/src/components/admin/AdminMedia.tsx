@@ -47,7 +47,7 @@ export default function AdminMedia() {
 
       {/* Pipelines */}
       <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Pipelines</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <a href="/admin/media/pipelines?lang=english" className={card}>
           <h3 className="font-semibold text-stone-800 mb-1">English Pipeline</h3>
           <p className="text-sm text-stone-500">Automated YouTube Shorts with AI-selected verses, polished English TTS, and auto-generated metadata.</p>
@@ -55,6 +55,17 @@ export default function AdminMedia() {
         <a href="/admin/media/pipelines?lang=arabic" className={card}>
           <h3 className="font-semibold text-stone-800 mb-1">Arabic Pipeline</h3>
           <p className="text-sm text-stone-500">Arabic recitation shorts with on-screen English translation. Passages capped at 55 seconds for copyright safety.</p>
+        </a>
+      </div>
+
+      {/* Educational pipeline — different shape from recitation pipelines:
+          three sub-types (word origins, translation hides, grammar
+          insights) sharing one candidate→script→render→upload flow. */}
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Educational Pipeline</h2>
+      <div className="grid grid-cols-1 gap-4">
+        <a href="/admin/media/educational" className={card}>
+          <h3 className="font-semibold text-stone-800 mb-1">Educational Pipeline</h3>
+          <p className="text-sm text-stone-500">Teach-and-enlighten shorts grounded in our morphology + cognate data. Three series — Word Origins, What Translators Hide, Grammar Insights — sharing one render flow.</p>
         </a>
       </div>
     </div>

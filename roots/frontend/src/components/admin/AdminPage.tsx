@@ -19,8 +19,9 @@ import AdminVocabularyStudio from './AdminVocabularyStudio';
 import AdminRevisions from './AdminRevisions';
 import AdminProperNouns from './AdminProperNouns';
 import VerseSettings from './VerseSettings';
+import AdminEducational from './AdminEducational';
 
-type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns' | 'verse-settings';
+type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'educational' | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns' | 'verse-settings';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -31,6 +32,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/media\/explanations\/?$/.test(path)) return 'explanations';
   if (/^\/admin\/media\/generate-explanation\/?$/.test(path)) return 'generate-explanation';
   if (/^\/admin\/media\/pipelines\/?$/.test(path)) return 'pipelines';
+  if (/^\/admin\/media\/educational(\/.*)?\/?$/.test(path)) return 'educational';
   if (/^\/admin\/media\/?$/.test(path)) return 'media';
   if (/^\/admin\/scheduler\/?$/.test(path)) return 'scheduler';
   if (/^\/admin\/settings\/?$/.test(path)) return 'settings';
@@ -57,7 +59,8 @@ const ADMIN_SECTIONS: AdminSection[] = [
     description: 'Recitations, background videos, music, video pipelines.',
     matches: (r) =>
       r === 'media' || r === 'recitations' || r === 'resources' || r === 'music' ||
-      r === 'generate' || r === 'explanations' || r === 'generate-explanation' || r === 'pipelines',
+      r === 'generate' || r === 'explanations' || r === 'generate-explanation' || r === 'pipelines' ||
+      r === 'educational',
   },
   {
     href: '/admin/scheduler',
@@ -246,6 +249,7 @@ export default function AdminPage() {
         {route === 'explanations' && <ExplanationBuilder />}
         {route === 'generate-explanation' && <GenerateExplanationVideo />}
         {route === 'pipelines' && <PipelineManager />}
+        {route === 'educational' && <AdminEducational />}
         {route === 'revisions' && <AdminRevisions />}
         {route === 'vocabulary' && <AdminVocabulary />}
         {route === 'vocabulary-studio' && <AdminVocabularyStudio />}

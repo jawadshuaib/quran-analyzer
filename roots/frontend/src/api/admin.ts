@@ -1402,3 +1402,123 @@ export async function changePassword(currentPassword: string, newPassword: strin
   // Save the fresh token (old tokens are invalidated by password change)
   if (data.token) setToken(data.token);
 }
+
+// --------------- Educational pipeline (Phase 1) ---------------
+
+export type EducationalType = 'word_origins' | 'translation_hides' | 'grammar_insights';
+
+export interface EducationalPool {
+  word_origins: number;
+  translation_hides: number;
+  grammar_insights: number;
+}
+
+/** Candidates have a slightly different shape per type — anything not
+ *  guaranteed across all three types is optional. */
+export interface EducationalCandidate {
+  chapter: number;
+  verse: number;
+  word_pos?: number | null;
+  insight_id?: string | null;
+  // Word Origins
+  root_bw?: string;
+  root_ar?: string;
+  lemma_bw?: string;
+  lang_count?: number;
+  deriv_count?: number;
+  // Translation Hides
+  departure_notes?: string;
+  // Grammar Insights
+  category?: string;
+  title?: string;
+  confidence?: number;
+  has_counterfactual?: boolean;
+  // Common
+  score: number;
+  text_uthmani?: string;
+  translation?: string;
+}
+
+export interface EducationalVideo {
+  id: number;
+  type: EducationalType;
+  chapter: number;
+  verse: number;
+  anchor_word_pos: number | null;
+  anchor_insight_id: string | null;
+  status: 'candidate' | 'script_ready' | 'rendering' | 'rendered' | 'uploaded' | 'failed';
+  format: string | null;
+  filename: string | null;
+  file_size: number | null;
+  youtube_video_id: string | null;
+  tiktok_video_id: string | null;
+  score: number | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export async function getEducationalPool(): Promise<EducationalPool> {
+  const res = await authFetch(`${BASE}/educational/pool`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pool');
+  return data;
+}
+
+export async function getEducationalCandidates(
+  type: EducationalType,
+  limit = 25,
+): Promise<EducationalCandidate[]> {
+  const res = await authFetch(
+    `${BASE}/educational/candidates?type=${type}&limit=${limit}`,
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch candidates');
+  return data.candidates as EducationalCandidate[];
+}
+
+export async function queueEducationalCandidate(
+  type: EducationalType,
+  c: EducationalCandidate,
+): Promise<void> {
+  const res = await authFetch(`${BASE}/educational/queue`, {
+    method: 'POST',
+    body: JSON.stringify({
+      type,
+      chapter: c.chapter,
+      verse: c.verse,
+      word_pos: c.word_pos ?? null,
+      insight_id: c.insight_id ?? null,
+      score: c.score,
+      // Pass the structured payload so Phase 2 has what it needs to
+      // ground the script. Type-specific fields are bundled together;
+      // generators consume only the keys relevant to their type.
+      payload: {
+        root_bw: c.root_bw,
+        root_ar: c.root_ar,
+        lemma_bw: c.lemma_bw,
+        lang_count: c.lang_count,
+        deriv_count: c.deriv_count,
+        departure_notes: c.departure_notes,
+        category: c.category,
+        title: c.title,
+        confidence: c.confidence,
+        has_counterfactual: c.has_counterfactual,
+      },
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Failed to queue candidate');
+}
+
+export async function getEducationalVideos(
+  type?: EducationalType,
+): Promise<EducationalVideo[]> {
+  const url = type
+    ? `${BASE}/educational/videos?type=${type}`
+    : `${BASE}/educational/videos`;
+  const res = await authFetch(url);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch videos');
+  return data.videos as EducationalVideo[];
+}

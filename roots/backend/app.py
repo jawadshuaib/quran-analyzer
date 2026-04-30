@@ -5021,7 +5021,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights)?)?)?/?$", path):
         return True
     return False
 
@@ -7698,6 +7698,105 @@ def _ensure_tts_cache_table():
         conn.close()
 
 _ensure_tts_cache_table()
+
+
+# --------------- Educational pipeline (Phase 1: foundation) ---------------
+import educational_pipeline as _edu
+
+def _ensure_educational_table():
+    conn = get_db()
+    try:
+        _edu.ensure_table(conn)
+    finally:
+        conn.close()
+
+_ensure_educational_table()
+
+
+@app.route("/api/admin/educational/pool", methods=["GET"])
+@admin_required
+def admin_educational_pool():
+    """Pool sizes for the dashboard — one query per type."""
+    conn = get_db()
+    try:
+        return jsonify({t: _edu.pool_size(conn, t) for t in _edu.TYPES})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/candidates", methods=["GET"])
+@admin_required
+def admin_educational_candidates():
+    vtype = request.args.get("type", "")
+    limit = int(request.args.get("limit", "25"))
+    if vtype not in _edu.TYPES:
+        return jsonify({"error": "unknown type"}), 400
+    conn = get_db()
+    try:
+        candidates = _edu.sample_candidates(conn, vtype, limit=limit)
+        # Hydrate verse text/translation so the admin can scan the pool
+        # without a second roundtrip per row.
+        for c in candidates:
+            row = conn.execute(
+                "SELECT text_uthmani, translation FROM verses "
+                "WHERE chapter = ? AND verse = ?",
+                (c["chapter"], c["verse"]),
+            ).fetchone()
+            if row:
+                c["text_uthmani"] = row["text_uthmani"]
+                c["translation"] = row["translation"]
+        return jsonify({"type": vtype, "candidates": candidates})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/queue", methods=["POST"])
+@admin_required
+def admin_educational_queue():
+    """Move a candidate from the live pool into educational_videos for
+    Phase 2 to pick up. Returns 409 if it's already queued."""
+    body = request.get_json(silent=True) or {}
+    vtype = body.get("type", "")
+    if vtype not in _edu.TYPES:
+        return jsonify({"error": "unknown type"}), 400
+    try:
+        chapter = int(body["chapter"])
+        verse = int(body["verse"])
+    except (KeyError, ValueError, TypeError):
+        return jsonify({"error": "chapter and verse required"}), 400
+    word_pos = body.get("word_pos")
+    insight_id = body.get("insight_id")
+    payload = body.get("payload")
+    score = body.get("score")
+    conn = get_db()
+    try:
+        try:
+            row_id = _edu.queue_candidate(
+                conn, vtype,
+                chapter=chapter, verse=verse,
+                word_pos=int(word_pos) if word_pos is not None else None,
+                insight_id=insight_id,
+                payload=payload,
+                score=float(score) if score is not None else None,
+            )
+        except sqlite3.IntegrityError:
+            return jsonify({"error": "already queued"}), 409
+        return jsonify({"id": row_id, "status": "candidate"}), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/videos", methods=["GET"])
+@admin_required
+def admin_educational_videos_list():
+    vtype = request.args.get("type") or None
+    if vtype and vtype not in _edu.TYPES:
+        return jsonify({"error": "unknown type"}), 400
+    conn = get_db()
+    try:
+        return jsonify({"videos": _edu.list_videos(conn, vtype=vtype)})
+    finally:
+        conn.close()
 
 
 def _tts_hash(text: str, voice_id: str) -> str:
