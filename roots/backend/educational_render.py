@@ -375,12 +375,10 @@ def render_video(
     if not row:
         raise RenderError(f"video {video_id} not found")
     rd = dict(row)
-    if rd.get("status") not in ("script_ready", "rendered", "failed"):
-        raise RenderError(
-            f"cannot render while status={rd.get('status')}; "
-            "row must be script_ready first"
-        )
-
+    # NOTE: We deliberately don't check status here. The HTTP endpoint
+    # already gates on status before flipping the row to 'rendering'
+    # and spawning this work in a background thread; by the time we
+    # arrive, the row IS in 'rendering' state and that's expected.
     # Pull the script.
     if not rd.get("script_json"):
         raise RenderError("no script on this row — generate first")

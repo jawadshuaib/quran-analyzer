@@ -8049,7 +8049,16 @@ def admin_educational_render(video_id: int):
         if not row:
             return jsonify({"error": "video not found"}), 404
         rd = dict(row)
-        if rd["status"] not in ("script_ready", "rendered", "failed"):
+        # Allow re-render from any state that has a script on it
+        # (script_ready, rendered, rendering, failed). The 'rendering'
+        # case covers stuck rows where a previous attempt died mid-
+        # flight (server restart, ffmpeg OOM, etc.) — the only
+        # alternative is editing the DB by hand. Worst case, two
+        # parallel renders write to the same filename and the second
+        # to commit wins. Block only when we're past render — once
+        # something's been uploaded, regenerating media under it
+        # would orphan the upload.
+        if rd["status"] not in ("script_ready", "rendered", "failed", "rendering"):
             return jsonify({
                 "error": f"cannot render while status={rd['status']}"
             }), 409
