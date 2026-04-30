@@ -1550,6 +1550,35 @@ export async function generateEducationalScript(id: number): Promise<Educational
   return data.script;
 }
 
+export interface ScriptEdits {
+  hook?: string;
+  verse_intro?: string;
+  insight?: string;
+  close?: string;
+  voiceover_long?: string;
+  voiceover_short?: string;
+}
+
+/** Save operator edits to a generated script. The backend sanitizes
+ *  voiceover bodies and re-validates length / TTS-friendliness /
+ *  language grounding. On validation failure throws an Error whose
+ *  .message is "validation failed: <issue>; <issue>". */
+export async function editEducationalScript(
+  id: number,
+  edits: ScriptEdits,
+): Promise<EducationalScript> {
+  const res = await authFetch(`${BASE}/educational/${id}/script`, {
+    method: 'PATCH',
+    body: JSON.stringify(edits),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const issues = (data.issues as string[] | undefined)?.join('; ');
+    throw new Error(issues ? `validation failed: ${issues}` : data.error || 'Failed to save');
+  }
+  return data.script;
+}
+
 export async function getEducationalVideos(
   type?: EducationalType,
 ): Promise<EducationalVideo[]> {

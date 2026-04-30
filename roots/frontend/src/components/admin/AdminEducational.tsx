@@ -6,11 +6,13 @@ import {
   getEducationalVideos,
   getEducationalVideoDetail,
   generateEducationalScript,
+  editEducationalScript,
   type EducationalPool,
   type EducationalCandidate,
   type EducationalType,
   type EducationalVideo,
   type EducationalVideoDetail,
+  type ScriptEdits,
 } from '../../api/admin';
 
 /**
@@ -416,15 +418,18 @@ function VideoActions({
 function VideoExpandedPanel({ videoId, bumpKey }: { videoId: number; bumpKey: number }) {
   const [detail, setDetail] = useState<EducationalVideoDetail | null>(null);
   const [err, setErr] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setDetail(null);
     setErr('');
+    setEditing(false);
     getEducationalVideoDetail(videoId)
       .then((d) => { if (!cancelled) setDetail(d); })
       .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)); });
-  }, [videoId, bumpKey]);
+  }, [videoId, bumpKey, reloadKey]);
 
   if (err) return <div className="px-3 py-3 text-sm text-red-600 bg-red-50">{err}</div>;
   if (!detail) return <div className="px-3 py-3 text-sm text-stone-400">Loading…</div>;
@@ -437,8 +442,40 @@ function VideoExpandedPanel({ videoId, bumpKey }: { videoId: number; bumpKey: nu
     );
   }
   const longText = detail.voiceover_text || s.voiceover_long;
+
+  if (editing) {
+    return (
+      <ScriptEditPanel
+        videoId={videoId}
+        initial={{
+          hook: s.hook,
+          verse_intro: s.verse_intro,
+          insight: s.insight,
+          close: s.close,
+          voiceover_long: longText,
+          voiceover_short: s.voiceover_short,
+        }}
+        onCancel={() => setEditing(false)}
+        onSaved={() => {
+          setEditing(false);
+          setReloadKey((k) => k + 1);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="px-3 py-3 bg-stone-50 border-t border-stone-200 space-y-3">
+      <div className="flex items-center justify-end">
+        <button
+          onClick={() => setEditing(true)}
+          className="px-2.5 py-1 rounded-md border border-stone-300 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+          title="Edit beats and voiceover before locking in for render"
+        >
+          Edit script
+        </button>
+      </div>
+
       <ScriptBeat label="Hook" text={s.hook} />
       <ScriptBeat label="Verse intro" text={s.verse_intro} />
       <ScriptBeat label="Insight" text={s.insight} />
@@ -470,6 +507,195 @@ function VideoExpandedPanel({ videoId, bumpKey }: { videoId: number; bumpKey: nu
       )}
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Inline script editor                                              */
+/* ------------------------------------------------------------------ */
+
+function ScriptEditPanel({
+  videoId,
+  initial,
+  onCancel,
+  onSaved,
+}: {
+  videoId: number;
+  initial: Required<ScriptEdits>;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const [edits, setEdits] = useState<Required<ScriptEdits>>(initial);
+  const [saving, setSaving] = useState(false);
+  const [issues, setIssues] = useState<string[]>([]);
+
+  function update<K extends keyof ScriptEdits>(key: K, value: string) {
+    setEdits((e) => ({ ...e, [key]: value }));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setIssues([]);
+    try {
+      // Only send fields the operator actually changed — prevents the
+      // backend's merge from over-writing when the operator only
+      // tweaked one beat. Compares against `initial` snapshot.
+      const diff: ScriptEdits = {};
+      (Object.keys(edits) as (keyof ScriptEdits)[]).forEach((k) => {
+        if (edits[k] !== initial[k]) diff[k] = edits[k];
+      });
+      if (Object.keys(diff).length === 0) {
+        onCancel();
+        return;
+      }
+      await editEducationalScript(videoId, diff);
+      onSaved();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Backend prefixes with "validation failed: " — split out the
+      // semicolon-separated issues for readable display.
+      if (msg.startsWith('validation failed: ')) {
+        setIssues(msg.slice('validation failed: '.length).split('; ').filter(Boolean));
+      } else {
+        setIssues([msg]);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const longWc = wordCount(edits.voiceover_long || '');
+  const shortWc = wordCount(edits.voiceover_short || '');
+  const longInRange = longWc >= 180 && longWc <= 380;
+  const shortInRange = shortWc <= 130 && shortWc > 0;
+
+  return (
+    <div className="px-3 py-3 bg-stone-50 border-t border-stone-200 space-y-3">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-sm font-semibold text-stone-700">Editing script</h3>
+        <span className="text-[11px] text-stone-400">
+          Changes are sanitized + re-validated on save.
+        </span>
+      </div>
+
+      {issues.length > 0 && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+          <div className="font-semibold mb-1">Validation failed — fix and try again:</div>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {issues.map((issue, i) => (
+              <li key={i}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <EditField
+        label="Hook"
+        subtitle="1 sentence, ≤22 words"
+        value={edits.hook}
+        onChange={(v) => update('hook', v)}
+        rows={2}
+      />
+      <EditField
+        label="Verse intro"
+        subtitle="1 sentence introducing the verse"
+        value={edits.verse_intro}
+        onChange={(v) => update('verse_intro', v)}
+        rows={2}
+      />
+      <EditField
+        label="Insight"
+        subtitle="2–4 sentences"
+        value={edits.insight}
+        onChange={(v) => update('insight', v)}
+        rows={5}
+      />
+      <EditField
+        label="Close"
+        subtitle="1 reflective sentence"
+        value={edits.close}
+        onChange={(v) => update('close', v)}
+        rows={2}
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-stone-200">
+        <EditField
+          label="Long voiceover"
+          subtitle={`220–340 words · regular YouTube · ${longWc} words ${longInRange ? '✓' : '⚠'}`}
+          value={edits.voiceover_long}
+          onChange={(v) => update('voiceover_long', v)}
+          rows={10}
+          mono
+        />
+        <EditField
+          label="Short voiceover"
+          subtitle={`≤120 words · Shorts cap · ${shortWc} words ${shortInRange ? '✓' : '⚠'}`}
+          value={edits.voiceover_short}
+          onChange={(v) => update('voiceover_short', v)}
+          rows={10}
+          mono
+        />
+      </div>
+
+      <p className="text-[11px] text-stone-400 italic">
+        IPA marks (ʕ ʔ ʿ ʾ ḥ ġ ā ī ū s¹ s² etc.) and Arabic-script will be
+        stripped from voiceover text on save — no need to clean them yourself.
+      </p>
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          onClick={onCancel}
+          disabled={saving}
+          className="px-3 py-1.5 rounded-md text-stone-600 text-sm hover:bg-stone-100 disabled:opacity-50 cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-3 py-1.5 rounded-md bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EditField({
+  label,
+  subtitle,
+  value,
+  onChange,
+  rows = 3,
+  mono = false,
+}: {
+  label: string;
+  subtitle?: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-0.5">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+          {label}
+        </span>
+        {subtitle && <span className="text-[10px] text-stone-400">{subtitle}</span>}
+      </div>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className={`w-full bg-white border border-stone-300 rounded-md px-2 py-1.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-stone-400 ${mono ? 'font-mono text-xs' : ''}`}
+      />
+    </div>
+  );
+}
+
+function wordCount(s: string): number {
+  return (s.match(/\b\w[\w'-]*\b/g) ?? []).length;
 }
 
 function ScriptBeat({ label, text }: { label: string; text: string }) {

@@ -7904,6 +7904,118 @@ def admin_educational_generate_script(video_id: int):
         conn.close()
 
 
+@app.route("/api/admin/educational/<int:video_id>/script", methods=["PATCH"])
+@admin_required
+def admin_educational_edit_script(video_id: int):
+    """Operator edits to a generated script. Re-validates the result
+    against the same payload that originally grounded the script
+    (length budgets, TTS-friendliness, language grounding for Word
+    Origins). On success the row stays in status='script_ready' with
+    the operator's text. On validation failure the existing script is
+    preserved and we return 422 with the list of issues."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    import educational_scripts as _scripts
+
+    body = request.get_json(silent=True) or {}
+    edits = {
+        k: (body.get(k) if isinstance(body.get(k), str) else None)
+        for k in (
+            "hook", "verse_intro", "insight", "close",
+            "voiceover_long", "voiceover_short",
+        )
+    }
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM educational_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "video not found"}), 404
+        rd = dict(row)
+        if rd["status"] not in ("script_ready", "failed"):
+            return jsonify({
+                "error": f"cannot edit script while status={rd['status']}"
+            }), 409
+
+        # Start from the existing script, overlay the edits. This means
+        # the operator can submit just the field they changed.
+        existing_script = {}
+        if rd.get("script_json"):
+            try:
+                existing_script = json.loads(rd["script_json"])
+            except Exception:
+                existing_script = {}
+        merged = dict(existing_script)
+        # Old rows stored only voiceover_short under script_json; long
+        # lives in voiceover_text. Bring it in so the merge sees both.
+        if rd.get("voiceover_text"):
+            merged["voiceover_long"] = rd["voiceover_text"]
+        # Apply edits, dropping any None values so untouched fields stay.
+        for k, v in edits.items():
+            if v is not None:
+                merged[k] = v
+
+        # Re-fetch the structured payload — language grounding for Word
+        # Origins re-validates against the same allowed pool.
+        try:
+            payload = _scripts.enrich_payload(conn, rd)
+        except _scripts.ScriptGenError as e:
+            return jsonify({"error": f"payload: {e}"}), 422
+
+        # Sanitize the voiceovers BEFORE validating, mirroring what the
+        # generator does: the operator may paste IPA marks they got
+        # from somewhere; we want them stripped, not bounce.
+        if isinstance(merged.get("voiceover_long"), str):
+            merged["voiceover_long_raw"] = merged["voiceover_long"]
+            merged["voiceover_long"] = _scripts.sanitize_for_tts(merged["voiceover_long"])
+        if isinstance(merged.get("voiceover_short"), str):
+            merged["voiceover_short_raw"] = merged["voiceover_short"]
+            merged["voiceover_short"] = _scripts.sanitize_for_tts(merged["voiceover_short"])
+
+        errs = _scripts._validate(merged, payload)
+        if errs:
+            return jsonify({"error": "validation failed", "issues": errs}), 422
+
+        conn.execute(
+            "UPDATE educational_videos SET "
+            "  script_json = ?, voiceover_text = ?, "
+            "  status = 'script_ready', error_message = NULL "
+            "WHERE id = ?",
+            (
+                json.dumps({
+                    "hook": merged.get("hook"),
+                    "verse_intro": merged.get("verse_intro"),
+                    "insight": merged.get("insight"),
+                    "close": merged.get("close"),
+                    "voiceover_short": merged.get("voiceover_short"),
+                    "voiceover_short_raw": merged.get("voiceover_short_raw"),
+                    "voiceover_long_raw": merged.get("voiceover_long_raw"),
+                    "languages_referenced": merged.get("languages_referenced", []),
+                    "notes": merged.get("notes", ""),
+                    "model": merged.get("model"),
+                    "edited_at": datetime.now(timezone.utc).isoformat(),
+                }, ensure_ascii=False),
+                merged.get("voiceover_long"),
+                video_id,
+            ),
+        )
+        conn.commit()
+        return jsonify({
+            "id": video_id,
+            "status": "script_ready",
+            "script": {k: merged.get(k) for k in (
+                "hook", "verse_intro", "insight", "close",
+                "voiceover_long", "voiceover_short",
+                "voiceover_long_raw", "voiceover_short_raw",
+                "languages_referenced", "notes",
+            )},
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/educational/<int:video_id>", methods=["GET"])
 @admin_required
 def admin_educational_video_detail(video_id: int):
