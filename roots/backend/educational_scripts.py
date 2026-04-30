@@ -376,6 +376,39 @@ def _word_count(s: str) -> int:
     return len(re.findall(r"\b\w[\w'-]*\b", s or ""))
 
 
+_LANG_PUNCT_RE = re.compile(r"['‘’ʼʻ\.\-]", re.UNICODE)
+_LANG_WS_RE = re.compile(r"\s+", re.UNICODE)
+
+
+def _normalize_lang(s: str) -> str:
+    """Lowercase, drop apostrophes/dots/hyphens entirely (Ge'ez ≈ Geez),
+    then collapse whitespace. Multi-word names stay separated, but
+    'Modern Hebrew' still substring-matches 'hebrew'."""
+    s = (s or "").lower()
+    s = _LANG_PUNCT_RE.sub("", s)  # drop, don't replace with space
+    s = _LANG_WS_RE.sub(" ", s).strip()
+    return s
+
+
+def _lang_matches(declared: str, allowed_pool: list[str]) -> str | None:
+    """Return the canonical (payload) language name that this declared
+    language matches, or None if no match. Match logic is bidirectional
+    substring: declared∈allowed OR allowed∈declared, on normalized
+    strings. Bidirectional because 'Hebrew' ⇄ 'Biblical Hebrew' should
+    both succeed; 'Greek' against {'Akkadian','Hebrew',...} should
+    fail (no substring overlap with any)."""
+    nd = _normalize_lang(declared)
+    if not nd:
+        return None
+    for canon in allowed_pool:
+        nc = _normalize_lang(canon)
+        if not nc:
+            continue
+        if nd == nc or nd in nc or nc in nd:
+            return canon
+    return None
+
+
 def _validate(script: dict, payload: dict) -> list[str]:
     """Return list of validation errors. Empty = OK."""
     errors: list[str] = []
@@ -398,49 +431,45 @@ def _validate(script: dict, payload: dict) -> list[str]:
 
     # Type-specific grounding checks.
     if payload["type"] == "word_origins":
-        allowed = {d["language"] for d in payload.get("derivatives", []) if d.get("language")}
-        # The model must declare which languages it referenced; we cross-
-        # check that list against the allowed set, AND we scan the long
-        # voiceover for ad-hoc language names. The LLM can name a language
-        # without listing it, which is the dangerous case — that's where
-        # hallucination lives.
+        allowed_pool = [d["language"] for d in payload.get("derivatives", []) if d.get("language")]
         declared = script.get("languages_referenced") or []
         if not isinstance(declared, list):
             declared = []
-        unknown = [d for d in declared if d not in allowed]
+        unknown = [d for d in declared if not _lang_matches(d, allowed_pool)]
         if unknown:
-            errors.append(f"declared cognate languages not in payload: {unknown}")
-        # Cheap secondary scan: any payload language NOT mentioned in the
-        # narration is fine, but a mention of a language not in the
-        # payload is a hallucination. We only flag tokens that look
-        # language-like (capitalized) and appear in our cognate-language
-        # universe but not in the candidate's payload.
-        ln_text = script.get("voiceover_long", "") + " " + script.get("voiceover_short", "")
-        suspicious = []
-        # Conservative: only check against languages we know exist as cognate languages
-        # in the broader DB (passed in via payload's "_known_languages" if present).
-        # Phase 2 keeps this list scoped to the candidate's own derivatives — over-
-        # reaching here would over-reject; we trust the declared list as primary.
-        # No-op for now; enabled when we wire the broader cognate-language
-        # universe through.
-        del suspicious, ln_text
+            errors.append(
+                f"declared cognate languages not in payload: {unknown}. "
+                f"Allowed pool: {allowed_pool}"
+            )
 
     return errors
 
 
-def generate_script(
-    payload: dict,
+def _validation_retry_message(errors: list[str], payload: dict) -> str:
+    """Build a follow-up turn that tells the LLM exactly what failed and
+    what's allowed, so the second attempt is grounded."""
+    msg = (
+        "Your previous response failed validation:\n"
+        + "\n".join(f"  - {e}" for e in errors)
+        + "\n\nFix and respond with the corrected JSON."
+    )
+    if payload.get("type") == "word_origins":
+        langs = sorted({d["language"] for d in payload.get("derivatives", []) if d.get("language")})
+        msg += (
+            "\n\nThe ONLY languages you may name in voiceover_long, voiceover_short, "
+            "or languages_referenced are these — copy the spelling exactly:\n"
+            + ", ".join(langs)
+        )
+    return msg
+
+
+def _claude_call(
     *,
     api_key: str,
-    model: str = DEFAULT_MODEL,
-    timeout: int = 90,
-) -> dict:
-    """Call Claude and return a validated script. Raises ScriptGenError
-    on transport, parse, or validation failure."""
-    if not api_key:
-        raise ScriptGenError("Claude API key not configured (admin → settings)")
-
-    user_prompt = _build_user_prompt(payload)
+    model: str,
+    messages: list[dict],
+    timeout: int,
+) -> str:
     resp = requests.post(
         CLAUDE_API_URL,
         headers={
@@ -453,7 +482,7 @@ def generate_script(
             "max_tokens": 1500,
             "temperature": 0.55,
             "system": SYSTEM_PROMPT,
-            "messages": [{"role": "user", "content": user_prompt}],
+            "messages": messages,
         },
         timeout=timeout,
     )
@@ -461,13 +490,32 @@ def generate_script(
         raise ScriptGenError(
             f"Claude API {resp.status_code}: {resp.text[:200]}"
         )
-
     body = resp.json()
     content = body.get("content") or []
     text_blocks = [b.get("text", "") for b in content if b.get("type") == "text"]
     raw = "\n".join(text_blocks).strip()
     if not raw:
         raise ScriptGenError("empty response from Claude")
+    return raw
+
+
+def generate_script(
+    payload: dict,
+    *,
+    api_key: str,
+    model: str = DEFAULT_MODEL,
+    timeout: int = 90,
+) -> dict:
+    """Call Claude and return a validated script. One automatic retry
+    if validation fails — the failure reasons + allowed pool are fed
+    back as a follow-up message. Raises ScriptGenError if both attempts
+    fail."""
+    if not api_key:
+        raise ScriptGenError("Claude API key not configured (admin → settings)")
+
+    user_prompt = _build_user_prompt(payload)
+    messages: list[dict] = [{"role": "user", "content": user_prompt}]
+    raw = _claude_call(api_key=api_key, model=model, messages=messages, timeout=timeout)
 
     try:
         script = _extract_json(raw)
@@ -476,7 +524,27 @@ def generate_script(
 
     errs = _validate(script, payload)
     if errs:
-        raise ScriptGenError("validation failed: " + "; ".join(errs))
+        # One retry — feed the exact failures + allowed pool back so the
+        # model can correct without re-reasoning the whole prompt.
+        messages.append({"role": "assistant", "content": raw})
+        messages.append({
+            "role": "user",
+            "content": _validation_retry_message(errs, payload),
+        })
+        raw2 = _claude_call(api_key=api_key, model=model, messages=messages, timeout=timeout)
+        try:
+            script = _extract_json(raw2)
+        except json.JSONDecodeError as e:
+            raise ScriptGenError(
+                f"retry returned non-JSON: {e}\n\n{raw2[:300]}"
+            )
+        errs2 = _validate(script, payload)
+        if errs2:
+            raise ScriptGenError(
+                "validation failed after retry: " + "; ".join(errs2)
+                + f"\n\nFirst attempt errors: {'; '.join(errs)}"
+            )
+        raw = raw2  # the surviving response
 
     script["raw_response"] = raw
     script["model"] = model
