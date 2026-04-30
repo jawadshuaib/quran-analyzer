@@ -446,14 +446,16 @@ function VideoExpandedPanel({ videoId, bumpKey }: { videoId: number; bumpKey: nu
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-stone-200">
         <VoiceoverBlock
-          label="Long voiceover"
-          subtitle="≈250–340 words · regular YouTube"
+          label="Long voiceover (TTS-ready)"
+          subtitle="220–340 words · regular YouTube"
           text={longText}
+          rawText={s.voiceover_long_raw}
         />
         <VoiceoverBlock
-          label="Short voiceover"
+          label="Short voiceover (TTS-ready)"
           subtitle="≤120 words · sub-55s Shorts (recitation cap)"
           text={s.voiceover_short}
+          rawText={s.voiceover_short_raw}
         />
       </div>
 
@@ -485,12 +487,16 @@ function VoiceoverBlock({
   label,
   subtitle,
   text,
+  rawText,
 }: {
   label: string;
   subtitle: string;
   text: string;
+  rawText?: string;
 }) {
   const wc = (text || '').match(/\b\w[\w'-]*\b/g)?.length ?? 0;
+  const wasSanitized = rawText && rawText !== text;
+  const [showRaw, setShowRaw] = useState(false);
   return (
     <div>
       <div className="flex items-baseline justify-between mb-0.5">
@@ -501,8 +507,19 @@ function VoiceoverBlock({
       </div>
       <div className="text-[11px] text-stone-400 mb-1">{subtitle}</div>
       <pre className="whitespace-pre-wrap font-sans text-xs text-stone-700 leading-relaxed bg-white border border-stone-200 rounded-md p-2 max-h-48 overflow-auto">
-        {text}
+        {showRaw && rawText ? rawText : text}
       </pre>
+      {wasSanitized && (
+        <div className="mt-1 flex items-center gap-2 text-[11px] text-amber-700">
+          <span>Sanitized: stripped IPA / Arabic for ElevenLabs.</span>
+          <button
+            onClick={() => setShowRaw((v) => !v)}
+            className="underline hover:no-underline cursor-pointer"
+          >
+            {showRaw ? 'Show TTS-ready' : 'Show raw'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -68,6 +68,14 @@ Hard rules:
 - If the payload doesn't support the insight you'd like to make, say so honestly in `notes` and we'll skip the candidate.
 - Output STRICT JSON. No markdown, no commentary outside the JSON.
 
+Voiceover discipline (CRITICAL — voiceover_long and voiceover_short are read aloud by ElevenLabs TTS):
+- Use natural English. NEVER include academic IPA marks: ʕ, ʔ, ʿ, ʾ, ḥ, ḫ, ṯ, ḏ, ṣ, ḍ, ṭ, ẓ, ġ, ā, ē, ī, ō, ū, s¹, s².
+- NEVER include Buckwalter (e.g. "Eyn", "Hmd") or hyphenated transliterations (e.g. "ʕ-y-n", "ḥ-m-d") in the voiceover.
+- For an Arabic root, say it phonetically in plain English: "the root ayn-ya-nun" or "the three-letter root meaning eye". Avoid letter-by-letter spellouts that aren't pronounceable.
+- For an Arabic word, give an English-friendly transliteration ("a-yun" not "aʕyun") followed by its meaning, OR skip the Arabic and just say what it means.
+- NEVER drop Arabic-script characters into the voiceover — the reciter's audio handles the Arabic. Voiceover is English only.
+- Other beats (hook / verse_intro / insight / close) may use proper transliterations sparingly because they're for on-screen display, not narration. But voiceover_long and voiceover_short must read aloud cleanly.
+
 Output schema (all keys required, all strings):
 {
   "hook":          "1 sentence, ≤22 words, hooks attention",
@@ -84,6 +92,95 @@ Output schema (all keys required, all strings):
 
 class ScriptGenError(Exception):
     """Raised when generation or validation fails."""
+
+
+# --------------------------------------------------------------------------
+#  Voiceover sanitizer — last line of defense before ElevenLabs
+# --------------------------------------------------------------------------
+
+# Order matters: longer / digraph keys first so they win over single
+# characters. We want "s²" → "sh" before any "s" rule fires.
+_VOICEOVER_REPLACEMENTS: list[tuple[str, str]] = [
+    # Buckwalter-style superscripts (sin variants)
+    ("s¹", "s"),
+    ("s²", "sh"),
+    # IPA marks for ayin/hamza adjacent to a hyphen → "a" so that
+    # hyphenated root spellouts (ʕ-y-n / ʔ-k-l) collapse to a
+    # pronounceable English form (ayn / akl) instead of "yn"/"kl".
+    # Order: these MUST come before the unconditional drops below.
+    ("ʕ-", "a-"), ("ʔ-", "a-"), ("ʿ-", "a-"), ("ʾ-", "a-"),
+    # Word-initial IPA followed by a vowel → drop ("ʕayn" → "ayn",
+    # "ʔakl" → "akl"). The drop alone is fine because the next char
+    # is a vowel that English speakers naturally voice.
+    # Word-medial IPA → drop entirely. The vowel before/after carries
+    # the sound in English approximation.
+    ("ʿ", ""),  # ayin (academic)
+    ("ʾ", ""),  # hamza (academic)
+    ("ʕ", ""),  # IPA pharyngeal (ayin)
+    ("ʔ", ""),  # IPA glottal stop
+    ("ʼ", ""), ("ʻ", ""),  # modifier letter apostrophes
+    # Single-letter consonants with diacritics → English approximations
+    ("ḥ", "h"), ("Ḥ", "H"),
+    ("ḫ", "kh"), ("Ḫ", "Kh"),
+    ("ṯ", "th"), ("Ṯ", "Th"),
+    ("ḏ", "dh"), ("Ḏ", "Dh"),
+    ("ṣ", "s"), ("Ṣ", "S"),
+    ("ḍ", "d"), ("Ḍ", "D"),
+    ("ṭ", "t"), ("Ṭ", "T"),
+    ("ẓ", "z"), ("Ẓ", "Z"),
+    ("ġ", "gh"), ("Ġ", "Gh"),
+    # Long vowels with macron — TTS reads "ā" as a literal a-with-macron
+    ("ā", "a"), ("Ā", "A"),
+    ("ē", "e"), ("Ē", "E"),
+    ("ī", "i"), ("Ī", "I"),
+    ("ō", "o"), ("Ō", "O"),
+    ("ū", "u"), ("Ū", "U"),
+]
+
+# Hyphenated root forms like "ʕ-y-n" or "ḫ-y-n" — once IPA marks are
+# stripped or replaced (ʕ→"", ḫ→"kh"), what remains is patterns like
+# "-y-n" or "kh-y-n". Match any sequence of 2+ chunks of 1-3 ASCII
+# letters separated by single hyphens, optionally with a leading
+# orphan hyphen (when the first letter was stripped to empty).
+_HYPHEN_LETTER_RE = re.compile(
+    r"-?\b(?:[a-z]{1,3}-){1,}[a-z]{1,3}\b",
+    re.IGNORECASE,
+)
+# Strip Arabic-script blocks entirely — voiceover is English only and
+# ElevenLabs would either skip them (creating weird pauses) or stumble.
+_ARABIC_BLOCK_RE = re.compile(r"[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]+")
+_MULTI_SPACE_RE = re.compile(r"[ \t]{2,}")
+
+
+def sanitize_for_tts(text: str) -> str:
+    """Strip academic transliteration / IPA / Arabic script from a
+    voiceover string before handing it to ElevenLabs.
+
+    Best-effort: the LLM is told upfront to write TTS-friendly English,
+    so this should mostly be a no-op. When it isn't, we'd rather a
+    slightly awkward English word than a literal "schwa-yod-nun" reading.
+    """
+    if not text:
+        return text
+    out = text
+    # 1) Drop inline Arabic script (the reciter's audio carries the Arabic)
+    out = _ARABIC_BLOCK_RE.sub("", out)
+    # 2) Replace academic marks
+    for a, b in _VOICEOVER_REPLACEMENTS:
+        if a in out:
+            out = out.replace(a, b)
+    # 3) Collapse hyphenated letter spellouts ("a-y-n" → "ayn",
+    #    "kh-y-n" → "khyn", "-y-n" → "yn"). Without this, ElevenLabs
+    #    reads each hyphen as "dash" or as a long pause.
+    def _collapse(m):
+        return m.group(0).lstrip("-").replace("-", "")
+    out = _HYPHEN_LETTER_RE.sub(_collapse, out)
+    # 4) Tidy whitespace introduced by stripped Arabic blocks etc.
+    #    Real hyphens (al-nuqta, hand-written) are left alone — by
+    #    this point all "academic" hyphenated forms have collapsed
+    #    via step 3.
+    out = _MULTI_SPACE_RE.sub(" ", out).strip()
+    return out
 
 
 # --------------------------------------------------------------------------
@@ -425,6 +522,26 @@ def _validate(script: dict, payload: dict) -> list[str]:
         if not isinstance(v, str) or not v.strip():
             errors.append(f"missing or empty: {k}")
 
+    # Voiceover must be TTS-friendly. Scan for academic/IPA marks
+    # and inline Arabic — both will trip ElevenLabs. The sanitizer
+    # below cleans them as a safety net, but we'd rather the LLM
+    # rewrite the line so the operator sees a clean preview.
+    forbidden_re = re.compile(
+        r"[ʔʕʾʿʼʻ"  # IPA / modifier letters
+        r"á-ſ"                            # Latin extended (macrons etc.)
+        r"Ḁ-ỿ"                            # Latin extended additional (dotted)
+        r"¹²"                             # superscript 1/2
+        r"؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]"  # Arabic
+    )
+    for fld in ("voiceover_long", "voiceover_short"):
+        text = script.get(fld) or ""
+        bad = sorted(set(forbidden_re.findall(text)))
+        if bad:
+            errors.append(
+                f"{fld} contains TTS-unfriendly characters: {bad}. "
+                f"Rewrite using plain English transliteration."
+            )
+
     # Length budgets. Floor of 180 (~75s narration at 150 wpm) is the
     # minimum that justifies a long-form video over a Short. Ceiling of
     # 380 keeps the long form under ~2:30 to fit YT recommendation
@@ -472,6 +589,26 @@ def _validation_retry_message(errors: list[str], payload: dict) -> str:
         "If you're under, expand by adding context to the insight or close — "
         "more concrete examples from the structured payload."
         "\n  - voiceover_short: ≤120 words. Keep it tight."
+    )
+    # Voiceover TTS rules — repeat them with concrete examples so the
+    # second attempt actually fixes them. The first-attempt failure
+    # is almost always "the LLM forgot we said no IPA in voiceover".
+    msg += (
+        "\n\nVoiceover TTS rules (these apply ONLY to voiceover_long and "
+        "voiceover_short — the other beats can keep proper transliterations):"
+        "\n  - Replace ʕ / ʔ / ʿ / ʾ with English approximation. "
+        "'ʕayn' becomes 'ayn'. 'ʔakl' becomes 'akl'. 'aʕyun' becomes 'ayun'."
+        "\n  - Replace IPA letters with English digraphs. "
+        "'ḥ' → 'h'. 'ḫ' → 'kh'. 'ṯ' → 'th'. 'ḏ' → 'dh'. 'ġ' → 'gh'. "
+        "'ṣ' / 'ḍ' / 'ṭ' / 'ẓ' → 's' / 'd' / 't' / 'z'."
+        "\n  - Replace long-vowel macrons. 'īnu' becomes 'eenu' or 'inu'. "
+        "'ālōm' becomes 'alom'."
+        "\n  - Replace s¹ / s² with 's' / 'sh'."
+        "\n  - NEVER spell out roots letter-by-letter with hyphens "
+        "('ʕ-y-n', 'ḥ-m-d'). Either say it as one word ('ayn', 'hmd') "
+        "or describe it ('the three-letter root meaning eye')."
+        "\n  - NEVER include Arabic-script characters in voiceover. The "
+        "reciter's audio plays the Arabic separately."
     )
     if payload.get("type") == "word_origins":
         langs = sorted({d["language"] for d in payload.get("derivatives", []) if d.get("language")})
@@ -566,6 +703,19 @@ def generate_script(
                 + f"\n\nFirst attempt errors: {'; '.join(errs)}"
             )
         raw = raw2  # the surviving response
+
+    # Sanitize voiceover bodies for TTS consumption. The LLM has been
+    # instructed to do this itself, but we apply it as a safety net so
+    # ElevenLabs never sees IPA marks or hyphenated root spellouts.
+    # Other beats (hook/insight/close) keep their original text — they
+    # may surface in on-screen captions where proper transliterations
+    # are useful.
+    if isinstance(script.get("voiceover_long"), str):
+        script["voiceover_long_raw"] = script["voiceover_long"]
+        script["voiceover_long"] = sanitize_for_tts(script["voiceover_long"])
+    if isinstance(script.get("voiceover_short"), str):
+        script["voiceover_short_raw"] = script["voiceover_short"]
+        script["voiceover_short"] = sanitize_for_tts(script["voiceover_short"])
 
     script["raw_response"] = raw
     script["model"] = model

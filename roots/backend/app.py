@@ -7875,6 +7875,8 @@ def admin_educational_generate_script(video_id: int):
                     "insight": script.get("insight"),
                     "close": script.get("close"),
                     "voiceover_short": script.get("voiceover_short"),
+                    "voiceover_short_raw": script.get("voiceover_short_raw"),
+                    "voiceover_long_raw": script.get("voiceover_long_raw"),
                     "languages_referenced": script.get("languages_referenced", []),
                     "notes": script.get("notes", ""),
                     "model": script.get("model"),

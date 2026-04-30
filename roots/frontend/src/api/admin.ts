@@ -1518,6 +1518,12 @@ export interface EducationalScript {
   close: string;
   voiceover_long: string;
   voiceover_short: string;
+  /** Pre-sanitization voiceover bodies — the raw LLM output before
+   *  IPA marks / Arabic script were stripped. Useful for verifying
+   *  the sanitizer didn't garble anything. Only set when the
+   *  sanitized version differs. */
+  voiceover_long_raw?: string;
+  voiceover_short_raw?: string;
   languages_referenced: string[];
   notes?: string;
 }
