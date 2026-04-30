@@ -114,8 +114,10 @@ function ResourceCard({ resource, onDelete, onUpdate }: { resource: Resource; on
   const [thumbSrc, setThumbSrc] = useState<string | null>(null);
   const [thumbError, setThumbError] = useState(false);
   const [desc, setDesc] = useState(resource.description || '');
+  const [tags, setTags] = useState(resource.tags || '');
   const [saving, setSaving] = useState(false);
-  const dirty = desc !== (resource.description || '');
+  const descDirty = desc !== (resource.description || '');
+  const tagsDirty = tags !== (resource.tags || '');
 
   useEffect(() => {
     let revoke: string | null = null;
@@ -141,7 +143,19 @@ function ResourceCard({ resource, onDelete, onUpdate }: { resource: Resource; on
   async function handleSaveDesc() {
     setSaving(true);
     try {
-      const updated = await updateResource(resource.id, desc);
+      const updated = await updateResource(resource.id, { description: desc });
+      onUpdate(updated);
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  }
+
+  async function handleSaveTags() {
+    setSaving(true);
+    try {
+      const updated = await updateResource(resource.id, { tags });
+      // Backend canonicalizes the tag string (lowercase, dedupe, sort) —
+      // sync the input to that form so subsequent edits diff correctly.
+      setTags(updated.tags || '');
       onUpdate(updated);
     } catch { /* ignore */ }
     finally { setSaving(false); }
@@ -175,11 +189,25 @@ function ResourceCard({ resource, onDelete, onUpdate }: { resource: Resource; on
             type="text"
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
-            onBlur={() => { if (dirty) handleSaveDesc(); }}
-            onKeyDown={(e) => { if (e.key === 'Enter' && dirty) handleSaveDesc(); }}
+            onBlur={() => { if (descDirty) handleSaveDesc(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && descDirty) handleSaveDesc(); }}
             placeholder="Add a description..."
             maxLength={500}
             className="w-full text-xs text-stone-600 border border-stone-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-stone-400 placeholder:text-stone-300"
+          />
+        </div>
+        {/* Tags — comma-separated. Educational pipeline filters by tag
+            (e.g. "word-origins"); shorts pipelines may filter by mood. */}
+        <div className="mt-2">
+          <input
+            type="text"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            onBlur={() => { if (tagsDirty) handleSaveTags(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter' && tagsDirty) handleSaveTags(); }}
+            placeholder="Tags, comma-separated (e.g. word-origins, calm)"
+            maxLength={200}
+            className="w-full text-xs text-stone-600 border border-stone-200 rounded-md px-2 py-1.5 focus:outline-none focus:border-stone-400 placeholder:text-stone-300 font-mono"
           />
           {saving && <span className="text-[10px] text-stone-400 mt-0.5 block">Saving...</span>}
         </div>

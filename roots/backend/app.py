@@ -8468,10 +8468,16 @@ def _ensure_resource_tables():
             )
         """)
         conn.commit()
-        # Add description column if missing
+        # Idempotent column adds for admin_resources.
         cols = [r[1] for r in conn.execute("PRAGMA table_info(admin_resources)").fetchall()]
         if "description" not in cols:
             conn.execute("ALTER TABLE admin_resources ADD COLUMN description TEXT DEFAULT ''")
+            conn.commit()
+        if "tags" not in cols:
+            # Comma-separated list. The educational pipeline filters by
+            # tag (e.g. videos tagged 'word-origins' for that series),
+            # picking randomly from the matching pool.
+            conn.execute("ALTER TABLE admin_resources ADD COLUMN tags TEXT DEFAULT ''")
             conn.commit()
         # On startup: reset stuck jobs
         conn.execute(
@@ -8608,18 +8614,42 @@ def admin_delete_resource(resource_id):
         conn.close()
 
 
+def _normalize_tags(raw: str) -> str:
+    """Lowercase, deduplicate, comma-separate. 'Word-Origins, NATURE'
+    → 'nature,word-origins'. Stored canonical so case/whitespace
+    differences don't fragment the pool."""
+    if not raw:
+        return ""
+    parts = [t.strip().lower() for t in raw.split(",") if t.strip()]
+    seen: dict[str, None] = {}
+    for p in parts:
+        seen[p] = None
+    return ",".join(sorted(seen))
+
+
 @app.route("/api/admin/resources/<int:resource_id>", methods=["PUT"])
 @admin_required
 def admin_update_resource(resource_id):
     body = request.get_json(silent=True) or {}
     description = body.get("description", "").strip()[:500]
+    tags = _normalize_tags(body.get("tags", ""))
     conn = get_db()
     try:
         row = conn.execute("SELECT id FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
         if not row:
             return jsonify({"error": "Not found"}), 404
-        conn.execute("UPDATE admin_resources SET description = ? WHERE id = ?", (description, resource_id))
-        conn.commit()
+        # Only update fields explicitly present in the body so a PUT
+        # that only changes tags doesn't blow away the description.
+        sets: list[str] = []
+        params: list = []
+        if "description" in body:
+            sets.append("description = ?"); params.append(description)
+        if "tags" in body:
+            sets.append("tags = ?"); params.append(tags)
+        if sets:
+            params.append(resource_id)
+            conn.execute(f"UPDATE admin_resources SET {', '.join(sets)} WHERE id = ?", params)
+            conn.commit()
         updated = conn.execute("SELECT * FROM admin_resources WHERE id = ?", (resource_id,)).fetchone()
         return jsonify(dict(updated))
     finally:

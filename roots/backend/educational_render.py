@@ -371,9 +371,9 @@ Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour,
 Style: Hook,{font_sans},78,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,0,5,80,80,0,1
 Style: Body,{font_sans},58,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,80,80,0,1
 Style: Small,{font_sans},42,&H00CFCFCF,&H000000FF,&H00000000,&H80000000,0,1,0,0,100,100,0,0,1,2,0,5,80,80,0,1
-Style: Reference,{font_sans},36,&H006E9BB8,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,2,0,8,80,80,140,1
-Style: ArabicVerse,{font_arabic},78,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,80,80,0,1
-Style: Translation,{font_sans},42,&H00DBDBDB,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,80,80,160,1
+Style: Reference,{font_sans},58,&H006E9BB8,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,2,2,8,80,80,120,1
+Style: ArabicVerse,{font_arabic},94,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,2,5,70,70,0,1
+Style: Translation,{font_sans},52,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,2,2,2,70,70,150,1
 Style: OutroSite,{font_sans},90,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0
 Style: OutroTag,{font_sans},48,&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0
 
@@ -448,42 +448,71 @@ def _compose_mp4(
     ass_path: str,
     audio_duration: float,
     output_path: str,
+    background_video_path: str | None = None,
 ) -> None:
-    """ffmpeg compose: solid stone background → ASS subtitles → audio
-    + outro silence padding. Replaces the output file if it exists."""
+    """ffmpeg compose. If `background_video_path` is set, the supplied
+    mp4 is looped, scaled, cropped to 1080x1920, and dimmed by ~40%
+    so white narration text on top stays legible. Otherwise we fall
+    back to a warm-charcoal solid background. ASS subtitles overlay.
+    Audio is padded with OUTRO_DUR seconds of silence so the al-nuqta
+    outro card has time to play."""
     total_duration = audio_duration + OUTRO_DUR
-    # Warm-charcoal background — matches al-nuqta's dark accent so the
-    # white narration overlays + gold reference badge + white outro
-    # all read cleanly. Solid color first cut; backgrounds with motion
-    # land in a later iteration.
+    # Warm-charcoal fallback — matches al-nuqta's dark accent.
     bg_color = "0x2D2620"
 
-    cmd = [
-        "ffmpeg", "-y",
-        # Background video — generated solid color of the right duration.
-        "-f", "lavfi",
-        "-i", f"color=c={bg_color}:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:r={VIDEO_FPS}:d={total_duration}",
-        # Audio — original narration; outro silence is appended in filter.
-        "-i", audio_path,
-        # Pad the audio with OUTRO_DUR seconds of silence so the file
-        # length matches the video. apad with whole_dur ensures the
-        # padding extends to total_duration.
-        "-filter_complex",
-        (
-            f"[0:v]ass='{ass_path}'[v];"
-            f"[1:a]apad=whole_dur={total_duration}[a]"
-        ),
-        "-map", "[v]", "-map", "[a]",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-b:a", "160k",
-        "-shortest",
-        "-t", f"{total_duration}",
-        output_path,
-    ]
+    if background_video_path and os.path.isfile(background_video_path):
+        # Loop the bg video for the entire run, scale to fill 1080x1920
+        # (cover, not contain), crop the overflow, then dim 40% so the
+        # subtitle layer reads against any source brightness. Trimming
+        # to total_duration prevents "video is longer than audio" warnings.
+        vf = (
+            f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
+            f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},"
+            "setsar=1,"
+            "format=yuv420p,"
+            # Brightness/contrast dim — eq = brightness factor (-0.25 to
+            # darken) and saturation 0.85 keeps the bg from competing
+            # with the gold accents in the foreground text.
+            "eq=brightness=-0.20:saturation=0.85,"
+            f"trim=duration={total_duration},setpts=PTS-STARTPTS"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            "-stream_loop", "-1", "-i", background_video_path,
+            "-i", audio_path,
+            "-filter_complex",
+            (
+                f"[0:v]{vf}[bg];"
+                f"[bg]ass='{ass_path}'[v];"
+                f"[1:a]apad=whole_dur={total_duration}[a]"
+            ),
+            "-map", "[v]", "-map", "[a]",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "160k",
+            "-shortest",
+            "-t", f"{total_duration}",
+            output_path,
+        ]
+    else:
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "lavfi",
+            "-i", f"color=c={bg_color}:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:r={VIDEO_FPS}:d={total_duration}",
+            "-i", audio_path,
+            "-filter_complex",
+            (
+                f"[0:v]ass='{ass_path}'[v];"
+                f"[1:a]apad=whole_dur={total_duration}[a]"
+            ),
+            "-map", "[v]", "-map", "[a]",
+            "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "160k",
+            "-shortest",
+            "-t", f"{total_duration}",
+            output_path,
+        ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     if proc.returncode != 0:
-        # Don't dump the entire stderr — last 800 chars is usually the
-        # actual error message. The full transcript goes to logs above.
         tail = (proc.stderr or "")[-800:]
         raise RenderError(f"ffmpeg failed: {tail}")
 
@@ -577,6 +606,51 @@ def _build_word_origins_ass_for_row(
         voiceover_text=voiceover,
         beat_word_counts=beat_word_counts,
     )
+
+
+# --------------------------------------------------------------------------
+#  Background video selection
+# --------------------------------------------------------------------------
+
+# Per-type tag the renderer looks for in admin_resources.tags. If no
+# resources match, the renderer falls back to the solid-color bg.
+_BG_TAG_PER_TYPE = {
+    "word_origins": "word-origins",
+    "translation_hides": "translation-hides",
+    "grammar_insights": "grammar-insights",
+}
+
+
+def _pick_background(conn, vtype: str) -> str | None:
+    """Random admin_resources entry whose `tags` contains the
+    series-specific tag. Returns the absolute path to the mp4, or
+    None if the tags column doesn't exist or no matches found.
+    The educational pipeline will fall back to a solid bg when None."""
+    tag = _BG_TAG_PER_TYPE.get(vtype)
+    if not tag:
+        return None
+    try:
+        cols = [c[1] for c in conn.execute("PRAGMA table_info(admin_resources)").fetchall()]
+        if "tags" not in cols:
+            return None
+        # SQLite has no "split into list" — match the comma-bounded
+        # token by wrapping both with commas. Stored format is
+        # "alpha,beta,word-origins" (no spaces, lowercase).
+        rows = conn.execute(
+            "SELECT filename FROM admin_resources "
+            "WHERE ',' || COALESCE(tags,'') || ',' LIKE ?",
+            (f"%,{tag},%",),
+        ).fetchall()
+    except Exception:
+        return None
+    if not rows:
+        return None
+    import random as _r
+    pick = _r.choice(rows)
+    path = os.path.join(
+        os.path.dirname(__file__), "data", "resources", pick["filename"],
+    )
+    return path if os.path.isfile(path) else None
 
 
 def render_video(
@@ -673,12 +747,14 @@ def render_video(
     with tempfile.NamedTemporaryFile("w", suffix=".ass", delete=False, encoding="utf-8") as f:
         f.write(ass_text)
         ass_path = f.name
+    bg_path = _pick_background(conn, rd["type"])
     try:
         _compose_mp4(
             audio_path=audio_path,
             ass_path=ass_path,
             audio_duration=audio_duration,
             output_path=out_path,
+            background_video_path=bg_path,
         )
     finally:
         if os.path.isfile(ass_path):

@@ -622,6 +622,10 @@ export interface Resource {
   width: number | null;
   height: number | null;
   description?: string;
+  /** Comma-separated lowercase list. Filters background-video pools
+   *  per pipeline series (e.g. 'word-origins'). Stored canonical;
+   *  the input field accepts free-form whitespace. */
+  tags?: string;
   created_at: string;
 }
 
@@ -658,10 +662,13 @@ export async function deleteResource(id: number): Promise<void> {
   }
 }
 
-export async function updateResource(id: number, description: string): Promise<Resource> {
+export async function updateResource(
+  id: number,
+  patch: { description?: string; tags?: string },
+): Promise<Resource> {
   const res = await authFetch(`${BASE}/resources/${id}`, {
     method: 'PUT',
-    body: JSON.stringify({ description }),
+    body: JSON.stringify(patch),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to update resource');
