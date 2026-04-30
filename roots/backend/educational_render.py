@@ -381,15 +381,13 @@ def _build_ass_word_origins(
     timings = [(starts[i], starts[i] + durations[i]) for i in range(len(segments))]
     timings[-1] = (timings[-1][0], audio_duration)
 
-    # Vertical layout (1080x1920):
-    #   Reference   y≈ 80–180  (Style: Alignment 8, anchored top-center)
-    #   Arabic      \pos(540, 720)   — pushed up from middle so the eye
-    #                                   lands on the verse first
-    #   Translation \pos(540, 1240)  — sits below the verse with gap
-    cx = VIDEO_WIDTH // 2
-    arabic_y = 720
-    translation_y = 1240
-
+    # Vertical layout (1080x1920) — anchor-based, NOT \pos, so long
+    # verses don't push past their slot and overlap the translation:
+    #   Reference   Alignment=8 (top-center)    MarginV=80    from top
+    #   Arabic      Alignment=8 (top-center)    MarginV=340   from top
+    #                 → verse grows downward only; reference safely above
+    #   Translation Alignment=2 (bottom-center) MarginV=140   from bottom
+    #                 → translation pinned to base; never overlaps verse
     for seg, (s, e) in zip(segments, timings):
         # Reference badge (top-center) — fades in slightly later than
         # the verse so the eye lands on the Arabic first.
@@ -398,22 +396,23 @@ def _build_ass_word_origins(
             f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Reference,,0,0,0,,"
             f"{{\\fad(450,300)}}{_ass_escape(ref)}"
         )
-        # Arabic verse — absolute-positioned so it's in the upper
-        # third instead of dead-center. Target word highlighted in
-        # gold-yellow via inline color tags. libass handles
-        # word-boundary wrapping around the absolute position.
+        # Arabic verse — top-aligned with margin so the verse grows
+        # downward as it wraps; the bottom of long verses still has
+        # plenty of clearance from the bottom-anchored translation.
         ar = _format_arabic_with_highlight(seg.arabic_text, seg.target_word_pos)
         lines.append(
             f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},ArabicVerse,,0,0,0,,"
-            f"{{\\fad(400,300)\\pos({cx},{arabic_y})}}{ar}"
+            f"{{\\fad(400,300)}}{ar}"
         )
-        # English translation below the verse, with the gloss-matched
-        # phrase highlighted in the same gold-yellow when found.
+        # English translation pinned to the bottom of the frame so the
+        # verse and translation never overlap regardless of verse
+        # length, with the gloss-matched phrase highlighted in
+        # gold-yellow when found.
         if seg.translation:
             tr = _format_translation_with_highlight(seg.translation, seg.target_gloss)
             lines.append(
                 f"Dialogue: 0,{_ass_time(s)},{_ass_time(e)},Translation,,0,0,0,,"
-                f"{{\\fad(500,300)\\pos({cx},{translation_y})}}{tr}"
+                f"{{\\fad(500,300)}}{tr}"
             )
 
     # Outro card — al-nuqta branding. Identical to the translation_hides
@@ -456,8 +455,8 @@ Style: Hook,{font_sans},78,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,1,0,0,0,1
 Style: Body,{font_sans},58,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,5,80,80,0,1
 Style: Small,{font_sans},42,&H00CFCFCF,&H000000FF,&H00000000,&H80000000,0,1,0,0,100,100,0,0,1,2,0,5,80,80,0,1
 Style: Reference,{font_sans},86,&H0000D7FF,&H000000FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,2,8,40,40,80,1
-Style: ArabicVerse,{font_arabic},108,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,4,3,5,60,60,0,1
-Style: Translation,{font_sans},58,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,2,5,60,60,0,1
+Style: ArabicVerse,{font_arabic},108,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,4,3,8,60,60,340,1
+Style: Translation,{font_sans},58,&H00FFFFFF,&H000000FF,&H00000000,&HC0000000,0,0,0,0,100,100,0,0,1,3,2,2,60,60,140,1
 Style: OutroSite,{font_sans},90,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,1,0,0,0,100,100,2,0,1,0,0,5,40,40,0,0
 Style: OutroTag,{font_sans},48,&H80FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,40,40,0,0
 
