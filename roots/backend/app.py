@@ -7839,9 +7839,15 @@ def admin_educational_generate_script(video_id: int):
         if not row:
             return jsonify({"error": "video not found"}), 404
         rd = dict(row)
-        if rd["status"] not in ("candidate", "script_ready", "failed"):
+        # Allow regen from any state except 'uploaded' — once a video
+        # is on YouTube/TikTok, regenerating the script would orphan
+        # the upload's metadata. From any other state (including
+        # 'rendered'), regen is fine: the script becomes script_ready
+        # and the operator re-renders to apply the new script. Old
+        # mp4 file stays on disk until the next render overwrites it.
+        if rd["status"] == "uploaded":
             return jsonify({
-                "error": f"cannot regenerate script while status={rd['status']}"
+                "error": "cannot regenerate script after upload — would orphan the published video"
             }), 409
 
         try:
@@ -7947,7 +7953,14 @@ def admin_educational_edit_script(video_id: int):
         if not row:
             return jsonify({"error": "video not found"}), 404
         rd = dict(row)
-        if rd["status"] not in ("script_ready", "failed"):
+        # Same gate as regenerate: allow edits up until 'uploaded'.
+        # Editing a 'rendered' row's script just sends it back to
+        # 'script_ready' for re-render; the old mp4 stays on disk.
+        if rd["status"] == "uploaded":
+            return jsonify({
+                "error": "cannot edit script after upload — would orphan the published video"
+            }), 409
+        if rd["status"] not in ("script_ready", "failed", "rendered"):
             return jsonify({
                 "error": f"cannot edit script while status={rd['status']}"
             }), 409
