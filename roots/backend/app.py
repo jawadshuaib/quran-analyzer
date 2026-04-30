@@ -7701,22 +7701,38 @@ _ensure_tts_cache_table()
 
 
 # --------------- Educational pipeline (Phase 1: foundation) ---------------
-import educational_pipeline as _edu
+# Wrap import + bootstrap in try/except so a bug in the new pipeline
+# module can never block app startup or the login endpoint. If this
+# fails, the educational endpoints will 503 but the rest of the app
+# stays healthy.
+try:
+    import educational_pipeline as _edu
 
-def _ensure_educational_table():
-    conn = get_db()
-    try:
-        _edu.ensure_table(conn)
-    finally:
-        conn.close()
+    def _ensure_educational_table():
+        conn = get_db()
+        try:
+            _edu.ensure_table(conn)
+        finally:
+            conn.close()
 
-_ensure_educational_table()
+    _ensure_educational_table()
+    _EDU_OK = True
+except Exception as _edu_exc:
+    print(f"[educational] failed to initialize: {_edu_exc}")
+    _EDU_OK = False
+    _edu = None  # type: ignore
+
+
+def _edu_unavailable():
+    return jsonify({"error": "Educational pipeline failed to initialize — see server logs."}), 503
 
 
 @app.route("/api/admin/educational/pool", methods=["GET"])
 @admin_required
 def admin_educational_pool():
     """Pool sizes for the dashboard — one query per type."""
+    if not _EDU_OK:
+        return _edu_unavailable()
     conn = get_db()
     try:
         return jsonify({t: _edu.pool_size(conn, t) for t in _edu.TYPES})
@@ -7727,6 +7743,8 @@ def admin_educational_pool():
 @app.route("/api/admin/educational/candidates", methods=["GET"])
 @admin_required
 def admin_educational_candidates():
+    if not _EDU_OK:
+        return _edu_unavailable()
     vtype = request.args.get("type", "")
     limit = int(request.args.get("limit", "25"))
     if vtype not in _edu.TYPES:
@@ -7755,6 +7773,8 @@ def admin_educational_candidates():
 def admin_educational_queue():
     """Move a candidate from the live pool into educational_videos for
     Phase 2 to pick up. Returns 409 if it's already queued."""
+    if not _EDU_OK:
+        return _edu_unavailable()
     body = request.get_json(silent=True) or {}
     vtype = body.get("type", "")
     if vtype not in _edu.TYPES:
@@ -7789,6 +7809,8 @@ def admin_educational_queue():
 @app.route("/api/admin/educational/videos", methods=["GET"])
 @admin_required
 def admin_educational_videos_list():
+    if not _EDU_OK:
+        return _edu_unavailable()
     vtype = request.args.get("type") or None
     if vtype and vtype not in _edu.TYPES:
         return jsonify({"error": "unknown type"}), 400

@@ -772,10 +772,16 @@ if [ -d /app/seed-mnemonic-images ] && [ "$(ls -A /app/seed-mnemonic-images 2>/d
   cp /app/seed-mnemonic-images/* /app/data/mnemonic_images/
 fi
 
-# Run cognate languages migration (idempotent — skips if already applied)
+# Run cognate languages migration (idempotent — skips if already applied).
+# `|| true` so a migration failure doesn't block the deploy: the app
+# already has the defensive crash guard from 52c1bff for the symptom,
+# and we'd rather serve traffic with stale cognate_languages than fail
+# to come up at all. The set -e at the top of this script would
+# otherwise abort here on any non-zero exit.
 if [ -f /app/normalize_cognate_languages.py ]; then
   echo "Running cognate languages migration..."
-  python3 /app/normalize_cognate_languages.py 2>&1
+  python3 /app/normalize_cognate_languages.py 2>&1 || \
+    echo "  WARNING: migration failed — see traceback above; continuing deploy"
 fi
 
 exec "$@"
