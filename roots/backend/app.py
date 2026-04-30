@@ -7753,16 +7753,21 @@ def admin_educational_candidates():
     try:
         candidates = _edu.sample_candidates(conn, vtype, limit=limit)
         # Hydrate verse text/translation so the admin can scan the pool
-        # without a second roundtrip per row.
+        # without a second roundtrip per row. Arabic lives in `verses`,
+        # English in the separate `translations` table.
         for c in candidates:
-            row = conn.execute(
-                "SELECT text_uthmani, translation FROM verses "
-                "WHERE chapter = ? AND verse = ?",
+            v = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
                 (c["chapter"], c["verse"]),
             ).fetchone()
-            if row:
-                c["text_uthmani"] = row["text_uthmani"]
-                c["translation"] = row["translation"]
+            if v:
+                c["text_uthmani"] = v["text_uthmani"]
+            t = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (c["chapter"], c["verse"]),
+            ).fetchone()
+            if t:
+                c["translation"] = t["text_en"]
         return jsonify({"type": vtype, "candidates": candidates})
     finally:
         conn.close()
