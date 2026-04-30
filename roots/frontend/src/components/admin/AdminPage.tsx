@@ -188,7 +188,7 @@ export default function AdminPage() {
       </nav>
 
       {/* Breadcrumbs for nested routes */}
-      {(route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation' || route === 'pipelines') && (
+      {(route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation' || route === 'pipelines' || route === 'educational') && (
         <div className="max-w-5xl mx-auto px-4 py-2">
           <div className="flex items-center gap-1.5 text-xs text-stone-400">
             <a href="/admin/media" className="hover:text-stone-600">Media</a>
@@ -201,6 +201,7 @@ export default function AdminPage() {
               {route === 'explanations' && 'Verse Explanations'}
               {route === 'generate-explanation' && 'Generate Explanation Video'}
               {route === 'pipelines' && 'Pipelines'}
+              {route === 'educational' && 'Educational Pipeline'}
             </span>
           </div>
         </div>
