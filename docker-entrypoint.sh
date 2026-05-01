@@ -519,17 +519,40 @@ try:
             # Clear stale seed rows (empty by design, but be defensive).
             dst_conn.execute(f'DELETE FROM \"{tbl}\"')
 
-            # Column-intersection INSERT — safe against schema drift.
-            bak_cols = [r[1] for r in bak_conn.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()]
-            dst_cols = [r[1] for r in dst_conn.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()]
-            dst_set = set(dst_cols)
-            common_cols = [c for c in bak_cols if c in dst_set]
-            if not common_cols:
-                print(f'  [{tbl}] no common columns between backup and dst, skipping')
-                continue
+            # CRITICAL: align the dst schema to bak BEFORE the INSERT.
+            # The seed DB lags the live schema for any column added via
+            # a runtime ALTER (e.g. admin_resources.description and
+            # .tags, admin_pipeline_videos.youtube_*, etc.). Without
+            # this step, the column-intersection INSERT silently drops
+            # values for those columns on every deploy.
+            bak_pragma = bak_conn.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()
+            dst_pragma = dst_conn.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()
+            dst_col_names = {r[1] for r in dst_pragma}
+            for col in bak_pragma:
+                name, coltype, notnull, dflt = col[1], (col[2] or 'TEXT'), col[3], col[4]
+                if name in dst_col_names:
+                    continue
+                # SQLite ALTER ADD COLUMN can't add NOT NULL without a
+                # DEFAULT. If bak says NOT NULL with no default, we
+                # coerce a sane default per type so the ALTER lands.
+                if notnull and dflt is None:
+                    coerced = \"''\" if coltype.upper() in ('TEXT','VARCHAR','CHAR','CLOB') else '0'
+                    suffix = f'NOT NULL DEFAULT {coerced}'
+                elif dflt is not None:
+                    suffix = f'DEFAULT {dflt}'
+                else:
+                    suffix = ''
+                alter = f'ALTER TABLE \"{tbl}\" ADD COLUMN \"{name}\" {coltype} {suffix}'.strip()
+                try:
+                    dst_conn.execute(alter)
+                    print(f'  [{tbl}] schema-align: added {name} {coltype}')
+                except Exception as e:
+                    print(f'  [{tbl}] could not add column {name}: {e}')
 
-            col_list = ','.join(f'\"{c}\"' for c in common_cols)
-            placeholders = ','.join(['?'] * len(common_cols))
+            # Now bak_cols is fully present in dst; INSERT ALL columns.
+            bak_cols = [r[1] for r in bak_pragma]
+            col_list = ','.join(f'\"{c}\"' for c in bak_cols)
+            placeholders = ','.join(['?'] * len(bak_cols))
             rows = bak_conn.execute(f'SELECT {col_list} FROM \"{tbl}\"').fetchall()
             if rows:
                 dst_conn.executemany(
@@ -898,14 +921,35 @@ try:
             # Wipe whatever the seed brought (almost always nothing —
             # these tables aren't in the seed) before restoring.
             dst.execute(f'DELETE FROM \"{tbl}\"')
-            bak_cols = [r[1] for r in bak.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()]
-            dst_cols = {r[1] for r in dst.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()}
-            common = [c for c in bak_cols if c in dst_cols]
-            if not common:
-                print(f'  [{tbl}] no common columns, skipping')
-                continue
-            col_list = ','.join(f'\"{c}\"' for c in common)
-            placeholders = ','.join(['?'] * len(common))
+            # Schema-align: if Flask's _ensure_* ALTERs ran against
+            # the seed DB before this restore (unusual but possible
+            # with import-time side effects), the dst could be missing
+            # columns the bak has. Patch them in before INSERT so we
+            # never silently drop values.
+            bak_pragma = bak.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()
+            dst_pragma = dst.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()
+            dst_col_names = {r[1] for r in dst_pragma}
+            for col in bak_pragma:
+                name, coltype, notnull, dflt = col[1], (col[2] or 'TEXT'), col[3], col[4]
+                if name in dst_col_names:
+                    continue
+                if notnull and dflt is None:
+                    coerced = \"''\" if coltype.upper() in ('TEXT','VARCHAR','CHAR','CLOB') else '0'
+                    suffix = f'NOT NULL DEFAULT {coerced}'
+                elif dflt is not None:
+                    suffix = f'DEFAULT {dflt}'
+                else:
+                    suffix = ''
+                alter = f'ALTER TABLE \"{tbl}\" ADD COLUMN \"{name}\" {coltype} {suffix}'.strip()
+                try:
+                    dst.execute(alter)
+                    print(f'  [{tbl}] schema-align: added {name} {coltype}')
+                except Exception as e:
+                    print(f'  [{tbl}] could not add column {name}: {e}')
+            # INSERT every column bak has — schema is now aligned.
+            bak_cols = [r[1] for r in bak_pragma]
+            col_list = ','.join(f'\"{c}\"' for c in bak_cols)
+            placeholders = ','.join(['?'] * len(bak_cols))
             rows = bak.execute(f'SELECT {col_list} FROM \"{tbl}\"').fetchall()
             if rows:
                 dst.executemany(
