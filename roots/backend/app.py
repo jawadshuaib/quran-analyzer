@@ -5021,7 +5021,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights)?)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
         return True
     return False
 
@@ -8227,6 +8227,229 @@ def admin_educational_video_detail(video_id: int):
         return jsonify(d)
     finally:
         conn.close()
+
+
+@app.route("/api/admin/educational/pipelines", methods=["GET"])
+@admin_required
+def admin_educational_pipelines_list():
+    if not _EDU_OK:
+        return _edu_unavailable()
+    vtype = request.args.get("type") or None
+    if vtype and vtype not in _edu.TYPES:
+        return jsonify({"error": "unknown type"}), 400
+    conn = get_db()
+    try:
+        return jsonify({"pipelines": _edu.list_pipelines(conn, vtype=vtype)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/pipelines", methods=["POST"])
+@admin_required
+def admin_educational_pipelines_create():
+    if not _EDU_OK:
+        return _edu_unavailable()
+    body = request.get_json(silent=True) or {}
+    try:
+        conn = get_db()
+        try:
+            pid = _edu.create_pipeline(
+                conn,
+                name=str(body.get("name", "")),
+                vtype=str(body.get("type", "")),
+                voice_id=str(body.get("voice_id", "")),
+                format=str(body.get("format", "short")),
+                show_dim_background=bool(body.get("show_dim_background", True)),
+                music_id=(int(body["music_id"]) if body.get("music_id") else None),
+                enabled=bool(body.get("enabled", True)),
+            )
+            row = _edu.get_pipeline(conn, pid)
+        finally:
+            conn.close()
+        return jsonify(row), 201
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>", methods=["GET"])
+@admin_required
+def admin_educational_pipeline_detail(pipeline_id: int):
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        p = _edu.get_pipeline(conn, pipeline_id)
+        if not p:
+            return jsonify({"error": "not found"}), 404
+        # Hydrate with the videos this pipeline has produced.
+        p["videos"] = _edu.list_videos(conn, pipeline_id=pipeline_id, limit=200)
+        return jsonify(p)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>", methods=["PUT"])
+@admin_required
+def admin_educational_pipeline_update(pipeline_id: int):
+    if not _EDU_OK:
+        return _edu_unavailable()
+    body = request.get_json(silent=True) or {}
+    try:
+        conn = get_db()
+        try:
+            ok = _edu.update_pipeline(
+                conn, pipeline_id,
+                name=body.get("name"),
+                voice_id=body.get("voice_id"),
+                format=body.get("format"),
+                show_dim_background=body.get("show_dim_background"),
+                music_id=(int(body["music_id"]) if body.get("music_id") not in (None, "") else None) if "music_id" in body else None,
+                enabled=body.get("enabled"),
+            )
+            if not ok:
+                return jsonify({"error": "no fields to update or not found"}), 400
+            row = _edu.get_pipeline(conn, pipeline_id)
+            return jsonify(row)
+        finally:
+            conn.close()
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>", methods=["DELETE"])
+@admin_required
+def admin_educational_pipeline_delete(pipeline_id: int):
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        ok = _edu.delete_pipeline(conn, pipeline_id)
+        if not ok:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"ok": True})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/run", methods=["POST"])
+@admin_required
+def admin_educational_pipeline_run(pipeline_id: int):
+    """Manual "Run now" — pick a candidate, generate script, render.
+    All in a daemon thread so the request returns 202 immediately;
+    operator polls GET /pipelines/<id> for the new video to appear in
+    the videos list and watches the row's status flip
+    candidate → script_ready → rendering → rendered (or failed)."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+
+    # Pre-validate credentials and the pipeline itself BEFORE spawning
+    # the thread so the operator sees missing-keys errors immediately.
+    conn = get_db()
+    try:
+        pipe = _edu.get_pipeline(conn, pipeline_id)
+        if not pipe:
+            return jsonify({"error": "pipeline not found"}), 404
+        if not pipe.get("enabled"):
+            return jsonify({"error": "pipeline is disabled"}), 400
+        eleven_row = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
+        ).fetchone()
+        elevenlabs_key = eleven_row["value"] if eleven_row and eleven_row["value"] else None
+        if not elevenlabs_key:
+            return jsonify({"error": "ElevenLabs API key missing (Admin → Settings)"}), 400
+        # Queue the candidate up front so the response can return its id.
+        try:
+            video_id = _edu.pick_and_queue_for_pipeline(conn, pipeline_id)
+        except _edu.PipelineRunError as e:
+            return jsonify({"error": str(e)}), 409
+    finally:
+        conn.close()
+
+    voice_id = pipe["voice_id"]
+    fmt = pipe["format"]
+    claude_key = _get_claude_api_key()
+
+    def _do_run():
+        c = get_db()
+        try:
+            # Step 1: script generation
+            try:
+                row = c.execute(
+                    "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
+                ).fetchone()
+                rd = dict(row)
+                import educational_scripts as _scripts
+                payload = _scripts.enrich_payload(c, rd)
+                script = _scripts.generate_script(payload, api_key=claude_key)
+                # Sanitize already happened inside generate_script.
+                c.execute(
+                    "UPDATE educational_videos SET "
+                    "  payload_json = ?, script_json = ?, voiceover_text = ?, "
+                    "  status = 'script_ready', error_message = NULL "
+                    "WHERE id = ?",
+                    (
+                        json.dumps(payload, ensure_ascii=False),
+                        json.dumps({
+                            k: script.get(k) for k in (
+                                "hook", "verse_intro", "insight", "close",
+                                "tidbit_about_root", "tidbit_about_quran_usage",
+                                "tidbit_about_semitic", "selected_verse_refs",
+                                "voiceover_short", "voiceover_short_raw",
+                                "voiceover_long_raw",
+                                "languages_referenced", "notes", "model",
+                            )
+                        }, ensure_ascii=False),
+                        script.get("voiceover_long"),
+                        video_id,
+                    ),
+                )
+                c.commit()
+            except Exception as e:
+                c.execute(
+                    "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
+                    (f"script: {e}"[:1000], video_id),
+                )
+                c.commit()
+                return
+
+            # Step 2: render
+            try:
+                c.execute(
+                    "UPDATE educational_videos SET status='rendering', "
+                    "       error_message=NULL, format=?, completed_at=NULL "
+                    "WHERE id = ?",
+                    (fmt, video_id),
+                )
+                c.commit()
+                import educational_render as _r
+                filename, size = _r.render_video(
+                    c, video_id,
+                    format=fmt,
+                    elevenlabs_api_key=elevenlabs_key,
+                    voice_id=voice_id,
+                )
+                c.execute(
+                    "UPDATE educational_videos SET status='rendered', "
+                    "       filename=?, file_size=?, completed_at=CURRENT_TIMESTAMP "
+                    "WHERE id=?",
+                    (filename, size, video_id),
+                )
+                c.commit()
+            except Exception as e:
+                c.execute(
+                    "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
+                    (f"render: {e}"[:1000], video_id),
+                )
+                c.commit()
+        finally:
+            c.close()
+
+    threading.Thread(target=_do_run, daemon=True).start()
+    return jsonify({
+        "pipeline_id": pipeline_id,
+        "video_id": video_id,
+        "status": "candidate",  # will progress to script_ready → rendering → rendered
+    }), 202
 
 
 @app.route("/api/admin/educational/videos", methods=["GET"])

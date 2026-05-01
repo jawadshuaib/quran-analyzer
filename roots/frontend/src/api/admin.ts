@@ -1629,3 +1629,95 @@ export async function getEducationalVideos(
   if (!res.ok) throw new Error(data.error || 'Failed to fetch videos');
   return data.videos as EducationalVideo[];
 }
+
+// --------------- Educational pipelines ---------------
+
+export interface EducationalPipeline {
+  id: number;
+  name: string;
+  type: EducationalType;
+  voice_id: string;
+  format: 'short' | 'long';
+  show_dim_background: number;  // 0 | 1 — sqlite bool
+  music_id: number | null;
+  enabled: number;              // 0 | 1
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EducationalPipelineDetail extends EducationalPipeline {
+  videos: EducationalVideo[];
+}
+
+export interface EducationalPipelineInput {
+  name: string;
+  type: EducationalType;
+  voice_id: string;
+  format: 'short' | 'long';
+  show_dim_background?: boolean;
+  music_id?: number | null;
+  enabled?: boolean;
+}
+
+export async function getEducationalPipelines(
+  type?: EducationalType,
+): Promise<EducationalPipeline[]> {
+  const url = type
+    ? `${BASE}/educational/pipelines?type=${type}`
+    : `${BASE}/educational/pipelines`;
+  const res = await authFetch(url);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pipelines');
+  return data.pipelines as EducationalPipeline[];
+}
+
+export async function getEducationalPipeline(
+  id: number,
+): Promise<EducationalPipelineDetail> {
+  const res = await authFetch(`${BASE}/educational/pipelines/${id}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pipeline');
+  return data;
+}
+
+export async function createEducationalPipeline(
+  input: EducationalPipelineInput,
+): Promise<EducationalPipeline> {
+  const res = await authFetch(`${BASE}/educational/pipelines`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to create pipeline');
+  return data;
+}
+
+export async function updateEducationalPipeline(
+  id: number,
+  patch: Partial<EducationalPipelineInput>,
+): Promise<EducationalPipeline> {
+  const res = await authFetch(`${BASE}/educational/pipelines/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update pipeline');
+  return data;
+}
+
+export async function deleteEducationalPipeline(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/educational/pipelines/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to delete pipeline');
+  }
+}
+
+export async function runEducationalPipeline(
+  id: number,
+): Promise<{ pipeline_id: number; video_id: number; status: string }> {
+  const res = await authFetch(`${BASE}/educational/pipelines/${id}/run`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to start pipeline run');
+  return data;
+}

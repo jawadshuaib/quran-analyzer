@@ -62,10 +62,14 @@ export default function AdminMedia() {
           three sub-types (word origins, translation hides, grammar
           insights) sharing one candidate→script→render→upload flow. */}
       <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Educational Pipeline</h2>
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <a href="/admin/media/educational" className={card}>
-          <h3 className="font-semibold text-stone-800 mb-1">Educational Pipeline</h3>
-          <p className="text-sm text-stone-500">Teach-and-enlighten shorts grounded in our morphology + cognate data. Three series — Word Origins, What Translators Hide, Grammar Insights — sharing one render flow.</p>
+          <h3 className="font-semibold text-stone-800 mb-1">Candidates & manual generation</h3>
+          <p className="text-sm text-stone-500">Browse the candidate pool for each series, queue verses, generate scripts, and render videos by hand.</p>
+        </a>
+        <a href="/admin/media/educational/pipelines" className={card}>
+          <h3 className="font-semibold text-stone-800 mb-1">Pipelines (automated)</h3>
+          <p className="text-sm text-stone-500">Configure named pipelines (voice, format, dim, music) and run them on demand. Scheduling lands in the next iteration.</p>
         </a>
       </div>
     </div>

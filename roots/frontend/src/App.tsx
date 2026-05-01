@@ -145,7 +145,7 @@ function isKnownRoute(): boolean {
   if (/^\/methodology\/?$/.test(path)) return true;
   if (/^\/grammar-glossary\/?$/.test(path)) return true;
   if (/^\/quran-vocabulary\/?$/.test(path)) return true;
-  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights)?)?)?\/?$/.test(path)) return true;
+  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(path)) return true;
   return false;
 }
 
@@ -402,7 +402,7 @@ export default function App() {
     );
   }
 
-  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/verse-settings|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights)?)?)?\/?$/.test(currentPath)) {
+  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/verse-settings|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(currentPath)) {
     return <AdminPage />;
   }
 

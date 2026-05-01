@@ -66,12 +66,19 @@ export default function AdminEducational() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-stone-800 mb-2">Educational Pipeline</h1>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <h1 className="text-xl font-semibold text-stone-800">Educational Pipeline</h1>
+        <a
+          href="/admin/media/educational/pipelines"
+          className="px-3 py-1.5 rounded-md border border-stone-300 bg-white text-stone-700 text-sm font-medium hover:bg-stone-50"
+        >
+          Manage pipelines →
+        </a>
+      </div>
       <p className="text-sm text-stone-500 mb-6 max-w-3xl">
         Teach-and-enlighten shorts grounded in our morphology, cognate, and
-        grammar-insight data. Three series share one render flow. Phase 1 (now):
-        candidate selection. Phase 2: script generation. Phase 3: visual
-        templates + ffmpeg compose.
+        grammar-insight data. Below: browse the candidate pool and queue / generate
+        manually. For automated runs configure a <a href="/admin/media/educational/pipelines" className="underline">pipeline</a>.
       </p>
 
       {/* Pool counts */}

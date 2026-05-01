@@ -111,6 +111,41 @@ def ensure_table(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    # Pipeline integration columns (idempotent ALTERs). When a row
+    # comes from a configured pipeline run, pipeline_id points to
+    # the pipeline definition; triggered_by records 'manual',
+    # 'pipeline' (Run-now button), or 'scheduler' (cron) for audit.
+    for col, coltype in (
+        ("pipeline_id", "INTEGER"),
+        ("triggered_by", "TEXT DEFAULT 'manual'"),
+    ):
+        try:
+            conn.execute(f"ALTER TABLE educational_videos ADD COLUMN {col} {coltype}")
+        except sqlite3.OperationalError:
+            pass
+
+    # Pipeline configuration table — one row per saved pipeline.
+    # Mirrors admin_pipelines's shape so the frontend / scheduler can
+    # reason about both with a similar mental model. The `format`
+    # column is new (recitation pipelines don't have it because they
+    # always produce 9:16 shorts); educational shorts vs long form
+    # is a real authoring decision.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS educational_pipelines (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('word_origins','translation_hides','grammar_insights')),
+            voice_id TEXT NOT NULL,
+            format TEXT NOT NULL CHECK(format IN ('short','long')),
+            show_dim_background INTEGER NOT NULL DEFAULT 1,
+            music_id INTEGER,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
     # UNIQUE-coalesce: SQLite treats NULLs as distinct, which would let
     # the same Translation-Hides verse be queued twice. We collapse the
     # null anchor fields to '' for uniqueness purposes.
@@ -356,20 +391,204 @@ def queue_candidate(
     return cur.lastrowid
 
 
-def list_videos(conn, vtype: str | None = None, limit: int = 100) -> list[dict]:
-    where = "WHERE type = ?" if vtype else ""
-    params = (vtype,) if vtype else ()
+def list_videos(
+    conn, vtype: str | None = None, pipeline_id: int | None = None, limit: int = 100,
+) -> list[dict]:
+    clauses: list[str] = []
+    params: list = []
+    if vtype:
+        clauses.append("type = ?"); params.append(vtype)
+    if pipeline_id is not None:
+        clauses.append("pipeline_id = ?"); params.append(pipeline_id)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
     rows = conn.execute(
         f"""
         SELECT id, type, chapter, verse, anchor_word_pos, anchor_insight_id,
                status, format, filename, file_size,
                youtube_video_id, tiktok_video_id,
+               pipeline_id, triggered_by,
                score, error_message, created_at, completed_at
         FROM educational_videos
         {where}
         ORDER BY created_at DESC
         LIMIT ?
         """,
-        params + (limit,),
+        params + [limit],
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+# --------------------------------------------------------------------------
+#  Pipeline configuration CRUD
+# --------------------------------------------------------------------------
+
+PIPELINE_FORMATS = ("short", "long")
+
+
+def list_pipelines(conn: sqlite3.Connection, vtype: str | None = None) -> list[dict]:
+    where = "WHERE type = ?" if vtype else ""
+    params = (vtype,) if vtype else ()
+    rows = conn.execute(
+        f"""
+        SELECT id, name, type, voice_id, format, show_dim_background,
+               music_id, enabled, created_at, updated_at
+        FROM educational_pipelines
+        {where}
+        ORDER BY created_at DESC
+        """,
+        params,
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_pipeline(conn: sqlite3.Connection, pipeline_id: int) -> dict | None:
+    row = conn.execute(
+        "SELECT * FROM educational_pipelines WHERE id = ?", (pipeline_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def create_pipeline(
+    conn: sqlite3.Connection,
+    *,
+    name: str,
+    vtype: str,
+    voice_id: str,
+    format: str,
+    show_dim_background: bool = True,
+    music_id: int | None = None,
+    enabled: bool = True,
+) -> int:
+    if vtype not in TYPES:
+        raise ValueError(f"unknown type: {vtype}")
+    if format not in PIPELINE_FORMATS:
+        raise ValueError(f"unknown format: {format}")
+    if not name.strip():
+        raise ValueError("name required")
+    if not voice_id.strip():
+        raise ValueError("voice_id required")
+    cur = conn.execute(
+        """
+        INSERT INTO educational_pipelines
+            (name, type, voice_id, format, show_dim_background, music_id, enabled)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (name.strip(), vtype, voice_id.strip(), format,
+         1 if show_dim_background else 0, music_id, 1 if enabled else 0),
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def update_pipeline(
+    conn: sqlite3.Connection,
+    pipeline_id: int,
+    *,
+    name: str | None = None,
+    voice_id: str | None = None,
+    format: str | None = None,
+    show_dim_background: bool | None = None,
+    music_id: int | None = None,
+    enabled: bool | None = None,
+) -> bool:
+    """Patch-style update — only fields explicitly passed are changed.
+    type is intentionally immutable: changing the type would orphan
+    any existing videos that were generated under the old type."""
+    if format is not None and format not in PIPELINE_FORMATS:
+        raise ValueError(f"unknown format: {format}")
+    sets: list[str] = []
+    params: list = []
+    if name is not None:
+        sets.append("name = ?"); params.append(name.strip())
+    if voice_id is not None:
+        sets.append("voice_id = ?"); params.append(voice_id.strip())
+    if format is not None:
+        sets.append("format = ?"); params.append(format)
+    if show_dim_background is not None:
+        sets.append("show_dim_background = ?"); params.append(1 if show_dim_background else 0)
+    if music_id is not None:  # intentionally accept None=clear via separate field
+        sets.append("music_id = ?"); params.append(music_id)
+    if enabled is not None:
+        sets.append("enabled = ?"); params.append(1 if enabled else 0)
+    if not sets:
+        return False
+    sets.append("updated_at = datetime('now')")
+    params.append(pipeline_id)
+    cur = conn.execute(
+        f"UPDATE educational_pipelines SET {', '.join(sets)} WHERE id = ?",
+        params,
+    )
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def delete_pipeline(conn: sqlite3.Connection, pipeline_id: int) -> bool:
+    cur = conn.execute(
+        "DELETE FROM educational_pipelines WHERE id = ?", (pipeline_id,),
+    )
+    conn.commit()
+    return cur.rowcount > 0
+
+
+# --------------------------------------------------------------------------
+#  Pipeline orchestration — pick a candidate and queue it under the pipeline
+# --------------------------------------------------------------------------
+
+class PipelineRunError(Exception):
+    """Raised when picking + queueing fails. Caller decides whether to
+    surface the error or move on."""
+
+
+def pick_and_queue_for_pipeline(
+    conn: sqlite3.Connection,
+    pipeline_id: int,
+    *,
+    triggered_by: str = "pipeline",
+) -> int:
+    """Pick the highest-scoring unused candidate of the pipeline's type
+    and insert an educational_videos row tagged with the pipeline. Does
+    NOT generate a script or render — caller chains those steps after.
+    Returns the new educational_videos.id."""
+    pipe = get_pipeline(conn, pipeline_id)
+    if not pipe:
+        raise PipelineRunError(f"pipeline {pipeline_id} not found")
+    if not pipe.get("enabled"):
+        raise PipelineRunError(f"pipeline {pipeline_id} is disabled")
+
+    candidates = sample_candidates(conn, pipe["type"], limit=1, exclude_queued=True)
+    if not candidates:
+        raise PipelineRunError(
+            f"no unused {pipe['type']} candidates remain — pool exhausted"
+        )
+    c = candidates[0]
+    payload = {
+        # Per-type extras the script generator wants in the payload —
+        # mirrors what the queue endpoint stores on a manual queue.
+        "root_bw": c.get("root_bw"),
+        "root_ar": c.get("root_ar"),
+        "lemma_bw": c.get("lemma_bw"),
+        "lang_count": c.get("lang_count"),
+        "deriv_count": c.get("deriv_count"),
+        "departure_notes": c.get("departure_notes"),
+        "category": c.get("category"),
+        "title": c.get("title"),
+        "confidence": c.get("confidence"),
+        "has_counterfactual": c.get("has_counterfactual"),
+    }
+    cur = conn.execute(
+        """
+        INSERT INTO educational_videos
+            (type, chapter, verse, anchor_word_pos, anchor_insight_id,
+             payload_json, status, score, pipeline_id, triggered_by)
+        VALUES (?, ?, ?, ?, ?, ?, 'candidate', ?, ?, ?)
+        """,
+        (
+            pipe["type"], c["chapter"], c["verse"],
+            c.get("word_pos"), c.get("insight_id"),
+            json.dumps(payload, ensure_ascii=False),
+            c.get("score"),
+            pipeline_id, triggered_by,
+        ),
+    )
+    conn.commit()
+    return cur.lastrowid
