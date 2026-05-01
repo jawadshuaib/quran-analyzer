@@ -25,11 +25,25 @@ try:
     src.backup(bak)
     bak.close()
     src.close()
-    size_mb = os.path.getsize(dst_path) / 1024 / 1024
-    print(f'  Snapshot: {dst_path} ({size_mb:.1f} MB)')
-    # Rotate: keep only the 3 most recent snapshots.
-    snaps = sorted(glob.glob(os.path.join(snap_dir, 'quran-*.db')))
-    KEEP = 3
+    # Compress the snapshot in place — SQLite DBs gzip ~5-10x and the
+    # uncompressed snapshot is ~600MB. Recovery is one gunzip away.
+    import gzip, shutil
+    gz_path = dst_path + '.gz'
+    with open(dst_path, 'rb') as f_in, gzip.open(gz_path, 'wb', compresslevel=6) as f_out:
+        shutil.copyfileobj(f_in, f_out)
+    os.remove(dst_path)
+    size_mb = os.path.getsize(gz_path) / 1024 / 1024
+    print(f'  Snapshot: {gz_path} ({size_mb:.1f} MB)')
+    # Rotate: keep only the 2 most recent snapshots. Was 3 — the
+    # per-table backup logic below is the primary recovery path; 2
+    # snapshots is enough redundancy and saves ~600MB on the volume.
+    # Match both legacy uncompressed (.db) and new compressed (.db.gz)
+    # so the rotation cleans up both during the transition.
+    snaps = sorted(
+        glob.glob(os.path.join(snap_dir, 'quran-*.db')) +
+        glob.glob(os.path.join(snap_dir, 'quran-*.db.gz'))
+    )
+    KEEP = 2
     for old in snaps[:-KEEP]:
         try:
             os.remove(old)
@@ -366,6 +380,86 @@ try:
     conn.close()
 except Exception as e:
     print(f'  Vocabulary backup warning: {e}')
+" 2>&1
+fi
+
+# ============================================================================
+# Generic non-seed-table backup — fail-safe catch-all
+# ----------------------------------------------------------------------------
+# The prefix-based backups above (admin_/pipeline_/youtube_/tiktok_) only
+# protect tables that match those prefixes. Any user-facing table without one
+# of those prefixes — e.g. educational_videos — got silently wiped on every
+# deploy along with the seed-DB copy.
+#
+# This step backs up EVERY table that exists in live but NOT in the seed,
+# which by definition is user/runtime data created by the app after the
+# image was built. It runs in addition to the prefix backups, not instead
+# of them, so anything they catch (e.g. admin_pipeline_videos which IS in
+# the seed as an empty table) keeps working as before.
+#
+# Adding a new user-facing table from now on is fail-safe by default —
+# nothing about this script needs to change.
+# ============================================================================
+if [ -f /app/data/quran.db ]; then
+  echo "Backing up non-seed (user-only) tables..."
+  python3 -c "
+import sqlite3, os
+LIVE = '/app/data/quran.db'
+SEED = '/app/seed-quran.db'
+BAK = '/tmp/non_seed_backup.db'
+try:
+    live = sqlite3.connect(LIVE)
+    seed = sqlite3.connect(SEED)
+    live_tables = {r[0] for r in live.execute(
+        \"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'\"
+    ).fetchall()}
+    seed_tables = {r[0] for r in seed.execute(
+        \"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'\"
+    ).fetchall()}
+    seed.close()
+    extra_tables = sorted(live_tables - seed_tables)
+    if not extra_tables:
+        print('  (no non-seed tables — nothing to back up)')
+    else:
+        if os.path.exists(BAK):
+            os.remove(BAK)
+        bak = sqlite3.connect(BAK)
+        for tbl in extra_tables:
+            schema_row = live.execute(
+                \"SELECT sql FROM sqlite_master WHERE type='table' AND name = ?\",
+                (tbl,),
+            ).fetchone()
+            if not schema_row or not schema_row[0]:
+                continue
+            try:
+                bak.execute(schema_row[0])
+            except Exception:
+                pass
+            bak_cols = [r[1] for r in bak.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()]
+            col_list = ','.join(f'\"{c}\"' for c in bak_cols)
+            rows = live.execute(f'SELECT {col_list} FROM \"{tbl}\"').fetchall()
+            if rows:
+                placeholders = ','.join(['?'] * len(bak_cols))
+                bak.executemany(
+                    f'INSERT INTO \"{tbl}\" ({col_list}) VALUES ({placeholders})',
+                    rows,
+                )
+                print(f'  Backed up {len(rows)} rows from {tbl}')
+            # Keep the indexes too — many user-facing tables rely on
+            # UNIQUE indexes (e.g. educational_videos's anchor uniqueness).
+            for (idx_sql,) in live.execute(
+                \"SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name = ? AND sql IS NOT NULL\",
+                (tbl,),
+            ).fetchall():
+                try:
+                    bak.execute(idx_sql)
+                except Exception:
+                    pass
+        bak.commit()
+        bak.close()
+    live.close()
+except Exception as e:
+    print(f'  Non-seed backup warning: {e}')
 " 2>&1
 fi
 
@@ -762,6 +856,85 @@ dst_conn.commit()
 dst_conn.close()
 bak_conn.close()
 os.remove(bak)
+" 2>&1
+fi
+
+# ============================================================================
+# Generic non-seed-table restore — pairs with the catch-all backup above.
+# ----------------------------------------------------------------------------
+# Tables that exist only in live (educational_videos, future user-facing
+# tables) come back here. CREATE TABLE IF NOT EXISTS handles the case where
+# the app has already created the table via its _ensure_* function during
+# import; in that case we just DELETE existing rows and re-INSERT from the
+# backup. Each table is wrapped in its own try/except so one bad table
+# can't take down the rest.
+# ============================================================================
+if [ -f /tmp/non_seed_backup.db ]; then
+  echo "Restoring non-seed tables..."
+  python3 -c "
+import sqlite3, os, re
+BAK = '/tmp/non_seed_backup.db'
+DST = '/app/data/quran.db'
+try:
+    bak = sqlite3.connect(BAK)
+    dst = sqlite3.connect(DST)
+    tables = [r[0] for r in bak.execute(
+        \"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'\"
+    ).fetchall()]
+    for tbl in tables:
+        try:
+            schema_row = bak.execute(
+                \"SELECT sql FROM sqlite_master WHERE type='table' AND name = ?\",
+                (tbl,),
+            ).fetchone()
+            if not schema_row or not schema_row[0]:
+                continue
+            create_sql = re.sub(
+                r'^CREATE TABLE(?!\s+IF\s+NOT\s+EXISTS)',
+                'CREATE TABLE IF NOT EXISTS',
+                schema_row[0].strip(), count=1,
+            )
+            dst.execute(create_sql)
+            # Wipe whatever the seed brought (almost always nothing —
+            # these tables aren't in the seed) before restoring.
+            dst.execute(f'DELETE FROM \"{tbl}\"')
+            bak_cols = [r[1] for r in bak.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()]
+            dst_cols = {r[1] for r in dst.execute(f'PRAGMA table_info(\"{tbl}\")').fetchall()}
+            common = [c for c in bak_cols if c in dst_cols]
+            if not common:
+                print(f'  [{tbl}] no common columns, skipping')
+                continue
+            col_list = ','.join(f'\"{c}\"' for c in common)
+            placeholders = ','.join(['?'] * len(common))
+            rows = bak.execute(f'SELECT {col_list} FROM \"{tbl}\"').fetchall()
+            if rows:
+                dst.executemany(
+                    f'INSERT INTO \"{tbl}\" ({col_list}) VALUES ({placeholders})',
+                    rows,
+                )
+                print(f'  Restored {len(rows)} rows to {tbl}')
+            # Restore indexes (UNIQUE constraints etc.)
+            for (idx_sql,) in bak.execute(
+                \"SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name = ? AND sql IS NOT NULL\",
+                (tbl,),
+            ).fetchall():
+                idx_sql = re.sub(
+                    r'^CREATE(?:\s+UNIQUE)?\s+INDEX(?!\s+IF\s+NOT\s+EXISTS)',
+                    lambda m: m.group(0).replace('INDEX', 'INDEX IF NOT EXISTS'),
+                    idx_sql.strip(), count=1,
+                )
+                try:
+                    dst.execute(idx_sql)
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f'  [{tbl}] restore error: {e}')
+    dst.commit()
+    dst.close()
+    bak.close()
+    os.remove(BAK)
+except Exception as e:
+    print(f'  Non-seed restore warning: {e}')
 " 2>&1
 fi
 
