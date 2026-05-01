@@ -1625,6 +1625,18 @@ export async function editEducationalScript(
   return data.script;
 }
 
+/** Hard-delete a generated video — drops the DB row and removes the
+ *  rendered mp4 on disk. Refuses (409) if status is 'rendering' so
+ *  we don't yank a file out from under in-flight ffmpeg. */
+export async function deleteEducationalVideo(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/educational/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to delete video');
+  }
+}
+
+
 export async function getEducationalVideos(
   type?: EducationalType,
 ): Promise<EducationalVideo[]> {

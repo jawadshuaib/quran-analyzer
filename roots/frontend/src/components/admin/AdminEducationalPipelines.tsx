@@ -5,6 +5,7 @@ import {
   createEducationalPipeline,
   updateEducationalPipeline,
   deleteEducationalPipeline,
+  deleteEducationalVideo,
   runEducationalPipeline,
   getEducationalSchedule,
   upsertEducationalSchedule,
@@ -275,6 +276,27 @@ function PipelineDetailView({
     }
   }
 
+  // Delete a single produced video (mp4 + DB row). Uses the same
+  // useConfirm dialog instance the pipeline-delete uses, so there's
+  // only one Confirm overlay rendered for the whole panel.
+  async function handleDeleteVideo(v: EducationalVideo) {
+    const label = `Quran ${v.chapter}:${v.verse}`
+      + (v.format ? ` (${v.format})` : '');
+    const ok = await confirm({
+      title: 'Delete this video?',
+      message: `Remove ${label}? The mp4 file and all its metadata are deleted permanently. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await deleteEducationalVideo(v.id);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   const voiceName = voices.find((v) => v.voice_id === detail.voice_id)?.name;
 
   return (
@@ -354,7 +376,11 @@ function PipelineDetailView({
         ) : (
           <div className="border border-stone-200 rounded-lg overflow-hidden bg-white">
             {detail.videos.map((v) => (
-              <PipelineVideoRow key={v.id} video={v} />
+              <PipelineVideoRow
+                key={v.id}
+                video={v}
+                onDelete={() => handleDeleteVideo(v)}
+              />
             ))}
           </div>
         )}
@@ -365,10 +391,19 @@ function PipelineDetailView({
   );
 }
 
-function PipelineVideoRow({ video: v }: { video: EducationalVideo }) {
+function PipelineVideoRow({
+  video: v,
+  onDelete,
+}: {
+  video: EducationalVideo;
+  onDelete: () => void;
+}) {
   const tone = statusTone(v.status);
   const [expanded, setExpanded] = useState(false);
   const hasMeta = !!(v.youtube_title || v.youtube_description);
+  // 'rendering' rows are blocked server-side from deletion to avoid
+  // yanking a file out from under ffmpeg; reflect that in the button.
+  const cannotDelete = v.status === 'rendering';
   let parsedTags: string[] = [];
   try {
     parsedTags = v.youtube_tags ? (JSON.parse(v.youtube_tags) as string[]) : [];
@@ -408,6 +443,16 @@ function PipelineVideoRow({ video: v }: { video: EducationalVideo }) {
             Open mp4
           </a>
         )}
+        <button
+          onClick={onDelete}
+          disabled={cannotDelete}
+          title={cannotDelete
+            ? "Wait for the render to finish or fail before deleting."
+            : "Permanently delete this video and its mp4 file."}
+          className="px-2.5 py-1 rounded-md border border-red-300 text-red-700 text-xs font-medium hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+        >
+          Delete
+        </button>
       </div>
       {expanded && hasMeta && (
         <div className="px-3 pb-3 pt-1 bg-stone-50/50 border-t border-stone-100 space-y-2">

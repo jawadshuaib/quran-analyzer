@@ -8256,6 +8256,49 @@ def admin_educational_video_detail(video_id: int):
         conn.close()
 
 
+@app.route("/api/admin/educational/<int:video_id>", methods=["DELETE"])
+@admin_required
+def admin_educational_video_delete(video_id: int):
+    """Remove an educational video — both the DB row and the rendered
+    mp4 on disk. The shared TTS audio cache is intentionally NOT
+    pruned (it's hashed by voice_id+text, so deleting it would
+    invalidate cache hits for unrelated rows that happen to share
+    the same voiceover string).
+
+    Refuses to delete rows that are 'rendering' so we can't yank a
+    file out from under an in-flight ffmpeg process."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, status, filename FROM educational_videos WHERE id = ?",
+            (video_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        if row["status"] == "rendering":
+            return jsonify({
+                "error": "cannot delete a row that's currently rendering — "
+                "wait for it to finish or fail first."
+            }), 409
+        # Best-effort file removal: log a warning but still drop the
+        # row if the mp4 is missing or already gone.
+        if row["filename"]:
+            import educational_render as _r
+            fp = os.path.join(_r.OUTPUT_DIR, row["filename"])
+            if os.path.isfile(fp):
+                try:
+                    os.remove(fp)
+                except Exception as e:
+                    print(f"[educational delete] could not remove {fp}: {e}")
+        conn.execute("DELETE FROM educational_videos WHERE id = ?", (video_id,))
+        conn.commit()
+        return jsonify({"ok": True, "id": video_id})
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/educational/pipelines", methods=["GET"])
 @admin_required
 def admin_educational_pipelines_list():
