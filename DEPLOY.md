@@ -16,6 +16,22 @@ Symptom: a small upload (e.g. 2 MB) returns "Upload rejected by
 reverse proxy" in the admin UI, but the same upload works against
 `localhost:5000` directly.
 
+### One-step fix (nginx or Caddy)
+
+`scripts/host/fix-upload-limit.sh` detects whichever proxy is
+installed and patches it idempotently. From your local checkout:
+
+```sh
+scp scripts/host/fix-upload-limit.sh user@host:/tmp/
+ssh user@host 'sudo bash /tmp/fix-upload-limit.sh'
+```
+
+It bumps the upload cap to 500 MB, validates the config, and
+reloads. Override with a different size as the first arg:
+`sudo bash /tmp/fix-upload-limit.sh 1g`.
+
+If you'd rather edit by hand, the manual snippets are below.
+
 ### nginx fix
 
 In the `server` (or `location`) block that proxies to the Docker
