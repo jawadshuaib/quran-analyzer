@@ -10,7 +10,6 @@ import {
   upsertEducationalSchedule,
   getEducationalScheduleRuns,
   getVoices,
-  getMusicTracks,
   type EducationalPipeline,
   type EducationalPipelineDetail,
   type EducationalPipelineInput,
@@ -18,7 +17,6 @@ import {
   type EducationalSchedule,
   type EducationalScheduleRun,
   type Voice,
-  type MusicTrack,
   type EducationalVideo,
 } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
@@ -52,7 +50,6 @@ const FORMAT_LABEL: Record<'short' | 'long', string> = {
 export default function AdminEducationalPipelines() {
   const [pipelines, setPipelines] = useState<EducationalPipeline[] | null>(null);
   const [voices, setVoices] = useState<Voice[]>([]);
-  const [music, setMusic] = useState<MusicTrack[]>([]);
   const [selectedId, setSelectedId] = useState<number | 'new' | null>(null);
   const [bumpKey, setBumpKey] = useState(0);
   const [err, setErr] = useState('');
@@ -60,7 +57,6 @@ export default function AdminEducationalPipelines() {
   useEffect(() => {
     getEducationalPipelines().then(setPipelines).catch((e) => setErr(String(e)));
     getVoices().then(setVoices).catch(() => setVoices([]));
-    getMusicTracks().then(setMusic).catch(() => setMusic([]));
   }, [bumpKey]);
 
   return (
@@ -89,7 +85,6 @@ export default function AdminEducationalPipelines() {
           {selectedId === 'new' ? (
             <PipelineEditor
               voices={voices}
-              music={music}
               initial={null}
               onSaved={(p) => {
                 setBumpKey((k) => k + 1);
@@ -101,7 +96,6 @@ export default function AdminEducationalPipelines() {
             <PipelineDetailView
               pipelineId={selectedId}
               voices={voices}
-              music={music}
               onChanged={() => setBumpKey((k) => k + 1)}
               onDeleted={() => {
                 setSelectedId(null);
@@ -193,13 +187,11 @@ function EmptyHint() {
 function PipelineDetailView({
   pipelineId,
   voices,
-  music,
   onChanged,
   onDeleted,
 }: {
   pipelineId: number;
   voices: Voice[];
-  music: MusicTrack[];
   onChanged: () => void;
   onDeleted: () => void;
 }) {
@@ -243,7 +235,6 @@ function PipelineDetailView({
     return (
       <PipelineEditor
         voices={voices}
-        music={music}
         initial={detail}
         onSaved={() => {
           setEditing(false);
@@ -285,7 +276,6 @@ function PipelineDetailView({
   }
 
   const voiceName = voices.find((v) => v.voice_id === detail.voice_id)?.name;
-  const musicName = music.find((m) => m.id === detail.music_id)?.original_name;
 
   return (
     <div className="space-y-6">
@@ -485,13 +475,11 @@ function formatDate(iso: string | null | undefined): string {
 
 function PipelineEditor({
   voices,
-  music,
   initial,
   onSaved,
   onCancel,
 }: {
   voices: Voice[];
-  music: MusicTrack[];
   initial: EducationalPipeline | null;
   onSaved: (p: EducationalPipeline) => void;
   onCancel: () => void;
@@ -504,9 +492,10 @@ function PipelineEditor({
   const [showDim, setShowDim] = useState<boolean>(
     initial ? !!initial.show_dim_background : true,
   );
-  const [musicId, setMusicId] = useState<number | ''>(
-    initial?.music_id ?? '',
-  );
+  // Music isn't editable in the form yet (renderer doesn't consume
+  // it). Preserve any existing value from `initial` so an edit-save
+  // doesn't accidentally clear it; null for new pipelines.
+  const preservedMusicId: number | null = initial?.music_id ?? null;
   const [enabled, setEnabled] = useState<boolean>(initial ? !!initial.enabled : true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -529,7 +518,7 @@ function PipelineEditor({
         voice_id: voiceId,
         format,
         show_dim_background: showDim,
-        music_id: musicId === '' ? null : Number(musicId),
+        music_id: preservedMusicId,
         enabled,
       };
       if (isEdit) {
