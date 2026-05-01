@@ -28,6 +28,7 @@ the same anchor showing up twice.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from typing import Any
 
@@ -150,6 +151,52 @@ def ensure_table(conn: sqlite3.Connection) -> None:
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
+        """
+    )
+
+    # Schedule config — one row per pipeline. Mirrors pipeline_schedules
+    # (recitation) so the scheduler-loop logic can stay structurally
+    # identical across the two domains.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS educational_pipeline_schedules (
+            pipeline_id INTEGER PRIMARY KEY REFERENCES educational_pipelines(id) ON DELETE CASCADE,
+            times TEXT NOT NULL DEFAULT '[]',
+            max_runs_per_day INTEGER NOT NULL DEFAULT 2,
+            enabled INTEGER NOT NULL DEFAULT 0,
+            grace_minutes INTEGER NOT NULL DEFAULT 30,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    # Audit log of scheduled fires. status:
+    #   'fired'         — the scheduler started a video; video_id set
+    #   'skipped_grace' — slot was past the grace window
+    #   'skipped_cap'   — daily run cap reached
+    #   'skipped_active'— another video already running for this pipeline
+    #   'error'         — kick-off raised an exception
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS educational_pipeline_schedule_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pipeline_id INTEGER NOT NULL,
+            scheduled_time TEXT NOT NULL,
+            fired_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            video_id INTEGER,
+            status TEXT NOT NULL,
+            note TEXT
+        )
+        """
+    )
+    # Same idempotency guard as the recitation scheduler — slot is
+    # uniquely identified by (pipeline_id, scheduled_time) so a tick
+    # firing twice for the same minute can't double-record.
+    conn.execute(
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_eps_runs_unique
+        ON educational_pipeline_schedule_runs (pipeline_id, scheduled_time)
         """
     )
     # UNIQUE-coalesce: SQLite treats NULLs as distinct, which would let
@@ -566,6 +613,146 @@ def delete_pipeline(conn: sqlite3.Connection, pipeline_id: int) -> bool:
 class PipelineRunError(Exception):
     """Raised when picking + queueing fails. Caller decides whether to
     surface the error or move on."""
+
+
+# --------------------------------------------------------------------------
+#  Pipeline schedule CRUD
+# --------------------------------------------------------------------------
+
+# Defaults returned when no schedule row exists for a pipeline yet.
+SCHEDULE_DEFAULTS: dict = {
+    "times": [],
+    "max_runs_per_day": 2,
+    "enabled": False,
+    "grace_minutes": 30,
+}
+
+
+def get_schedule(conn: sqlite3.Connection, pipeline_id: int) -> dict:
+    """Return the schedule for a pipeline. Returns SCHEDULE_DEFAULTS
+    (with `pipeline_id` filled in) if no row exists yet — no need to
+    pre-create rows just to render the form."""
+    row = conn.execute(
+        "SELECT pipeline_id, times, max_runs_per_day, enabled, "
+        "       grace_minutes, created_at, updated_at "
+        "FROM educational_pipeline_schedules WHERE pipeline_id = ?",
+        (pipeline_id,),
+    ).fetchone()
+    if not row:
+        return {
+            "pipeline_id": pipeline_id,
+            **SCHEDULE_DEFAULTS,
+            "created_at": None,
+            "updated_at": None,
+        }
+    out = dict(row)
+    try:
+        out["times"] = json.loads(out["times"] or "[]")
+    except Exception:
+        out["times"] = []
+    out["enabled"] = bool(out.get("enabled"))
+    return out
+
+
+def upsert_schedule(
+    conn: sqlite3.Connection,
+    pipeline_id: int,
+    *,
+    times: list[str],
+    max_runs_per_day: int = 2,
+    enabled: bool = False,
+    grace_minutes: int = 30,
+) -> dict:
+    """Replace the schedule for a pipeline (creates the row on first
+    save). Validates time strings as HH:MM and the integer caps as
+    sane bounds before writing."""
+    # Validate / normalize times. Accept "9:30" → "09:30"; reject anything
+    # that doesn't match HH:MM with valid hours/minutes.
+    cleaned: list[str] = []
+    for t in times or []:
+        if not isinstance(t, str):
+            continue
+        m = re.match(r"^(\d{1,2}):(\d{2})$", t.strip())
+        if not m:
+            raise ValueError(f"invalid time format: {t!r} (expected HH:MM)")
+        hh = int(m.group(1)); mm = int(m.group(2))
+        if not (0 <= hh <= 23 and 0 <= mm <= 59):
+            raise ValueError(f"time out of range: {t!r}")
+        norm = f"{hh:02d}:{mm:02d}"
+        if norm not in cleaned:
+            cleaned.append(norm)
+    cleaned.sort()
+
+    if not (1 <= int(max_runs_per_day) <= 24):
+        raise ValueError("max_runs_per_day must be 1..24")
+    if not (0 <= int(grace_minutes) <= 240):
+        raise ValueError("grace_minutes must be 0..240")
+
+    conn.execute(
+        """
+        INSERT INTO educational_pipeline_schedules
+            (pipeline_id, times, max_runs_per_day, enabled, grace_minutes, updated_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(pipeline_id) DO UPDATE SET
+            times = excluded.times,
+            max_runs_per_day = excluded.max_runs_per_day,
+            enabled = excluded.enabled,
+            grace_minutes = excluded.grace_minutes,
+            updated_at = datetime('now')
+        """,
+        (
+            pipeline_id,
+            json.dumps(cleaned, ensure_ascii=False),
+            int(max_runs_per_day),
+            1 if enabled else 0,
+            int(grace_minutes),
+        ),
+    )
+    conn.commit()
+    return get_schedule(conn, pipeline_id)
+
+
+def list_schedule_runs(
+    conn: sqlite3.Connection, pipeline_id: int, limit: int = 50,
+) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT id, pipeline_id, scheduled_time, fired_at, video_id, status, note
+        FROM educational_pipeline_schedule_runs
+        WHERE pipeline_id = ?
+        ORDER BY fired_at DESC
+        LIMIT ?
+        """,
+        (pipeline_id, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def record_schedule_run(
+    conn: sqlite3.Connection,
+    pipeline_id: int,
+    scheduled_time: str,
+    status: str,
+    *,
+    video_id: int | None = None,
+    note: str | None = None,
+) -> None:
+    """Idempotent insert — if the (pipeline_id, scheduled_time) slot
+    already has a row, leave it alone. Lets the scheduler tick
+    repeatedly within the grace window without double-recording."""
+    try:
+        conn.execute(
+            """
+            INSERT INTO educational_pipeline_schedule_runs
+                (pipeline_id, scheduled_time, status, video_id, note)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (pipeline_id, scheduled_time, status, video_id, (note or "")[:300]),
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        # Slot already recorded — fine, idempotent by design.
+        pass
 
 
 def pick_and_queue_for_pipeline(

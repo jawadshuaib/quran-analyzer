@@ -8355,149 +8355,238 @@ def admin_educational_pipeline_delete(pipeline_id: int):
         conn.close()
 
 
-@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/run", methods=["POST"])
-@admin_required
-def admin_educational_pipeline_run(pipeline_id: int):
-    """Manual "Run now" — pick a candidate, generate script, render.
-    All in a daemon thread so the request returns 202 immediately;
-    operator polls GET /pipelines/<id> for the new video to appear in
-    the videos list and watches the row's status flip
-    candidate → script_ready → rendering → rendered (or failed)."""
-    if not _EDU_OK:
-        return _edu_unavailable()
+def _educational_pipeline_run_thread(
+    pipeline_id: int, video_id: int, voice_id: str,
+    fmt: str, elevenlabs_key: str, claude_key: str,
+) -> None:
+    """The script→render→metadata chain run inside a daemon thread.
+    Used by both the manual /run endpoint and the scheduler. Caller
+    is responsible for queueing the candidate row first; this
+    function takes the resulting video_id and progresses it through
+    candidate → script_ready → rendering → rendered (or failed).
+    Errors are captured on the row's error_message; the function
+    never raises to its caller."""
+    c = get_db()
+    try:
+        # Step 1: script generation
+        try:
+            row = c.execute(
+                "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
+            ).fetchone()
+            rd = dict(row)
+            import educational_scripts as _scripts
+            payload = _scripts.enrich_payload(c, rd)
+            script = _scripts.generate_script(payload, api_key=claude_key)
+            c.execute(
+                "UPDATE educational_videos SET "
+                "  payload_json = ?, script_json = ?, voiceover_text = ?, "
+                "  status = 'script_ready', error_message = NULL "
+                "WHERE id = ?",
+                (
+                    json.dumps(payload, ensure_ascii=False),
+                    json.dumps({
+                        k: script.get(k) for k in (
+                            "hook", "verse_intro", "insight", "close",
+                            "tidbit_about_root", "tidbit_about_quran_usage",
+                            "tidbit_about_semitic", "selected_verse_refs",
+                            "voiceover_short", "voiceover_short_raw",
+                            "voiceover_long_raw",
+                            "languages_referenced", "notes", "model",
+                        )
+                    }, ensure_ascii=False),
+                    script.get("voiceover_long"),
+                    video_id,
+                ),
+            )
+            c.commit()
+        except Exception as e:
+            c.execute(
+                "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
+                (f"script: {e}"[:1000], video_id),
+            )
+            c.commit()
+            return
 
-    # Pre-validate credentials and the pipeline itself BEFORE spawning
-    # the thread so the operator sees missing-keys errors immediately.
+        # Step 2: render
+        try:
+            c.execute(
+                "UPDATE educational_videos SET status='rendering', "
+                "       error_message=NULL, format=?, completed_at=NULL "
+                "WHERE id = ?",
+                (fmt, video_id),
+            )
+            c.commit()
+            import educational_render as _r
+            filename, size = _r.render_video(
+                c, video_id,
+                format=fmt,
+                elevenlabs_api_key=elevenlabs_key,
+                voice_id=voice_id,
+            )
+            c.execute(
+                "UPDATE educational_videos SET status='rendered', "
+                "       filename=?, file_size=?, completed_at=CURRENT_TIMESTAMP "
+                "WHERE id=?",
+                (filename, size, video_id),
+            )
+            c.commit()
+        except Exception as e:
+            c.execute(
+                "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
+                (f"render: {e}"[:1000], video_id),
+            )
+            c.commit()
+            return
+
+        # Step 3: YouTube metadata via Ollama. Failure here doesn't
+        # fail the run — the video is rendered and watchable.
+        try:
+            row = c.execute(
+                "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
+            ).fetchone()
+            rd = dict(row)
+            payload = json.loads(rd.get("payload_json") or "{}")
+            script_obj = json.loads(rd.get("script_json") or "{}")
+            yt_title, yt_desc, yt_tags = _generate_educational_metadata(
+                c, rd, payload, script_obj,
+            )
+            c.execute(
+                "UPDATE educational_videos SET "
+                "  youtube_title = ?, youtube_description = ?, youtube_tags = ? "
+                "WHERE id = ?",
+                (yt_title or None, yt_desc or None,
+                 json.dumps(yt_tags) if yt_tags else None, video_id),
+            )
+            c.commit()
+        except Exception as e:
+            print(f"[educational metadata] failed for video {video_id}: {e}")
+    finally:
+        c.close()
+
+
+def _start_educational_pipeline_run(
+    pipeline_id: int, *, triggered_by: str = "pipeline",
+) -> tuple[int, str | None]:
+    """Queue a candidate + spawn the chain thread. Used by both the
+    manual /run endpoint (triggered_by='pipeline') and the scheduler
+    (triggered_by='scheduler'). Returns (video_id, error_message).
+
+    Raises nothing — caller checks the second tuple element. error
+    is None on success; a string when validation fails (no candidates
+    left, ElevenLabs key missing, pipeline disabled, etc.)."""
     conn = get_db()
     try:
         pipe = _edu.get_pipeline(conn, pipeline_id)
         if not pipe:
-            return jsonify({"error": "pipeline not found"}), 404
+            return 0, "pipeline not found"
         if not pipe.get("enabled"):
-            return jsonify({"error": "pipeline is disabled"}), 400
+            return 0, "pipeline is disabled"
         eleven_row = conn.execute(
             "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
         ).fetchone()
         elevenlabs_key = eleven_row["value"] if eleven_row and eleven_row["value"] else None
         if not elevenlabs_key:
-            return jsonify({"error": "ElevenLabs API key missing (Admin → Settings)"}), 400
-        # Queue the candidate up front so the response can return its id.
+            return 0, "ElevenLabs API key missing"
         try:
-            video_id = _edu.pick_and_queue_for_pipeline(conn, pipeline_id)
+            video_id = _edu.pick_and_queue_for_pipeline(
+                conn, pipeline_id, triggered_by=triggered_by,
+            )
         except _edu.PipelineRunError as e:
-            return jsonify({"error": str(e)}), 409
+            return 0, str(e)
     finally:
         conn.close()
 
     voice_id = pipe["voice_id"]
     fmt = pipe["format"]
     claude_key = _get_claude_api_key()
+    threading.Thread(
+        target=_educational_pipeline_run_thread,
+        args=(pipeline_id, video_id, voice_id, fmt, elevenlabs_key, claude_key),
+        daemon=True,
+    ).start()
+    return video_id, None
 
-    def _do_run():
-        c = get_db()
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/schedule", methods=["GET"])
+@admin_required
+def admin_educational_schedule_get(pipeline_id: int):
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        if not _edu.get_pipeline(conn, pipeline_id):
+            return jsonify({"error": "pipeline not found"}), 404
+        return jsonify(_edu.get_schedule(conn, pipeline_id))
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/schedule", methods=["PUT"])
+@admin_required
+def admin_educational_schedule_upsert(pipeline_id: int):
+    if not _EDU_OK:
+        return _edu_unavailable()
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    try:
+        if not _edu.get_pipeline(conn, pipeline_id):
+            return jsonify({"error": "pipeline not found"}), 404
         try:
-            # Step 1: script generation
-            try:
-                row = c.execute(
-                    "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
-                ).fetchone()
-                rd = dict(row)
-                import educational_scripts as _scripts
-                payload = _scripts.enrich_payload(c, rd)
-                script = _scripts.generate_script(payload, api_key=claude_key)
-                # Sanitize already happened inside generate_script.
-                c.execute(
-                    "UPDATE educational_videos SET "
-                    "  payload_json = ?, script_json = ?, voiceover_text = ?, "
-                    "  status = 'script_ready', error_message = NULL "
-                    "WHERE id = ?",
-                    (
-                        json.dumps(payload, ensure_ascii=False),
-                        json.dumps({
-                            k: script.get(k) for k in (
-                                "hook", "verse_intro", "insight", "close",
-                                "tidbit_about_root", "tidbit_about_quran_usage",
-                                "tidbit_about_semitic", "selected_verse_refs",
-                                "voiceover_short", "voiceover_short_raw",
-                                "voiceover_long_raw",
-                                "languages_referenced", "notes", "model",
-                            )
-                        }, ensure_ascii=False),
-                        script.get("voiceover_long"),
-                        video_id,
-                    ),
-                )
-                c.commit()
-            except Exception as e:
-                c.execute(
-                    "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
-                    (f"script: {e}"[:1000], video_id),
-                )
-                c.commit()
-                return
+            schedule = _edu.upsert_schedule(
+                conn, pipeline_id,
+                times=list(body.get("times") or []),
+                max_runs_per_day=int(body.get("max_runs_per_day", 2)),
+                enabled=bool(body.get("enabled", False)),
+                grace_minutes=int(body.get("grace_minutes", 30)),
+            )
+        except (ValueError, TypeError) as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify(schedule)
+    finally:
+        conn.close()
 
-            # Step 2: render
-            try:
-                c.execute(
-                    "UPDATE educational_videos SET status='rendering', "
-                    "       error_message=NULL, format=?, completed_at=NULL "
-                    "WHERE id = ?",
-                    (fmt, video_id),
-                )
-                c.commit()
-                import educational_render as _r
-                filename, size = _r.render_video(
-                    c, video_id,
-                    format=fmt,
-                    elevenlabs_api_key=elevenlabs_key,
-                    voice_id=voice_id,
-                )
-                c.execute(
-                    "UPDATE educational_videos SET status='rendered', "
-                    "       filename=?, file_size=?, completed_at=CURRENT_TIMESTAMP "
-                    "WHERE id=?",
-                    (filename, size, video_id),
-                )
-                c.commit()
-            except Exception as e:
-                c.execute(
-                    "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
-                    (f"render: {e}"[:1000], video_id),
-                )
-                c.commit()
-                return  # Skip metadata if render failed.
 
-            # Step 3: YouTube metadata via Ollama. Failure here doesn't
-            # fail the run — the video is rendered and watchable; we'd
-            # just need to fill in title/desc/tags by hand.
-            try:
-                row = c.execute(
-                    "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
-                ).fetchone()
-                rd = dict(row)
-                payload = json.loads(rd.get("payload_json") or "{}")
-                script_obj = json.loads(rd.get("script_json") or "{}")
-                yt_title, yt_desc, yt_tags = _generate_educational_metadata(
-                    c, rd, payload, script_obj,
-                )
-                c.execute(
-                    "UPDATE educational_videos SET "
-                    "  youtube_title = ?, youtube_description = ?, youtube_tags = ? "
-                    "WHERE id = ?",
-                    (yt_title or None, yt_desc or None,
-                     json.dumps(yt_tags) if yt_tags else None, video_id),
-                )
-                c.commit()
-            except Exception as e:
-                print(f"[educational metadata] failed for video {video_id}: {e}")
-        finally:
-            c.close()
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/schedule/runs", methods=["GET"])
+@admin_required
+def admin_educational_schedule_runs(pipeline_id: int):
+    if not _EDU_OK:
+        return _edu_unavailable()
+    limit = max(1, min(int(request.args.get("limit", 50)), 200))
+    conn = get_db()
+    try:
+        if not _edu.get_pipeline(conn, pipeline_id):
+            return jsonify({"error": "pipeline not found"}), 404
+        return jsonify({"runs": _edu.list_schedule_runs(conn, pipeline_id, limit)})
+    finally:
+        conn.close()
 
-    threading.Thread(target=_do_run, daemon=True).start()
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/run", methods=["POST"])
+@admin_required
+def admin_educational_pipeline_run(pipeline_id: int):
+    """Manual "Run now" — picks a candidate, generates script, renders.
+    Returns 202 immediately; operator polls GET /pipelines/<id> for
+    the new video to appear in the videos list and watches the row's
+    status flip candidate → script_ready → rendering → rendered (or
+    failed)."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    video_id, err = _start_educational_pipeline_run(
+        pipeline_id, triggered_by="pipeline",
+    )
+    if err:
+        # 'not found' → 404, 'disabled' → 400, pool exhausted → 409,
+        # missing key → 400. The shared helper returns a flat string;
+        # we map the most useful HTTP codes here for parity with the
+        # earlier behavior.
+        status = 404 if "not found" in err else (
+            409 if "exhausted" in err or "no unused" in err else 400
+        )
+        return jsonify({"error": err}), status
     return jsonify({
         "pipeline_id": pipeline_id,
         "video_id": video_id,
-        "status": "candidate",  # will progress to script_ready → rendering → rendered
+        "status": "candidate",
     }), 202
 
 
@@ -13709,6 +13798,155 @@ def _youtube_upload_tick():
 _scheduler_stop = threading.Event()
 
 
+def _educational_scheduler_tick():
+    """Educational-pipeline equivalent of _scheduler_tick. For each
+    enabled schedule + each time slot today within the grace window,
+    fire the orchestrator unless the slot is already recorded, the
+    daily cap is reached, or another video for this pipeline is in
+    flight. Mirrors the recitation scheduler's logic so the operator
+    mental model is identical across the two."""
+    if not _EDU_OK:
+        return
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+
+    conn = get_db()
+    try:
+        schedules = conn.execute(
+            "SELECT s.pipeline_id, s.times, s.max_runs_per_day, s.enabled, "
+            "       s.grace_minutes, p.name AS pipeline_name, p.enabled AS pipeline_enabled "
+            "FROM educational_pipeline_schedules s "
+            "JOIN educational_pipelines p ON p.id = s.pipeline_id "
+            "WHERE s.enabled = 1"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    for sched in schedules:
+        pid = sched["pipeline_id"]
+        # Pipeline itself disabled? Schedule sticks but doesn't fire.
+        if not sched["pipeline_enabled"]:
+            continue
+        try:
+            times = json.loads(sched["times"] or "[]")
+        except (json.JSONDecodeError, TypeError):
+            times = []
+        if not isinstance(times, list) or not times:
+            continue
+
+        grace = int(sched["grace_minutes"] or 30)
+        cap = int(sched["max_runs_per_day"] or 2)
+
+        for t_str in times:
+            if not isinstance(t_str, str) or not re.match(r"^\d{1,2}:\d{2}$", t_str):
+                continue
+            hh, mm = map(int, t_str.split(":"))
+            if not (0 <= hh <= 23 and 0 <= mm <= 59):
+                continue
+            sched_dt = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+            scheduled_time_str = sched_dt.strftime("%Y-%m-%d %H:%M")
+
+            # Only consider slots whose time has arrived today.
+            if now < sched_dt:
+                continue
+            # Past the grace window — record a miss so the UI can
+            # explain why nothing fired.
+            if now > sched_dt + timedelta(minutes=grace):
+                c = get_db()
+                try:
+                    _edu.record_schedule_run(
+                        c, pid, scheduled_time_str, "skipped_grace",
+                        note=f"Past {grace}-minute grace window",
+                    )
+                finally:
+                    c.close()
+                continue
+
+            # Idempotency: if this slot already has a row, skip.
+            c = get_db()
+            try:
+                existing = c.execute(
+                    "SELECT id FROM educational_pipeline_schedule_runs "
+                    "WHERE pipeline_id = ? AND scheduled_time = ?",
+                    (pid, scheduled_time_str),
+                ).fetchone()
+            finally:
+                c.close()
+            if existing:
+                continue
+
+            # Daily cap — count only 'fired' rows. Skipped slots
+            # don't burn cap.
+            c = get_db()
+            try:
+                today_count = c.execute(
+                    "SELECT COUNT(*) AS n FROM educational_pipeline_schedule_runs "
+                    "WHERE pipeline_id = ? AND status = 'fired' "
+                    "AND substr(scheduled_time, 1, 10) = ?",
+                    (pid, today_str),
+                ).fetchone()["n"]
+            finally:
+                c.close()
+            if today_count >= cap:
+                c = get_db()
+                try:
+                    _edu.record_schedule_run(
+                        c, pid, scheduled_time_str, "skipped_cap",
+                        note=f"Daily cap reached ({today_count}/{cap})",
+                    )
+                finally:
+                    c.close()
+                continue
+
+            # Don't pile on top of an already-running educational video
+            # for this pipeline. Educational has fewer in-flight statuses
+            # than recitation — the candidate-through-rendering arc.
+            c = get_db()
+            try:
+                active = c.execute(
+                    "SELECT id FROM educational_videos "
+                    "WHERE pipeline_id = ? AND status IN ('candidate','script_ready','rendering') "
+                    "LIMIT 1",
+                    (pid,),
+                ).fetchone()
+            finally:
+                c.close()
+            if active:
+                c = get_db()
+                try:
+                    _edu.record_schedule_run(
+                        c, pid, scheduled_time_str, "skipped_active",
+                        note=f"Another video already running (#{active['id']})",
+                    )
+                finally:
+                    c.close()
+                continue
+
+            # All guards clear — fire.
+            video_id, err = _start_educational_pipeline_run(
+                pid, triggered_by="scheduler",
+            )
+            c = get_db()
+            try:
+                if err:
+                    _edu.record_schedule_run(
+                        c, pid, scheduled_time_str, "error", note=err,
+                    )
+                    print(f"[edu-scheduler] ERROR firing pipeline {pid}: {err}")
+                else:
+                    _edu.record_schedule_run(
+                        c, pid, scheduled_time_str, "fired", video_id=video_id,
+                    )
+                    print(
+                        f"[edu-scheduler] Fired pipeline {pid} "
+                        f"({sched['pipeline_name']}) for {scheduled_time_str} "
+                        f"→ video {video_id}"
+                    )
+            finally:
+                c.close()
+
+
 def _scheduler_loop():
     """Main scheduler daemon — ticks every 30 seconds."""
     print("[scheduler] daemon started")
@@ -13721,6 +13959,10 @@ def _scheduler_loop():
             _youtube_upload_tick()
         except Exception as e:
             print(f"[youtube-scheduler] tick error: {e}")
+        try:
+            _educational_scheduler_tick()
+        except Exception as e:
+            print(f"[edu-scheduler] tick error: {e}")
         # Sleep in 5s chunks so shutdown can interrupt quickly.
         for _ in range(6):
             if _scheduler_stop.is_set():

@@ -1728,3 +1728,59 @@ export async function runEducationalPipeline(
   if (!res.ok) throw new Error(data.error || 'Failed to start pipeline run');
   return data;
 }
+
+// --------------- Educational pipeline schedules ---------------
+
+export interface EducationalSchedule {
+  pipeline_id: number;
+  times: string[];
+  max_runs_per_day: number;
+  enabled: boolean;
+  grace_minutes: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface EducationalScheduleRun {
+  id: number;
+  pipeline_id: number;
+  scheduled_time: string;
+  fired_at: string;
+  video_id: number | null;
+  status: 'fired' | 'skipped_grace' | 'skipped_cap' | 'skipped_active' | 'error';
+  note: string | null;
+}
+
+export async function getEducationalSchedule(
+  pipelineId: number,
+): Promise<EducationalSchedule> {
+  const res = await authFetch(`${BASE}/educational/pipelines/${pipelineId}/schedule`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch schedule');
+  return data;
+}
+
+export async function upsertEducationalSchedule(
+  pipelineId: number,
+  patch: Pick<EducationalSchedule, 'times' | 'max_runs_per_day' | 'enabled' | 'grace_minutes'>,
+): Promise<EducationalSchedule> {
+  const res = await authFetch(`${BASE}/educational/pipelines/${pipelineId}/schedule`, {
+    method: 'PUT',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to save schedule');
+  return data;
+}
+
+export async function getEducationalScheduleRuns(
+  pipelineId: number,
+  limit = 50,
+): Promise<EducationalScheduleRun[]> {
+  const res = await authFetch(
+    `${BASE}/educational/pipelines/${pipelineId}/schedule/runs?limit=${limit}`,
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch runs');
+  return data.runs as EducationalScheduleRun[];
+}
