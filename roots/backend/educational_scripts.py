@@ -50,6 +50,53 @@ CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 DEFAULT_MODEL = "claude-sonnet-4-5"
 
 
+# Languages a general viewer is reasonably likely to recognize. The
+# Word Origins prompt-builder filters the cognate-derivatives list to
+# THIS subset before handing it to the LLM, unless filtering leaves
+# fewer than 2 entries — in which case the full list is used so we
+# don't strand a candidate root with no cognates to discuss.
+#
+# Languages deliberately EXCLUDED (kept out of viewer-facing scripts):
+#   Ugaritic, Eblaite, Amorite, Samalian, Hatran, Punic, Edomite,
+#   Moabite, Ammonite, Nabataean, Palmyrene, Maʕlula, Hasaitic,
+#   Hismaic, Safaitic, Taymanitic, Thamudic B, Dadanitic, Sabaic,
+#   Minaic, Qatabanic, Ḥaḍramitic, Epigraphic South Arabian,
+#   Amharic, Tigre, Tigrinya, Argobba, Gafat, Gurage, Harari,
+#   Wolane, East Ethiopic, Ge'ez, Mandaic, Mandaic Aramaic,
+#   Harsusi, Jibbali, Mehri, Shehri, Soqotri, Maltese, Deir Alla.
+#
+# Add to this set if a future series reaches a viewer audience for
+# whom one of those is recognizable (e.g. Maltese for European
+# viewers, Ge'ez for Ethiopian-Orthodox viewers).
+VIEWER_FRIENDLY_LANGUAGES: frozenset[str] = frozenset({
+    "Akkadian",
+    "Hebrew", "Biblical Hebrew", "Modern Hebrew",
+    "Aramaic", "Biblical Aramaic", "Old Aramaic", "Modern Aramaic",
+    "Judaic Aramaic", "Syrian Aramaic",
+    "Syriac",
+    "Phoenician",
+    "Canaanite",
+    "Arabic", "Modern Arabic",
+})
+
+# Minimum cognate count after viewer-friendly filtering before we'd
+# rather show the unfiltered list than starve the script.
+_MIN_FILTERED_DERIVS = 2
+
+
+def _viewer_friendly_derivatives(derivatives: list[dict]) -> tuple[list[dict], bool]:
+    """Apply the VIEWER_FRIENDLY_LANGUAGES filter, falling back to the
+    full list if it would leave fewer than _MIN_FILTERED_DERIVS entries.
+    Returns (filtered_or_full_list, was_filtered_flag)."""
+    friendly = [
+        d for d in derivatives
+        if d.get("language") in VIEWER_FRIENDLY_LANGUAGES
+    ]
+    if len(friendly) >= _MIN_FILTERED_DERIVS:
+        return friendly, len(friendly) < len(derivatives)
+    return derivatives, False
+
+
 # Style guide injected at the top of every prompt — keeps the voice
 # consistent across the three series and rules out the failure modes
 # we know hurt watch time (rambly intros, doctrinal asides, vague
@@ -156,6 +203,29 @@ _ARABIC_BLOCK_RE = re.compile(r"[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]+")
 _MULTI_SPACE_RE = re.compile(r"[ \t]{2,}")
 
 
+# TTS pronunciation overrides. ElevenLabs eleven_multilingual_v2
+# mis-stresses certain English words common in our scripts —
+# "Akkadian" tends to come out with a German-style /a/ rather than
+# the standard English /əˈkeɪdiən/ (uh-KAY-dee-un). Respelling the
+# word the way English phonotactics expect coaxes the right phonemes
+# out without needing SSML markup the model doesn't always honor.
+#
+# Add to this map as the operator catches more mispronunciations.
+# Keys/values are case-paired so capital-cased and lowercase forms
+# both get covered. Substitution runs only over voiceover_* fields,
+# never over the on-screen beat texts (which keep proper spelling).
+_TTS_PRONUNCIATION_MAP: dict[str, str] = {
+    "Akkadian": "Akaydian",
+    "akkadian": "akaydian",
+    "AKKADIAN": "AKAYDIAN",
+    "Akkadians": "Akaydians",
+    "akkadians": "akaydians",
+}
+_TTS_PRONUNCIATION_RE = re.compile(
+    r"\b(" + "|".join(re.escape(k) for k in _TTS_PRONUNCIATION_MAP) + r")\b",
+)
+
+
 def sanitize_for_tts(text: str) -> str:
     """Strip academic transliteration / IPA / Arabic script from a
     voiceover string before handing it to ElevenLabs.
@@ -184,6 +254,11 @@ def sanitize_for_tts(text: str) -> str:
     #    this point all "academic" hyphenated forms have collapsed
     #    via step 3.
     out = _MULTI_SPACE_RE.sub(" ", out).strip()
+    # 5) Apply pronunciation respellings ("Akkadian" → "Akaydian"
+    #    etc.) so ElevenLabs lands on the right English phonemes.
+    out = _TTS_PRONUNCIATION_RE.sub(
+        lambda m: _TTS_PRONUNCIATION_MAP[m.group(1)], out,
+    )
     return out
 
 
@@ -408,8 +483,12 @@ def _build_user_prompt(payload: dict) -> str:
     if vtype == "word_origins":
         word = payload["word"]
         root = payload["root"]
-        derivs = payload["derivatives"]
+        derivs_all = payload["derivatives"]
         other_verses = payload.get("other_verses", [])
+        # Filter cognates to the viewer-friendly allowlist. If the
+        # filter leaves too few entries to build a video around, fall
+        # back to the unfiltered list so we don't starve the LLM.
+        derivs, is_filtered = _viewer_friendly_derivatives(derivs_all)
         # Compact derivative listing — one line each, dates included so
         # the LLM can build a timeline.
         deriv_lines = []
@@ -462,6 +541,8 @@ def _build_user_prompt(payload: dict) -> str:
             "Cognate derivatives (oldest first — pick 2-4 to weave into "
             "tidbit_about_semitic):\n"
             + "\n".join(deriv_lines)
+            + ("\n\n(This list has been pre-filtered to the languages most "
+               "viewers will recognize. Don't ask for others.)" if is_filtered else "")
             + "\n\nOther Quran verses that use this same root — pick TWO for "
             "selected_verse_refs (segments 2 and 3 of the video). Choose verses "
             "whose context contrasts or expands the meaning shown in the source "
@@ -676,7 +757,14 @@ def _validate(script: dict, payload: dict) -> list[str]:
 
     # Type-specific grounding checks.
     if payload["type"] == "word_origins":
-        allowed_pool = [d["language"] for d in payload.get("derivatives", []) if d.get("language")]
+        # Match the prompt's filtering — the LLM was only shown the
+        # viewer-friendly subset, so the validator should only accept
+        # from that same subset. (When the filter falls back to the
+        # full list, the helper returns it unchanged.)
+        derivs_visible, _ = _viewer_friendly_derivatives(
+            payload.get("derivatives", []),
+        )
+        allowed_pool = [d["language"] for d in derivs_visible if d.get("language")]
         declared = script.get("languages_referenced") or []
         if not isinstance(declared, list):
             declared = []
@@ -730,7 +818,10 @@ def _validation_retry_message(errors: list[str], payload: dict) -> str:
         "reciter's audio plays the Arabic separately."
     )
     if payload.get("type") == "word_origins":
-        langs = sorted({d["language"] for d in payload.get("derivatives", []) if d.get("language")})
+        derivs_visible, _ = _viewer_friendly_derivatives(
+            payload.get("derivatives", []),
+        )
+        langs = sorted({d["language"] for d in derivs_visible if d.get("language")})
         msg += (
             "\n\nThe ONLY languages you may name in voiceover_long, voiceover_short, "
             "or languages_referenced are these — copy the spelling exactly, "
