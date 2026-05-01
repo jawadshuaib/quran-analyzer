@@ -127,6 +127,7 @@ const SETTINGS_GROUPS: Array<{
     blurb: 'OAuth credentials for video uploads.',
     sections: [
       { id: 'youtube', label: 'YouTube', render: () => <YoutubeSection /> },
+      { id: 'youtube-playlists', label: 'YouTube Playlists', render: () => <YoutubePlaylistsSection /> },
       { id: 'tiktok', label: 'TikTok', render: () => <TiktokSection /> },
     ],
   },
@@ -831,6 +832,125 @@ function YoutubeSection() {
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  YouTube Playlist auto-add                                         */
+/* ------------------------------------------------------------------ */
+
+function YoutubePlaylistsSection() {
+  // One playlist key per pipeline series. Default applies to the
+  // existing recitation pipelines (English + Arabic). Educational
+  // sub-types each get their own so word-origins shorts land on the
+  // word-origins playlist, etc.
+  const PLAYLIST_KEYS: Array<{
+    key: string;
+    label: string;
+    blurb: string;
+  }> = [
+    {
+      key: 'youtube_playlist_default',
+      label: 'Recitation pipelines (default)',
+      blurb: 'Used by the English & Arabic pipelines when they auto-upload to YouTube.',
+    },
+    {
+      key: 'youtube_playlist_word_origins',
+      label: 'Educational · Word Origins',
+      blurb: 'Auto-adds Word Origins shorts to this playlist after upload.',
+    },
+    {
+      key: 'youtube_playlist_translation_hides',
+      label: 'Educational · What Translators Hide',
+      blurb: '',
+    },
+    {
+      key: 'youtube_playlist_grammar_insights',
+      label: 'Educational · Grammar Insights',
+      blurb: '',
+    },
+  ];
+
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    getPreferences().then((prefs) => {
+      const next: Record<string, string> = {};
+      for (const p of PLAYLIST_KEYS) next[p.key] = prefs[p.key] || '';
+      setVals(next);
+    });
+    // Effect runs once on mount; PLAYLIST_KEYS is module-stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleSave() {
+    setSaving(true);
+    setMsg('');
+    try {
+      const patch: Record<string, string> = {};
+      for (const p of PLAYLIST_KEYS) patch[p.key] = (vals[p.key] || '').trim();
+      await savePreferences(patch);
+      setMsg('Saved');
+      setTimeout(() => setMsg(''), 2000);
+    } catch {
+      setMsg('Failed to save');
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <div>
+      <h2 className="text-lg font-semibold text-stone-800 mb-1">YouTube Playlists</h2>
+      <p className="text-sm text-stone-500 mb-4">
+        Optional. When set, every successful upload from the matching pipeline is
+        added to the playlist via the YouTube Data API. Failure to add to
+        the playlist doesn't fail the upload — the video still publishes.
+      </p>
+
+      <details className="mb-4 max-w-2xl text-xs text-stone-600">
+        <summary className="cursor-pointer text-stone-500 hover:text-stone-700">
+          How to find a playlist ID
+        </summary>
+        <ol className="mt-2 pl-5 list-decimal space-y-1 leading-relaxed">
+          <li>Open the playlist on YouTube (you must be the owner).</li>
+          <li>The URL looks like <code className="px-1 bg-stone-100 rounded">…/playlist?list=PLxxxxxxxxxxxxxxxx</code>.</li>
+          <li>Copy the part after <code className="px-1 bg-stone-100 rounded">list=</code> — that's the ID. It usually starts with <code className="px-1 bg-stone-100 rounded">PL</code> (~24-34 chars).</li>
+          <li>Paste it into the corresponding row below and Save.</li>
+        </ol>
+      </details>
+
+      <div className="max-w-md space-y-4">
+        {PLAYLIST_KEYS.map((p) => (
+          <div key={p.key}>
+            <label className="block text-sm font-medium text-stone-700 mb-1">{p.label}</label>
+            <input
+              type="text"
+              value={vals[p.key] || ''}
+              onChange={(e) => setVals((v) => ({ ...v, [p.key]: e.target.value }))}
+              className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+              placeholder="PLxxxxxxxxxxxxxxxx"
+              spellCheck={false}
+              autoCorrect="off"
+              autoCapitalize="off"
+            />
+            {p.blurb && <p className="mt-1 text-[11px] text-stone-400">{p.blurb}</p>}
+          </div>
+        ))}
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+          {msg && <span className="text-xs text-stone-500">{msg}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 /* ------------------------------------------------------------------ */
 /*  TikTok Configuration                                              */

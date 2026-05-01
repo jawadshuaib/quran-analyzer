@@ -13695,13 +13695,81 @@ def _perform_youtube_upload(
     finally:
         conn.close()
 
+    # Add to a YouTube playlist if the admin has configured a default
+    # one in admin preferences. Failure is logged but doesn't fail the
+    # upload — the video is already public on YouTube; playlist
+    # placement is a nice-to-have we can retry later.
+    playlist_note = None
+    try:
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT value FROM admin_preferences WHERE key = ?",
+                ("youtube_playlist_default",),
+            ).fetchone()
+            playlist_id = (row["value"] if row and row["value"] else "").strip()
+        finally:
+            conn.close()
+        if playlist_id and yt_video_id:
+            ok, msg = _youtube_add_to_playlist(access_token, yt_video_id, playlist_id)
+            playlist_note = (
+                f"Added to playlist {playlist_id}" if ok
+                else f"Playlist add failed: {msg}"
+            )
+    except Exception as e:
+        playlist_note = f"Playlist add error: {e}"
+
     return {
         "ok": True,
         "video_id": video_id,
         "youtube_video_id": yt_video_id,
         "youtube_url": f"https://youtube.com/watch?v={yt_video_id}" if yt_video_id else None,
         "privacy": final_privacy,
+        "playlist_note": playlist_note,
     }
+
+
+def _youtube_add_to_playlist(
+    access_token: str, video_id: str, playlist_id: str,
+) -> tuple[bool, str]:
+    """POST playlistItems.insert. Returns (ok, message).
+    On 200/201 returns (True, ""); on 409 (already in playlist)
+    returns (True, "already in playlist") since the desired end
+    state is satisfied. All other errors return False."""
+    if not video_id or not playlist_id:
+        return False, "missing video_id or playlist_id"
+    try:
+        resp = requests.post(
+            "https://www.googleapis.com/youtube/v3/playlistItems",
+            params={"part": "snippet"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "snippet": {
+                    "playlistId": playlist_id,
+                    "resourceId": {
+                        "kind": "youtube#video",
+                        "videoId": video_id,
+                    },
+                },
+            },
+            timeout=20,
+        )
+    except requests.RequestException as e:
+        return False, f"request failed: {e}"
+    if resp.status_code in (200, 201):
+        return True, ""
+    # 409 conflict happens when the video is already in the playlist —
+    # treat as success since the post-condition holds.
+    if resp.status_code == 409:
+        return True, "already in playlist"
+    try:
+        msg = resp.json().get("error", {}).get("message") or resp.text[:200]
+    except Exception:
+        msg = resp.text[:200]
+    return False, f"HTTP {resp.status_code}: {msg}"
 
 
 @app.route("/api/admin/pipeline-videos/<int:video_id>/upload", methods=["POST"])
