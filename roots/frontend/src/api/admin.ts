@@ -1659,6 +1659,10 @@ export interface EducationalPipeline {
   format: 'short' | 'long';
   show_dim_background: number;  // 0 | 1 — sqlite bool
   music_id: number | null;
+  /** When set, the renderer plays this sound bite during the
+   *  al-nuqta outro splash and extends the outro window so the
+   *  audio finishes before the video does. */
+  outro_audio_filename?: string | null;
   enabled: number;              // 0 | 1
   created_at: string;
   updated_at: string;
@@ -1731,6 +1735,51 @@ export async function deleteEducationalPipeline(id: number): Promise<void> {
     throw new Error(data.error || 'Failed to delete pipeline');
   }
 }
+
+/** Upload (or replace) a pipeline's outro sound bite. Server caps
+ *  duration at 30s and file size at 10 MB; reject reasons surface
+ *  through the thrown Error. */
+export async function uploadEducationalOutroAudio(
+  pipelineId: number,
+  file: File,
+): Promise<{ filename: string; size_bytes: number; duration_seconds: number }> {
+  const fd = new FormData();
+  fd.append('audio', file);
+  const res = await authFetch(
+    `${BASE}/educational/pipelines/${pipelineId}/outro-audio`,
+    { method: 'POST', body: fd },
+  );
+  const text = await res.text();
+  let data: Record<string, unknown>;
+  try { data = JSON.parse(text); }
+  catch {
+    throw new Error(res.status === 413
+      ? 'Upload rejected by reverse proxy (HTTP 413).'
+      : `Upload failed (${res.status})`);
+  }
+  if (!res.ok) throw new Error((data.error as string) || 'Upload failed');
+  return data as unknown as { filename: string; size_bytes: number; duration_seconds: number };
+}
+
+export async function deleteEducationalOutroAudio(pipelineId: number): Promise<void> {
+  const res = await authFetch(
+    `${BASE}/educational/pipelines/${pipelineId}/outro-audio`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as Record<string, unknown>).error as string || 'Delete failed');
+  }
+}
+
+/** Constructs the streamable URL for the outro audio (auth via
+ *  query-string token). Returns empty string when no audio is set. */
+export function educationalOutroAudioUrl(pipelineId: number): string {
+  const token = localStorage.getItem('admin_token') || '';
+  return `${BASE}/educational/pipelines/${pipelineId}/outro-audio`
+    + `?token=${encodeURIComponent(token)}`;
+}
+
 
 export async function runEducationalPipeline(
   id: number,

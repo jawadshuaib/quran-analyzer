@@ -153,6 +153,18 @@ def ensure_table(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    # Idempotent ALTER for runtime-added columns. Each new column
+    # ships a default so existing rows pass through cleanly.
+    for col, coltype in (
+        # Optional sound bite played during the al-nuqta outro card.
+        # When set, the renderer overlays the audio after the narration
+        # ends and extends the outro window so the audio can finish.
+        ("outro_audio_filename", "TEXT"),
+    ):
+        try:
+            conn.execute(f"ALTER TABLE educational_pipelines ADD COLUMN {col} {coltype}")
+        except sqlite3.OperationalError:
+            pass
 
     # Schedule config — one row per pipeline. Mirrors pipeline_schedules
     # (recitation) so the scheduler-loop logic can stay structurally
@@ -507,7 +519,7 @@ def list_pipelines(conn: sqlite3.Connection, vtype: str | None = None) -> list[d
     rows = conn.execute(
         f"""
         SELECT id, name, type, voice_id, format, show_dim_background,
-               music_id, enabled, created_at, updated_at
+               music_id, outro_audio_filename, enabled, created_at, updated_at
         FROM educational_pipelines
         {where}
         ORDER BY created_at DESC

@@ -6,6 +6,9 @@ import {
   updateEducationalPipeline,
   deleteEducationalPipeline,
   deleteEducationalVideo,
+  uploadEducationalOutroAudio,
+  deleteEducationalOutroAudio,
+  educationalOutroAudioUrl,
   runEducationalPipeline,
   getEducationalSchedule,
   upsertEducationalSchedule,
@@ -358,6 +361,14 @@ function PipelineDetailView({
         </div>
       </div>
 
+      {/* Outro audio — optional sound bite played over the al-nuqta
+          splash card at the end of every video this pipeline produces. */}
+      <OutroAudioPanel
+        pipelineId={pipelineId}
+        currentFilename={detail.outro_audio_filename ?? null}
+        onChanged={() => setReloadKey((k) => k + 1)}
+      />
+
       {/* Schedule */}
       <SchedulePanel pipelineId={pipelineId} pipelineEnabled={!!detail.enabled} />
 
@@ -698,6 +709,149 @@ function PipelineEditor({
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Outro audio panel — optional sound bite over the splash card      */
+/* ------------------------------------------------------------------ */
+
+function OutroAudioPanel({
+  pipelineId,
+  currentFilename,
+  onChanged,
+}: {
+  pipelineId: number;
+  currentFilename: string | null;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [info, setInfo] = useState<{ size: number; duration: number } | null>(null);
+
+  // Reset transient info when the underlying file changes (parent
+  // refresh after upload/delete).
+  useEffect(() => { setInfo(null); setErr(''); }, [currentFilename]);
+
+  async function handleUpload(file: File) {
+    setBusy(true);
+    setErr('');
+    try {
+      const r = await uploadEducationalOutroAudio(pipelineId, file);
+      setInfo({ size: r.size_bytes, duration: r.duration_seconds });
+      onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    setBusy(true);
+    setErr('');
+    try {
+      await deleteEducationalOutroAudio(pipelineId);
+      onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between mb-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-400">
+          Outro audio
+        </h3>
+        {currentFilename && (
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700">
+            Set
+          </span>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-stone-200 bg-white p-4 max-w-2xl">
+        <p className="text-sm text-stone-500 mb-3">
+          Upload a short sound bite (e.g. "More details in the description" — typically 4–5s).
+          When set, it plays over the al-nuqta splash at the end of every video. The splash
+          window auto-extends so the audio finishes before the video does.
+        </p>
+
+        {err && (
+          <div className="mb-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+            {err}
+          </div>
+        )}
+
+        {currentFilename ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm text-stone-700 font-mono truncate max-w-[16rem]">
+              {currentFilename}
+            </span>
+            {info && (
+              <span className="text-xs text-stone-500">
+                {info.duration.toFixed(1)}s · {Math.round(info.size / 1024)} KB
+              </span>
+            )}
+            <audio
+              controls
+              preload="metadata"
+              src={educationalOutroAudioUrl(pipelineId)}
+              className="h-9 max-w-xs"
+            />
+            <label
+              className="px-3 py-1.5 rounded-md border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-50 cursor-pointer"
+              title="Replace the current audio"
+            >
+              Replace
+              <input
+                type="file"
+                accept=".mp3,.wav,.m4a,.ogg,.aac,audio/*"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleUpload(f);
+                  e.target.value = '';  // allow re-uploading the same file
+                }}
+                disabled={busy}
+                className="sr-only"
+              />
+            </label>
+            <button
+              onClick={handleDelete}
+              disabled={busy}
+              className="px-3 py-1.5 rounded-md border border-red-300 text-red-700 text-sm font-medium hover:bg-red-50 disabled:opacity-50 cursor-pointer"
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <label
+            className="inline-flex items-center px-3 py-1.5 rounded-md bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 cursor-pointer"
+          >
+            {busy ? 'Uploading…' : 'Upload audio'}
+            <input
+              type="file"
+              accept=".mp3,.wav,.m4a,.ogg,.aac,audio/*"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleUpload(f);
+                e.target.value = '';
+              }}
+              disabled={busy}
+              className="sr-only"
+            />
+          </label>
+        )}
+
+        <p className="mt-3 text-[11px] text-stone-400">
+          Accepts mp3, wav, m4a, ogg, aac. Max 10 MB or 30 seconds.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 
 /* ------------------------------------------------------------------ */
 /*  Schedule panel — auto-fire times, daily cap, grace, audit log     */

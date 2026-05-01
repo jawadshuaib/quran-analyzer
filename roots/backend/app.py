@@ -8607,6 +8607,145 @@ def admin_educational_schedule_runs(pipeline_id: int):
         conn.close()
 
 
+_OUTRO_AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".ogg", ".aac"}
+_OUTRO_AUDIO_MAX_BYTES = 10 * 1024 * 1024  # 10 MB — generous for ~5s clips
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/outro-audio", methods=["POST"])
+@admin_required
+def admin_educational_outro_audio_upload(pipeline_id: int):
+    """Upload a sound bite to play during the al-nuqta outro splash.
+    Replaces any existing audio for this pipeline. Stored at
+    data/educational_outro_audio/<filename>; renderer ffprobes it
+    and extends the outro window so the splash card holds long
+    enough for the audio to finish."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    import educational_render as _r
+
+    f = request.files.get("audio")
+    if not f or not f.filename:
+        return jsonify({"error": "No audio file uploaded (form field 'audio')"}), 400
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in _OUTRO_AUDIO_EXTS:
+        return jsonify({
+            "error": f"Unsupported format {ext or '(none)'}. "
+                     f"Use {', '.join(sorted(_OUTRO_AUDIO_EXTS))}."
+        }), 400
+    # Cheap size check before saving — Flask's MAX_CONTENT_LENGTH is
+    # the upper bound but we want a tighter cap for outro bites.
+    f.stream.seek(0, os.SEEK_END)
+    size = f.stream.tell()
+    f.stream.seek(0)
+    if size > _OUTRO_AUDIO_MAX_BYTES:
+        return jsonify({
+            "error": f"File too large ({size//1024} KB). "
+                     f"Max {_OUTRO_AUDIO_MAX_BYTES//1024//1024} MB."
+        }), 400
+
+    conn = get_db()
+    try:
+        pipe = _edu.get_pipeline(conn, pipeline_id)
+        if not pipe:
+            return jsonify({"error": "pipeline not found"}), 404
+
+        # Stable filename per pipeline. Replace any existing file (the
+        # extension may differ across uploads, so the old file is
+        # explicitly removed first to avoid stale stragglers).
+        old = pipe.get("outro_audio_filename")
+        if old:
+            old_path = os.path.join(_r.OUTRO_AUDIO_DIR, old)
+            if os.path.isfile(old_path):
+                try: os.remove(old_path)
+                except Exception: pass
+
+        new_filename = f"pipeline_{pipeline_id}{ext}"
+        target = os.path.join(_r.OUTRO_AUDIO_DIR, new_filename)
+        f.save(target)
+
+        # Sanity-check: probe the saved file. If ffprobe can't read
+        # it, reject the upload before storing the column.
+        try:
+            duration = _r._probe_duration(target)
+        except Exception as e:
+            try: os.remove(target)
+            except Exception: pass
+            return jsonify({"error": f"Could not read audio duration: {e}"}), 400
+        if duration > 30.0:
+            try: os.remove(target)
+            except Exception: pass
+            return jsonify({
+                "error": f"Audio is {duration:.1f}s — outro bites should be ≤30s. "
+                         "Trim before uploading."
+            }), 400
+
+        conn.execute(
+            "UPDATE educational_pipelines SET outro_audio_filename = ?, "
+            "       updated_at = datetime('now') WHERE id = ?",
+            (new_filename, pipeline_id),
+        )
+        conn.commit()
+        return jsonify({
+            "filename": new_filename,
+            "size_bytes": size,
+            "duration_seconds": duration,
+        }), 201
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/outro-audio", methods=["GET"])
+@admin_required
+def admin_educational_outro_audio_get(pipeline_id: int):
+    """Stream the outro audio for preview. Mimetype is set generically
+    since the file extension dictates the actual codec."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    import educational_render as _r
+    conn = get_db()
+    try:
+        pipe = _edu.get_pipeline(conn, pipeline_id)
+        if not pipe:
+            return jsonify({"error": "pipeline not found"}), 404
+        fname = pipe.get("outro_audio_filename")
+        if not fname:
+            return jsonify({"error": "no outro audio set"}), 404
+        return send_from_directory(_r.OUTRO_AUDIO_DIR, fname)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/pipelines/<int:pipeline_id>/outro-audio", methods=["DELETE"])
+@admin_required
+def admin_educational_outro_audio_delete(pipeline_id: int):
+    """Remove the outro audio for a pipeline. Future renders fall back
+    to the silent 5-second outro."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    import educational_render as _r
+    conn = get_db()
+    try:
+        pipe = _edu.get_pipeline(conn, pipeline_id)
+        if not pipe:
+            return jsonify({"error": "pipeline not found"}), 404
+        fname = pipe.get("outro_audio_filename")
+        if fname:
+            path = os.path.join(_r.OUTRO_AUDIO_DIR, fname)
+            if os.path.isfile(path):
+                try: os.remove(path)
+                except Exception as e:
+                    print(f"[educational outro] could not remove {path}: {e}")
+        conn.execute(
+            "UPDATE educational_pipelines SET outro_audio_filename = NULL, "
+            "       updated_at = datetime('now') WHERE id = ?",
+            (pipeline_id,),
+        )
+        conn.commit()
+        return jsonify({"ok": True})
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/educational/pipelines/<int:pipeline_id>/run", methods=["POST"])
 @admin_required
 def admin_educational_pipeline_run(pipeline_id: int):

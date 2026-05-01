@@ -53,6 +53,13 @@ BEAT_FADE_MS = 350
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "data", "educational_videos")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Per-pipeline outro sound bites (e.g. "More details in the
+# description"). Each pipeline can have one; we mix it over the
+# al-nuqta splash at render time. File extension is preserved from
+# the original upload so ffmpeg picks the right decoder.
+OUTRO_AUDIO_DIR = os.path.join(os.path.dirname(__file__), "data", "educational_outro_audio")
+os.makedirs(OUTRO_AUDIO_DIR, exist_ok=True)
+
 # TTS cache for educational scripts (separate from admin_tts_cache
 # which keys on chapter:verse for the recitation pipeline).
 TTS_DIR = os.path.join(os.path.dirname(__file__), "data", "tts_cache", "educational")
@@ -343,6 +350,7 @@ def _build_ass_word_origins(
     audio_duration: float,
     voiceover_text: str,
     beat_word_counts: list[int],
+    outro_duration: float = OUTRO_DUR,
 ) -> str:
     """Word Origins template: three segments, each shows a Quran verse
     on screen with the target word highlighted in gold. Narration
@@ -416,9 +424,11 @@ def _build_ass_word_origins(
             )
 
     # Outro card — al-nuqta branding. Identical to the translation_hides
-    # template so all series share the same close.
+    # template so all series share the same close. outro_duration is
+    # caller-supplied so the splash holds long enough to cover any
+    # configured outro audio bite.
     narration_end = audio_duration
-    outro_end = audio_duration + OUTRO_DUR
+    outro_end = audio_duration + outro_duration
     cx = VIDEO_WIDTH // 2
     site_y = VIDEO_HEIGHT // 2 - 60
     tag_y = VIDEO_HEIGHT // 2 + 60
@@ -472,6 +482,7 @@ def _build_ass_translation_hides(
     beats: list[Beat],
     timings: list[tuple[float, float]],
     audio_duration: float,
+    outro_duration: float = OUTRO_DUR,
 ) -> str:
     """ASS subtitle file for the Translation Hides template.
 
@@ -484,7 +495,7 @@ def _build_ass_translation_hides(
     lines: list[str] = []
 
     narration_end = audio_duration
-    outro_end = audio_duration + OUTRO_DUR
+    outro_end = audio_duration + outro_duration
 
     # Persistent reference badge (visible during narration only)
     ref = f"Quran {chapter}:{verse}"
@@ -533,14 +544,21 @@ def _compose_mp4(
     output_path: str,
     background_video_path: str | None = None,
     dim_during_narration: bool = True,
+    outro_duration: float = OUTRO_DUR,
+    outro_audio_path: str | None = None,
 ) -> None:
     """ffmpeg compose. If `background_video_path` is set, the supplied
     mp4 is looped, scaled, cropped to 1080x1920, and dimmed by ~40%
     so white narration text on top stays legible. Otherwise we fall
     back to a warm-charcoal solid background. ASS subtitles overlay.
-    Audio is padded with OUTRO_DUR seconds of silence so the al-nuqta
-    outro card has time to play."""
-    total_duration = audio_duration + OUTRO_DUR
+
+    Audio: the narration is padded with silence to (audio_duration +
+    outro_duration). If `outro_audio_path` is provided (a sound bite
+    for the outro), it's delayed by `audio_duration` and mixed into
+    that silence so the splash card has audio over it. Caller is
+    responsible for choosing `outro_duration` long enough that the
+    sound bite has time to finish."""
+    total_duration = audio_duration + outro_duration
     # Warm-charcoal fallback — matches al-nuqta's dark accent.
     bg_color = "0x2D2620"
 
@@ -552,6 +570,24 @@ def _compose_mp4(
         f"drawbox=x=0:y=0:w=iw:h=ih:color=black@0.75:t=fill"
         f":enable='gte(t\\,{audio_duration:.3f})'"
     )
+
+    # Audio filter — common to both bg-video and solid-bg paths. When
+    # outro_audio_path is set, mix the outro bite into the padded
+    # silence at offset = audio_duration. amix normalize=0 keeps the
+    # bite at full volume during what would otherwise be silent
+    # outro time (narration is already silent there post-pad, so the
+    # mix output equals the bite's volume).
+    if outro_audio_path and os.path.isfile(outro_audio_path):
+        delay_ms = int(audio_duration * 1000)
+        audio_filter = (
+            f"[1:a]apad=whole_dur={total_duration}[narr];"
+            f"[2:a]adelay={delay_ms}|{delay_ms}[outro_aud];"
+            f"[narr][outro_aud]amix=inputs=2:duration=longest:normalize=0[a]"
+        )
+        extra_inputs = ["-i", outro_audio_path]
+    else:
+        audio_filter = f"[1:a]apad=whole_dur={total_duration}[a]"
+        extra_inputs = []
 
     if background_video_path and os.path.isfile(background_video_path):
         # Loop the bg video for the entire run, scale to fill 1080x1920
@@ -572,11 +608,12 @@ def _compose_mp4(
             "ffmpeg", "-y",
             "-stream_loop", "-1", "-i", background_video_path,
             "-i", audio_path,
+            *extra_inputs,
             "-filter_complex",
             (
                 f"[0:v]{vf}[bg];"
                 f"[bg]ass='{ass_path}'[v];"
-                f"[1:a]apad=whole_dur={total_duration}[a]"
+                f"{audio_filter}"
             ),
             "-map", "[v]", "-map", "[a]",
             "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p",
@@ -594,11 +631,12 @@ def _compose_mp4(
             "-f", "lavfi",
             "-i", f"color=c={bg_color}:s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:r={VIDEO_FPS}:d={total_duration}",
             "-i", audio_path,
+            *extra_inputs,
             "-filter_complex",
             (
                 f"[0:v]{outro_dim}[bg];"
                 f"[bg]ass='{ass_path}'[v];"
-                f"[1:a]apad=whole_dur={total_duration}[a]"
+                f"{audio_filter}"
             ),
             "-map", "[v]", "-map", "[a]",
             "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-pix_fmt", "yuv420p",
@@ -619,6 +657,7 @@ def _compose_mp4(
 
 def _build_word_origins_ass_for_row(
     conn, rd: dict, script: dict, audio_duration: float, voiceover: str,
+    *, outro_duration: float = OUTRO_DUR,
 ) -> str:
     """Glue between the row/script and the word_origins ASS builder.
     Looks up the source verse + the two selected_verse_refs in the
@@ -732,6 +771,7 @@ def _build_word_origins_ass_for_row(
         audio_duration=audio_duration,
         voiceover_text=voiceover,
         beat_word_counts=beat_word_counts,
+        outro_duration=outro_duration,
     )
 
 
@@ -853,10 +893,41 @@ def render_video(
     # 3. beat timings
     timings = _build_beat_timings(beats, audio_duration)
 
+    # Per-pipeline overrides (background-dim flag, optional outro
+    # sound bite). Manual rows (no pipeline_id) default sensibly.
+    dim_during_narration = True
+    outro_audio_path: str | None = None
+    outro_audio_duration = 0.0
+    if rd.get("pipeline_id"):
+        prow = conn.execute(
+            "SELECT show_dim_background, outro_audio_filename "
+            "FROM educational_pipelines WHERE id = ?",
+            (rd["pipeline_id"],),
+        ).fetchone()
+        if prow is not None:
+            dim_during_narration = bool(prow["show_dim_background"])
+            fname = prow["outro_audio_filename"] if "outro_audio_filename" in prow.keys() else None
+            if fname:
+                candidate = os.path.join(OUTRO_AUDIO_DIR, fname)
+                if os.path.isfile(candidate):
+                    outro_audio_path = candidate
+                    try:
+                        outro_audio_duration = _probe_duration(candidate)
+                    except Exception as e:
+                        # Don't block render — fall back to silent outro.
+                        print(f"[educational render] outro audio probe failed: {e}")
+                        outro_audio_path = None
+
+    # Outro window must hold long enough for the audio to finish, plus
+    # a small tail so the splash card doesn't cut at the same instant
+    # the audio does. Default OUTRO_DUR (5s) is the floor.
+    outro_duration = max(OUTRO_DUR, outro_audio_duration + 0.5) if outro_audio_path else OUTRO_DUR
+
     # 4. ASS subtitle file — per-type template selection
     if rd["type"] == "word_origins":
         ass_text = _build_word_origins_ass_for_row(
             conn, rd, script, audio_duration, voiceover,
+            outro_duration=outro_duration,
         )
     else:
         # Translation Hides + Grammar Insights both use the beat-overlay
@@ -868,6 +939,7 @@ def render_video(
             beats=beats,
             timings=timings,
             audio_duration=audio_duration,
+            outro_duration=outro_duration,
         )
 
     # 5. Compose
@@ -877,17 +949,6 @@ def render_video(
         f.write(ass_text)
         ass_path = f.name
     bg_path = _pick_background(conn, rd["type"])
-    # If this row was produced by a configured pipeline, honor its
-    # show_dim_background flag. Manual rows (no pipeline_id) default
-    # to dim=True since the legibility risk is real.
-    dim_during_narration = True
-    if rd.get("pipeline_id"):
-        prow = conn.execute(
-            "SELECT show_dim_background FROM educational_pipelines WHERE id = ?",
-            (rd["pipeline_id"],),
-        ).fetchone()
-        if prow is not None:
-            dim_during_narration = bool(prow["show_dim_background"])
     try:
         _compose_mp4(
             audio_path=audio_path,
@@ -896,6 +957,8 @@ def render_video(
             output_path=out_path,
             background_video_path=bg_path,
             dim_during_narration=dim_during_narration,
+            outro_duration=outro_duration,
+            outro_audio_path=outro_audio_path,
         )
     finally:
         if os.path.isfile(ass_path):
