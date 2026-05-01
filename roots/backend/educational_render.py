@@ -839,14 +839,11 @@ def render_video(
 
     # 2. duration
     audio_duration = _probe_duration(audio_path)
-    # Hard sanity check — Shorts have a strict ≤60s budget. We
-    # planned for ≤45s of narration + ≤10s outro; abort if we're
-    # already over.
-    if format == "short" and audio_duration + OUTRO_DUR > 60.0:
-        raise RenderError(
-            f"short voiceover would render at {audio_duration + OUTRO_DUR:.1f}s "
-            f"(>60s Shorts cap). Trim voiceover_short."
-        )
+    # No hard length cap. The historical reason for clamping shorts at
+    # 60s was YouTube's someone-else-audio policy on Shorts longer
+    # than a minute — but educational videos contain only ElevenLabs
+    # narration (our own AI voice), no reciter audio, so the policy
+    # doesn't apply. A short that runs 65-90s is fine.
 
     # 3. beat timings
     timings = _build_beat_timings(beats, audio_duration)

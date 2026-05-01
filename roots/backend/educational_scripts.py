@@ -134,7 +134,7 @@ Output schema (all keys required, all strings unless noted):
   "insight":       "(non-Word Origins) 2-4 sentences delivering the payload. Empty for Word Origins.",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
   "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. DO NOT include Arabic recitation — the reciter's audio plays separately. For Word Origins, structure the narration as: (1) hook + tidbit_about_root narrated over the source verse on screen, (2) tidbit_about_quran_usage narrated over selected_verse_refs[0], (3) tidbit_about_semitic narrated over selected_verse_refs[1]. The video shows the verses; the narration is the connective tissue.",
-  "voiceover_short": "Concatenated narration ≤120 words, suitable for a sub-55-second Short. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
+  "voiceover_short": "Concatenated narration up to 200 words (target 140-180), suitable for a punchy short-form video that may run a bit over a minute. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
   "languages_referenced": ["list of language names actually mentioned in voiceover_long, copied exactly from the payload"],
   "notes": "any caveats; empty string if none"
 }
@@ -752,8 +752,12 @@ def _validate(script: dict, payload: dict) -> list[str]:
     short_wc = _word_count(script.get("voiceover_short", ""))
     if long_wc < 180 or long_wc > 380:
         errors.append(f"voiceover_long word count {long_wc} outside 180-380")
-    if short_wc > 130:
-        errors.append(f"voiceover_short word count {short_wc} exceeds 130 (Shorts cap)")
+    # Educational shorts have no copyright audio (only our ElevenLabs
+    # narration), so the YouTube ≤60s Shorts rule doesn't bind us.
+    # Cap is now ~90s of narration room (200 words at 150wpm) — still
+    # tight enough that "short" stays punchy vs the 250-340w long form.
+    if short_wc > 200:
+        errors.append(f"voiceover_short word count {short_wc} exceeds 200")
 
     # Type-specific grounding checks.
     if payload["type"] == "word_origins":
@@ -795,7 +799,7 @@ def _validation_retry_message(errors: list[str], payload: dict) -> str:
         "\n  - voiceover_long: must be 220-340 words (aim for ~280). "
         "If you're under, expand by adding context to the insight or close — "
         "more concrete examples from the structured payload."
-        "\n  - voiceover_short: ≤120 words. Keep it tight."
+        "\n  - voiceover_short: ≤200 words. Keep it punchy."
     )
     # Voiceover TTS rules — repeat them with concrete examples so the
     # second attempt actually fixes them. The first-attempt failure

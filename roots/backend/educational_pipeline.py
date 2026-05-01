@@ -118,6 +118,12 @@ def ensure_table(conn: sqlite3.Connection) -> None:
     for col, coltype in (
         ("pipeline_id", "INTEGER"),
         ("triggered_by", "TEXT DEFAULT 'manual'"),
+        # YouTube metadata generated from Ollama after render. Same
+        # column shape as admin_pipeline_videos for consistency, so
+        # the same upload helper can target both tables later.
+        ("youtube_title", "TEXT"),
+        ("youtube_description", "TEXT"),
+        ("youtube_tags", "TEXT"),  # JSON array
     ):
         try:
             conn.execute(f"ALTER TABLE educational_videos ADD COLUMN {col} {coltype}")
@@ -406,6 +412,7 @@ def list_videos(
         SELECT id, type, chapter, verse, anchor_word_pos, anchor_insight_id,
                status, format, filename, file_size,
                youtube_video_id, tiktok_video_id,
+               youtube_title, youtube_description, youtube_tags,
                pipeline_id, triggered_by,
                score, error_message, created_at, completed_at
         FROM educational_videos

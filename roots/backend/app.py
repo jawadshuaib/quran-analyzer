@@ -8441,6 +8441,31 @@ def admin_educational_pipeline_run(pipeline_id: int):
                     (f"render: {e}"[:1000], video_id),
                 )
                 c.commit()
+                return  # Skip metadata if render failed.
+
+            # Step 3: YouTube metadata via Ollama. Failure here doesn't
+            # fail the run — the video is rendered and watchable; we'd
+            # just need to fill in title/desc/tags by hand.
+            try:
+                row = c.execute(
+                    "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
+                ).fetchone()
+                rd = dict(row)
+                payload = json.loads(rd.get("payload_json") or "{}")
+                script_obj = json.loads(rd.get("script_json") or "{}")
+                yt_title, yt_desc, yt_tags = _generate_educational_metadata(
+                    c, rd, payload, script_obj,
+                )
+                c.execute(
+                    "UPDATE educational_videos SET "
+                    "  youtube_title = ?, youtube_description = ?, youtube_tags = ? "
+                    "WHERE id = ?",
+                    (yt_title or None, yt_desc or None,
+                     json.dumps(yt_tags) if yt_tags else None, video_id),
+                )
+                c.commit()
+            except Exception as e:
+                print(f"[educational metadata] failed for video {video_id}: {e}")
         finally:
             c.close()
 
@@ -11790,6 +11815,288 @@ def _generate_youtube_metadata(verse_data):
             break
 
     return (title, description, tags)
+
+
+# --------------------------------------------------------------------------
+#  Educational pipeline: YouTube metadata
+# --------------------------------------------------------------------------
+
+def _fetch_word_label(conn, chapter: int, verse: int, word_pos: int) -> str:
+    """Best label for a word in the description's link list. Tries the
+    per-word English gloss first (preferred_translation → meaning_short
+    → word_glosses.translation_en); falls back to the surface Arabic
+    form. Used to label entries like
+    "<label>: https://al-nuqta.com/word/X:Y/Z"."""
+    try:
+        wm = conn.execute(
+            "SELECT COALESCE(preferred_translation, meaning_short) AS t "
+            "FROM ai_word_meanings WHERE chapter=? AND verse=? AND word_pos=? LIMIT 1",
+            (chapter, verse, word_pos),
+        ).fetchone()
+        if wm and wm["t"]:
+            return wm["t"].strip()
+    except Exception:
+        pass
+    try:
+        wg = conn.execute(
+            "SELECT translation_en FROM word_glosses "
+            "WHERE chapter=? AND verse=? AND word_pos=? LIMIT 1",
+            (chapter, verse, word_pos),
+        ).fetchone()
+        if wg and wg["translation_en"]:
+            return wg["translation_en"].strip()
+    except Exception:
+        pass
+    # Fall back to the Arabic word at that position
+    try:
+        v = conn.execute(
+            "SELECT text_uthmani FROM verses WHERE chapter=? AND verse=?",
+            (chapter, verse),
+        ).fetchone()
+        if v and v["text_uthmani"]:
+            words = v["text_uthmani"].split()
+            if 1 <= word_pos <= len(words):
+                return words[word_pos - 1]
+    except Exception:
+        pass
+    return f"{chapter}:{verse}"
+
+
+def _fetch_word_context_blurb(conn, chapter: int, verse: int, word_pos: int) -> str:
+    """Pull the per-word "context-derived meaning" — what the word
+    means in *this* verse's context, plus how it ranges across the
+    Quran. Used as the body paragraph in the description's "various
+    contexts" section.
+
+    Order of preference:
+      1. ai_word_meanings.cross_ref_notes (cross-Quran usage commentary)
+      2. ai_word_meanings.meaning_detailed (longer per-word semantics)
+    Both can be multi-paragraph; we trim to ~500 chars for the
+    description.
+    """
+    try:
+        row = conn.execute(
+            "SELECT cross_ref_notes, meaning_detailed FROM ai_word_meanings "
+            "WHERE chapter=? AND verse=? AND word_pos=? LIMIT 1",
+            (chapter, verse, word_pos),
+        ).fetchone()
+    except Exception:
+        return ""
+    if not row:
+        return ""
+    text = (row["cross_ref_notes"] or row["meaning_detailed"] or "").strip()
+    if not text:
+        return ""
+    # Trim to a reasonable description chunk; YouTube descriptions
+    # have a 5000-char limit total, but readability wants tight prose.
+    if len(text) > 600:
+        # Cut at the nearest paragraph or sentence boundary.
+        snip = text[:600]
+        boundary = max(snip.rfind("\n\n"), snip.rfind(". "))
+        if boundary > 200:
+            text = snip[:boundary + 1]
+        else:
+            text = snip + "…"
+    return text
+
+
+def _ollama_complete(prompt: str, system_prompt: str = "") -> dict:
+    """Single Ollama call returning parsed JSON. Reuses the same
+    preferences (base_url, model, api_key) the recitation pipeline
+    uses. Raises RuntimeError on transport / parse failure."""
+    conn = get_db()
+    try:
+        prefs: dict[str, str] = {}
+        for r in conn.execute(
+            "SELECT key, value FROM admin_preferences WHERE key LIKE 'ollama_%'"
+        ).fetchall():
+            prefs[r["key"]] = r["value"]
+    finally:
+        conn.close()
+    base_url = (prefs.get("ollama_base_url") or "http://localhost:11434").rstrip("/")
+    model = (prefs.get("ollama_metadata_model") or prefs.get("ollama_model") or "").strip()
+    api_key = prefs.get("ollama_api_key") or ""
+    if not model:
+        raise RuntimeError(
+            "Ollama model not configured (Admin → Settings → Ollama)"
+        )
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+    resp = requests.post(
+        f"{base_url}/api/chat",
+        headers=headers,
+        json={
+            "model": model,
+            "messages": messages,
+            "stream": False,
+            "options": {"temperature": 0.7},
+            "think": True,
+        },
+        timeout=300,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"Ollama API error: {resp.status_code}")
+    content = resp.json().get("message", {}).get("content", "")
+    content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+    content = re.sub(r"^```(?:json)?\s*\n?", "", content.strip())
+    content = re.sub(r"\n?```\s*$", "", content.strip())
+    m = re.search(r"\{.*\}", content, re.DOTALL)
+    if not m:
+        raise RuntimeError("Ollama response did not contain JSON")
+    try:
+        return json.loads(m.group())
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid JSON from Ollama: {e}")
+
+
+def _generate_educational_metadata(conn, row: dict, payload: dict, script: dict) -> tuple[str, str, list[str]]:
+    """Build YouTube title/description/tags for an educational video.
+
+    - Title + tags: Ollama call (catchy title from the script + word
+      context). The title is constrained to ≤80 chars, no emojis.
+    - Description: structured, programmatically built. Carries the
+      hook, a link to the root, a "various contexts" paragraph drawn
+      from the word's cross_ref_notes / meaning_detailed, and a list
+      of word-page links for the source verse + the LLM-selected
+      verses.
+    """
+    word = payload.get("word") or {}
+    root = payload.get("root") or {}
+    root_bw = root.get("buckwalter") or ""
+    root_ar = root.get("arabic") or ""
+    chapter = row["chapter"]
+    verse = row["verse"]
+    word_pos = row.get("anchor_word_pos") or 1
+
+    # ----------------------------------------------------------------
+    # Step 1 — Ollama for catchy title + tags
+    # ----------------------------------------------------------------
+    sys_p = (
+        "You name short educational videos about a single Arabic word "
+        "from the Quran. Your titles are catchy, specific, and avoid "
+        "religious-AI cliches like 'powerful', 'profound', 'beautiful'."
+    )
+    user_p = (
+        "## Word\n"
+        f"Arabic: {word.get('form_arabic','')}\n"
+        f"Buckwalter: {word.get('form_buckwalter','')}\n"
+        f"Lemma: {word.get('lemma_arabic','')}\n"
+        f"Root: {root_ar} ({root_bw})\n\n"
+        "## Script\n"
+        f"Hook: {script.get('hook','')}\n"
+        f"Root tidbit: {script.get('tidbit_about_root','')}\n"
+        f"Quran-usage tidbit: {script.get('tidbit_about_quran_usage','')}\n"
+        f"Semitic tidbit: {script.get('tidbit_about_semitic','')}\n\n"
+        "## Output\n"
+        'Return ONLY JSON: {"title": "...", "tags": ["tag1","tag2",...]}\n\n'
+        "Title rules:\n"
+        '- Pattern: "The Word [English transliteration of the lemma] in the Quran" '
+        'OR a catchier variation (e.g. "What [Word] really means", '
+        '"[Word]: older than the pyramids", "Why the Quran says [Word]").\n'
+        "- Under 80 characters. No emojis. No quotation marks. No colons in "
+        "  the title unless they're part of the framing.\n"
+        "- Use a clean English transliteration of the lemma — 'Rahman', "
+        "  'Rahim', 'Salam', 'Yawm', 'Ayn'. NOT IPA marks or hyphens.\n\n"
+        "Tags rules:\n"
+        "- 8-12 short tags. Lowercase except proper nouns.\n"
+        "- Mix: generic ('quran', 'islam', 'quran arabic'), word-specific "
+        "  ('rahman', 'mercy in the quran'), and topical ('semitic languages', "
+        "  'cognates', 'arabic etymology').\n"
+        "- Always include 'Quran' and 'Quran Shorts'.\n"
+    )
+    try:
+        meta = _ollama_complete(user_p, system_prompt=sys_p)
+    except Exception as e:
+        # Fall back gracefully so render isn't held hostage to Ollama.
+        print(f"[educational metadata] Ollama failed: {e}")
+        meta = {}
+
+    title = (meta.get("title") or "").strip()[:100]
+    if not title:
+        # Sensible fallback constructed from the lemma if Ollama is down.
+        lemma_ar = (word.get("lemma_arabic") or word.get("form_arabic") or "").strip()
+        title = (
+            f"The Quran on {lemma_ar}"[:100]
+            if lemma_ar else _DEFAULT_YT_TITLE
+        )
+
+    raw_tags = meta.get("tags") if isinstance(meta.get("tags"), list) else []
+    tags: list[str] = []
+    for t in raw_tags:
+        if not isinstance(t, str):
+            continue
+        cleaned = t.strip().lstrip("#")[:100]
+        if cleaned and cleaned not in tags:
+            tags.append(cleaned)
+        if len(tags) >= 12:
+            break
+    if not tags:
+        tags = list(_DEFAULT_YT_TAGS)
+
+    # ----------------------------------------------------------------
+    # Step 2 — Programmatic description
+    # ----------------------------------------------------------------
+    parts: list[str] = []
+
+    # Lead with the script's hook (it's already attention-grabbing).
+    hook = (script.get("hook") or "").strip()
+    if hook:
+        parts.append(hook)
+        parts.append("")
+
+    # Root link
+    if root_bw:
+        parts.append(f"See more detail on this root: https://al-nuqta.com/root/{root_bw}")
+        parts.append("")
+
+    # "Various contexts" paragraph + word links
+    parts.append("See how the Quran uses this word in various contexts:")
+    blurb = _fetch_word_context_blurb(conn, chapter, verse, word_pos)
+    if blurb:
+        parts.append("")
+        parts.append(blurb)
+    parts.append("")
+
+    # Word links: source verse + the two LLM-selected refs
+    seen: set[tuple[int, int, int]] = set()
+
+    def _append_word_link(c: int, v: int, p: int) -> None:
+        if (c, v, p) in seen:
+            return
+        seen.add((c, v, p))
+        label = _fetch_word_label(conn, c, v, p)
+        parts.append(f"{label}: https://al-nuqta.com/word/{c}:{v}/{p}")
+
+    _append_word_link(chapter, verse, word_pos)
+    # Selected refs from the script — pull word_pos from the payload's
+    # other_verses pool (which is what enrich_payload populates).
+    other_pool: dict[tuple[int, int], int] = {}
+    for ov in (payload.get("other_verses") or []):
+        try:
+            other_pool[(int(ov["chapter"]), int(ov["verse"]))] = int(ov.get("word_pos") or 1)
+        except (KeyError, TypeError, ValueError):
+            continue
+    for ref in (script.get("selected_verse_refs") or [])[:2]:
+        try:
+            c = int(ref.get("chapter")); v = int(ref.get("verse"))
+        except (TypeError, ValueError):
+            continue
+        wp = other_pool.get((c, v))
+        if wp:
+            _append_word_link(c, v, wp)
+
+    parts.append("")
+    parts.append("Brought to you by al-nuqta.com — A Root Based Translation of the Quran.")
+    parts.append("")
+    parts.append("#Quran #QuranTranslation #IslamicVideos")
+
+    description = "\n".join(parts)[:5000]
+    return title, description, tags
 
 
 def _pipeline_generate_task(video_id):

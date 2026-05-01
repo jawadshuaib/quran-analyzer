@@ -1475,6 +1475,13 @@ export interface EducationalVideo {
   file_size: number | null;
   youtube_video_id: string | null;
   tiktok_video_id: string | null;
+  /** YouTube metadata generated post-render via Ollama. */
+  youtube_title?: string | null;
+  youtube_description?: string | null;
+  /** JSON-encoded array of tag strings. */
+  youtube_tags?: string | null;
+  pipeline_id?: number | null;
+  triggered_by?: string | null;
   score: number | null;
   error_message: string | null;
   created_at: string;

@@ -371,29 +371,83 @@ function PipelineDetailView({
 
 function PipelineVideoRow({ video: v }: { video: EducationalVideo }) {
   const tone = statusTone(v.status);
+  const [expanded, setExpanded] = useState(false);
+  const hasMeta = !!(v.youtube_title || v.youtube_description);
+  let parsedTags: string[] = [];
+  try {
+    parsedTags = v.youtube_tags ? (JSON.parse(v.youtube_tags) as string[]) : [];
+  } catch {
+    parsedTags = [];
+  }
   return (
-    <div className="border-b border-stone-100 last:border-b-0 px-3 py-2 flex items-center gap-3 text-sm">
-      <span className="font-mono text-stone-700 w-20 flex-shrink-0">
-        {v.chapter}:{v.verse}
-      </span>
-      <span className="text-stone-500 font-mono text-xs w-20 flex-shrink-0 truncate">
-        {v.format ?? '—'}
-      </span>
-      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${tone}`}>
-        {v.status}
-      </span>
-      <span className="flex-1 text-stone-400 text-xs truncate">
-        {v.error_message || formatDate(v.created_at)}
-      </span>
-      {v.filename && v.status === 'rendered' && (
-        <a
-          href={`/api/admin/educational/${v.id}/video?token=${encodeURIComponent(localStorage.getItem('admin_token') || '')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-2.5 py-1 rounded-md border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 cursor-pointer"
-        >
-          Open mp4
-        </a>
+    <div className="border-b border-stone-100 last:border-b-0">
+      <div className="px-3 py-2 flex items-center gap-3 text-sm">
+        <span className="font-mono text-stone-700 w-20 flex-shrink-0">
+          {v.chapter}:{v.verse}
+        </span>
+        <span className="text-stone-500 font-mono text-xs w-20 flex-shrink-0 truncate">
+          {v.format ?? '—'}
+        </span>
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${tone}`}>
+          {v.status}
+        </span>
+        <span className="flex-1 text-stone-400 text-xs truncate">
+          {v.error_message || formatDate(v.created_at)}
+        </span>
+        {hasMeta && (
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="px-2 py-0.5 rounded text-xs text-stone-500 hover:text-stone-800 cursor-pointer"
+          >
+            {expanded ? 'Hide YT' : 'Show YT'}
+          </button>
+        )}
+        {v.filename && (v.status === 'rendered' || v.status === 'uploaded') && (
+          <a
+            href={`/api/admin/educational/${v.id}/video?token=${encodeURIComponent(localStorage.getItem('admin_token') || '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 rounded-md border border-emerald-300 text-emerald-700 text-xs font-medium hover:bg-emerald-50 cursor-pointer"
+          >
+            Open mp4
+          </a>
+        )}
+      </div>
+      {expanded && hasMeta && (
+        <div className="px-3 pb-3 pt-1 bg-stone-50/50 border-t border-stone-100 space-y-2">
+          {v.youtube_title && (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-0.5">
+                Title
+              </div>
+              <div className="text-sm text-stone-700">{v.youtube_title}</div>
+            </div>
+          )}
+          {v.youtube_description && (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-0.5">
+                Description
+              </div>
+              <pre className="whitespace-pre-wrap font-sans text-xs text-stone-700 leading-relaxed bg-white border border-stone-200 rounded-md p-2 max-h-64 overflow-auto">
+                {v.youtube_description}
+              </pre>
+            </div>
+          )}
+          {parsedTags.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-0.5">
+                Tags
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {parsedTags.map((t, i) => (
+                  <span key={i} className="px-2 py-0.5 rounded-full bg-stone-200 text-stone-700 text-[11px]">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
