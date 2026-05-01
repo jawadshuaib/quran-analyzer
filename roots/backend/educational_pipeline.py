@@ -755,6 +755,12 @@ def record_schedule_run(
         pass
 
 
+# Cap on how many candidates we'll skip before giving up — if the top 20
+# all fail safety, something's miscalibrated and we'd rather surface that
+# than spin forever burning Ollama calls.
+_MAX_SAFETY_SKIPS = 20
+
+
 def pick_and_queue_for_pipeline(
     conn: sqlite3.Connection,
     pipeline_id: int,
@@ -764,19 +770,52 @@ def pick_and_queue_for_pipeline(
     """Pick the highest-scoring unused candidate of the pipeline's type
     and insert an educational_videos row tagged with the pipeline. Does
     NOT generate a script or render — caller chains those steps after.
-    Returns the new educational_videos.id."""
+    Returns the new educational_videos.id.
+
+    Walks the candidate list until we find one whose source verse
+    passes content-safety screening. Permissive when the safety
+    module is unavailable (returns the candidate as-is)."""
     pipe = get_pipeline(conn, pipeline_id)
     if not pipe:
         raise PipelineRunError(f"pipeline {pipeline_id} not found")
     if not pipe.get("enabled"):
         raise PipelineRunError(f"pipeline {pipeline_id} is disabled")
 
-    candidates = sample_candidates(conn, pipe["type"], limit=1, exclude_queued=True)
+    # Pull more than we need so we have room to skip controversial
+    # source verses before reaching the bottom of the pool.
+    candidates = sample_candidates(
+        conn, pipe["type"], limit=_MAX_SAFETY_SKIPS + 1, exclude_queued=True,
+    )
     if not candidates:
         raise PipelineRunError(
             f"no unused {pipe['type']} candidates remain — pool exhausted"
         )
-    c = candidates[0]
+
+    # Filter the source verse through content safety. If Ollama isn't
+    # configured / reachable, the safety module is permissive (returns
+    # True) so this loop just picks the first candidate.
+    try:
+        import educational_safety as _safety
+        chosen = None
+        skipped = 0
+        for cand in candidates:
+            if _safety.is_verse_safe(conn, cand["chapter"], cand["verse"]):
+                chosen = cand
+                break
+            skipped += 1
+            if skipped >= _MAX_SAFETY_SKIPS:
+                break
+        if chosen is None:
+            raise PipelineRunError(
+                f"all top-{skipped} candidates flagged as controversial — "
+                f"either widen the candidate pool or relax safety prompt"
+            )
+        c = chosen
+    except ImportError:
+        # Safety module unimportable — skip the screening, just take
+        # the top candidate. Module is supposed to be present in this
+        # codebase; this except is defense-in-depth only.
+        c = candidates[0]
     payload = {
         # Per-type extras the script generator wants in the payload —
         # mirrors what the queue endpoint stores on a manual queue.

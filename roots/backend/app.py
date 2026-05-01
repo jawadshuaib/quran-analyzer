@@ -7742,11 +7742,13 @@ _ensure_tts_cache_table()
 # stays healthy.
 try:
     import educational_pipeline as _edu
+    import educational_safety as _safety
 
     def _ensure_educational_table():
         conn = get_db()
         try:
             _edu.ensure_table(conn)
+            _safety.ensure_table(conn)
         finally:
             conn.close()
 
@@ -7756,6 +7758,7 @@ except Exception as _edu_exc:
     print(f"[educational] failed to initialize: {_edu_exc}")
     _EDU_OK = False
     _edu = None  # type: ignore
+    _safety = None  # type: ignore
 
 
 def _edu_unavailable():

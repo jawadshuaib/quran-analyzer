@@ -438,10 +438,34 @@ def enrich_payload(conn: sqlite3.Connection, row: dict) -> dict:
         # Other verses in the Quran that use the same root — the LLM
         # picks two of these to feature in the new Word Origins
         # template (one per "tidbit" segment after the source verse).
-        base["other_verses"] = _fetch_other_quran_verses_with_root(
+        # Over-fetch (24) so the safety filter has room to drop
+        # controversial verses without starving the prompt.
+        candidates = _fetch_other_quran_verses_with_root(
             conn, word["root_buckwalter"],
-            exclude_chapter=chapter, exclude_verse=verse, limit=8,
+            exclude_chapter=chapter, exclude_verse=verse, limit=24,
         )
+        # Filter through the safety cache — controversial verses are
+        # dropped so the LLM physically cannot pick one. Permissive on
+        # Ollama failure (returns the verse as safe) so the pipeline
+        # doesn't deadlock when the moderation server is unreachable.
+        try:
+            import educational_safety as _safety
+            safe_pairs = set(
+                _safety.bulk_filter_safe(
+                    conn, [(c["chapter"], c["verse"]) for c in candidates],
+                )
+            )
+            filtered = [c for c in candidates if (c["chapter"], c["verse"]) in safe_pairs]
+        except Exception as e:
+            print(f"[script-gen] safety filter failed, accepting all: {e}")
+            filtered = candidates
+        # Cap at the original pool size (8) so the prompt doesn't
+        # bloat. If the safety filter cut us below 2, fall back to
+        # the unfiltered pool — better an occasional miss than no
+        # script.
+        if len(filtered) < 2:
+            filtered = candidates
+        base["other_verses"] = filtered[:8]
 
     elif vtype == "translation_hides":
         note = _fetch_departure_note(conn, chapter, verse)
