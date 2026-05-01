@@ -7964,13 +7964,33 @@ def admin_educational_edit_script(video_id: int):
     import educational_scripts as _scripts
 
     body = request.get_json(silent=True) or {}
-    edits = {
+    # String fields the operator can hand-edit. Anything missing or
+    # not-a-string is left untouched in the merge below.
+    _STRING_FIELDS = (
+        "hook", "verse_intro", "insight", "close",
+        "voiceover_long", "voiceover_short",
+        # Word Origins tidbits — letting the operator tweak the
+        # narration over each verse without having to regenerate.
+        "tidbit_about_root",
+        "tidbit_about_quran_usage",
+        "tidbit_about_semitic",
+    )
+    edits: dict[str, object] = {
         k: (body.get(k) if isinstance(body.get(k), str) else None)
-        for k in (
-            "hook", "verse_intro", "insight", "close",
-            "voiceover_long", "voiceover_short",
-        )
+        for k in _STRING_FIELDS
     }
+    # Non-string fields go through their own type-checked branches so
+    # we don't coerce a list into a stringified mess. Word Origins'
+    # selected_verse_refs is the canonical example: a list of
+    # {chapter, verse, why?} objects. Validator re-checks shape.
+    if "selected_verse_refs" in body:
+        refs = body.get("selected_verse_refs")
+        if isinstance(refs, list):
+            edits["selected_verse_refs"] = refs
+    if "languages_referenced" in body:
+        langs = body.get("languages_referenced")
+        if isinstance(langs, list):
+            edits["languages_referenced"] = langs
 
     conn = get_db()
     try:
@@ -8042,6 +8062,13 @@ def admin_educational_edit_script(video_id: int):
                     "verse_intro": merged.get("verse_intro"),
                     "insight": merged.get("insight"),
                     "close": merged.get("close"),
+                    # Word Origins-specific fields — preserve so the
+                    # renderer (which reads them at compose time)
+                    # picks up the edited values.
+                    "tidbit_about_root": merged.get("tidbit_about_root", ""),
+                    "tidbit_about_quran_usage": merged.get("tidbit_about_quran_usage", ""),
+                    "tidbit_about_semitic": merged.get("tidbit_about_semitic", ""),
+                    "selected_verse_refs": merged.get("selected_verse_refs", []),
                     "voiceover_short": merged.get("voiceover_short"),
                     "voiceover_short_raw": merged.get("voiceover_short_raw"),
                     "voiceover_long_raw": merged.get("voiceover_long_raw"),
@@ -8111,9 +8138,6 @@ def admin_educational_render(video_id: int):
         # Pull required credentials NOW so the background thread doesn't
         # have to handle "key missing" — fail fast if the admin hasn't
         # configured ElevenLabs.
-        elevenlabs_key = (conn.execute(
-            "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
-        ).fetchone() or {}).get("value") if False else None
         prefs_row = conn.execute(
             "SELECT value FROM admin_preferences WHERE key = 'elevenlabs_api_key'"
         ).fetchone()

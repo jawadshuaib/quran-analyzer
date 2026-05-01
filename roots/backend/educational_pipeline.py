@@ -170,6 +170,28 @@ def ensure_table(conn: sqlite3.Connection) -> None:
     )
     conn.commit()
 
+    # Reset stuck 'rendering' rows on app boot. A render that was
+    # in-flight when the server died (deploy, OOM, restart) leaves
+    # the row stranded — there's no daemon thread to finish it.
+    # We move them to 'failed' with an explanation so the operator
+    # can re-render with one click. Mirrors the recitation pipeline's
+    # boot-time recovery (admin_pipeline_videos resets the same way).
+    try:
+        cur = conn.execute(
+            "UPDATE educational_videos "
+            "SET status = 'failed', "
+            "    error_message = 'Server restarted mid-render — re-run to recover.' "
+            "WHERE status = 'rendering'"
+        )
+        if cur.rowcount:
+            print(f"[educational] reset {cur.rowcount} stuck rendering row(s) on boot")
+        conn.commit()
+    except sqlite3.OperationalError:
+        # Educational tables not yet present on a fresh install — ALTER
+        # path above creates them on this same call, so on the next
+        # boot the recovery will run normally.
+        pass
+
 
 # --------------------------------------------------------------------------
 #  Candidate-pool queries

@@ -323,8 +323,10 @@ function PipelineDetailView({
         </div>
       </div>
 
-      {/* Config summary */}
-      <div className="rounded-lg border border-stone-200 bg-white p-4 grid grid-cols-2 gap-3 text-sm">
+      {/* Config summary — music omitted because the renderer doesn't
+          consume it yet; it'll come back when render-layer music
+          overlay lands. */}
+      <div className="rounded-lg border border-stone-200 bg-white p-4 grid grid-cols-3 gap-3 text-sm">
         <div>
           <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Voice</div>
           <div className="text-stone-700">{voiceName || <span className="font-mono text-stone-400">{detail.voice_id}</span>}</div>
@@ -336,10 +338,6 @@ function PipelineDetailView({
         <div>
           <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Background dim</div>
           <div className="text-stone-700">{detail.show_dim_background ? 'On' : 'Off'}</div>
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Background music</div>
-          <div className="text-stone-700">{musicName || <span className="text-stone-400">—</span>}</div>
         </div>
       </div>
 
@@ -612,20 +610,10 @@ function PipelineEditor({
         </select>
       </Field>
 
-      <Field label="Background music" hint="Optional ambient track behind the narration.">
-        <select
-          value={musicId === null ? '' : musicId}
-          onChange={(e) => setMusicId(e.target.value === '' ? '' : Number(e.target.value))}
-          className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stone-400"
-        >
-          <option value="">— None —</option>
-          {music.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.description || m.original_name}
-            </option>
-          ))}
-        </select>
-      </Field>
+      {/* Background-music wiring isn't in the renderer yet — hide
+          the dropdown rather than show a control that does nothing.
+          The DB column stays so we don't need a migration when the
+          render layer learns to overlay music. */}
 
       <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
         <input

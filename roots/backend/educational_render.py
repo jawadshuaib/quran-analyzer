@@ -532,6 +532,7 @@ def _compose_mp4(
     audio_duration: float,
     output_path: str,
     background_video_path: str | None = None,
+    dim_during_narration: bool = True,
 ) -> None:
     """ffmpeg compose. If `background_video_path` is set, the supplied
     mp4 is looped, scaled, cropped to 1080x1920, and dimmed by ~40%
@@ -555,16 +556,15 @@ def _compose_mp4(
     if background_video_path and os.path.isfile(background_video_path):
         # Loop the bg video for the entire run, scale to fill 1080x1920
         # (cover, not contain), crop the overflow, dim during narration
-        # so foreground text reads, then dim deeper during the outro.
+        # (gated by dim_during_narration) so foreground text reads,
+        # then dim deeper during the outro.
+        narration_dim = "eq=brightness=-0.20:saturation=0.85," if dim_during_narration else ""
         vf = (
             f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=increase,"
             f"crop={VIDEO_WIDTH}:{VIDEO_HEIGHT},"
             "setsar=1,"
             "format=yuv420p,"
-            # Brightness/contrast dim during narration — eq=brightness
-            # darkens, saturation 0.85 keeps the bg from competing
-            # with the gold accents in the foreground text.
-            "eq=brightness=-0.20:saturation=0.85,"
+            f"{narration_dim}"
             f"{outro_dim},"
             f"trim=duration={total_duration},setpts=PTS-STARTPTS"
         )
@@ -812,14 +812,19 @@ def render_video(
         raise RenderError("no script on this row — generate first")
     script = json.loads(rd["script_json"])
 
-    # Pick the voiceover for this format.
+    # Pick the voiceover for this format. Long form lives in the
+    # voiceover_text column (legacy storage) with a fallback to
+    # script_json's voiceover_long; short form lives in script_json.
+    # Both go through the same fail-loud check so an empty short
+    # render can't silently produce a 0-second narration mp4.
     if format == "long":
-        voiceover = rd.get("voiceover_text") or script.get("voiceover_long") or ""
+        voiceover = (rd.get("voiceover_text") or script.get("voiceover_long") or "").strip()
     else:
-        voiceover = script.get("voiceover_short") or ""
-    voiceover = voiceover.strip()
+        voiceover = (script.get("voiceover_short") or "").strip()
     if not voiceover:
-        raise RenderError(f"no voiceover_{format} on this row")
+        raise RenderError(
+            f"no voiceover_{format} text on this row — regenerate the script"
+        )
 
     # Beats for visual overlay.
     beats: list[Beat] = []
@@ -872,6 +877,17 @@ def render_video(
         f.write(ass_text)
         ass_path = f.name
     bg_path = _pick_background(conn, rd["type"])
+    # If this row was produced by a configured pipeline, honor its
+    # show_dim_background flag. Manual rows (no pipeline_id) default
+    # to dim=True since the legibility risk is real.
+    dim_during_narration = True
+    if rd.get("pipeline_id"):
+        prow = conn.execute(
+            "SELECT show_dim_background FROM educational_pipelines WHERE id = ?",
+            (rd["pipeline_id"],),
+        ).fetchone()
+        if prow is not None:
+            dim_during_narration = bool(prow["show_dim_background"])
     try:
         _compose_mp4(
             audio_path=audio_path,
@@ -879,6 +895,7 @@ def render_video(
             audio_duration=audio_duration,
             output_path=out_path,
             background_video_path=bg_path,
+            dim_during_narration=dim_during_narration,
         )
     finally:
         if os.path.isfile(ass_path):
