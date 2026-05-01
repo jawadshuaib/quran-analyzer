@@ -11,6 +11,13 @@
 #   scp scripts/host/fix-upload-limit.sh user@host:/tmp/
 #   ssh user@host 'sudo bash /tmp/fix-upload-limit.sh'
 #
+# ⚠️  ONE-OFF FIX. If your nginx config is managed by another repo's
+# CI (al-nuqta.com is reverse-proxied by `iv-nginx` from the
+# the-intrinsic-value-project repo, whose deploy runs `git reset
+# --hard`), this patch will be wiped on the next deploy of that
+# other repo. The persistent fix is to edit the proxy config IN
+# THAT REPO. See DEPLOY.md → "Production topology".
+#
 # If you're behind Cloudflare's free plan, this script can't help —
 # Cloudflare caps uploads at 100 MB regardless of origin config. See
 # DEPLOY.md for that case.

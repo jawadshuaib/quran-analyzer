@@ -16,7 +16,42 @@ Symptom: a small upload (e.g. 2 MB) returns "Upload rejected by
 reverse proxy" in the admin UI, but the same upload works against
 `localhost:5000` directly.
 
-### One-step fix (nginx or Caddy)
+### Production topology (al-nuqta.com)
+
+⚠️ **The nginx in front of this app lives in a sibling repo,
+`the-intrinsic-value-project` (IV)**, at `docker/nginx/al-nuqta.conf`
+inside that repo. The al-nuqta-com container only exposes port
+`8070` on the host; IV's `iv-nginx` container terminates TLS and
+proxies through to it.
+
+That has a sharp edge: **any server-side `nginx.conf` patch is wiped
+on the next IV deploy** (its workflow runs `git reset --hard
+origin/main` before rebuild). The persistent fix has to land in the
+IV repo's `docker/nginx/al-nuqta.conf`. The block to add inside the
+canonical al-nuqta.com HTTPS server (the one with
+`server_name al-nuqta.com;`):
+
+```nginx
+# Right after the security headers, before `location / { ... }`:
+client_max_body_size 500M;
+
+# Inside `location / { ... }`, after the proxy_set_header lines:
+proxy_request_buffering off;
+proxy_connect_timeout 300;
+proxy_send_timeout 300;
+proxy_read_timeout 300;
+```
+
+`proxy_request_buffering off` matters as much as the size cap —
+without it, nginx buffers the whole upload to disk before forwarding,
+which both stalls the client and can run nginx's tmp dir out of
+space on big uploads. The 5-minute timeouts keep slow uploads from
+getting killed mid-stream.
+
+After committing and pushing to IV's `main`, the next IV deploy
+rebuilds `iv-nginx` with the patched config and the fix sticks.
+
+### One-step fix (only for hosts where you control nginx in-repo)
 
 `scripts/host/fix-upload-limit.sh` detects whichever proxy is
 installed and patches it idempotently. From your local checkout:
@@ -26,7 +61,12 @@ scp scripts/host/fix-upload-limit.sh user@host:/tmp/
 ssh user@host 'sudo bash /tmp/fix-upload-limit.sh'
 ```
 
-It bumps the upload cap to 500 MB, validates the config, and
+⚠️ This is a **one-off** patch — if your reverse proxy is managed by
+another repo's CI (like the IV repo for al-nuqta.com), the next
+deploy of that other repo will overwrite the change. In that case,
+make the edit in the proxy-owning repo instead.
+
+The script bumps the upload cap to 500 MB, validates the config, and
 reloads. Override with a different size as the first arg:
 `sudo bash /tmp/fix-upload-limit.sh 1g`.
 
