@@ -10,11 +10,13 @@ import { useConfirm } from './shared/useConfirm';
 // sign-in step for the human to complete.
 const YOUTUBE_AGENT_PROMPT = `I need to refresh my YouTube OAuth refresh token for al-nuqta.com. Please drive the browser through the entire process without pausing unless something goes wrong.
 
-My Google account for YouTube: jawad.php@gmail.com
+My Google account for sign-in: jawad.php@gmail.com
+Target YouTube channel (brand account): Al-Nuqta
 
 1. Open https://al-nuqta.com/admin/settings in a new tab.
    - If the admin page loads directly (I'm already logged in): continue.
    - If an admin login form appears: PAUSE and tell me — I'll enter my password.
+
    Scroll to the "YouTube" section. Read the "Client ID" and "Client Secret" values from the input fields. The Client Secret is masked by default — click the "Show" button next to it to reveal the full value. If either field is empty, PAUSE and tell me — the one-time Google Cloud Console setup hasn't been done yet and this flow can't proceed until those credentials are in place.
 
 2. Open https://developers.google.com/oauthplayground in another tab.
@@ -23,41 +25,37 @@ My Google account for YouTube: jawad.php@gmail.com
    - Check "Use your own OAuth credentials"
    - Paste the Client ID into "OAuth Client ID"
    - Paste the Client Secret into "OAuth Client secret"
-   - Set "Force prompt" to "Consent"
+   - Set "Force prompt" to "Consent" (it may already say "Consent Screen" — that's the same thing, leave it)
    - Close the gear panel
 
-4. In the left pane, locate "YouTube Data API v3" and expand it. Check the scope:
-   https://www.googleapis.com/auth/youtube.upload
+4. In the left pane, either find "YouTube Data API v3" and check
+   https://www.googleapis.com/auth/youtube.upload, OR paste that scope URL directly into the "Input your own scopes" box at the bottom — either works.
 
-5. Click "Authorize APIs". Google will show an account selector or consent screen.
+5. Click "Authorize APIs". Google will walk you through TWO selectors in sequence. Read carefully — getting either wrong publishes uploads to the wrong channel.
 
-   CRITICAL: I have MULTIPLE Google accounts signed in. You MUST authorize
-   jawad.php@gmail.com specifically — NOT whichever account appears first
-   or is marked as default. If you authorize the wrong account, uploads
-   will silently publish to the wrong YouTube channel.
+   Selector 1 — Google account picker ("Choose an account, to continue to Al-Nuqta"):
+   - I have multiple Google accounts signed in. Pick jawad.php@gmail.com specifically, even if another account appears first or is marked default.
+   - If jawad.php@gmail.com isn't listed or a password prompt appears: PAUSE and tell me.
 
-   - If an account picker appears with jawad.php@gmail.com listed: click
-     that specific entry, even if another account is listed first or has
-     a "default" marker.
-   - If Google skips the picker and the consent screen shows a different
-     email (check the top of the consent screen — the email is shown
-     there): DO NOT click Continue. Look for "Switch account", a back
-     arrow, or a small "not [email]?" link. Use it to return to the
-     picker and select jawad.php@gmail.com.
-   - Before clicking "Continue" / "Allow" on the consent screen, VERIFY
-     the email at the top of the consent screen is jawad.php@gmail.com.
-     If it's anything else, stop and switch account.
-   - If jawad.php@gmail.com isn't signed in at all, or a password prompt
-     appears: PAUSE and tell me — I'll handle sign-in and then ask you
-     to continue.
+   Selector 2 — Brand account picker ("Choose your account or a brand account, to continue to Al-Nuqta"):
+   - This screen lists my personal account plus YouTube brand accounts (e.g. "Minute M4th", "Al-Nuqta").
+   - Pick the Al-Nuqta brand account (labeled "Youtube"). Do NOT pick the personal "Jawad Shuaib / jawad.php@gmail.com" entry — that uploads to my personal channel, not the Al-Nuqta channel.
+   - If "Al-Nuqta" isn't in the list: PAUSE and tell me.
+
+   "Google hasn't verified this app" warning (may appear after Selector 2):
+   - Click "Continue" / the small "Advanced → Go to Al-Nuqta (unsafe)" link. This is my own unverified OAuth app, not a phishing risk.
+
+   Consent screen ("Al-Nuqta wants access to your Google Account"):
+   - Verify the account shown under the title is Al-Nuqta (not "Jawad Shuaib / jawad.php@gmail.com"). If it's wrong, go back and re-pick at Selector 2.
+   - Click "Continue" / "Allow".
 
 6. After consent, Google redirects back to the Playground and "Step 2: Exchange authorization code for tokens" becomes active. Click that button.
 
-7. In the JSON response, locate the "refresh_token" value. Copy the string value (not the key, not the access_token). Note: if the response doesn't include a refresh_token, the flow failed — go back to step 3 and verify "Force prompt" is set to "Consent".
+7. In the JSON response on the right, locate the "refresh_token" value. Copy the string value (not the key, not the access_token). If the response doesn't include a refresh_token field at all, the flow failed — go back to step 3, verify "Force prompt" is set to "Consent", and retry. (Missing-but-consent-was-set usually means Google deduplicated because consent was already granted recently; forcing consent again fixes it.)
 
-8. Return to the al-nuqta admin settings tab. In the YouTube section, paste the refresh token into the "Refresh Token" field. Click "Save".
+8. Return to the al-nuqta admin settings tab. In the YouTube section, paste the refresh token into the "Refresh Token" field (replacing whatever's there). Click "Save".
 
-9. Confirm success: a green "Connected" pill should appear at the top of the YouTube section, and the age badge next to Refresh Token should show "Saved less than an hour ago". Report back that it's done.
+9. Confirm success: a green "Connected" pill should appear next to the "YouTube" heading, and the age badge next to Refresh Token should show "Saved less than an hour ago". Report back that it's done.
 
 If any step fails, tell me exactly where it failed and show me the error message so I can fix it.`;
 
