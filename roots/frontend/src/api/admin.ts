@@ -1916,3 +1916,48 @@ export async function getEducationalScheduleRuns(
   if (!res.ok) throw new Error(data.error || 'Failed to fetch runs');
   return data.runs as EducationalScheduleRun[];
 }
+
+// Aggregated views for the Scheduler page so it can render every
+// educational pipeline's schedule in one section (mirrors the
+// recitation getPipelineSchedules / getPipelineScheduleRuns shape).
+
+export interface EducationalScheduleListItem {
+  pipeline_id: number;
+  pipeline_name: string;
+  pipeline_type: 'word_origins' | 'translation_hides' | 'grammar_insights' | string;
+  pipeline_format: string | null;
+  pipeline_enabled: boolean;
+  times: string[];
+  max_runs_per_day: number;
+  enabled: boolean;
+  grace_minutes: number;
+  updated_at: string | null;
+}
+
+export interface EducationalScheduleRunGlobal {
+  id: number;
+  pipeline_id: number;
+  pipeline_name: string;
+  pipeline_type: string;
+  scheduled_time: string;
+  fired_at: string;
+  video_id: number | null;
+  status: string;
+  note: string | null;
+}
+
+export async function getAllEducationalSchedules(): Promise<EducationalScheduleListItem[]> {
+  const res = await authFetch(`${BASE}/educational/schedules`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch educational schedules');
+  return data as EducationalScheduleListItem[];
+}
+
+export async function getAllEducationalScheduleRuns(
+  limit = 50,
+): Promise<EducationalScheduleRunGlobal[]> {
+  const res = await authFetch(`${BASE}/educational/schedule-runs?limit=${limit}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch educational schedule runs');
+  return data as EducationalScheduleRunGlobal[];
+}

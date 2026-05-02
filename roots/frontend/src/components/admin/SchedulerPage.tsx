@@ -3,10 +3,13 @@ import {
   getPipelineSchedules, savePipelineSchedule, getPipelineScheduleRuns,
   getYoutubeUploadSchedule, saveYoutubeUploadSchedule, getYoutubeUploadRuns,
   getPreferences,
+  getAllEducationalSchedules, getAllEducationalScheduleRuns,
+  upsertEducationalSchedule,
 } from '../../api/admin';
 import type {
   PipelineSchedule, PipelineScheduleRun,
   YoutubeUploadSchedule, YoutubeUploadRun,
+  EducationalScheduleListItem, EducationalScheduleRunGlobal,
 } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
 
@@ -75,15 +78,23 @@ export default function SchedulerPage() {
         </div>
       )}
 
-      {/* ==================== Pipeline video generation ==================== */}
+      {/* ==================== Recitation pipelines (English/Arabic) ==================== */}
       <section>
         <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-base font-semibold text-stone-800">Pipeline video generation</h2>
+          <h2 className="text-base font-semibold text-stone-800">Recitation pipelines (English / Arabic)</h2>
           <span className="text-xs text-stone-400">
             Only scheduler-triggered runs count against the daily cap — manual runs don't consume budget.
           </span>
         </div>
         <div className="space-y-4">
+          {schedules.length === 0 && (
+            <p className="text-sm text-stone-400 italic">
+              No recitation pipelines configured.{' '}
+              <a href="/admin/pipelines/recitation" className="underline hover:text-stone-600">
+                Create one →
+              </a>
+            </p>
+          )}
           {schedules.map((s) => (
             <ScheduleCard key={s.pipeline_id} schedule={s} onSaved={load} />
           ))}
@@ -143,6 +154,10 @@ export default function SchedulerPage() {
           )}
         </div>
       </section>
+
+      {/* ==================== Educational pipelines (word origins / etc.) ==================== */}
+      <div className="my-10 border-t border-stone-200" />
+      <EducationalScheduleSection />
 
       {/* ==================== YouTube upload ==================== */}
       <div className="my-10 border-t border-stone-200" />
@@ -416,6 +431,363 @@ function ScheduleCard({
 }
 
 /* ============================================================ */
+/*  Educational pipelines section                                */
+/* ============================================================ */
+/* Mirrors the recitation pipeline section above so operators have
+ * one place to see + edit every pipeline schedule, regardless of
+ * family. Uses the same StatusBadge + edit-mode pattern. The audit
+ * log is a global view (not per-pipeline) so a glance shows what
+ * the scheduler has been doing across all educational series.
+ */
+
+function EducationalScheduleSection() {
+  const [schedules, setSchedules] = useState<EducationalScheduleListItem[]>([]);
+  const [runs, setRuns] = useState<EducationalScheduleRunGlobal[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
+
+  const load = useCallback(async () => {
+    setErr('');
+    try {
+      const [s, r] = await Promise.all([
+        getAllEducationalSchedules(),
+        getAllEducationalScheduleRuns(50),
+      ]);
+      setSchedules(s);
+      setRuns(r);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load educational schedules');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  return (
+    <section>
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-base font-semibold text-stone-800">
+          Educational pipelines (word origins / translation hides / grammar insights)
+        </h2>
+        <span className="text-xs text-stone-400">
+          Same cap + grace semantics as recitation pipelines.
+        </span>
+      </div>
+
+      {err && (
+        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {err}
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-stone-400">Loading…</p>
+      ) : schedules.length === 0 ? (
+        <p className="text-sm text-stone-400 italic">
+          No educational pipelines configured.{' '}
+          <a href="/admin/pipelines/educational" className="underline hover:text-stone-600">
+            Create one →
+          </a>
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {schedules.map((s) => (
+            <EducationalScheduleCard key={s.pipeline_id} schedule={s} onSaved={load} />
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-stone-600 mb-3">
+          Recent educational scheduler activity
+        </h3>
+        {runs.length === 0 ? (
+          <p className="text-sm text-stone-400">No educational scheduler activity yet.</p>
+        ) : (
+          <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-xs text-stone-500">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Pipeline</th>
+                  <th className="text-left px-3 py-2 font-medium">Scheduled</th>
+                  <th className="text-left px-3 py-2 font-medium">Fired</th>
+                  <th className="text-left px-3 py-2 font-medium">Status</th>
+                  <th className="text-left px-3 py-2 font-medium">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runs.map((r) => (
+                  <tr key={r.id} className="border-t border-stone-100">
+                    <td className="px-3 py-2 text-stone-700">
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
+                        #{r.pipeline_id}
+                      </span>
+                      <span className="ml-2">{r.pipeline_name || '—'}</span>
+                      {r.pipeline_type && (
+                        <span className="ml-2 text-[10px] text-stone-400 font-mono">
+                          {r.pipeline_type}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-stone-600 font-mono text-xs">
+                      {r.scheduled_time}
+                    </td>
+                    <td className="px-3 py-2 text-stone-500 text-xs">
+                      {new Date(r.fired_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      <StatusBadge status={r.status} />
+                      {r.video_id && (
+                        <span className="ml-2 text-xs text-stone-400">→ video #{r.video_id}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-stone-500">{r.note || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function EducationalScheduleCard({
+  schedule,
+  onSaved,
+}: {
+  schedule: EducationalScheduleListItem;
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [times, setTimes] = useState<string[]>(schedule.times);
+  const [newTime, setNewTime] = useState('');
+  const [cap, setCap] = useState(schedule.max_runs_per_day);
+  const [enabled, setEnabled] = useState(schedule.enabled);
+  const [grace, setGrace] = useState(schedule.grace_minutes);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+  const { confirm, dialog } = useConfirm();
+
+  useEffect(() => {
+    setTimes(schedule.times);
+    setCap(schedule.max_runs_per_day);
+    setEnabled(schedule.enabled);
+    setGrace(schedule.grace_minutes);
+  }, [schedule]);
+
+  function addTime() {
+    const m = newTime.trim().match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) { setErr('Use HH:MM, e.g. 02:00'); return; }
+    const h = parseInt(m[1]); const mn = parseInt(m[2]);
+    if (h < 0 || h > 23 || mn < 0 || mn > 59) { setErr('Invalid time'); return; }
+    const padded = `${String(h).padStart(2, '0')}:${String(mn).padStart(2, '0')}`;
+    if (times.includes(padded)) { setErr(`${padded} is already in the list`); return; }
+    setTimes([...times, padded].sort());
+    setNewTime('');
+    setErr('');
+  }
+
+  function removeTime(t: string) {
+    setTimes(times.filter((x) => x !== t));
+  }
+
+  async function handleSave() {
+    if (enabled && times.length === 0) {
+      const ok = await confirm({
+        title: 'Enable with no scheduled times?',
+        message: 'This schedule is enabled but has no times. Nothing will fire. Save anyway?',
+        confirmLabel: 'Save',
+      });
+      if (!ok) return;
+    }
+    setSaving(true);
+    setErr('');
+    try {
+      await upsertEducationalSchedule(schedule.pipeline_id, {
+        times,
+        max_runs_per_day: cap,
+        enabled,
+        grace_minutes: grace,
+      });
+      setEditing(false);
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancel() {
+    setTimes(schedule.times);
+    setCap(schedule.max_runs_per_day);
+    setEnabled(schedule.enabled);
+    setGrace(schedule.grace_minutes);
+    setNewTime('');
+    setErr('');
+    setEditing(false);
+  }
+
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-5">
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-mono text-stone-400 bg-stone-100 px-2 py-0.5 rounded">
+            #{schedule.pipeline_id}
+          </span>
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-700">
+            {schedule.pipeline_type}
+          </span>
+          <h3 className="font-semibold text-stone-800">{schedule.pipeline_name}</h3>
+          {!schedule.pipeline_enabled && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-stone-200 text-stone-500">
+              Pipeline disabled
+            </span>
+          )}
+          <span className={`ml-2 text-[10px] font-semibold px-2 py-0.5 rounded ${
+            enabled ? 'bg-green-100 text-green-700' : 'bg-stone-200 text-stone-500'
+          }`}>
+            {enabled ? 'Schedule enabled' : 'Schedule disabled'}
+          </span>
+        </div>
+        {!editing && (
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+
+      {!editing ? (
+        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-stone-500">
+          <span>
+            Times:{' '}
+            {times.length === 0 ? (
+              <span className="text-stone-400 italic">none set</span>
+            ) : (
+              <span className="font-mono text-stone-700">{times.join(', ')}</span>
+            )}
+          </span>
+          <span>Cap: {cap}/day</span>
+          <span>Grace: {grace} min</span>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4 max-w-lg">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => setEnabled(e.target.checked)}
+              className="rounded border-stone-300"
+            />
+            <span className="text-sm text-stone-700">Enable this schedule</span>
+          </label>
+
+          <div>
+            <label className="block text-xs font-medium text-stone-600 mb-1">
+              Daily times (server local)
+            </label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {times.length === 0 && (
+                <span className="text-xs text-stone-400 italic">no times yet</span>
+              )}
+              {times.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-mono text-stone-700"
+                >
+                  {t}
+                  <button
+                    onClick={() => removeTime(t)}
+                    className="text-stone-400 hover:text-red-500 cursor-pointer text-sm leading-none"
+                    title="Remove"
+                    type="button"
+                  >×</button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTime}
+                onChange={(e) => setNewTime(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTime(); } }}
+                placeholder="HH:MM"
+                className="w-28 px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+              />
+              <button
+                onClick={addTime}
+                type="button"
+                className="px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+              >
+                Add time
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1">
+                Max runs / day
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={cap}
+                onChange={(e) => setCap(parseInt(e.target.value) || 1)}
+                className="w-24 px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-stone-600 mb-1">
+                Grace (min)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={240}
+                value={grace}
+                onChange={(e) => setGrace(parseInt(e.target.value) || 1)}
+                className="w-24 px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+              />
+            </div>
+          </div>
+
+          {err && <p className="text-xs text-red-600">{err}</p>}
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 rounded-lg text-sm text-stone-500 hover:text-stone-700 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {dialog}
+    </div>
+  );
+}
+
+/* ============================================================ */
 /*  YouTube Upload Section                                       */
 /* ============================================================ */
 
@@ -463,9 +835,20 @@ function YoutubeUploadSection() {
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-stone-800">YouTube upload</h2>
         <span className="text-xs text-stone-400">
-          Picks up auto-generated videos that haven't been uploaded yet.
+          One slot drains one video, oldest-first.
         </span>
       </div>
+
+      <p className="text-xs text-stone-500 mb-3 max-w-3xl">
+        This is the <strong>single global YouTube upload schedule</strong>. Each
+        configured time picks the oldest scheduler-generated video from{' '}
+        <em>any</em> pipeline (recitation or educational) and uploads it. If
+        you've enabled an educational pipeline schedule above but
+        videos aren't reaching YouTube, check that this section is{' '}
+        <strong>enabled</strong> with at least one daily time — the
+        pipeline schedule above only generates the video; this schedule
+        is what uploads it.
+      </p>
 
       {ytConfigured === false && (
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">

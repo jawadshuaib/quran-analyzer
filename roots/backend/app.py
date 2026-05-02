@@ -5023,7 +5023,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
         return True
     return False
 
@@ -8898,6 +8898,64 @@ def _start_educational_pipeline_run(
         daemon=True,
     ).start()
     return video_id, None
+
+
+@app.route("/api/admin/educational/schedules", methods=["GET"])
+@admin_required
+def admin_educational_schedules_list():
+    """All educational pipeline schedules in one shot — mirrors the
+    recitation /api/admin/pipeline-schedules endpoint so the Scheduler
+    page can render both pipeline families with the same shape."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        pipelines = _edu.list_pipelines(conn)
+        out = []
+        for p in pipelines:
+            sched = _edu.get_schedule(conn, p["id"])
+            out.append({
+                "pipeline_id": p["id"],
+                "pipeline_name": p["name"],
+                "pipeline_type": p["type"],
+                "pipeline_format": p.get("format"),
+                "pipeline_enabled": bool(p.get("enabled", 1)),
+                "times": sched.get("times", []),
+                "max_runs_per_day": sched.get("max_runs_per_day", 2),
+                "enabled": sched.get("enabled", False),
+                "grace_minutes": sched.get("grace_minutes", 30),
+                "updated_at": sched.get("updated_at"),
+            })
+        return jsonify(out)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/educational/schedule-runs", methods=["GET"])
+@admin_required
+def admin_educational_schedule_runs_all():
+    """Combined audit log across all educational pipelines — mirrors the
+    recitation /api/admin/pipeline-schedule-runs endpoint. Joined with
+    pipelines so the UI can show the pipeline name + type per row."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    limit = max(1, min(int(request.args.get("limit", 50)), 200))
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT r.id, r.pipeline_id, p.name AS pipeline_name, p.type AS pipeline_type,
+                   r.scheduled_time, r.fired_at, r.video_id, r.status, r.note
+            FROM educational_pipeline_schedule_runs r
+            LEFT JOIN educational_pipelines p ON p.id = r.pipeline_id
+            ORDER BY r.fired_at DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        conn.close()
 
 
 @app.route("/api/admin/educational/pipelines/<int:pipeline_id>/schedule", methods=["GET"])

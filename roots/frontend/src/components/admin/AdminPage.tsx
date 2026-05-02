@@ -21,20 +21,40 @@ import AdminProperNouns from './AdminProperNouns';
 import VerseSettings from './VerseSettings';
 import AdminEducational from './AdminEducational';
 import AdminEducationalPipelines from './AdminEducationalPipelines';
+import AdminPipelines from './AdminPipelines';
 
-type AdminRoute = 'dashboard' | 'settings' | 'scheduler' | 'media' | 'recitations' | 'resources' | 'music' | 'generate' | 'explanations' | 'generate-explanation' | 'pipelines' | 'educational' | 'educational-pipelines' | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns' | 'verse-settings';
+type AdminRoute =
+  | 'dashboard' | 'settings' | 'scheduler'
+  | 'media' | 'recitations' | 'resources' | 'music' | 'generate'
+  | 'explanations' | 'generate-explanation'
+  // Pipelines hub + sub-routes (top-level admin section)
+  | 'pipelines-hub'
+  | 'pipelines-recitation'
+  | 'pipelines-educational'
+  | 'pipelines-educational-candidates'
+  | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns'
+  | 'verse-settings';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
+  // Pipelines (top-level)
+  if (/^\/admin\/pipelines\/recitation\/?$/.test(path)) return 'pipelines-recitation';
+  if (/^\/admin\/pipelines\/educational\/candidates(\/.*)?\/?$/.test(path)) return 'pipelines-educational-candidates';
+  if (/^\/admin\/pipelines\/educational(\/.*)?\/?$/.test(path)) return 'pipelines-educational';
+  if (/^\/admin\/pipelines\/?$/.test(path)) return 'pipelines-hub';
+  // Legacy /admin/media/pipelines* paths still resolve so old bookmarks
+  // and footer links don't 404. They render the same components as the
+  // new top-level routes below.
+  if (/^\/admin\/media\/pipelines\/?$/.test(path)) return 'pipelines-recitation';
+  if (/^\/admin\/media\/educational\/pipelines(\/.*)?\/?$/.test(path)) return 'pipelines-educational';
+  if (/^\/admin\/media\/educational(\/.*)?\/?$/.test(path)) return 'pipelines-educational-candidates';
+  // Media sub-routes
   if (/^\/admin\/media\/recitations\/?$/.test(path)) return 'recitations';
   if (/^\/admin\/media\/resources\/?$/.test(path)) return 'resources';
   if (/^\/admin\/media\/music\/?$/.test(path)) return 'music';
   if (/^\/admin\/media\/generate\/?$/.test(path)) return 'generate';
   if (/^\/admin\/media\/explanations\/?$/.test(path)) return 'explanations';
   if (/^\/admin\/media\/generate-explanation\/?$/.test(path)) return 'generate-explanation';
-  if (/^\/admin\/media\/pipelines\/?$/.test(path)) return 'pipelines';
-  if (/^\/admin\/media\/educational\/pipelines(\/.*)?\/?$/.test(path)) return 'educational-pipelines';
-  if (/^\/admin\/media\/educational(\/.*)?\/?$/.test(path)) return 'educational';
   if (/^\/admin\/media\/?$/.test(path)) return 'media';
   if (/^\/admin\/scheduler\/?$/.test(path)) return 'scheduler';
   if (/^\/admin\/settings\/?$/.test(path)) return 'settings';
@@ -56,19 +76,26 @@ interface AdminSection {
 
 const ADMIN_SECTIONS: AdminSection[] = [
   {
-    href: '/admin/media',
-    label: 'Media',
-    description: 'Recitations, background videos, music, video pipelines.',
+    href: '/admin/pipelines',
+    label: 'Pipelines',
+    description: 'Recitation (English/Arabic) and Educational pipelines that auto-generate YouTube Shorts.',
     matches: (r) =>
-      r === 'media' || r === 'recitations' || r === 'resources' || r === 'music' ||
-      r === 'generate' || r === 'explanations' || r === 'generate-explanation' || r === 'pipelines' ||
-      r === 'educational' || r === 'educational-pipelines',
+      r === 'pipelines-hub' || r === 'pipelines-recitation' ||
+      r === 'pipelines-educational' || r === 'pipelines-educational-candidates',
   },
   {
     href: '/admin/scheduler',
     label: 'Scheduler',
-    description: 'YouTube upload schedule and queued runs.',
+    description: 'Daily run times for every pipeline + the global YouTube upload schedule.',
     matches: (r) => r === 'scheduler',
+  },
+  {
+    href: '/admin/media',
+    label: 'Media',
+    description: 'Recitations, background videos, music, verse-explanation builder.',
+    matches: (r) =>
+      r === 'media' || r === 'recitations' || r === 'resources' || r === 'music' ||
+      r === 'generate' || r === 'explanations' || r === 'generate-explanation',
   },
   {
     href: '/admin/revisions',
@@ -189,8 +216,8 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      {/* Breadcrumbs for nested routes */}
-      {(route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation' || route === 'pipelines' || route === 'educational' || route === 'educational-pipelines') && (
+      {/* Breadcrumbs for nested routes — Media branch */}
+      {(route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation') && (
         <div className="max-w-5xl mx-auto px-4 py-2">
           <div className="flex items-center gap-1.5 text-xs text-stone-400">
             <a href="/admin/media" className="hover:text-stone-600">Media</a>
@@ -202,9 +229,20 @@ export default function AdminPage() {
               {route === 'generate' && 'Generate Verse Recitation Video'}
               {route === 'explanations' && 'Verse Explanations'}
               {route === 'generate-explanation' && 'Generate Explanation Video'}
-              {route === 'pipelines' && 'Pipelines'}
-              {route === 'educational' && 'Educational Pipeline'}
-              {route === 'educational-pipelines' && 'Educational Pipelines (config)'}
+            </span>
+          </div>
+        </div>
+      )}
+      {/* Breadcrumbs — Pipelines branch */}
+      {(route === 'pipelines-recitation' || route === 'pipelines-educational' || route === 'pipelines-educational-candidates') && (
+        <div className="max-w-5xl mx-auto px-4 py-2">
+          <div className="flex items-center gap-1.5 text-xs text-stone-400">
+            <a href="/admin/pipelines" className="hover:text-stone-600">Pipelines</a>
+            <span>/</span>
+            <span className="text-stone-600">
+              {route === 'pipelines-recitation' && 'Recitation (English/Arabic)'}
+              {route === 'pipelines-educational' && 'Educational pipelines'}
+              {route === 'pipelines-educational-candidates' && 'Educational candidates'}
             </span>
           </div>
         </div>
@@ -252,9 +290,10 @@ export default function AdminPage() {
         {route === 'generate' && <GenerateVideo />}
         {route === 'explanations' && <ExplanationBuilder />}
         {route === 'generate-explanation' && <GenerateExplanationVideo />}
-        {route === 'pipelines' && <PipelineManager />}
-        {route === 'educational' && <AdminEducational />}
-        {route === 'educational-pipelines' && <AdminEducationalPipelines />}
+        {route === 'pipelines-hub' && <AdminPipelines />}
+        {route === 'pipelines-recitation' && <PipelineManager />}
+        {route === 'pipelines-educational' && <AdminEducationalPipelines />}
+        {route === 'pipelines-educational-candidates' && <AdminEducational />}
         {route === 'revisions' && <AdminRevisions />}
         {route === 'vocabulary' && <AdminVocabulary />}
         {route === 'vocabulary-studio' && <AdminVocabularyStudio />}

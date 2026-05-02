@@ -45,33 +45,16 @@ export default function AdminMedia() {
         </a>
       </div>
 
-      {/* Pipelines */}
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Pipelines</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        <a href="/admin/media/pipelines?lang=english" className={card}>
-          <h3 className="font-semibold text-stone-800 mb-1">English Pipeline</h3>
-          <p className="text-sm text-stone-500">Automated YouTube Shorts with AI-selected verses, polished English TTS, and auto-generated metadata.</p>
+      {/* Pipelines moved to their own top-level admin section. Keep a
+          quiet pointer here so anyone navigating by muscle memory finds
+          the new location. */}
+      <p className="text-xs text-stone-400 mt-2">
+        Looking for English / Arabic / Educational pipelines? They moved to{' '}
+        <a href="/admin/pipelines" className="underline decoration-dotted underline-offset-2 hover:text-stone-600">
+          Admin → Pipelines
         </a>
-        <a href="/admin/media/pipelines?lang=arabic" className={card}>
-          <h3 className="font-semibold text-stone-800 mb-1">Arabic Pipeline</h3>
-          <p className="text-sm text-stone-500">Arabic recitation shorts with on-screen English translation. Passages capped at 55 seconds for copyright safety.</p>
-        </a>
-      </div>
-
-      {/* Educational pipeline — different shape from recitation pipelines:
-          three sub-types (word origins, translation hides, grammar
-          insights) sharing one candidate→script→render→upload flow. */}
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">Educational Pipeline</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <a href="/admin/media/educational" className={card}>
-          <h3 className="font-semibold text-stone-800 mb-1">Candidates & manual generation</h3>
-          <p className="text-sm text-stone-500">Browse the candidate pool for each series, queue verses, generate scripts, and render videos by hand.</p>
-        </a>
-        <a href="/admin/media/educational/pipelines" className={card}>
-          <h3 className="font-semibold text-stone-800 mb-1">Pipelines (automated)</h3>
-          <p className="text-sm text-stone-500">Configure named pipelines (voice, format, dim, music) and run them on demand. Scheduling lands in the next iteration.</p>
-        </a>
-      </div>
+        .
+      </p>
     </div>
   );
 }
