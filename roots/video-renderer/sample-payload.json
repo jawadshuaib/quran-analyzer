@@ -1,0 +1,51 @@
+{
+  "videoId": "sample-2-23-nzl",
+  "title": "Word Detail — 2:23 نَزَّلْنَا (root nzl)",
+  "slides": [
+    {
+      "type": "root",
+      "durationSec": 5,
+      "rootArabic": "ن ز ل",
+      "rootLabel": "Root: nzl",
+      "meaning": "Descend/send down (from above)"
+    },
+    {
+      "type": "verse-flow",
+      "durationSec": 6,
+      "surah": 2,
+      "ayah": 23,
+      "arabicText": "وَإِن كُنتُمْ فِى رَيْبٍ مِّمَّا نَزَّلْنَا عَلَىٰ عَبْدِنَا فَأْتُوا۟ بِسُورَةٍ مِّن مِّثْلِهِۦ وَٱدْعُوا۟ شُهَدَآءَكُم مِّن دُونِ ٱللَّهِ إِن كُنتُمْ صَٰدِقِينَ",
+      "translation": "And if you are in doubt about what We have sent down upon Our servant, then bring a sūrah from the like of it, and call your witnesses apart from Allah, if you are truthful.",
+      "highlightWordIndex": 6
+    },
+    {
+      "type": "word-to-word",
+      "durationSec": 7,
+      "surah": 2,
+      "ayah": 23,
+      "words": [
+        { "ar": "وَإِن", "en": "And if" },
+        { "ar": "كُنتُمْ", "en": "you are" },
+        { "ar": "فِى", "en": "in" },
+        { "ar": "رَيْبٍ", "en": "doubt" },
+        { "ar": "مِّمَّا", "en": "about what" },
+        { "ar": "نَزَّلْنَا", "en": "sent down", "highlight": true },
+        { "ar": "عَلَىٰ", "en": "upon" },
+        { "ar": "عَبْدِنَا", "en": "Our Servant" },
+        { "ar": "فَأْتُوا۟", "en": "then bring" },
+        { "ar": "بِسُورَةٍ", "en": "a chapter" },
+        { "ar": "مِّن", "en": "from" },
+        { "ar": "مِّثْلِهِۦ", "en": "the like of it" },
+        { "ar": "وَٱدْعُوا۟", "en": "call" },
+        { "ar": "شُهَدَآءَكُم", "en": "your witnesses" },
+        { "ar": "مِّن", "en": "from" },
+        { "ar": "دُونِ", "en": "apart from" },
+        { "ar": "ٱللَّهِ", "en": "Allah" },
+        { "ar": "إِن", "en": "if" },
+        { "ar": "كُنتُمْ", "en": "you are" },
+        { "ar": "صَٰدِقِينَ", "en": "truthful" }
+      ],
+      "translation": "And if you are in doubt about what We have sent down upon Our servant, then bring a sūrah from the like of it, and call your witnesses apart from Allah, if you are truthful."
+    }
+  ]
+}

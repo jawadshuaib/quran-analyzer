@@ -1,0 +1,26 @@
+{
+  "name": "alnuqta-video-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Remotion-based video renderer for al-nuqta word-detail Shorts. Standalone — has its own node_modules so the main backend / frontend builds aren't affected.",
+  "scripts": {
+    "studio": "remotion studio src/Root.tsx",
+    "render:sample": "node scripts/render.mjs --payload sample-payload.json --out out/sample.mp4",
+    "browser:ensure": "npx remotion browser ensure"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.0"
+  }
+}

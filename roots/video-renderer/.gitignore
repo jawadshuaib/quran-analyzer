@@ -1,0 +1,5 @@
+node_modules/
+out/
+public/*
+!public/.gitkeep
+.DS_Store
