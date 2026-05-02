@@ -7,6 +7,7 @@ import {
   deleteEducationalPipeline,
   deleteEducationalVideo,
   uploadEducationalVideoToYouTube,
+  retryEducationalPlaylistAdd,
   uploadEducationalOutroAudio,
   deleteEducationalOutroAudio,
   educationalOutroAudioUrl,
@@ -417,6 +418,13 @@ function PipelineVideoRow({
   const [expanded, setExpanded] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState('');
+  // Playlist outcome from the most recent upload or retry. ok=null
+  // means we haven't attempted yet (don't render anything).
+  const [playlistResult, setPlaylistResult] = useState<{
+    ok: boolean | null;
+    message: string;
+  }>({ ok: null, message: '' });
+  const [retryingPlaylist, setRetryingPlaylist] = useState(false);
   const hasMeta = !!(v.youtube_title || v.youtube_description);
   // 'rendering' rows are blocked server-side from deletion to avoid
   // yanking a file out from under ffmpeg; reflect that in the button.
@@ -427,20 +435,44 @@ function PipelineVideoRow({
   async function handleUpload() {
     setUploading(true);
     setUploadErr('');
+    setPlaylistResult({ ok: null, message: '' });
     try {
       const r = await uploadEducationalVideoToYouTube(v.id);
-      // Refresh parent so the row flips to status='uploaded' with the
-      // YouTube link in place. playlist_note (if any) lives on the
-      // server response; surface failures via console for now since
-      // the row itself reflects the published state.
-      if (r.playlist_note && !/added/i.test(r.playlist_note)) {
-        console.warn('[upload]', r.playlist_note);
+      // Surface the playlist outcome — the upload publishes the
+      // video regardless, but the operator needs to know whether
+      // the playlist add landed.
+      if (r.playlist_note) {
+        const ok = /added/i.test(r.playlist_note);
+        setPlaylistResult({ ok, message: r.playlist_note });
+      } else {
+        // No playlist configured for this series; flag it so the
+        // operator knows nothing was attempted.
+        setPlaylistResult({
+          ok: false,
+          message: "No playlist configured for this series — set one in "
+            + "Admin → Settings → YouTube Playlists, then click Retry playlist.",
+        });
       }
       onUploaded();
     } catch (e) {
       setUploadErr(e instanceof Error ? e.message : String(e));
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleRetryPlaylist() {
+    setRetryingPlaylist(true);
+    try {
+      const r = await retryEducationalPlaylistAdd(v.id);
+      setPlaylistResult({ ok: r.ok, message: r.message });
+    } catch (e) {
+      setPlaylistResult({
+        ok: false,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setRetryingPlaylist(false);
     }
   }
   let parsedTags: string[] = [];
@@ -517,6 +549,42 @@ function PipelineVideoRow({
       {uploadErr && (
         <div className="px-3 pb-2 text-xs text-red-700">
           Upload failed: {uploadErr}
+        </div>
+      )}
+      {/* Playlist outcome from the most recent upload OR retry. Stays
+          visible (and lets the operator retry) until the row reloads. */}
+      {playlistResult.ok !== null && (
+        <div
+          className={`px-3 pb-2 text-xs flex items-center gap-2 flex-wrap ${
+            playlistResult.ok ? 'text-emerald-700' : 'text-amber-700'
+          }`}
+        >
+          <span>{playlistResult.ok ? '✓' : '⚠'} Playlist: {playlistResult.message}</span>
+          {!playlistResult.ok && isUploaded && (
+            <button
+              onClick={handleRetryPlaylist}
+              disabled={retryingPlaylist}
+              className="px-2 py-0.5 rounded border border-amber-400 text-amber-700 text-xs font-medium hover:bg-amber-50 disabled:opacity-60 cursor-pointer"
+              title="Re-read the playlist preference and retry the playlistItems.insert call."
+            >
+              {retryingPlaylist ? 'Retrying…' : 'Retry playlist'}
+            </button>
+          )}
+        </div>
+      )}
+      {/* Always-available retry for already-uploaded rows whose
+          playlist was set after upload, or whose initial add failed
+          and the operator dismissed the inline result. */}
+      {isUploaded && playlistResult.ok === null && (
+        <div className="px-3 pb-2 text-[11px] text-stone-500">
+          <button
+            onClick={handleRetryPlaylist}
+            disabled={retryingPlaylist}
+            className="underline hover:no-underline cursor-pointer disabled:opacity-60"
+            title="Add this video to the configured per-series playlist."
+          >
+            {retryingPlaylist ? 'Adding to playlist…' : 'Add to playlist'}
+          </button>
         </div>
       )}
       {expanded && hasMeta && (

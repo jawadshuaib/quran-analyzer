@@ -1651,6 +1651,25 @@ export async function uploadEducationalVideoToYouTube(
   return data as UploadYouTubeResult;
 }
 
+/** Retry the per-series playlist add for an already-uploaded video.
+ *  Re-reads the playlist preference and calls YouTube's
+ *  playlistItems.insert. Useful when the original upload's playlist
+ *  add failed (wrong channel selected, transient error) or when the
+ *  operator filled in the playlist ID after upload. */
+export async function retryEducationalPlaylistAdd(
+  id: number,
+): Promise<{ ok: boolean; playlist_id: string; message: string }> {
+  const res = await authFetch(`${BASE}/educational/${id}/add-to-playlist`, {
+    method: 'POST',
+  });
+  const data = await res.json();
+  if (!res.ok && res.status !== 502) {
+    // 502 = playlist API error; we still want to surface its message.
+    throw new Error(data.error || 'Retry failed');
+  }
+  return data as { ok: boolean; playlist_id: string; message: string };
+}
+
 
 /** Hard-delete a generated video — drops the DB row and removes the
  *  rendered mp4 on disk. Refuses (409) if status is 'rendering' so

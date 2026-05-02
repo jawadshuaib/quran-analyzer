@@ -8442,6 +8442,58 @@ def _perform_educational_youtube_upload(
     }
 
 
+@app.route("/api/admin/educational/<int:video_id>/add-to-playlist", methods=["POST"])
+@admin_required
+def admin_educational_add_to_playlist(video_id: int):
+    """Retry the per-series playlist add for an already-uploaded
+    video. Useful when the original upload's playlist add failed
+    (wrong channel selected for OAuth, transient API error, etc.)
+    or when the operator updated the playlist preference after
+    upload. Returns {ok, message, playlist_id} so the UI can show
+    the actual outcome."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT type, youtube_video_id FROM educational_videos WHERE id = ?",
+            (video_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Video not found"}), 404
+        if not row["youtube_video_id"]:
+            return jsonify({"error": "Video hasn't been uploaded yet"}), 409
+        playlist_key = f"youtube_playlist_{row['type']}"
+        plrow = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = ?",
+            (playlist_key,),
+        ).fetchone()
+        playlist_id = (plrow["value"] if plrow and plrow["value"] else "").strip()
+    finally:
+        conn.close()
+
+    if not playlist_id:
+        return jsonify({
+            "ok": False,
+            "error": f"No playlist configured for this series. Set "
+                     f"'{playlist_key}' in Admin → Settings → YouTube Playlists.",
+        }), 400
+
+    try:
+        access_token = _youtube_get_access_token()
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    ok, msg = _youtube_add_to_playlist(
+        access_token, row["youtube_video_id"], playlist_id,
+    )
+    return jsonify({
+        "ok": ok,
+        "playlist_id": playlist_id,
+        "message": msg or ("Added to playlist" if ok else "Playlist add failed"),
+    }), (200 if ok else 502)
+
+
 @app.route("/api/admin/educational/<int:video_id>/upload-youtube", methods=["POST"])
 @admin_required
 def admin_educational_upload_youtube(video_id: int):
