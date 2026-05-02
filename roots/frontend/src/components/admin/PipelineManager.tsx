@@ -451,57 +451,82 @@ export default function PipelineManager() {
     );
   }
 
+  // Whether the right pane is showing the create-or-edit form vs. a
+  // pipeline detail. Mirrors the educational layout where the form
+  // takes over the detail panel rather than living in a separate row.
+  const formActive = showCreate || editingId !== null;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-stone-800">Pipelines</h1>
-        <button
-          onClick={() => { setShowCreate(true); resetForm(); }}
-          className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 transition-colors cursor-pointer"
-        >
-          New Pipeline
-        </button>
-      </div>
+      <h1 className="text-xl font-semibold text-stone-800 mb-2">Recitation Pipelines</h1>
+      <p className="text-sm text-stone-500 mb-6 max-w-3xl">
+        Configure an English (TTS) or Arabic (recitation) pipeline. Each
+        pipeline picks verses, generates a video, and lands in the global
+        queue. Run on demand here, or schedule daily fires from{' '}
+        <a href="/admin/scheduler" className="underline decoration-dotted underline-offset-2 hover:text-stone-700">
+          Scheduler
+        </a>
+        .
+      </p>
 
-      {/* Pipeline tabs */}
-      {pipelines.length > 0 && (
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
-          {pipelines.map((p) => {
-            const langBadge = p.language === 'arabic' ? 'AR' : 'EN';
-            const isSelected = selectedId === p.id;
-            return (
-              <button
-                key={p.id}
-                onClick={() => { setSelectedId(p.id); setShowCreate(false); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
-                  isSelected
-                    ? 'bg-stone-800 text-white'
-                    : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-                }`}
-              >
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                  isSelected ? 'bg-white/20' : 'bg-stone-200 text-stone-500'
-                }`}>
-                  #{p.id}
-                </span>
-                <span className={`text-[9px] font-semibold px-1 py-0.5 rounded ${
-                  p.language === 'arabic'
-                    ? (isSelected ? 'bg-amber-200/30 text-amber-100' : 'bg-amber-100 text-amber-700')
-                    : (isSelected ? 'bg-emerald-200/30 text-emerald-100' : 'bg-emerald-100 text-emerald-700')
-                }`}>
-                  {langBadge}
-                </span>
-                <span>{p.name}</span>
-                {p.video_count ? <span className="text-xs opacity-60">({p.video_count})</span> : null}
-              </button>
-            );
-          })}
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+        {/* Left rail — pipeline list, matches AdminEducationalPipelines */}
+        <div>
+          <button
+            onClick={() => { setShowCreate(true); setEditingId(null); resetForm(); }}
+            className={`w-full mb-3 px-3 py-2 rounded-lg text-sm font-medium border transition-colors cursor-pointer ${
+              showCreate
+                ? 'bg-stone-800 text-white border-stone-800'
+                : 'bg-white text-stone-700 border-stone-300 hover:border-stone-400'
+            }`}
+          >
+            + New pipeline
+          </button>
+
+          {pipelines.length === 0 ? (
+            <div className="text-sm text-stone-400 px-2">No pipelines yet.</div>
+          ) : (
+            <ul className="space-y-1">
+              {pipelines.map((p) => {
+                const isSelected = !formActive && selectedId === p.id;
+                return (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => { setSelectedId(p.id); setShowCreate(false); setEditingId(null); }}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-white border border-stone-800'
+                          : 'bg-white border border-stone-200 hover:border-stone-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`text-[9px] font-semibold px-1 py-0.5 rounded flex-shrink-0 ${
+                          p.language === 'arabic'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {p.language === 'arabic' ? 'AR' : 'EN'}
+                        </span>
+                        <span className="font-medium text-stone-800 truncate">{p.name}</span>
+                      </div>
+                      <div className="text-[11px] text-stone-500 mt-0.5 truncate">
+                        {p.language === 'arabic' ? 'Recitation' : 'TTS'}
+                        {p.video_count ? ` · ${p.video_count} video${p.video_count === 1 ? '' : 's'}` : ''}
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
-      )}
+
+        {/* Right pane — form (when creating/editing) or detail (when a pipeline is selected) */}
+        <div className="min-w-0">
 
       {/* Create / Edit form */}
       {(showCreate || editingId) && (
-        <div className="rounded-xl border border-stone-200 bg-white p-6 mb-8">
+        <div className="rounded-xl border border-stone-200 bg-white p-6">
           <h2 className="font-semibold text-stone-800 mb-4">{editingId ? 'Edit Pipeline' : 'Create New Pipeline'}</h2>
           <div className="space-y-4 max-w-lg">
             <div>
@@ -649,170 +674,237 @@ export default function PipelineManager() {
         </div>
       )}
 
-      {/* Selected pipeline details */}
+      {/* Selected pipeline details — mirrors AdminEducationalPipelines:
+          header (badge + name + Run-now/Edit/Delete) → 3-column config
+          summary → Run pipeline action → Schedule callout → Videos. */}
       {selected && !showCreate && !editingId && (
-        <div>
-          {/* Config summary */}
-          <div className="rounded-xl border border-stone-200 bg-white p-6 mb-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-mono text-stone-400 bg-stone-100 px-2 py-0.5 rounded">
-                    #{selected.id}
-                  </span>
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                    selected.language === 'arabic' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {selected.language === 'arabic' ? 'Arabic · Recitation' : 'English · TTS'}
-                  </span>
-                  <h2 className="font-semibold text-stone-800 text-lg">{selected.name}</h2>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-stone-400">
-                  <span>
-                    Video: {selected.random_resource
-                      ? <span className="italic text-stone-500">Random per run</span>
-                      : (resources.find((r) => r.id === selected.resource_id)?.description
-                          || resources.find((r) => r.id === selected.resource_id)?.original_name
-                          || '?')}
-                  </span>
-                  {selected.language === 'arabic' ? (
-                    <span>Reciter: {(() => {
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <h2 className="text-lg font-semibold text-stone-800">{selected.name}</h2>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                  selected.language === 'arabic'
+                    ? 'bg-amber-100 text-amber-700'
+                    : 'bg-emerald-100 text-emerald-700'
+                }`}>
+                  {selected.language === 'arabic' ? 'Arabic · Recitation' : 'English · TTS'}
+                </span>
+              </div>
+              <p className="text-sm text-stone-500 mt-0.5">
+                {selected.language === 'arabic'
+                  ? 'On-screen English translation, capped at 55s for copyright safety'
+                  : 'AI-selected verses with polished English narration'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={handleGenerate}
+                disabled={generating || hasActiveVideo || showManualForm}
+                className="px-3 py-1.5 rounded-md bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+                title={hasActiveVideo ? 'A video is already being produced' : 'Pick verses and generate a video'}
+              >
+                {generating && !showManualForm ? 'Starting…' : 'Run now'}
+              </button>
+              <button
+                onClick={() => handleEdit(selected)}
+                className="px-3 py-1.5 rounded-md border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-50 cursor-pointer"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDelete(selected.id)}
+                className="px-3 py-1.5 rounded-md border border-red-300 text-red-700 text-sm font-medium hover:bg-red-50 cursor-pointer"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+
+          {/* Config summary — 3-column grid matching educational. The
+              "voice or reciter" row swaps based on language so the
+              column layout is identical for both pipeline types. */}
+          <div className="rounded-lg border border-stone-200 bg-white p-4 grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">
+                {selected.language === 'arabic' ? 'Reciter' : 'Voice'}
+              </div>
+              <div className="text-stone-700">
+                {selected.language === 'arabic'
+                  ? (() => {
                       const rec = reciters.find((r) => r.id === selected.reciter_id);
-                      if (!rec) return selected.reciter_id ? `#${selected.reciter_id}` : '?';
+                      if (!rec) return selected.reciter_id ? `#${selected.reciter_id}` : '—';
                       return `${rec.reciter_name}${rec.style ? ` (${rec.style})` : ''}`;
-                    })()}</span>
-                  ) : (
-                    <span>Voice: {voices.find((v) => v.voice_id === selected.voice_id)?.name || selected.voice_id}</span>
-                  )}
-                  {selected.music_id && <span>Music: {musicTracks.find((m) => m.id === selected.music_id)?.description || musicTracks.find((m) => m.id === selected.music_id)?.original_name || '?'}</span>}
-                  <span>Bands: {selected.show_bands ? 'On' : 'Off'}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => handleEdit(selected)}
-                  className="text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(selected.id)}
-                  className="text-xs text-red-400 hover:text-red-600 cursor-pointer"
-                >
-                  Delete
-                </button>
+                    })()
+                  : (voices.find((v) => v.voice_id === selected.voice_id)?.name || selected.voice_id || '—')
+                }
               </div>
             </div>
-
-            {/* Generate buttons */}
-            <div className="mt-6 space-y-3">
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={handleGenerate}
-                  disabled={generating || hasActiveVideo || showManualForm}
-                  className="px-6 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {generating && !showManualForm
-                    ? 'Starting...'
-                    : hasActiveVideo
-                    ? 'Video in progress...'
-                    : `Auto Pick Verses for ${selected?.language === 'arabic' ? 'Arabic' : 'English'} Pipeline`}
-                </button>
-                <button
-                  onClick={() => { setShowManualForm(!showManualForm); setManualError(''); }}
-                  disabled={generating || hasActiveVideo}
-                  className="px-6 py-3 rounded-xl border border-stone-300 bg-white text-stone-700 font-semibold text-sm hover:bg-stone-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {showManualForm ? 'Cancel Manual Selection' : 'Manually Pick Verses for Pipeline'}
-                </button>
-                {genError && <p className="text-sm text-red-600">{genError}</p>}
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Background</div>
+              <div className="text-stone-700">
+                {selected.random_resource
+                  ? <span className="italic text-stone-500">Random per run</span>
+                  : (resources.find((r) => r.id === selected.resource_id)?.description
+                      || resources.find((r) => r.id === selected.resource_id)?.original_name
+                      || '—')}
+                <span className="text-[11px] text-stone-400 block mt-0.5">
+                  Bands: {selected.show_bands ? 'On' : 'Off'}
+                </span>
               </div>
-
-              {showManualForm && (
-                <div className="mt-2 rounded-xl border border-stone-200 bg-stone-50 p-4 space-y-3">
-                  <div>
-                    <label className="block text-xs font-medium text-stone-600 mb-1">Verse range</label>
-                    <input
-                      type="text"
-                      value={manualRange}
-                      onChange={(e) => setManualRange(e.target.value)}
-                      placeholder="e.g. 102:1-8"
-                      className="w-full max-w-xs px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                    />
-                    <p className="mt-1 text-xs text-stone-400">Format: <code>surah:start-end</code> or <code>surah:ayah</code> for a single verse.</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-stone-600 mb-1">YouTube title</label>
-                    <input
-                      type="text"
-                      value={manualTitle}
-                      onChange={(e) => setManualTitle(e.target.value)}
-                      placeholder="e.g. 102:1-8 | The Rivalry That Destroys You"
-                      className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-stone-600 mb-1">YouTube description</label>
-                    <textarea
-                      value={manualDescription}
-                      onChange={(e) => setManualDescription(e.target.value)}
-                      placeholder="Brief, thoughtful description..."
-                      rows={3}
-                      className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-y"
-                    />
-                  </div>
-                  {manualError && (
-                    <p className="text-sm text-red-600">{manualError}</p>
-                  )}
-                  <div className="flex items-center gap-3 pt-1">
-                    <button
-                      onClick={handleManualGenerate}
-                      disabled={generating || hasActiveVideo}
-                      className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {generating ? 'Starting...' : 'Generate Video'}
-                    </button>
-                  </div>
-                </div>
-              )}
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Music</div>
+              <div className="text-stone-700">
+                {selected.music_id
+                  ? (musicTracks.find((m) => m.id === selected.music_id)?.description
+                      || musicTracks.find((m) => m.id === selected.music_id)?.original_name
+                      || '—')
+                  : <span className="text-stone-400">None</span>}
+              </div>
             </div>
           </div>
 
-          {/* Generated videos */}
-          <h2 className="text-sm font-semibold text-stone-600 mb-3">Generated Videos ({videos.length})</h2>
+          {/* Run pipeline — manual selection toggle + form. The primary
+              "Run now" button lives in the header; this card surfaces
+              the manual override path (specific verse range + custom
+              metadata). */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-400">
+                Pick a specific passage
+              </h3>
+              <button
+                onClick={() => { setShowManualForm(!showManualForm); setManualError(''); }}
+                disabled={generating || hasActiveVideo}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium border cursor-pointer disabled:opacity-50 ${
+                  showManualForm
+                    ? 'bg-stone-100 text-stone-700 border-stone-300'
+                    : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                }`}
+              >
+                {showManualForm ? 'Cancel manual selection' : 'Manually pick verses'}
+              </button>
+            </div>
+            {genError && !showManualForm && (
+              <p className="text-sm text-red-600 mb-2">{genError}</p>
+            )}
 
-          {videos.length === 0 && (
-            <p className="text-sm text-stone-400">No videos generated yet. Click the button above to create your first video.</p>
-          )}
+            {showManualForm && (
+              <div className="rounded-lg border border-stone-200 bg-stone-50/40 p-4 space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-stone-600 mb-1">Verse range</label>
+                  <input
+                    type="text"
+                    value={manualRange}
+                    onChange={(e) => setManualRange(e.target.value)}
+                    placeholder="e.g. 102:1-8"
+                    className="w-full max-w-xs px-3 py-2 rounded-md border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+                  />
+                  <p className="mt-1 text-xs text-stone-400">Format: <code>surah:start-end</code> or <code>surah:ayah</code> for a single verse.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-600 mb-1">YouTube title</label>
+                  <input
+                    type="text"
+                    value={manualTitle}
+                    onChange={(e) => setManualTitle(e.target.value)}
+                    placeholder="e.g. 102:1-8 | The Rivalry That Destroys You"
+                    className="w-full px-3 py-2 rounded-md border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-stone-600 mb-1">YouTube description</label>
+                  <textarea
+                    value={manualDescription}
+                    onChange={(e) => setManualDescription(e.target.value)}
+                    placeholder="Brief, thoughtful description…"
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-md border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400 resize-y"
+                  />
+                </div>
+                {manualError && (
+                  <p className="text-sm text-red-600">{manualError}</p>
+                )}
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    onClick={handleManualGenerate}
+                    disabled={generating || hasActiveVideo}
+                    className="px-3 py-1.5 rounded-md bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+                  >
+                    {generating ? 'Starting…' : 'Generate from this passage'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
-          <div className="space-y-3">
-            {videos.map((v) => (
-              <VideoCard
-                key={v.id}
-                video={v}
-                onDelete={handleDeleteVideo}
-                onDownload={handleDownload}
-                onUploadedToggle={handleToggleUploaded}
-                youtubeConfigured={youtubeConfigured}
-                tiktokConfigured={tiktokConfigured}
-              />
-            ))}
+          {/* Schedule callout — same pattern as the educational detail
+              view: schedule controls live in /admin/scheduler. */}
+          <div className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600 flex items-center justify-between gap-3 flex-wrap">
+            <span>
+              <strong className="text-stone-700">Schedule:</strong> daily fire
+              times, daily cap, and grace window are managed in{' '}
+              <a href="/admin/scheduler" className="underline decoration-dotted underline-offset-2 hover:text-stone-800">
+                Scheduler
+              </a>
+              {' '}alongside educational pipelines and the YouTube upload schedule.
+            </span>
+            <a
+              href="/admin/scheduler"
+              className="px-3 py-1.5 rounded-md border border-stone-300 bg-white text-stone-700 text-xs font-medium hover:bg-stone-100"
+            >
+              Open Scheduler →
+            </a>
+          </div>
+
+          {/* Videos produced */}
+          <div>
+            <div className="flex items-baseline justify-between mb-3">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-stone-400">
+                Videos from this pipeline
+              </h3>
+              <span className="text-xs text-stone-400">{videos.length}</span>
+            </div>
+            {videos.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50/40 p-6 text-sm text-stone-500 text-center">
+                None yet — click <strong>Run now</strong> to generate the first one.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {videos.map((v) => (
+                  <VideoCard
+                    key={v.id}
+                    video={v}
+                    onDelete={handleDeleteVideo}
+                    onDownload={handleDownload}
+                    onUploadedToggle={handleToggleUploaded}
+                    youtubeConfigured={youtubeConfigured}
+                    tiktokConfigured={tiktokConfigured}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Empty state */}
-      {pipelines.length === 0 && !showCreate && (
-        <div className="text-center py-16">
-          <p className="text-stone-400 mb-4">No pipelines created yet.</p>
-          <button
-            onClick={() => { setShowCreate(true); resetForm(); }}
-            className="px-5 py-2.5 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 transition-colors cursor-pointer"
-          >
-            Create Your First Pipeline
-          </button>
+      {/* Empty hint — when nothing is selected and not creating */}
+      {!selected && !showCreate && !editingId && (
+        <div className="rounded-lg border border-dashed border-stone-300 bg-stone-50/40 p-8 text-sm text-stone-500">
+          <p className="mb-2 font-medium text-stone-700">Pick a pipeline or create one.</p>
+          <p>
+            A recitation pipeline bundles a language (English TTS or Arabic
+            recitation), a voice or reciter, a background video, and
+            optional music. Each pipeline runs independently and uploads
+            to the same YouTube queue.
+          </p>
         </div>
       )}
+
+        </div> {/* /right pane */}
+      </div> {/* /grid */}
 
       {confirmDialog}
     </div>
