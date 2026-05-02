@@ -12432,6 +12432,13 @@ def _generate_youtube_metadata(verse_data):
     title = (meta.get("title") or "").strip()
     description = (meta.get("description") or "").strip()
 
+    # Append the standard al-nuqta.com links block — homepage + one
+    # link per unique verse in the passage. Mirrors the educational
+    # pipeline's footer so viewers always have a click path back to
+    # the verse on the site, and the LLM doesn't have to be coaxed
+    # into producing reliable URLs.
+    description = _append_alnuqta_links_to_description(description, verse_data)
+
     # Tags: accept list; filter to non-empty strings; cap at 15 and 500 chars each
     raw_tags = meta.get("tags") if isinstance(meta.get("tags"), list) else []
     tags: list[str] = []
@@ -12445,6 +12452,63 @@ def _generate_youtube_metadata(verse_data):
             break
 
     return (title, description, tags)
+
+
+def _append_alnuqta_links_to_description(
+    description: str,
+    verse_data: list,
+) -> str:
+    """Append a programmatic links block to the recitation pipeline's
+    YouTube description.
+
+    Adds:
+      - One "Quran C:V — https://al-nuqta.com/verse/C:V" line per unique
+        verse in the passage (preserves verse_data order).
+      - A homepage link.
+      - The standard al-nuqta footer (mirrors the educational pipeline).
+
+    The LLM-generated description stays at the top — that's what stops
+    the scroll. Links live below as a footer block. If verse_data is
+    empty the description is returned unchanged.
+    """
+    if not verse_data:
+        return description
+
+    seen: set[tuple[int, int]] = set()
+    pairs: list[tuple[int, int]] = []
+    for v in verse_data:
+        try:
+            c = int(v.get("chapter"))
+            a = int(v.get("verse"))
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if (c, a) in seen:
+            continue
+        seen.add((c, a))
+        pairs.append((c, a))
+
+    if not pairs:
+        return description
+
+    parts: list[str] = []
+    if description:
+        parts.append(description.rstrip())
+        parts.append("")
+
+    parts.append("📖 Read these verses on al-nuqta.com:")
+    for c, a in pairs:
+        parts.append(f"• Quran {c}:{a} — https://al-nuqta.com/verse/{c}:{a}")
+    parts.append("")
+    parts.append(
+        "Explore the Quran root-by-root, with morphology, etymology, "
+        "and Semitic cognates behind every word: https://al-nuqta.com"
+    )
+    parts.append("")
+    parts.append(
+        "Brought to you by al-nuqta.com — A Root Based Translation of the Quran."
+    )
+
+    return "\n".join(parts)
 
 
 # --------------------------------------------------------------------------
