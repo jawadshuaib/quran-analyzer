@@ -250,13 +250,99 @@ def _strip_uthmani_marks(text: str) -> str:
     return re.sub(r"[ٰٓٔۖ-ۭ]", "", out)
 
 
+# Verse-excerpt thresholds. Median verse is ~14 words / 92 chars;
+# anything beyond ~16 words pushes the bottom-anchored translation
+# off-screen at fontsize 108. We window a few words on each side of
+# the highlighted target so the viewer still sees the target word in
+# its immediate context, with "…" markers indicating truncation.
+_ARABIC_EXCERPT_THRESHOLD_WORDS = 16
+_ARABIC_EXCERPT_SIDE_WORDS = 5
+_TRANSLATION_EXCERPT_THRESHOLD_CHARS = 200
+_TRANSLATION_EXCERPT_SIDE_CHARS = 90
+
+
+def _excerpt_arabic_around_word(
+    text: str,
+    target_word_pos: int,
+    *,
+    threshold_words: int = _ARABIC_EXCERPT_THRESHOLD_WORDS,
+    side_words: int = _ARABIC_EXCERPT_SIDE_WORDS,
+) -> tuple[str, int]:
+    """For long verses, take a window of `side_words` on each side of
+    the highlighted word and prepend / append "…" so the target word
+    stays in view with its immediate context. Returns (excerpted_text,
+    new_target_word_pos). For short verses or out-of-range positions,
+    returns the input unchanged."""
+    if not text:
+        return text, target_word_pos
+    words = text.split()
+    if len(words) <= threshold_words:
+        return text, target_word_pos
+    idx = target_word_pos - 1
+    if idx < 0 or idx >= len(words):
+        return text, target_word_pos
+    start = max(0, idx - side_words)
+    end = min(len(words), idx + side_words + 1)
+    window = words[start:end]
+    new_idx = idx - start
+    prefix_words = ["…"] if start > 0 else []
+    suffix_words = ["…"] if end < len(words) else []
+    final = prefix_words + window + suffix_words
+    new_pos = new_idx + len(prefix_words) + 1
+    return " ".join(final), new_pos
+
+
+def _excerpt_translation_around_gloss(
+    text: str,
+    gloss: str | None,
+    *,
+    threshold_chars: int = _TRANSLATION_EXCERPT_THRESHOLD_CHARS,
+    side_chars: int = _TRANSLATION_EXCERPT_SIDE_CHARS,
+) -> str:
+    """For long English translations, return a window of `side_chars`
+    around the gloss substring, snapped to word boundaries with "…"
+    markers. If the gloss can't be located or the translation is
+    already short enough, returns the input unchanged."""
+    if not text or len(text) <= threshold_chars:
+        return text
+    if not gloss:
+        return text
+    needle = _PARENTHETICAL_RE.sub("", gloss).strip().strip(",.;:")
+    if not needle or len(needle) < 2:
+        return text
+    lower = text.lower()
+    pos = lower.find(needle.lower())
+    if pos < 0:
+        head = needle.split()[-1] if needle.split() else ""
+        if len(head) < 3:
+            return text
+        pos = lower.find(head.lower())
+        if pos < 0:
+            return text
+        needle = head
+    start = max(0, pos - side_chars)
+    end = min(len(text), pos + len(needle) + side_chars)
+    # Snap to word boundaries so we don't slice a word in half.
+    while start > 0 and text[start - 1].isalnum():
+        start -= 1
+    while end < len(text) and text[end].isalnum():
+        end += 1
+    excerpt = text[start:end].strip()
+    prefix = "… " if start > 0 else ""
+    suffix = " …" if end < len(text) else ""
+    return prefix + excerpt + suffix
+
+
 def _format_arabic_with_highlight(text: str, target_word_pos: int) -> str:
     """Wrap the target word (1-indexed) in inline gold-yellow ASS tags.
     Splits by whitespace; word_pos matches the same 1-indexed position
     used in morphology and the reader UI. Strips Uthmani marks first
-    so libass renders the verse cleanly. Falls back to unhighlighted
-    text if word_pos is out of range."""
+    so libass renders the verse cleanly, then trims long verses to a
+    window around the target word so the bottom-anchored translation
+    stays on screen. Falls back to unhighlighted text if word_pos is
+    out of range."""
     text = _strip_uthmani_marks(text or "")
+    text, target_word_pos = _excerpt_arabic_around_word(text, target_word_pos)
     words = text.split()
     idx = target_word_pos - 1
     if idx < 0 or idx >= len(words):
@@ -286,9 +372,14 @@ def _format_translation_with_highlight(text: str, gloss: str | None) -> str:
     """If `gloss` appears (case-insensitively, ignoring parentheticals)
     in `text`, wrap that range in inline gold-yellow ASS tags. Otherwise
     return the translation as-is. Operator gets a visual link between
-    the highlighted Arabic word and the corresponding English phrase."""
+    the highlighted Arabic word and the corresponding English phrase.
+
+    Long translations are first windowed around the gloss so the
+    on-screen text fits in the bottom-anchored Translation slot
+    without overlapping the Arabic verse."""
     if not text:
         return ""
+    text = _excerpt_translation_around_gloss(text, gloss)
     safe = _ass_escape(text)
     if not gloss:
         return safe
