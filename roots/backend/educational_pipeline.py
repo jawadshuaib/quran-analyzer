@@ -425,10 +425,100 @@ def sample_candidates(
     vtype: str,
     limit: int = 25,
     exclude_queued: bool = True,
+    recency_days: int = 0,
 ) -> list[dict]:
+    """Pull a ranked list of candidates for the given series type.
+
+    `recency_days` (default 0 = disabled) excludes candidates whose
+    *content key* was used recently — so the same root (Word Origins)
+    or verse (other types) doesn't dominate every run. Pipeline
+    orchestrator passes 30; the candidate-browser UI passes 0 so the
+    operator can still see the full pool.
+    """
     if vtype not in _SAMPLERS:
         raise ValueError(f"unknown educational video type: {vtype}")
-    return _SAMPLERS[vtype](conn, limit, exclude_queued)
+    out = _SAMPLERS[vtype](conn, limit, exclude_queued)
+    if recency_days and recency_days > 0:
+        out = _apply_recency_filter(conn, vtype, out, recency_days)
+    return out
+
+
+def _apply_recency_filter(
+    conn: sqlite3.Connection,
+    vtype: str,
+    candidates: list[dict],
+    recency_days: int,
+) -> list[dict]:
+    """Drop candidates whose content key (root for word_origins,
+    (chapter, verse) for the others) was used by an
+    educational_videos row within the last `recency_days`.
+
+    Why per-type, not per-pipeline:
+      The recitation pipeline scopes recency to a single pipeline so
+      two pipelines on different languages never collide. For
+      educational, all pipelines of one type (e.g. all Word Origins
+      pipelines) share the same content universe — we don't want the
+      'short' pipeline burning a-y-n today and the 'long' pipeline
+      doing the same root tomorrow. Global per-type recency keeps
+      content varied across both.
+    """
+    if not candidates:
+        return candidates
+    rows = conn.execute(
+        "SELECT chapter, verse, anchor_word_pos, payload_json "
+        "FROM educational_videos "
+        "WHERE type = ? AND created_at >= datetime('now', ?)",
+        (vtype, f"-{recency_days} days"),
+    ).fetchall()
+    if not rows:
+        return candidates
+
+    if vtype == "word_origins":
+        # Deduplicate by root_buckwalter — that's the unit a viewer
+        # would recognize as "the same video idea." Different verses
+        # for the same root still talk about that root.
+        #
+        # Resolution order for the row's root:
+        #   1. payload_json.root_bw            (manual-queue shape)
+        #   2. payload_json.root.buckwalter    (enriched / script-gen shape)
+        #   3. morphology lookup by (chapter, verse, word_pos)
+        #
+        # The morphology fallback is the source of truth — if the
+        # payload format ever changes again, we still get the right
+        # answer.
+        used_roots: set[str] = set()
+        for r in rows:
+            rb: str | None = None
+            try:
+                p = json.loads(r["payload_json"] or "{}")
+                rb = p.get("root_bw") or (p.get("root") or {}).get("buckwalter")
+            except Exception:
+                pass
+            if not rb and r["anchor_word_pos"] is not None:
+                m = conn.execute(
+                    "SELECT root_buckwalter FROM morphology "
+                    "WHERE chapter = ? AND verse = ? AND word_pos = ? "
+                    "AND root_buckwalter IS NOT NULL AND root_buckwalter != '' "
+                    "ORDER BY segment ASC LIMIT 1",
+                    (r["chapter"], r["verse"], r["anchor_word_pos"]),
+                ).fetchone()
+                if m and m["root_buckwalter"]:
+                    rb = m["root_buckwalter"]
+            if rb:
+                used_roots.add(rb)
+        if not used_roots:
+            return candidates
+        return [c for c in candidates if c.get("root_bw") not in used_roots]
+
+    # translation_hides + grammar_insights: per-anchor dedupe is
+    # already covered by exclude_queued (the anchor IS the verse for
+    # these types). Apply (chapter, verse) recency anyway so the
+    # filter behaves consistently across types.
+    used_pairs: set[tuple[int, int]] = {(r["chapter"], r["verse"]) for r in rows}
+    return [
+        c for c in candidates
+        if (c.get("chapter"), c.get("verse")) not in used_pairs
+    ]
 
 
 def pool_size(conn: sqlite3.Connection, vtype: str) -> int:
@@ -772,6 +862,11 @@ def record_schedule_run(
 # than spin forever burning Ollama calls.
 _MAX_SAFETY_SKIPS = 20
 
+# Don't repeat the same root (Word Origins) or verse (other types)
+# within this many days. Mirrors the recitation pipeline's 30-day
+# rotation. Set 0 to disable.
+PIPELINE_RECENCY_DAYS = 30
+
 
 def pick_and_queue_for_pipeline(
     conn: sqlite3.Connection,
@@ -793,14 +888,23 @@ def pick_and_queue_for_pipeline(
     if not pipe.get("enabled"):
         raise PipelineRunError(f"pipeline {pipeline_id} is disabled")
 
-    # Pull more than we need so we have room to skip controversial
-    # source verses before reaching the bottom of the pool.
+    # Pull plenty of candidates so the recency filter (drops recently-
+    # used roots/verses) and the safety loop (drops controversial
+    # source verses) both have room to work without starving us.
+    # 100 is well over the worst-case combined drop rate; ranking by
+    # score in the underlying sampler means the front of the list is
+    # still our best content even after filtering.
     candidates = sample_candidates(
-        conn, pipe["type"], limit=_MAX_SAFETY_SKIPS + 1, exclude_queued=True,
+        conn, pipe["type"],
+        limit=100,
+        exclude_queued=True,
+        recency_days=PIPELINE_RECENCY_DAYS,
     )
     if not candidates:
         raise PipelineRunError(
-            f"no unused {pipe['type']} candidates remain — pool exhausted"
+            f"no unused {pipe['type']} candidates remain — either the pool "
+            f"is exhausted or every top candidate was used in the last "
+            f"{PIPELINE_RECENCY_DAYS} days. Wait or widen the pool."
         )
 
     # Filter the source verse through content safety. If Ollama isn't
