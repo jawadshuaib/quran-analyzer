@@ -8494,6 +8494,84 @@ def admin_educational_add_to_playlist(video_id: int):
     }), (200 if ok else 502)
 
 
+@app.route("/api/admin/educational/<int:video_id>/youtube-stats", methods=["GET"])
+@admin_required
+def admin_educational_youtube_stats(video_id: int):
+    """Fetch view/like/comment counts for an uploaded video via
+    YouTube Data API v3 videos.list?part=statistics.
+
+    Stats come back live; we don't cache them. If the operator
+    wants to track-over-time, that's a future feature.
+
+    Requires the broad 'youtube' (or 'youtube.readonly') OAuth
+    scope. With only 'youtube.upload', this returns 403 'insufficient
+    authentication scopes' — the same condition the playlist add
+    surfaces."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT youtube_video_id FROM educational_videos WHERE id = ?",
+            (video_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Video not found"}), 404
+        if not row["youtube_video_id"]:
+            return jsonify({"error": "Video hasn't been uploaded yet"}), 409
+        yt_id = row["youtube_video_id"]
+    finally:
+        conn.close()
+
+    try:
+        access_token = _youtube_get_access_token()
+    except RuntimeError as e:
+        return jsonify({"error": str(e)}), 400
+
+    try:
+        resp = requests.get(
+            "https://www.googleapis.com/youtube/v3/videos",
+            params={"part": "statistics,snippet", "id": yt_id},
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=20,
+        )
+    except requests.RequestException as e:
+        return jsonify({"error": f"YouTube request failed: {e}"}), 502
+
+    if resp.status_code != 200:
+        try:
+            err = resp.json().get("error", {}).get("message") or resp.text[:300]
+        except Exception:
+            err = resp.text[:300]
+        return jsonify({
+            "error": f"YouTube stats fetch failed ({resp.status_code}): {err}",
+        }), 502
+
+    items = resp.json().get("items") or []
+    if not items:
+        return jsonify({"error": "Video not found on YouTube — may have been removed"}), 404
+
+    stats = items[0].get("statistics") or {}
+    snippet = items[0].get("snippet") or {}
+    # YouTube returns counts as strings — coerce to int for the UI.
+    def _i(k: str) -> int:
+        v = stats.get(k)
+        try:
+            return int(v) if v is not None else 0
+        except (TypeError, ValueError):
+            return 0
+    return jsonify({
+        "youtube_video_id": yt_id,
+        "title": snippet.get("title"),
+        "published_at": snippet.get("publishedAt"),
+        "views": _i("viewCount"),
+        "likes": _i("likeCount"),
+        "comments": _i("commentCount"),
+        # favoriteCount is deprecated on YouTube but still returned;
+        # skip exposing it.
+    })
+
+
 @app.route("/api/admin/educational/<int:video_id>/upload-youtube", methods=["POST"])
 @admin_required
 def admin_educational_upload_youtube(video_id: int):

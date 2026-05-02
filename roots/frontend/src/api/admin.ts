@@ -1651,6 +1651,31 @@ export async function uploadEducationalVideoToYouTube(
   return data as UploadYouTubeResult;
 }
 
+export interface YouTubeVideoStats {
+  youtube_video_id: string;
+  title: string | null;
+  published_at: string | null;
+  views: number;
+  likes: number;
+  comments: number;
+}
+
+/** Live stats fetch for an uploaded educational video. Calls
+ *  YouTube Data API videos.list?part=statistics. Requires the
+ *  broad 'youtube' OAuth scope on the refresh token; 403 from
+ *  here is the same root cause as the 403 on playlistItems.insert
+ *  ("insufficient authentication scopes" — the token was minted
+ *  with youtube.upload only). */
+export async function getEducationalYouTubeStats(
+  id: number,
+): Promise<YouTubeVideoStats> {
+  const res = await authFetch(`${BASE}/educational/${id}/youtube-stats`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Stats fetch failed');
+  return data as YouTubeVideoStats;
+}
+
+
 /** Retry the per-series playlist add for an already-uploaded video.
  *  Re-reads the playlist preference and calls YouTube's
  *  playlistItems.insert. Useful when the original upload's playlist

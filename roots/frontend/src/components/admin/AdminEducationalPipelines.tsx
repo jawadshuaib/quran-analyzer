@@ -8,6 +8,7 @@ import {
   deleteEducationalVideo,
   uploadEducationalVideoToYouTube,
   retryEducationalPlaylistAdd,
+  getEducationalYouTubeStats,
   uploadEducationalOutroAudio,
   deleteEducationalOutroAudio,
   educationalOutroAudioUrl,
@@ -425,6 +426,12 @@ function PipelineVideoRow({
     message: string;
   }>({ ok: null, message: '' });
   const [retryingPlaylist, setRetryingPlaylist] = useState(false);
+  // Live YouTube stats fetched on demand. null = never fetched.
+  const [stats, setStats] = useState<{
+    views: number; likes: number; comments: number;
+  } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsErr, setStatsErr] = useState('');
   const hasMeta = !!(v.youtube_title || v.youtube_description);
   // 'rendering' rows are blocked server-side from deletion to avoid
   // yanking a file out from under ffmpeg; reflect that in the button.
@@ -473,6 +480,19 @@ function PipelineVideoRow({
       });
     } finally {
       setRetryingPlaylist(false);
+    }
+  }
+
+  async function handleFetchStats() {
+    setStatsLoading(true);
+    setStatsErr('');
+    try {
+      const r = await getEducationalYouTubeStats(v.id);
+      setStats({ views: r.views, likes: r.likes, comments: r.comments });
+    } catch (e) {
+      setStatsErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setStatsLoading(false);
     }
   }
   let parsedTags: string[] = [];
@@ -525,6 +545,16 @@ function PipelineVideoRow({
             On YouTube ↗
           </a>
         )}
+        {isUploaded && (
+          <button
+            onClick={handleFetchStats}
+            disabled={statsLoading}
+            className="px-2.5 py-1 rounded-md border border-stone-300 text-stone-700 text-xs font-medium hover:bg-stone-50 disabled:opacity-60 cursor-pointer"
+            title="Fetch live view/like/comment counts from YouTube Data API."
+          >
+            {statsLoading ? 'Loading…' : stats ? 'Refresh stats' : 'Stats'}
+          </button>
+        )}
         {canUpload && (
           <button
             onClick={handleUpload}
@@ -549,6 +579,25 @@ function PipelineVideoRow({
       {uploadErr && (
         <div className="px-3 pb-2 text-xs text-red-700">
           Upload failed: {uploadErr}
+        </div>
+      )}
+      {stats && (
+        <div className="px-3 pb-2 text-xs text-stone-600 flex items-center gap-3">
+          <span title="Views">👁 {stats.views.toLocaleString()}</span>
+          <span title="Likes">👍 {stats.likes.toLocaleString()}</span>
+          <span title="Comments">💬 {stats.comments.toLocaleString()}</span>
+        </div>
+      )}
+      {statsErr && (
+        <div className="px-3 pb-2 text-xs text-amber-700">
+          Stats: {statsErr}
+          {/insufficient.*scope|403/i.test(statsErr) && (
+            <span className="text-stone-500">
+              {' '}— regenerate the YouTube refresh token with the broad{' '}
+              <code className="bg-stone-100 px-1 rounded">youtube</code> scope
+              (Admin → Settings → YouTube).
+            </span>
+          )}
         </div>
       )}
       {/* Playlist outcome from the most recent upload OR retry. Stays

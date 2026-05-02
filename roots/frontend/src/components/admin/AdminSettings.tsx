@@ -29,7 +29,9 @@ Target YouTube channel (brand account): Al-Nuqta
    - Close the gear panel
 
 4. In the left pane, either find "YouTube Data API v3" and check
-   https://www.googleapis.com/auth/youtube.upload, OR paste that scope URL directly into the "Input your own scopes" box at the bottom — either works.
+   https://www.googleapis.com/auth/youtube, OR paste that scope URL directly into the "Input your own scopes" box at the bottom — either works.
+
+   Important: use the broad "youtube" scope, NOT "youtube.upload". The narrow upload-only scope can publish videos but cannot add them to playlists (the playlistItems.insert call returns "insufficient authentication scopes"). The "youtube" scope covers both.
 
 5. Click "Authorize APIs". Google will walk you through TWO selectors in sequence. Read carefully — getting either wrong publishes uploads to the wrong channel.
 
@@ -724,7 +726,7 @@ function YoutubeSection() {
             <code className="mx-1 px-1 bg-stone-100 rounded">https://developers.google.com/oauthplayground</code>
             as an authorized redirect URI. Copy the Client ID + Client Secret here.</li>
           <li>Open <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noopener noreferrer" className="underline">OAuth 2.0 Playground</a> ⚙️ → check "Use your own OAuth credentials", paste the ID/Secret.</li>
-          <li>In the scope list add <code className="mx-1 px-1 bg-stone-100 rounded">https://www.googleapis.com/auth/youtube.upload</code>, click Authorize APIs, sign in with the account that owns the channel.</li>
+          <li>In the scope list add <code className="mx-1 px-1 bg-stone-100 rounded">https://www.googleapis.com/auth/youtube</code> (the broad scope — covers upload + playlist + stats; the narrower <code className="mx-1 px-1 bg-stone-100 rounded">youtube.upload</code> can't manage playlists), click Authorize APIs, sign in with the account that owns the channel.</li>
           <li>Click "Exchange authorization code for tokens", copy the <b>Refresh token</b> here.</li>
         </ol>
       </details>
