@@ -13949,10 +13949,24 @@ def _scheduler_tick():
 def _ensure_youtube_upload_tables():
     conn = get_db()
     try:
-        # Per-video skip flag for sanity-rejected videos (idempotent migration)
+        # Per-video skip flag for sanity-rejected videos (idempotent migration).
+        # Recitation pipeline first.
         try:
             conn.execute(
                 "ALTER TABLE admin_pipeline_videos "
+                "ADD COLUMN auto_upload_skipped INTEGER NOT NULL DEFAULT 0"
+            )
+            conn.commit()
+        except Exception:
+            pass
+        # Same flag on educational_videos so the global YouTube upload
+        # scheduler can sanity-reject educational rows without re-picking
+        # them every slot. Idempotent: ALTER fails harmlessly if already
+        # present, and the docker entrypoint's schema-align step preserves
+        # it across deploys.
+        try:
+            conn.execute(
+                "ALTER TABLE educational_videos "
                 "ADD COLUMN auto_upload_skipped INTEGER NOT NULL DEFAULT 0"
             )
             conn.commit()
@@ -14099,6 +14113,44 @@ def _youtube_sanity_check(video_row) -> tuple[bool, str]:
         return (True, f"Sanity check error: {str(e)[:200]} — proceeding")
 
 
+def _youtube_sanity_check_educational(edu_row, conn) -> tuple[bool, str]:
+    """Sanity check for an educational_videos row.
+
+    Adapts the educational schema (chapter/verse columns, no `verse_data`
+    blob) to a minimal shim the recitation `_youtube_sanity_check` can
+    consume, then delegates. Pulls the verse translation so the prompt
+    sees the actual content the operator approved at script-gen time.
+    Defaults to approve on any lookup error — same posture as the
+    recitation check (sanity is the safety net, not the gate).
+    """
+    chapter = edu_row["chapter"]
+    verse = edu_row["verse"]
+    polished = ""
+    try:
+        tr = conn.execute(
+            "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+            (chapter, verse),
+        ).fetchone()
+        if tr and tr["text_en"]:
+            polished = tr["text_en"]
+    except Exception:
+        pass
+
+    fake_row = {
+        "youtube_title": edu_row["youtube_title"] or "",
+        "youtube_description": edu_row["youtube_description"] or "",
+        "youtube_tags": edu_row["youtube_tags"] or "[]",
+        "verse_data": json.dumps([{
+            "chapter": chapter,
+            "verse": verse,
+            "passage_ref": f"{chapter}:{verse}",
+            "polished_text": polished,
+            "original_translation": polished,
+        }]),
+    }
+    return _youtube_sanity_check(fake_row)
+
+
 def _youtube_upload_record_run(
     scheduled_time: str,
     status: str,
@@ -14210,25 +14262,52 @@ def _youtube_upload_tick():
         if existing:
             continue
 
-        # Find oldest eligible video
+        # Find oldest eligible video across BOTH pipelines (recitation +
+        # educational). One slot drains one video, picking whichever
+        # has been waiting longest by created_at. Educational rows
+        # become eligible at status='rendered' (no separate 'complete'
+        # state) and use youtube_video_id IS NULL as the
+        # not-uploaded-yet check.
         conn = get_db()
         try:
-            vrow = conn.execute(
-                "SELECT * FROM admin_pipeline_videos "
+            rec_row = conn.execute(
+                "SELECT id, created_at FROM admin_pipeline_videos "
                 "WHERE status = 'complete' "
                 "  AND uploaded_to_youtube = 0 "
                 "  AND auto_upload_skipped = 0 "
                 "  AND triggered_by = 'scheduler' "
                 "ORDER BY created_at ASC LIMIT 1"
             ).fetchone()
+            edu_row = None
+            if _EDU_OK:
+                edu_row = conn.execute(
+                    "SELECT id, created_at FROM educational_videos "
+                    "WHERE status = 'rendered' "
+                    "  AND youtube_video_id IS NULL "
+                    "  AND auto_upload_skipped = 0 "
+                    "  AND triggered_by = 'scheduler' "
+                    "ORDER BY created_at ASC LIMIT 1"
+                ).fetchone()
         finally:
             conn.close()
-        if not vrow:
+
+        candidates: list[tuple[str, int, str]] = []
+        if rec_row:
+            candidates.append(("recitation", rec_row["id"], rec_row["created_at"] or ""))
+        if edu_row:
+            candidates.append(("educational", edu_row["id"], edu_row["created_at"] or ""))
+        if not candidates:
             _youtube_upload_record_run(
                 scheduled_time_str, "skipped_no_videos",
                 note="No eligible scheduler-generated videos to upload",
             )
             continue
+
+        # Oldest first. Ties (extremely rare — same created_at to the
+        # second across two tables) deterministically pick recitation
+        # first via the original list order.
+        candidates.sort(key=lambda c: c[2])
+        vrow_kind, vrow_id, _ = candidates[0]
 
         # Claim the slot IMMEDIATELY with a placeholder row. This serves two
         # purposes: (1) the UNIQUE index on scheduled_time prevents any other
@@ -14237,39 +14316,53 @@ def _youtube_upload_tick():
         # without blocking the daemon loop for minutes at a time.
         _youtube_upload_record_run(
             scheduled_time_str, "running",
-            video_id=vrow["id"],
-            note="Sanity check + upload in progress",
+            video_id=vrow_id,
+            note=f"[{vrow_kind}] Sanity check + upload in progress",
         )
 
         def _do_sanity_and_upload(
             scheduled_time_str: str = scheduled_time_str,
-            video_row_id: int = vrow["id"],
+            video_row_id: int = vrow_id,
+            kind: str = vrow_kind,
             sanity_enabled: bool = sanity_enabled,
             privacy: str = privacy,
         ):
+            table = "educational_videos" if kind == "educational" else "admin_pipeline_videos"
+
             # Re-fetch the row inside the thread — the one from the outer
             # scope is a Row object from a connection that's been closed.
             conn_inner = get_db()
             try:
                 vrow_inner = conn_inner.execute(
-                    "SELECT * FROM admin_pipeline_videos WHERE id = ?",
+                    f"SELECT * FROM {table} WHERE id = ?",
                     (video_row_id,),
                 ).fetchone()
             finally:
                 conn_inner.close()
             if not vrow_inner:
-                _youtube_update_run_status(scheduled_time_str, "error",
-                                          note="Video disappeared mid-run")
+                _youtube_update_run_status(
+                    scheduled_time_str, "error",
+                    note=f"[{kind}] Video disappeared mid-run",
+                )
                 return
 
-            # Sanity check
+            # Sanity check — branch on kind to use the right adapter.
             if sanity_enabled:
-                should_upload, reason = _youtube_sanity_check(vrow_inner)
+                if kind == "educational":
+                    conn_san = get_db()
+                    try:
+                        should_upload, reason = _youtube_sanity_check_educational(
+                            vrow_inner, conn_san,
+                        )
+                    finally:
+                        conn_san.close()
+                else:
+                    should_upload, reason = _youtube_sanity_check(vrow_inner)
                 if not should_upload:
                     conn2 = get_db()
                     try:
                         conn2.execute(
-                            "UPDATE admin_pipeline_videos SET auto_upload_skipped = 1 WHERE id = ?",
+                            f"UPDATE {table} SET auto_upload_skipped = 1 WHERE id = ?",
                             (video_row_id,),
                         )
                         conn2.commit()
@@ -14277,35 +14370,49 @@ def _youtube_upload_tick():
                         conn2.close()
                     _youtube_update_run_status(
                         scheduled_time_str, "skipped_sanity",
-                        note=reason,
+                        note=f"[{kind}] {reason}",
                     )
-                    print(f"[youtube-scheduler] video {video_row_id} rejected by sanity: {reason}")
+                    print(
+                        f"[youtube-scheduler] {kind} video {video_row_id} "
+                        f"rejected by sanity: {reason}"
+                    )
                     return
 
-            # Upload
+            # Upload — branch on kind to call the right helper. Both
+            # return the same result shape: {ok, youtube_video_id,
+            # error?, playlist_note?}.
             try:
-                result = _perform_youtube_upload(video_row_id, privacy=privacy)
+                if kind == "educational":
+                    result = _perform_educational_youtube_upload(
+                        video_row_id, privacy=privacy,
+                    )
+                else:
+                    result = _perform_youtube_upload(video_row_id, privacy=privacy)
             except Exception as e:
                 _youtube_update_run_status(
                     scheduled_time_str, "error",
-                    note=f"Exception: {str(e)[:300]}",
+                    note=f"[{kind}] Exception: {str(e)[:300]}",
                 )
                 return
 
             if not result.get("ok"):
                 _youtube_update_run_status(
                     scheduled_time_str, "error",
-                    note=result.get("error", "unknown")[:500],
+                    note=f"[{kind}] {result.get('error', 'unknown')[:500]}",
                 )
                 return
 
+            note_parts = [f"Uploaded {privacy} ({kind})"]
+            pl_note = result.get("playlist_note")
+            if pl_note:
+                note_parts.append(f"Playlist: {pl_note}")
             _youtube_update_run_status(
                 scheduled_time_str, "uploaded",
                 youtube_video_id=result.get("youtube_video_id"),
-                note=f"Uploaded {privacy}",
+                note=" — ".join(note_parts)[:500],
             )
             print(
-                f"[youtube-scheduler] uploaded pipeline video {video_row_id} → "
+                f"[youtube-scheduler] uploaded {kind} video {video_row_id} → "
                 f"YT {result.get('youtube_video_id')} at {scheduled_time_str}"
             )
 
@@ -14783,6 +14890,35 @@ def admin_clear_upload_skip(video_id):
             return jsonify({"error": "Video not found"}), 404
         conn.execute(
             "UPDATE admin_pipeline_videos SET auto_upload_skipped = 0 WHERE id = ?",
+            (video_id,),
+        )
+        conn.commit()
+        return jsonify({"id": video_id, "auto_upload_skipped": False})
+    finally:
+        conn.close()
+
+
+@app.route(
+    "/api/admin/educational/<int:video_id>/clear-upload-skip",
+    methods=["POST"],
+)
+@admin_required
+def admin_educational_clear_upload_skip(video_id: int):
+    """Clear the auto_upload_skipped flag on an educational_videos row so
+    the global YouTube upload scheduler will reconsider it. Mirrors the
+    recitation endpoint above; used to re-arm a sanity-rejected
+    educational video after prompt tuning or a manual review."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM educational_videos WHERE id = ?", (video_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Video not found"}), 404
+        conn.execute(
+            "UPDATE educational_videos SET auto_upload_skipped = 0 WHERE id = ?",
             (video_id,),
         )
         conn.commit()
