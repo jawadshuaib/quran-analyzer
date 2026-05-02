@@ -12454,6 +12454,26 @@ def _generate_youtube_metadata(verse_data):
     return (title, description, tags)
 
 
+def _format_verse_runs(verses_in_chapter: list[int]) -> list[str]:
+    """Collapse sorted, unique verses within one chapter into ref
+    fragments: consecutive runs become "3-5", singletons stay "3".
+    Used to build cleaner range URLs like al-nuqta.com/2:3-5 instead
+    of three separate per-verse links."""
+    if not verses_in_chapter:
+        return []
+    sorted_v = sorted(set(verses_in_chapter))
+    runs: list[str] = []
+    start = prev = sorted_v[0]
+    for v in sorted_v[1:]:
+        if v == prev + 1:
+            prev = v
+            continue
+        runs.append(f"{start}" if start == prev else f"{start}-{prev}")
+        start = prev = v
+    runs.append(f"{start}" if start == prev else f"{start}-{prev}")
+    return runs
+
+
 def _append_alnuqta_links_to_description(
     description: str,
     verse_data: list,
@@ -12462,10 +12482,14 @@ def _append_alnuqta_links_to_description(
     YouTube description.
 
     Adds:
-      - One "Quran C:V — https://al-nuqta.com/verse/C:V" line per unique
-        verse in the passage (preserves verse_data order).
+      - One link per consecutive run of verses (e.g. 2:3-5 collapses
+        into a single al-nuqta.com/2:3-5 link; non-consecutive picks
+        produce one link per run).
       - A homepage link.
       - The standard al-nuqta footer (mirrors the educational pipeline).
+
+    Uses the site's shorthand URL (al-nuqta.com/<ref>) which redirects
+    to /read/<ref> — single verses and ranges both work.
 
     The LLM-generated description stays at the top — that's what stops
     the scroll. Links live below as a footer block. If verse_data is
@@ -12474,20 +12498,24 @@ def _append_alnuqta_links_to_description(
     if not verse_data:
         return description
 
-    seen: set[tuple[int, int]] = set()
-    pairs: list[tuple[int, int]] = []
+    # Group by chapter, preserving the order chapters first appear in
+    # the source list. Within each chapter, _format_verse_runs handles
+    # the consecutive-vs-disjoint logic.
+    by_chapter: dict[int, list[int]] = {}
+    chapter_order: list[int] = []
     for v in verse_data:
         try:
             c = int(v.get("chapter"))
             a = int(v.get("verse"))
         except (TypeError, ValueError, AttributeError):
             continue
-        if (c, a) in seen:
-            continue
-        seen.add((c, a))
-        pairs.append((c, a))
+        if c not in by_chapter:
+            by_chapter[c] = []
+            chapter_order.append(c)
+        if a not in by_chapter[c]:
+            by_chapter[c].append(a)
 
-    if not pairs:
+    if not by_chapter:
         return description
 
     parts: list[str] = []
@@ -12495,9 +12523,11 @@ def _append_alnuqta_links_to_description(
         parts.append(description.rstrip())
         parts.append("")
 
-    parts.append("📖 Read these verses on al-nuqta.com:")
-    for c, a in pairs:
-        parts.append(f"• Quran {c}:{a} — https://al-nuqta.com/verse/{c}:{a}")
+    parts.append("📖 Read on al-nuqta.com:")
+    for c in chapter_order:
+        for run in _format_verse_runs(by_chapter[c]):
+            ref = f"{c}:{run}"
+            parts.append(f"• Quran {ref} — https://al-nuqta.com/{ref}")
     parts.append("")
     parts.append(
         "Explore the Quran root-by-root, with morphology, etymology, "
