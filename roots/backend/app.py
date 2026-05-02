@@ -8256,6 +8256,208 @@ def admin_educational_video_detail(video_id: int):
         conn.close()
 
 
+def _perform_educational_youtube_upload(
+    video_id: int,
+    privacy: str = "public",
+) -> dict:
+    """Upload an educational_videos row's mp4 to YouTube.
+
+    Mirrors _perform_youtube_upload (the recitation-pipeline helper)
+    but reads metadata from the educational_videos columns and adds
+    to the per-series playlist (youtube_playlist_<vtype>) instead of
+    the recitation default.
+
+    Returns a dict shaped like:
+      {ok: True,  video_id, youtube_video_id, youtube_url, privacy, playlist_note}
+      {ok: False, error, status}
+    """
+    if not _EDU_OK:
+        return {"ok": False, "error": "Educational pipeline disabled", "status": 503}
+    import educational_render as _r
+
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
+        ).fetchone()
+        if not row:
+            return {"ok": False, "error": "Video not found", "status": 404}
+        rd = dict(row)
+        if rd.get("youtube_video_id"):
+            return {
+                "ok": False,
+                "error": f"Already uploaded to YouTube ({rd['youtube_video_id']})",
+                "status": 409,
+            }
+        if rd["status"] != "rendered":
+            return {
+                "ok": False,
+                "error": f"Video must be in 'rendered' state to upload "
+                         f"(current: {rd['status']}).",
+                "status": 409,
+            }
+        if not rd.get("filename"):
+            return {"ok": False, "error": "Video has no rendered file", "status": 404}
+        filepath = os.path.join(_r.OUTPUT_DIR, rd["filename"])
+        if not os.path.isfile(filepath):
+            return {"ok": False, "error": "Video file missing on disk", "status": 404}
+
+        # Resolve metadata: educational_videos columns > generic Quran
+        # fallback. Same fallback constants the recitation pipeline
+        # uses so a metadata-less upload still publishes sensibly.
+        final_title = (rd.get("youtube_title") or _DEFAULT_YT_TITLE).strip()[:100]
+        final_description = (
+            rd.get("youtube_description") or _DEFAULT_YT_DESCRIPTION
+        ).strip()[:5000]
+        try:
+            tags_in = json.loads(rd.get("youtube_tags") or "[]")
+        except (json.JSONDecodeError, TypeError):
+            tags_in = []
+        if not tags_in:
+            tags_in = list(_DEFAULT_YT_TAGS)
+        final_tags: list[str] = []
+        for t in tags_in:
+            if not isinstance(t, str):
+                continue
+            cleaned = t.strip().lstrip("#")[:100]
+            if cleaned and cleaned not in final_tags:
+                final_tags.append(cleaned)
+            if len(final_tags) >= 15:
+                break
+        while final_tags and len(",".join(final_tags)) > 500:
+            final_tags.pop()
+
+        final_privacy = (privacy or "public").lower()
+        if final_privacy not in ("public", "unlisted", "private"):
+            final_privacy = "public"
+
+        # Per-series playlist preference. youtube_playlist_word_origins
+        # / _translation_hides / _grammar_insights — same key shape
+        # the Settings UI exposes.
+        playlist_key = f"youtube_playlist_{rd['type']}"
+        plrow = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = ?",
+            (playlist_key,),
+        ).fetchone()
+        playlist_id = (plrow["value"] if plrow and plrow["value"] else "").strip()
+    finally:
+        conn.close()
+
+    try:
+        access_token = _youtube_get_access_token()
+    except RuntimeError as e:
+        return {"ok": False, "error": str(e), "status": 400}
+
+    metadata = {
+        "snippet": {
+            "title": final_title,
+            "description": final_description,
+            "tags": final_tags,
+            "categoryId": "22",
+        },
+        "status": {
+            "privacyStatus": final_privacy,
+            "selfDeclaredMadeForKids": False,
+        },
+    }
+
+    # Multipart resumable upload — same shape as the recitation
+    # uploader. Educational videos are smaller (~5-30 MB each), so a
+    # single-shot multipart works fine.
+    boundary = f"boundary_{uuid.uuid4().hex}"
+    body_parts: list[bytes] = []
+    body_parts.append(f"--{boundary}\r\n".encode())
+    body_parts.append(b"Content-Type: application/json; charset=UTF-8\r\n\r\n")
+    body_parts.append(json.dumps(metadata).encode("utf-8"))
+    body_parts.append(b"\r\n")
+    body_parts.append(f"--{boundary}\r\n".encode())
+    body_parts.append(b"Content-Type: video/mp4\r\n\r\n")
+    with open(filepath, "rb") as f:
+        body_parts.append(f.read())
+    body_parts.append(b"\r\n")
+    body_parts.append(f"--{boundary}--\r\n".encode())
+    upload_body = b"".join(body_parts)
+
+    try:
+        up_resp = requests.post(
+            "https://www.googleapis.com/upload/youtube/v3/videos",
+            params={"uploadType": "multipart", "part": "snippet,status"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": f"multipart/related; boundary={boundary}",
+            },
+            data=upload_body,
+            timeout=600,
+        )
+    except requests.RequestException as e:
+        return {"ok": False, "error": f"Upload request failed: {e}", "status": 502}
+
+    if up_resp.status_code not in (200, 201):
+        try:
+            err_body = up_resp.json()
+            err = err_body.get("error", {}).get("message") or str(err_body)[:500]
+        except Exception:
+            err = up_resp.text[:500]
+        return {
+            "ok": False,
+            "error": f"YouTube upload failed ({up_resp.status_code}): {err}",
+            "status": 502,
+        }
+
+    yt_video_id = up_resp.json().get("id")
+
+    conn = get_db()
+    try:
+        conn.execute(
+            "UPDATE educational_videos SET "
+            "  youtube_video_id = ?, status = 'uploaded' "
+            "WHERE id = ?",
+            (yt_video_id, video_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    # Per-series playlist add. Failure here doesn't fail the upload —
+    # the video is already public on YouTube; placement is a nice-
+    # to-have we can re-attempt manually if needed.
+    playlist_note: str | None = None
+    if playlist_id and yt_video_id:
+        try:
+            ok, msg = _youtube_add_to_playlist(access_token, yt_video_id, playlist_id)
+            playlist_note = (
+                f"Added to playlist {playlist_id}" if ok
+                else f"Playlist add failed: {msg}"
+            )
+        except Exception as e:
+            playlist_note = f"Playlist add error: {e}"
+
+    return {
+        "ok": True,
+        "video_id": video_id,
+        "youtube_video_id": yt_video_id,
+        "youtube_url": f"https://youtube.com/watch?v={yt_video_id}",
+        "privacy": final_privacy,
+        "playlist_note": playlist_note,
+    }
+
+
+@app.route("/api/admin/educational/<int:video_id>/upload-youtube", methods=["POST"])
+@admin_required
+def admin_educational_upload_youtube(video_id: int):
+    """Upload a rendered educational video to YouTube. Synchronous —
+    body is uploaded inside this request, so a 30 MB clip ties the
+    request up for ~10–30 s. Frontend shows a loading state. Returns
+    the YouTube URL on success."""
+    body = request.get_json(silent=True) or {}
+    privacy = (body.get("privacy") or "public").lower()
+    result = _perform_educational_youtube_upload(video_id, privacy=privacy)
+    if result.get("ok"):
+        return jsonify(result)
+    status = result.pop("status", 500)
+    return jsonify(result), status
+
+
 @app.route("/api/admin/educational/<int:video_id>", methods=["DELETE"])
 @admin_required
 def admin_educational_video_delete(video_id: int):

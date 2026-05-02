@@ -1625,6 +1625,33 @@ export async function editEducationalScript(
   return data.script;
 }
 
+export interface UploadYouTubeResult {
+  ok: true;
+  video_id: number;
+  youtube_video_id: string;
+  youtube_url: string;
+  privacy: 'public' | 'unlisted' | 'private';
+  playlist_note?: string | null;
+}
+
+/** Upload a rendered educational video to YouTube. Synchronous on
+ *  the server (the mp4 body posts inside the request), so this
+ *  call typically takes 10–30s. Returns the YouTube URL + a note
+ *  on whether the per-series playlist add succeeded. */
+export async function uploadEducationalVideoToYouTube(
+  id: number,
+  opts: { privacy?: 'public' | 'unlisted' | 'private' } = {},
+): Promise<UploadYouTubeResult> {
+  const res = await authFetch(`${BASE}/educational/${id}/upload-youtube`, {
+    method: 'POST',
+    body: JSON.stringify({ privacy: opts.privacy ?? 'public' }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  return data as UploadYouTubeResult;
+}
+
+
 /** Hard-delete a generated video — drops the DB row and removes the
  *  rendered mp4 on disk. Refuses (409) if status is 'rendering' so
  *  we don't yank a file out from under in-flight ffmpeg. */

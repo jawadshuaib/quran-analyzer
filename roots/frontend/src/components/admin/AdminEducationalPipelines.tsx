@@ -6,6 +6,7 @@ import {
   updateEducationalPipeline,
   deleteEducationalPipeline,
   deleteEducationalVideo,
+  uploadEducationalVideoToYouTube,
   uploadEducationalOutroAudio,
   deleteEducationalOutroAudio,
   educationalOutroAudioUrl,
@@ -391,6 +392,7 @@ function PipelineDetailView({
                 key={v.id}
                 video={v}
                 onDelete={() => handleDeleteVideo(v)}
+                onUploaded={() => setReloadKey((k) => k + 1)}
               />
             ))}
           </div>
@@ -405,16 +407,42 @@ function PipelineDetailView({
 function PipelineVideoRow({
   video: v,
   onDelete,
+  onUploaded,
 }: {
   video: EducationalVideo;
   onDelete: () => void;
+  onUploaded: () => void;
 }) {
   const tone = statusTone(v.status);
   const [expanded, setExpanded] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState('');
   const hasMeta = !!(v.youtube_title || v.youtube_description);
   // 'rendering' rows are blocked server-side from deletion to avoid
   // yanking a file out from under ffmpeg; reflect that in the button.
   const cannotDelete = v.status === 'rendering';
+  const isUploaded = !!v.youtube_video_id;
+  const canUpload = v.status === 'rendered' && !!v.filename && !isUploaded;
+
+  async function handleUpload() {
+    setUploading(true);
+    setUploadErr('');
+    try {
+      const r = await uploadEducationalVideoToYouTube(v.id);
+      // Refresh parent so the row flips to status='uploaded' with the
+      // YouTube link in place. playlist_note (if any) lives on the
+      // server response; surface failures via console for now since
+      // the row itself reflects the published state.
+      if (r.playlist_note && !/added/i.test(r.playlist_note)) {
+        console.warn('[upload]', r.playlist_note);
+      }
+      onUploaded();
+    } catch (e) {
+      setUploadErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUploading(false);
+    }
+  }
   let parsedTags: string[] = [];
   try {
     parsedTags = v.youtube_tags ? (JSON.parse(v.youtube_tags) as string[]) : [];
@@ -454,6 +482,27 @@ function PipelineVideoRow({
             Open mp4
           </a>
         )}
+        {isUploaded && v.youtube_video_id && (
+          <a
+            href={`https://youtube.com/watch?v=${v.youtube_video_id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 rounded-md border border-red-400 text-red-700 text-xs font-medium hover:bg-red-50 cursor-pointer"
+            title="Open this video on YouTube"
+          >
+            On YouTube ↗
+          </a>
+        )}
+        {canUpload && (
+          <button
+            onClick={handleUpload}
+            disabled={uploading}
+            className="px-2.5 py-1 rounded-md bg-red-600 text-white text-xs font-medium hover:bg-red-700 disabled:opacity-60 cursor-pointer"
+            title="Upload this video to YouTube and add it to the per-series playlist."
+          >
+            {uploading ? 'Uploading…' : 'Upload to YouTube'}
+          </button>
+        )}
         <button
           onClick={onDelete}
           disabled={cannotDelete}
@@ -465,6 +514,11 @@ function PipelineVideoRow({
           Delete
         </button>
       </div>
+      {uploadErr && (
+        <div className="px-3 pb-2 text-xs text-red-700">
+          Upload failed: {uploadErr}
+        </div>
+      )}
       {expanded && hasMeta && (
         <div className="px-3 pb-3 pt-1 bg-stone-50/50 border-t border-stone-100 space-y-2">
           {v.youtube_title && (
