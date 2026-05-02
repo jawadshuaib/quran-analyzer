@@ -15,6 +15,12 @@ export const COLORS = {
   toggleOff: '#D9D9DD',
   hairline: '#ECEAE2',
   chev: '#B5B3AC',
+  // Outro background — warm charcoal, matches the existing ffmpeg
+  // pipeline outro so the channel's videos close consistently no
+  // matter which renderer produced them.
+  outroBg: '#2D2620',
+  outroText: '#FFFFFF',
+  outroTagline: 'rgba(255, 255, 255, 0.5)',
 } as const;
 
 // Vertical 1080x1920 to match the existing educational pipeline

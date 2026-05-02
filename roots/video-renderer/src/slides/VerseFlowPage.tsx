@@ -1,37 +1,73 @@
-import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
+import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { VerseFlowSlideT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
 
 // Slide B — full verse with the target word highlighted in soft yellow.
-// Layout (1080x1920 vertical):
-//   - Outer cream-warm bg (#E9E7DF)
-//   - Cream verse-card centered, fills most of the frame
-//   - Card header: "‹ Surah X, Ayah Y ›" + "Word-to-Word [toggle off]"
-//   - Card body: flowing RTL Arabic with target word highlighted
-//   - Card footer: italic English translation, separated by hairline
 //
-// Animation: card fades + slides up on entry; the highlight pulse
-// scales in 6 frames behind the verse so the eye lands on the
-// passage first, then settles on the target word.
+// Visual upgrades over the prototype:
+//   - Highlight SWEEPS in (scaleX 0→1, transform-origin: right for
+//     RTL) so the yellow pill grows from the trailing edge of the
+//     word, like a marker stroke. Fades + slides at the same time
+//     for a layered feel.
+//   - Matching English phrase in the translation also highlights —
+//     same yellow pill, same sweep animation but LTR, fired ~6
+//     frames after the Arabic so the eye has time to register the
+//     correspondence (Arabic → English).
+//   - Translation font auto-scales by length: short translations
+//     feel BIGGER and more deliberate; long translations stay
+//     compact so they don't dominate.
 export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
   const frame = useCurrentFrame();
 
   const cardOpacity = interpolate(frame, [0, ENTRY_FRAMES], [0, 1], { extrapolateRight: 'clamp' });
   const cardTranslateY = interpolate(frame, [0, ENTRY_FRAMES], [16, 0], { extrapolateRight: 'clamp' });
 
-  // Highlight enters slightly delayed so it reads as a deliberate
-  // emphasis, not a static design element.
-  const highlightOpacity = interpolate(
+  // Highlight sweep — 24-frame ease-out so it lands smoothly. The
+  // yellow grows from 0 → 1 width while the text stays fully
+  // visible on top.
+  const arabicHighlightStart = 8;
+  const arabicHighlightEnd = arabicHighlightStart + 24;
+  const arabicSweep = interpolate(
     frame,
-    [6, 6 + ENTRY_FRAMES],
+    [arabicHighlightStart, arabicHighlightEnd],
     [0, 1],
-    { extrapolateRight: 'clamp' },
+    { extrapolateRight: 'clamp', easing: Easing.out(Easing.ease) },
   );
 
-  // Build the verse with the highlight applied in-place. Splits on
-  // whitespace, wraps the 1-indexed target word in a styled span.
+  // English highlight follows ~6 frames behind so the viewer's eye
+  // has a beat to register the Arabic before being directed to the
+  // matching gloss. Same 24-frame sweep duration.
+  const enHighlightStart = arabicHighlightStart + 6;
+  const enHighlightEnd = enHighlightStart + 24;
+  const enSweep = interpolate(
+    frame,
+    [enHighlightStart, enHighlightEnd],
+    [0, 1],
+    { extrapolateRight: 'clamp', easing: Easing.out(Easing.ease) },
+  );
+
+  // Build the verse with the highlight applied in-place.
   const words = slide.arabicText.split(/\s+/);
   const targetIdx = (slide.highlightWordIndex ?? 0) - 1;
+
+  // Find the highlighted English phrase (case-insensitive).
+  const englishHighlight = slide.highlightTranslationText?.trim() ?? '';
+  const translationLower = slide.translation.toLowerCase();
+  const enMatchStart = englishHighlight
+    ? translationLower.indexOf(englishHighlight.toLowerCase())
+    : -1;
+  const enMatchEnd = enMatchStart >= 0 ? enMatchStart + englishHighlight.length : -1;
+
+  // Auto-scale the translation font by length. Short, punchy
+  // translations get bigger so they feel like the payoff line; long
+  // multi-clause translations shrink to fit without overflowing the
+  // card.
+  const translationLen = slide.translation.length;
+  const translationFontSize =
+    translationLen <= 80 ? 40 :
+    translationLen <= 140 ? 34 :
+    translationLen <= 200 ? 30 :
+    26;
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.appBg }}>
@@ -88,7 +124,8 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
             <ToggleOff label="Word-to-Word" />
           </div>
 
-          {/* Verse flow */}
+          {/* Verse flow — RTL, target word wrapped in a sweeping
+              highlight pill */}
           <div
             style={{
               direction: 'rtl',
@@ -106,16 +143,9 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
               return (
                 <span key={i}>
                   {isTarget ? (
-                    <span
-                      style={{
-                        backgroundColor: COLORS.highlight,
-                        padding: '4px 16px 8px',
-                        borderRadius: 16,
-                        opacity: highlightOpacity,
-                      }}
-                    >
+                    <SweepHighlight progress={arabicSweep} originSide="right">
                       {w}
-                    </span>
+                    </SweepHighlight>
                   ) : (
                     w
                   )}
@@ -125,11 +155,12 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
             })}
           </div>
 
-          {/* English translation */}
+          {/* English translation — italic, with the matching phrase
+              wrapped in its own (LTR) sweep highlight when present */}
           <p
             style={{
               fontFamily: SYSTEM_FONT,
-              fontSize: 30,
+              fontSize: translationFontSize,
               fontStyle: 'italic',
               lineHeight: 1.55,
               color: COLORS.textSoft,
@@ -138,7 +169,17 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
               marginTop: 8,
             }}
           >
-            {slide.translation}
+            {enMatchStart >= 0 ? (
+              <>
+                {slide.translation.slice(0, enMatchStart)}
+                <SweepHighlight progress={enSweep} originSide="left">
+                  {slide.translation.slice(enMatchStart, enMatchEnd)}
+                </SweepHighlight>
+                {slide.translation.slice(enMatchEnd)}
+              </>
+            ) : (
+              slide.translation
+            )}
           </p>
         </div>
       </div>
@@ -146,9 +187,48 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
   );
 }
 
-// Word-to-Word toggle in the OFF state — used on the verse-flow
-// slide so the slide reads as the "before" state of the toggle.
-// The on-state toggle lives in WordToWordPage.
+// Sweep highlight — yellow pill that grows from one edge to the
+// other while the text on top stays fully visible. RTL slides set
+// originSide="right" so the highlight enters from the trailing
+// edge of the word; LTR (English translation) uses "left".
+//
+// Layered structure: outer span is `inline-block` and relatively
+// positioned so the absolute background tracks its bounds. Text
+// stacks above via z-index so it's never obscured by the bg.
+function SweepHighlight({
+  children,
+  progress,
+  originSide,
+}: {
+  children: React.ReactNode;
+  progress: number;
+  originSide: 'left' | 'right';
+}) {
+  return (
+    <span
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        padding: '4px 16px 8px',
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: COLORS.highlight,
+          borderRadius: 16,
+          transformOrigin: `${originSide} center`,
+          transform: `scaleX(${progress})`,
+          zIndex: 0,
+        }}
+      />
+      <span style={{ position: 'relative', zIndex: 1 }}>{children}</span>
+    </span>
+  );
+}
+
+// Word-to-Word toggle in the OFF state.
 function ToggleOff({ label }: { label: string }) {
   return (
     <div

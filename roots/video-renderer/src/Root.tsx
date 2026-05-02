@@ -3,6 +3,7 @@ import { loadFont as loadAmiri } from '@remotion/google-fonts/Amiri';
 import { WordDetailComposition, totalFrames } from './compositions/WordDetail';
 import { Payload } from './types';
 import { VIDEO_WIDTH, VIDEO_HEIGHT, FPS } from './slides/shared';
+import samplePayload from '../sample-payload.json';
 
 // Load Amiri via @remotion/google-fonts — reliable in headless
 // Chromium (CSS @import is not, per the Remotion docs). Scheherazade
@@ -13,62 +14,14 @@ import { VIDEO_WIDTH, VIDEO_HEIGHT, FPS } from './slides/shared';
 // fine for Quranic text.
 loadAmiri();
 
-// Default props for the studio preview — operators can paste in any
-// shape that satisfies the Payload schema. When invoked from
-// scripts/render.mjs the actual payload is passed as inputProps and
-// overrides this default.
-const DEFAULT_PAYLOAD = Payload.parse({
-  slides: [
-    {
-      type: 'root',
-      durationSec: 5,
-      rootArabic: 'ن ز ل',
-      rootLabel: 'Root: nzl',
-      meaning: 'Descend/send down (from above)',
-    },
-    {
-      type: 'verse-flow',
-      durationSec: 6,
-      surah: 2,
-      ayah: 23,
-      arabicText:
-        'وَإِن كُنتُمْ فِى رَيْبٍ مِّمَّا نَزَّلْنَا عَلَىٰ عَبْدِنَا فَأْتُوا۟ بِسُورَةٍ مِّن مِّثْلِهِۦ وَٱدْعُوا۟ شُهَدَآءَكُم مِّن دُونِ ٱللَّهِ إِن كُنتُمْ صَٰدِقِينَ',
-      translation:
-        'And if you are in doubt about what We have sent down upon Our servant, then bring a sūrah from the like of it, and call your witnesses apart from Allah, if you are truthful.',
-      highlightWordIndex: 6,
-    },
-    {
-      type: 'word-to-word',
-      durationSec: 7,
-      surah: 2,
-      ayah: 23,
-      words: [
-        { ar: 'وَإِن', en: 'And if' },
-        { ar: 'كُنتُمْ', en: 'you are' },
-        { ar: 'فِى', en: 'in' },
-        { ar: 'رَيْبٍ', en: 'doubt' },
-        { ar: 'مِّمَّا', en: 'about what' },
-        { ar: 'نَزَّلْنَا', en: 'sent down', highlight: true },
-        { ar: 'عَلَىٰ', en: 'upon' },
-        { ar: 'عَبْدِنَا', en: 'Our Servant' },
-        { ar: 'فَأْتُوا۟', en: 'then bring' },
-        { ar: 'بِسُورَةٍ', en: 'a chapter' },
-        { ar: 'مِّن', en: 'from' },
-        { ar: 'مِّثْلِهِۦ', en: 'the like of it' },
-        { ar: 'وَٱدْعُوا۟', en: 'call' },
-        { ar: 'شُهَدَآءَكُم', en: 'your witnesses' },
-        { ar: 'مِّن', en: 'from' },
-        { ar: 'دُونِ', en: 'apart from' },
-        { ar: 'ٱللَّهِ', en: 'Allah' },
-        { ar: 'إِن', en: 'if' },
-        { ar: 'كُنتُمْ', en: 'you are' },
-        { ar: 'صَٰدِقِينَ', en: 'truthful' },
-      ],
-      translation:
-        'And if you are in doubt about what We have sent down upon Our servant, then bring a sūrah from the like of it, and call your witnesses apart from Allah, if you are truthful.',
-    },
-  ],
-});
+// Default props for the studio preview — pulled from the canonical
+// sample-payload.json so any tweaks to the sample appear in the
+// studio on next reload. Validated through the same zod schema the
+// render script uses, so a malformed sample fails fast at module
+// load time instead of at render time. The `_script` annotation in
+// the JSON is ignored by zod's strict mode here because Payload uses
+// the default passthrough behavior.
+const DEFAULT_PAYLOAD = Payload.parse(samplePayload);
 
 const DEFAULT_DURATION = totalFrames(DEFAULT_PAYLOAD);
 

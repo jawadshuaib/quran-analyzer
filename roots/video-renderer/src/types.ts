@@ -26,6 +26,11 @@ export const VerseFlowSlide = z.object({
   // on whitespace). Highlighted on screen so the viewer can match
   // the spoken word to the visible word.
   highlightWordIndex: z.number().int().positive().optional(),
+  // Optional substring of `translation` to highlight. When present,
+  // the renderer finds it (case-insensitively) and gives it the
+  // same yellow pill treatment so the viewer can see the
+  // Arabic→English correspondence at a glance.
+  highlightTranslationText: z.string().optional(),
 });
 
 export const Word = z.object({
@@ -44,10 +49,22 @@ export const WordToWordSlide = z.object({
   translation: z.string(),
 });
 
+// Closing card — al-nuqta brand splash. Mirrors the outro the
+// existing ffmpeg pipeline produces (warm-charcoal bg, site name +
+// tagline) so videos rendered through Remotion close consistently
+// with the rest of the channel.
+export const OutroSlide = z.object({
+  type: z.literal('outro'),
+  durationSec: z.number().positive().default(5),
+  siteName: z.string().default('al-nuqta.com'),
+  tagline: z.string().default('A Root Based Translation of the Quran'),
+});
+
 export const Slide = z.discriminatedUnion('type', [
   RootSlide,
   VerseFlowSlide,
   WordToWordSlide,
+  OutroSlide,
 ]);
 
 export const Payload = z.object({
@@ -65,5 +82,6 @@ export const Payload = z.object({
 export type RootSlideT = z.infer<typeof RootSlide>;
 export type VerseFlowSlideT = z.infer<typeof VerseFlowSlide>;
 export type WordToWordSlideT = z.infer<typeof WordToWordSlide>;
+export type OutroSlideT = z.infer<typeof OutroSlide>;
 export type SlideT = z.infer<typeof Slide>;
 export type PayloadT = z.infer<typeof Payload>;

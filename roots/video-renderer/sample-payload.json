@@ -1,13 +1,20 @@
 {
-  "videoId": "sample-2-23-nzl",
-  "title": "Word Detail — 2:23 نَزَّلْنَا (root nzl)",
+  "videoId": "nzl-2-23-and-17-106",
+  "title": "Word Detail — root nzl across 2:23 and 17:106",
+  "_script": [
+    "[0:00–0:05]  RootPage. Narration: 'The Quranic root nūn-zay-lām means to descend, to send down from above.'",
+    "[0:05–0:11]  VerseFlow 2:23. Narration: 'In Sūrah al-Baqarah, verse 23, this root takes its intensive form: nazzalnā — We have sent down.'",
+    "[0:11–0:18]  WordToWord 2:23. Narration: 'The verse is the famous challenge: if you doubt what We sent, produce a sūrah like it.'",
+    "[0:18–0:26]  VerseFlow 17:106. Narration: 'And in chapter 17, the same root makes the descent explicit — sent down piece by piece, over time.'",
+    "[0:26–0:31]  Outro. al-nuqta splash."
+  ],
   "slides": [
     {
       "type": "root",
       "durationSec": 5,
       "rootArabic": "ن ز ل",
       "rootLabel": "Root: nzl",
-      "meaning": "Descend/send down (from above)"
+      "meaning": "To descend, to send down from above"
     },
     {
       "type": "verse-flow",
@@ -15,8 +22,9 @@
       "surah": 2,
       "ayah": 23,
       "arabicText": "وَإِن كُنتُمْ فِى رَيْبٍ مِّمَّا نَزَّلْنَا عَلَىٰ عَبْدِنَا فَأْتُوا۟ بِسُورَةٍ مِّن مِّثْلِهِۦ وَٱدْعُوا۟ شُهَدَآءَكُم مِّن دُونِ ٱللَّهِ إِن كُنتُمْ صَٰدِقِينَ",
-      "translation": "And if you are in doubt about what We have sent down upon Our servant, then bring a sūrah from the like of it, and call your witnesses apart from Allah, if you are truthful.",
-      "highlightWordIndex": 6
+      "translation": "And if you are in doubt about what We have sent down upon Our servant, then bring a sūrah from the like of it.",
+      "highlightWordIndex": 6,
+      "highlightTranslationText": "sent down"
     },
     {
       "type": "word-to-word",
@@ -35,17 +43,25 @@
         { "ar": "فَأْتُوا۟", "en": "then bring" },
         { "ar": "بِسُورَةٍ", "en": "a chapter" },
         { "ar": "مِّن", "en": "from" },
-        { "ar": "مِّثْلِهِۦ", "en": "the like of it" },
-        { "ar": "وَٱدْعُوا۟", "en": "call" },
-        { "ar": "شُهَدَآءَكُم", "en": "your witnesses" },
-        { "ar": "مِّن", "en": "from" },
-        { "ar": "دُونِ", "en": "apart from" },
-        { "ar": "ٱللَّهِ", "en": "Allah" },
-        { "ar": "إِن", "en": "if" },
-        { "ar": "كُنتُمْ", "en": "you are" },
-        { "ar": "صَٰدِقِينَ", "en": "truthful" }
+        { "ar": "مِّثْلِهِۦ", "en": "the like of it" }
       ],
-      "translation": "And if you are in doubt about what We have sent down upon Our servant, then bring a sūrah from the like of it, and call your witnesses apart from Allah, if you are truthful."
+      "translation": "If you doubt what We sent down upon Our servant, bring a sūrah like it."
+    },
+    {
+      "type": "verse-flow",
+      "durationSec": 8,
+      "surah": 17,
+      "ayah": 106,
+      "arabicText": "وَقُرْءَانًا فَرَقْنَـٰهُ لِتَقْرَأَهُۥ عَلَى ٱلنَّاسِ عَلَىٰ مُكْثٍ وَنَزَّلْنَـٰهُ تَنزِيلًا",
+      "translation": "A Qurʾān We have set out in stages, to be read to people gradually — sent down piece by piece.",
+      "highlightWordIndex": 8,
+      "highlightTranslationText": "sent down piece by piece"
+    },
+    {
+      "type": "outro",
+      "durationSec": 5,
+      "siteName": "al-nuqta.com",
+      "tagline": "A Root Based Translation of the Quran"
     }
   ]
 }

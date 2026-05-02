@@ -4,6 +4,7 @@ import { FPS } from '../slides/shared';
 import { RootPage } from '../slides/RootPage';
 import { VerseFlowPage } from '../slides/VerseFlowPage';
 import { WordToWordPage } from '../slides/WordToWordPage';
+import { OutroPage } from '../slides/OutroPage';
 
 // Top-level composition for word-detail videos. The Composition's
 // duration is computed from the sum of slide durations (or set to
@@ -47,6 +48,8 @@ function SlideRenderer({ slide }: { slide: SlideT }) {
       return <VerseFlowPage slide={slide} />;
     case 'word-to-word':
       return <WordToWordPage slide={slide} />;
+    case 'outro':
+      return <OutroPage slide={slide} />;
     default: {
       // Exhaustiveness guard — TS errors if a new variant is added
       // to the union but not handled above.

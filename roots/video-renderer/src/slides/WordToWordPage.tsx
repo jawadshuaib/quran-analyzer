@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
+import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { WordToWordSlideT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
 
@@ -33,6 +33,22 @@ export function WordToWordPage({ slide }: { slide: WordToWordSlideT }) {
   for (let i = 0; i < slide.words.length; i += CELLS_PER_ROW) {
     rows.push(slide.words.slice(i, i + CELLS_PER_ROW));
   }
+
+  // After all rows have finished landing, the highlighted cell does
+  // a single subtle scale-pulse (1 → 1.06 → 1) over 18 frames so
+  // the eye is drawn to the target word once the grid is stable.
+  // Computed off the LAST row's land time so the pulse never
+  // overlaps the entrance animation.
+  const allRowsLanded = 4 + (rows.length - 1) * 3 + ENTRY_FRAMES;
+  const pulseStart = allRowsLanded + 6;       // beat after settle
+  const pulsePeak = pulseStart + 9;
+  const pulseEnd = pulsePeak + 9;
+  const pulseScale = interpolate(
+    frame,
+    [pulseStart, pulsePeak, pulseEnd],
+    [1, 1.06, 1],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.ease) },
+  );
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.appBg }}>
@@ -122,7 +138,13 @@ export function WordToWordPage({ slide }: { slide: WordToWordSlideT }) {
                   }}
                 >
                   {row.map((w, i) => (
-                    <Cell key={i} ar={w.ar} en={w.en} highlight={!!w.highlight} />
+                    <Cell
+                      key={i}
+                      ar={w.ar}
+                      en={w.en}
+                      highlight={!!w.highlight}
+                      pulseScale={w.highlight ? pulseScale : 1}
+                    />
                   ))}
                 </div>
               );
@@ -152,8 +174,9 @@ export function WordToWordPage({ slide }: { slide: WordToWordSlideT }) {
 
 // One Arabic-word + English-gloss cell. Highlight wraps the Arabic
 // word in a soft-yellow pill so the grid version of the highlight
-// matches the verse-flow slide.
-function Cell({ ar, en, highlight }: { ar: string; en: string; highlight: boolean }) {
+// matches the verse-flow slide. `pulseScale` drives the
+// post-entrance attention pulse on the highlighted cell.
+function Cell({ ar, en, highlight, pulseScale }: { ar: string; en: string; highlight: boolean; pulseScale: number }) {
   return (
     <div
       style={{
@@ -171,6 +194,10 @@ function Cell({ ar, en, highlight }: { ar: string; en: string; highlight: boolea
           lineHeight: 1.3,
           whiteSpace: 'nowrap',
           color: COLORS.text,
+          // transformOrigin keeps the pulse centered on the cell,
+          // not anchored to a corner.
+          transformOrigin: 'center center',
+          transform: `scale(${pulseScale})`,
           ...(highlight
             ? {
                 backgroundColor: COLORS.highlight,
