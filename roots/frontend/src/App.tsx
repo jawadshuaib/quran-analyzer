@@ -16,6 +16,7 @@ import SemanticSearchResults from './components/SemanticSearchResults';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 import NotFound from './components/NotFound';
+import BadGateway from './components/BadGateway';
 import ApiPage from './components/ApiPage';
 import MethodologyPage from './components/MethodologyPage';
 import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
@@ -141,6 +142,7 @@ function isKnownRoute(): boolean {
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
   if (/^\/read\/\d+(:\d+(-\d+)?)?\/?$/.test(path)) return true;
   if (/^\/settings\/?$/.test(path)) return true;
+  if (/^\/502\/?$/.test(path)) return true;
   if (/^\/developers\/?$/.test(path)) return true;
   if (/^\/methodology\/?$/.test(path)) return true;
   if (/^\/grammar-glossary\/?$/.test(path)) return true;
@@ -413,6 +415,17 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <SettingsPage />
+      </div>
+    );
+  }
+
+  if (/^\/502\/?$/.test(currentPath)) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <BadGateway />
       </div>
     );
   }

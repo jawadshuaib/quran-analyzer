@@ -5019,6 +5019,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/quran-vocabulary/?$", path):
         return True
+    if re.match(r"^/502/?$", path):
+        return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
     if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
@@ -5046,6 +5048,19 @@ def _get_seo_meta(path: str) -> dict:
             "og_type": "article",
             "canonical": SITE_URL + "/privacy",
             "robots": "index, follow",
+        }
+
+    # 502 server-error landing page: /502 (mirrors the SPA-side 404 for
+    # noindex-friendly handling of upstream errors. Cloudflare or any
+    # reverse proxy can be configured to redirect upstream 502s here so
+    # users get a styled in-app message instead of the proxy default.)
+    if re.match(r"^/502/?$", path):
+        return {
+            "title": "Server Unavailable | al-nuqta",
+            "description": "The al-nuqta server is temporarily unavailable. Please try again in a moment.",
+            "og_type": "website",
+            "canonical": SITE_URL + "/502",
+            "robots": "noindex, follow",
         }
 
     # Site terms of service: /terms
