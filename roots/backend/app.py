@@ -8918,7 +8918,6 @@ def admin_educational_schedules_list():
                 "pipeline_id": p["id"],
                 "pipeline_name": p["name"],
                 "pipeline_type": p["type"],
-                "pipeline_format": p.get("format"),
                 "pipeline_enabled": bool(p.get("enabled", 1)),
                 "times": sched.get("times", []),
                 "max_runs_per_day": sched.get("max_runs_per_day", 2),

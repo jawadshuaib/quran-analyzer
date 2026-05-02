@@ -301,12 +301,21 @@ function ScheduleCard({
           </span>
         </div>
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
-          >
-            Edit
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href={`/admin/pipelines/recitation?lang=${schedule.pipeline_language}`}
+              className="text-xs text-stone-400 hover:text-stone-700"
+              title="Open this pipeline's editor"
+            >
+              Open pipeline →
+            </a>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
+            >
+              Edit schedule
+            </button>
+          </div>
         )}
       </div>
 
@@ -658,12 +667,21 @@ function EducationalScheduleCard({
           </span>
         </div>
         {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
-          >
-            Edit
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href="/admin/pipelines/educational"
+              className="text-xs text-stone-400 hover:text-stone-700"
+              title="Open this pipeline's editor"
+            >
+              Open pipeline →
+            </a>
+            <button
+              onClick={() => setEditing(true)}
+              className="text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
+            >
+              Edit schedule
+            </button>
+          </div>
         )}
       </div>
 

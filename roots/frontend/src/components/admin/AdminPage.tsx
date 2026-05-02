@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   isLoggedIn, verifyToken, clearToken, getPreferences,
-  getYoutubeUploadSchedule,
+  getYoutubeUploadSchedule, getPipelineSchedules,
+  getAllEducationalSchedules,
 } from '../../api/admin';
 import AdminLogin from './AdminLogin';
 import AdminSettings from './AdminSettings';
@@ -322,7 +323,9 @@ function DashboardAlerts() {
     Promise.all([
       getPreferences(),
       getYoutubeUploadSchedule().catch(() => null),
-    ]).then(([prefs, ytSchedule]) => {
+      getPipelineSchedules().catch(() => []),
+      getAllEducationalSchedules().catch(() => []),
+    ]).then(([prefs, ytSchedule, pipelineScheds, eduScheds]) => {
       const out: typeof alerts = [];
 
       // YouTube upload scheduler is enabled but credentials are incomplete.
@@ -339,6 +342,68 @@ function DashboardAlerts() {
             hrefLabel: 'Set credentials',
           });
         }
+
+        // YouTube upload scheduler is enabled but has no configured
+        // times — it never fires. Same silent-failure shape as the
+        // credentials gap.
+        if (!ytSchedule.times || ytSchedule.times.length === 0) {
+          out.push({
+            severity: 'danger',
+            title: 'YouTube upload scheduler is enabled but has no times',
+            body: 'Without at least one HH:MM slot, the upload scheduler never fires. Configured pipeline videos will pile up unuploaded.',
+            href: '/admin/scheduler',
+            hrefLabel: 'Add a time',
+          });
+        }
+      }
+
+      // Pipeline schedules enabled but no times — same trap, on the
+      // generation side. Aggregated across both pipeline families so
+      // a single banner covers everything misconfigured.
+      const allScheds: Array<{
+        kind: 'recitation' | 'educational';
+        name: string;
+        enabled: boolean;
+        times: string[];
+      }> = [
+        ...pipelineScheds.map((s) => ({
+          kind: 'recitation' as const,
+          name: s.pipeline_name,
+          enabled: s.enabled,
+          times: s.times,
+        })),
+        ...eduScheds.map((s) => ({
+          kind: 'educational' as const,
+          name: s.pipeline_name,
+          enabled: s.enabled,
+          times: s.times,
+        })),
+      ];
+      const enabledNoTimes = allScheds.filter((s) => s.enabled && (!s.times || s.times.length === 0));
+      if (enabledNoTimes.length > 0) {
+        const names = enabledNoTimes.map((s) => `"${s.name}"`).join(', ');
+        out.push({
+          severity: 'warn',
+          title: `${enabledNoTimes.length} pipeline schedule${enabledNoTimes.length === 1 ? '' : 's'} enabled with no times`,
+          body: `${names} ${enabledNoTimes.length === 1 ? 'is' : 'are'} marked enabled but ${enabledNoTimes.length === 1 ? 'has' : 'have'} no daily times — the scheduler will never fire ${enabledNoTimes.length === 1 ? 'it' : 'them'}.`,
+          href: '/admin/scheduler',
+          hrefLabel: 'Add times',
+        });
+      }
+
+      // Pipeline schedules are enabled but the YT upload schedule is
+      // disabled — videos render and queue up but never reach
+      // YouTube. Surface this because it's the most common
+      // "uploads aren't happening" cause we've seen.
+      const anyPipelineEnabled = allScheds.some((s) => s.enabled && s.times.length > 0);
+      if (anyPipelineEnabled && ytSchedule && !ytSchedule.enabled) {
+        out.push({
+          severity: 'warn',
+          title: 'Pipeline schedules are firing but YouTube upload is disabled',
+          body: 'You have at least one pipeline schedule enabled, so videos will be generated. But the YouTube upload schedule is off, so they won\'t auto-publish — they\'ll sit on disk waiting. Enable the upload schedule (or upload manually).',
+          href: '/admin/scheduler',
+          hrefLabel: 'Enable upload',
+        });
       }
 
       // YouTube refresh-token expiry

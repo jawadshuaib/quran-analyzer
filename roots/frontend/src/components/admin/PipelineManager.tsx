@@ -451,11 +451,6 @@ export default function PipelineManager() {
     );
   }
 
-  // Whether the right pane is showing the create-or-edit form vs. a
-  // pipeline detail. Mirrors the educational layout where the form
-  // takes over the detail panel rather than living in a separate row.
-  const formActive = showCreate || editingId !== null;
-
   return (
     <div>
       <h1 className="text-xl font-semibold text-stone-800 mb-2">Recitation Pipelines</h1>
@@ -488,13 +483,21 @@ export default function PipelineManager() {
           ) : (
             <ul className="space-y-1">
               {pipelines.map((p) => {
-                const isSelected = !formActive && selectedId === p.id;
+                // Highlight the pipeline that's currently being edited
+                // (not just selected) so the rail accurately reflects
+                // what the right pane is showing. When a brand-new
+                // pipeline is being created (editingId is null but
+                // showCreate is true) nothing is highlighted, which
+                // matches AdminEducationalPipelines' behavior.
+                const isActiveInRightPane =
+                  (editingId === p.id) ||
+                  (!showCreate && editingId === null && selectedId === p.id);
                 return (
                   <li key={p.id}>
                     <button
                       onClick={() => { setSelectedId(p.id); setShowCreate(false); setEditingId(null); }}
                       className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors cursor-pointer ${
-                        isSelected
+                        isActiveInRightPane
                           ? 'bg-white border border-stone-800'
                           : 'bg-white border border-stone-200 hover:border-stone-400'
                       }`}

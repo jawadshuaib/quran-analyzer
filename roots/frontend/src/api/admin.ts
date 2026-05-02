@@ -1925,7 +1925,6 @@ export interface EducationalScheduleListItem {
   pipeline_id: number;
   pipeline_name: string;
   pipeline_type: 'word_origins' | 'translation_hides' | 'grammar_insights' | string;
-  pipeline_format: string | null;
   pipeline_enabled: boolean;
   times: string[];
   max_runs_per_day: number;
