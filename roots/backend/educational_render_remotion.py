@@ -37,6 +37,7 @@ import subprocess
 import tempfile
 
 from educational_scripts import sanitize_for_tts
+import educational_planner as _planner
 
 
 class RemotionRenderError(Exception):
@@ -205,8 +206,11 @@ def _build_verse_flow_slide(
 
 
 def _build_outro_slide(close_text: str) -> dict:
-    """Slide 4 — al-nuqta brand splash. The close beat narrates the
-    splash so the video doesn't end on dead air."""
+    """Slide N — al-nuqta brand splash. The close beat narrates the
+    splash so the video doesn't end on dead air. The optional
+    outro audio bite is wired in by the caller (which knows the
+    pipeline_id and can look up outro_audio_filename); we leave
+    that field empty here so this builder has no DB dependency."""
     return {
         "type": "outro",
         "durationSec": 5,
@@ -216,24 +220,100 @@ def _build_outro_slide(close_text: str) -> dict:
     }
 
 
-def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
-    """Convert an educational_videos row + its script into a Remotion
-    payload. Skips slides that can't be built (e.g. missing cross-
-    reference verse data) rather than failing the whole render —
-    the audience gets a slightly shorter video instead of nothing.
+def _stage_outro_audio(pipeline_id: int | None, conn) -> str | None:
+    """If the pipeline has an outro_audio_filename configured AND the
+    file exists on disk, copy it into the renderer's public/
+    directory and return the bare filename. Returns None if no
+    outro audio is configured or the file is missing.
 
-    Slide order is fixed: Root → Source verse → Cross-ref → Outro.
-    Each slide has per-beat narration so karaoke aligns naturally.
+    Mirrors the flow educational_render uses to find the outro
+    audio for the ffmpeg path; reusing OUTRO_AUDIO_DIR from that
+    module keeps the source-of-truth single."""
+    if not pipeline_id:
+        return None
+    try:
+        prow = conn.execute(
+            "SELECT outro_audio_filename FROM educational_pipelines WHERE id = ?",
+            (pipeline_id,),
+        ).fetchone()
+    except Exception:
+        return None
+    if not prow:
+        return None
+    fname = prow["outro_audio_filename"] if "outro_audio_filename" in prow.keys() else None
+    if not fname:
+        return None
+
+    # Pull the source from educational_render's directory rather
+    # than re-defining the path. Single source of truth — if that
+    # module's OUTRO_AUDIO_DIR ever changes, we follow.
+    import educational_render as _r
+    src = os.path.join(_r.OUTRO_AUDIO_DIR, fname)
+    if not os.path.isfile(src):
+        return None
+
+    dest_dir = os.path.join(RENDERER_DIR, "public")
+    os.makedirs(dest_dir, exist_ok=True)
+    dest = os.path.join(dest_dir, fname)
+    # Always copy — file might have been replaced via the admin UI
+    # since the last render, and the rendererr's public/ is
+    # gitignored so there's no merge conflict to worry about.
+    shutil.copyfile(src, dest)
+    return fname
+
+
+def _payload_from_planner_slides(
+    conn,
+    rd: dict,
+    payload_inner: dict,
+    planned: list[dict],
+) -> list[dict]:
+    """Convert the Ollama planner's output into Remotion slide dicts.
+    The planner returns abstract slide descriptions (type + narration
+    + verse refs); we look up the verse Arabic/translation and the
+    per-word gloss here so that's done once and the renderer doesn't
+    need to round-trip back to SQLite.
     """
-    payload_inner = json.loads(rd.get("payload_json") or "{}")
+    out: list[dict] = []
+    for s in planned:
+        narration_text = (s.get("narration") or "").strip()
+        if s["type"] == "root":
+            hook = narration_text or (rd.get("hook") or "")
+            # tidbit_root is unused now — the planner has already
+            # decided what the root slide says, and that text lives
+            # in narration_text.
+            out.append(_build_root_slide(payload_inner, hook, ""))
+            # The default _build_root_slide uses hook+tidbit for
+            # narration; we want the planner's polished narration
+            # exactly, so overwrite.
+            out[-1]["narration"] = {"text": sanitize_for_tts(narration_text).strip()}
+        elif s["type"] == "verse":
+            verse_slide = _build_verse_flow_slide(
+                conn,
+                int(s["surah"]),
+                int(s["ayah"]),
+                int(s.get("word_pos") or 1),
+                narration_text=narration_text,
+            )
+            if verse_slide:
+                out.append(verse_slide)
+        elif s["type"] == "outro":
+            out.append(_build_outro_slide(narration_text))
+        # Unknown types are silently dropped — the planner's output
+        # was validated upstream so this should never fire.
+    return out
+
+
+def _static_fallback_slides(conn, rd: dict, script: dict, payload_inner: dict) -> list[dict]:
+    """Original static mapping used when the Ollama planner is
+    unavailable or produces invalid output. Same logic that shipped
+    in the first cut: Root → Source → Cross-ref[0] → Outro."""
     slides: list[dict] = []
 
-    # Slide 1 — Root page
     hook = (script.get("hook") or "").strip()
     tidbit_root = (script.get("tidbit_about_root") or "").strip()
     slides.append(_build_root_slide(payload_inner, hook, tidbit_root))
 
-    # Slide 2 — Source verse-flow
     src_word_pos = int(rd.get("anchor_word_pos") or 1)
     src_slide = _build_verse_flow_slide(
         conn,
@@ -245,7 +325,6 @@ def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
     if src_slide:
         slides.append(src_slide)
 
-    # Slide 3 — Cross-reference verse-flow (first selected ref)
     refs = script.get("selected_verse_refs") or []
     other_pool = {
         (int(o["chapter"]), int(o["verse"])): int(o.get("word_pos") or 1)
@@ -260,16 +339,62 @@ def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
             continue
         wp = other_pool.get((c, v), 1)
         cross_slide = _build_verse_flow_slide(
-            conn,
-            c, v, wp,
+            conn, c, v, wp,
             narration_text=script.get("tidbit_about_semitic", ""),
         )
         if cross_slide:
             slides.append(cross_slide)
         break
 
-    # Slide 4 — Outro
     slides.append(_build_outro_slide(script.get("close", "")))
+    return slides
+
+
+def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
+    """Convert an educational_videos row + its script into a Remotion
+    payload. Tries the Ollama-driven planner first (which polishes
+    the narration AND matches it to the verses being shown); falls
+    back to the static slot-mapping if the planner is unavailable
+    or produces invalid output.
+
+    Both paths return the same slide-dict shape, so downstream code
+    (subprocess invocation, mp4 staging) doesn't care which produced
+    the slides.
+    """
+    payload_inner = json.loads(rd.get("payload_json") or "{}")
+    anchor_word_pos = int(rd.get("anchor_word_pos") or 1)
+
+    slides: list[dict] = []
+    # Try the planner. Any failure (Ollama down, invalid output,
+    # etc.) silently drops to the static path — we don't want a
+    # planner outage to fail the whole render.
+    try:
+        planned = _planner.plan_word_origins_slides(
+            conn, payload_inner, script, anchor_word_pos,
+        )
+        slides = _payload_from_planner_slides(conn, rd, payload_inner, planned)
+        # Need at least 3 slides (root + 1 verse + outro) for the
+        # planner output to be useful; otherwise treat as failure
+        # and fall back.
+        if len(slides) < 3:
+            raise _planner.PlannerError(
+                f"planner output yielded only {len(slides)} renderable slides"
+            )
+        print(f"[remotion] Planner produced {len(slides)} slides for video {rd['id']}")
+    except Exception as e:
+        print(f"[remotion] Planner failed for video {rd['id']}: {e}. Falling back to static mapping.")
+        slides = _static_fallback_slides(conn, rd, script, payload_inner)
+
+    # Stage the pipeline's outro sound bite (if any) into the
+    # renderer's public/ and attach to whichever slide is the outro.
+    # We do this last so both the planner and fallback paths get the
+    # same treatment.
+    outro_audio_filename = _stage_outro_audio(rd.get("pipeline_id"), conn)
+    if outro_audio_filename:
+        for s in slides:
+            if s.get("type") == "outro":
+                s["outroAudioFile"] = outro_audio_filename
+                break
 
     return {
         "videoId": f"educational-{rd['id']}",

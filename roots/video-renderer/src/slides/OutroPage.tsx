@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, interpolate } from 'remotion';
+import { AbsoluteFill, useCurrentFrame, interpolate, Audio, staticFile } from 'remotion';
 import type { OutroSlideT } from '../types';
 import { COLORS, SYSTEM_FONT } from './shared';
 
@@ -19,6 +19,15 @@ export function OutroPage({ slide }: { slide: OutroSlideT }) {
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.outroBg }}>
+      {/* Optional sound bite played over the splash. The Python
+          orchestrator copies the pipeline's outro_audio_filename
+          into public/ before invoking the renderer; we just play
+          it here. Layers cleanly with any narration audio (from
+          the slide's narration block) — Remotion mixes Audio
+          components by default. */}
+      {slide.outroAudioFile && (
+        <Audio src={staticFile(slide.outroAudioFile)} />
+      )}
       <div
         style={{
           position: 'absolute',

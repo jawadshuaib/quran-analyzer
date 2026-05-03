@@ -90,11 +90,19 @@ export const WordToWordSlide = z.object({
 // existing ffmpeg pipeline produces (warm-charcoal bg, site name +
 // tagline) so videos rendered through Remotion close consistently
 // with the rest of the channel.
+//
+// outroAudioFile: optional sound bite played over the splash —
+// matches the existing pipeline's outro_audio_filename feature.
+// File must already be staged in public/ by the caller (the
+// Python orchestrator copies it from data/educational_outro_audio/
+// before invoking the renderer).
 export const OutroSlide = z.object({
   type: z.literal('outro'),
   durationSec: z.number().positive().default(5),
   siteName: z.string().default('al-nuqta.com'),
   tagline: z.string().default('A Root Based Translation of the Quran'),
+  outroAudioFile: z.string().optional(),
+  narration: Narration.optional(),
 });
 
 export const Slide = z.discriminatedUnion('type', [

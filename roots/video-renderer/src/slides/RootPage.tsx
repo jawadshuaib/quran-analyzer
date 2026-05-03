@@ -98,7 +98,7 @@ export function RootPage({ slide }: { slide: RootSlideT }) {
               marginBottom: 20,
             }}
           >
-            {slide.meaningTitle}
+            {slide.meaningTitle || 'Meaning'}
           </div>
           <div
             style={{
