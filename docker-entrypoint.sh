@@ -463,9 +463,43 @@ except Exception as e:
 " 2>&1
 fi
 
-# Always deploy the latest database from the image
-echo "Deploying latest database..."
-cp /app/seed-quran.db /app/data/quran.db
+# ============================================================================
+# Live-DB preservation — DEFAULT BEHAVIOR.
+#
+# Old behavior (which caused data loss): every deploy unconditionally
+# overwrote /app/data/quran.db with the image's seed DB and tried to
+# restore user data from in-memory backups taken seconds earlier. Any
+# silent failure in the restore (a swallowed exception, a missing
+# table prefix in the backup query, a schema mismatch) wiped admin
+# settings and pipelines on every deploy. Snapshots saved us once,
+# but the pattern was fundamentally fragile.
+#
+# New behavior: the seed DB is ONLY copied to /app/data/quran.db on a
+# truly fresh volume (no live DB exists yet). On any subsequent
+# deploy, the live DB is preserved as-is and the restore step is
+# skipped — there's nothing to restore from because nothing was
+# overwritten.
+#
+# Tradeoff: corpus-data updates baked into a new seed (e.g. revised
+# translations, new morphology rows) will no longer auto-propagate
+# to the live DB. Schema migrations still happen via app.py's
+# _ensure_*_table() functions on import, so new tables/columns
+# work fine. To force a corpus refresh, the operator can set
+# ALLOW_DESTRUCTIVE_SEED=1 explicitly — same code path as before,
+# but opt-in.
+# ============================================================================
+SEED_APPLIED=0
+if [ ! -f /app/data/quran.db ]; then
+  echo "Fresh volume detected — copying seed DB to /app/data/quran.db"
+  cp /app/seed-quran.db /app/data/quran.db
+  SEED_APPLIED=1
+elif [ "${ALLOW_DESTRUCTIVE_SEED:-}" = "1" ]; then
+  echo "ALLOW_DESTRUCTIVE_SEED=1 — overwriting live DB with seed (corpus refresh)"
+  cp /app/seed-quran.db /app/data/quran.db
+  SEED_APPLIED=1
+else
+  echo "Preserving existing /app/data/quran.db (set ALLOW_DESTRUCTIVE_SEED=1 to refresh corpus from seed)"
+fi
 
 # Restore runtime-state tables into the fresh database. Matches the
 # prefix list in the backup step above — keep these in sync.
@@ -483,7 +517,7 @@ cp /app/seed-quran.db /app/data/quran.db
 #      drift (e.g. if a new ALTER-added column exists in one side only).
 #   3. Each table is wrapped in its own try/except so one problematic
 #      table cannot take down the rest.
-if [ -f /tmp/admin_backup.db ]; then
+if [ -f /tmp/admin_backup.db ] && [ "$SEED_APPLIED" = "1" ]; then
   echo "Restoring runtime-state tables..."
   python3 -c "
 import sqlite3, os, re
@@ -593,7 +627,7 @@ except Exception as e:
 fi
 
 # Restore assistant conversations into the fresh database
-if [ -f /tmp/assistant_backup.db ]; then
+if [ -f /tmp/assistant_backup.db ] && [ "$SEED_APPLIED" = "1" ]; then
   echo "Restoring assistant conversations..."
   python3 -c "
 import sqlite3
@@ -629,7 +663,7 @@ except Exception as e:
 fi
 
 # Restore insight evolution log into the fresh database
-if [ -f /tmp/insight_evo_backup.db ]; then
+if [ -f /tmp/insight_evo_backup.db ] && [ "$SEED_APPLIED" = "1" ]; then
   echo "Restoring insight evolution log..."
   python3 -c "
 import sqlite3
@@ -664,7 +698,7 @@ except Exception as e:
 fi
 
 # Restore verse themes into the fresh database
-if [ -f /tmp/verse_themes_backup.db ]; then
+if [ -f /tmp/verse_themes_backup.db ] && [ "$SEED_APPLIED" = "1" ]; then
   echo "Restoring verse themes..."
   python3 -c "
 import sqlite3
@@ -700,7 +734,7 @@ fi
 # Pairs with the backup step above. Each table is wrapped in its own
 # try/except so one bad table can't take down the rest.
 # ============================================================================
-if [ -f /tmp/vocab_backup.db ]; then
+if [ -f /tmp/vocab_backup.db ] && [ "$SEED_APPLIED" = "1" ]; then
   echo "Restoring vocabulary studio tables..."
   python3 -c "
 import sqlite3, os
@@ -892,7 +926,7 @@ fi
 # backup. Each table is wrapped in its own try/except so one bad table
 # can't take down the rest.
 # ============================================================================
-if [ -f /tmp/non_seed_backup.db ]; then
+if [ -f /tmp/non_seed_backup.db ] && [ "$SEED_APPLIED" = "1" ]; then
   echo "Restoring non-seed tables..."
   python3 -c "
 import sqlite3, os, re

@@ -119,7 +119,18 @@ COPY assets/quran.db ./seed-quran.db
 RUN mkdir -p /app/data && \
     cp /app/seed-quran.db /app/data/quran.db && \
     python3 -c "import app" && \
-    echo "[Dockerfile] app.py import check passed"
+    rm /app/data/quran.db && \
+    echo "[Dockerfile] app.py import check passed (image's /app/data/quran.db removed)"
+
+# IMPORTANT: do NOT leave /app/data/quran.db in the image after the
+# import check. Docker named-volume initialization copies the
+# image's content at the mount point INTO an empty volume on first
+# mount. If a fresh server creates a new volume (or someone runs
+# `docker compose down -v`), Docker would then propagate the seed
+# DB into the volume — masquerading as "existing data" and
+# bypassing the entrypoint's data-preservation logic. The `rm`
+# above ensures the image's /app/data/ is empty so volume init
+# is a no-op.
 
 # Copy mnemonic images as seed (entrypoint deploys to data volume)
 COPY assets/mnemonic_images ./seed-mnemonic-images
