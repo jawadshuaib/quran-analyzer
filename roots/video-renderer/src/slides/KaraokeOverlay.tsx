@@ -211,31 +211,25 @@ export function KaraokeOverlay({
         }}
       >
         {activeChunk.words.map((w, i) => {
-          const isPast = elapsedMs > w.endMs;
+          // Whole chunk is always fully visible — no popping in or
+          // fading out word by word. The viewer reads the phrase
+          // as a stable unit. Only the currently-spoken word gets
+          // a color shift to gold so the eye tracks the audio
+          // without the rest of the line redrawing around it.
           const isCurrent = elapsedMs >= w.startMs - 30 && elapsedMs <= w.endMs + 30;
-          const isFuture = elapsedMs < w.startMs - 30;
-
-          // Within the active chunk, the same three-state highlight
-          // applies. Future words (ones already on screen but not
-          // yet spoken in this chunk) sit at lower opacity, current
-          // gets the gold accent + scale, past words stay full
-          // white.
-          const opacity = isFuture ? 0.5 : 1;
           const color = isCurrent ? COLORS.highlight : '#FFFFFF';
-          const scale = isCurrent ? 1.06 : 1;
 
           return (
             <span
               key={i}
               style={{
                 display: 'inline-block',
-                transformOrigin: 'center bottom',
-                transform: `scale(${scale})`,
                 color,
-                opacity,
                 marginRight: 22,
                 transition: 'none',
-                fontWeight: isCurrent ? 700 : isPast ? 600 : 500,
+                // Uniform weight across the chunk so words don't
+                // visibly thicken when they pass through "current".
+                fontWeight: 600,
               }}
             >
               {w.display}
