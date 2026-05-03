@@ -333,3 +333,14 @@ export async function semanticSearch(
   }
   return res.json();
 }
+
+/** Today's verse-of-the-day reference. The pool is admin-curated;
+ * backend picks one entry deterministically by day-of-year, so the
+ * same verse shows for the whole day across all visitors. The
+ * caller fetches the actual verse data via fetchVerse() — keeping
+ * this endpoint cheap and cacheable. */
+export async function getDailyVerse(): Promise<{ chapter: number; verse: number }> {
+  const res = await fetch(`${BASE}/verse-of-the-day`);
+  if (!res.ok) throw new Error('Failed to fetch daily verse');
+  return res.json();
+}

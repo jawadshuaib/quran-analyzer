@@ -5023,7 +5023,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/verse-of-the-day|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
         return True
     return False
 
@@ -5888,6 +5888,234 @@ def _ensure_admin_media_tables():
         conn.close()
 
 _ensure_admin_media_tables()
+
+
+# ---------------------------------------------------------------------------
+# Verse of the Day pool
+#
+# The home page shows one verse from this pool, picked deterministically by
+# day-of-year. Used to live as a hard-coded array in
+# VerseOfTheDay.tsx; promoting to a DB table so admins can curate the
+# rotation without a deploy.
+#
+# Seeded on first run with the original 20 verses so behavior is unchanged
+# until an admin starts editing. position is unused for ordering today
+# (day-of-year picks by id ASC) but reserved so a future "drag to reorder"
+# UI doesn't need a schema change.
+# ---------------------------------------------------------------------------
+_VERSE_OF_THE_DAY_SEED: list[tuple[int, int]] = [
+    (1, 1), (2, 255), (24, 35), (36, 1), (55, 13),
+    (59, 22), (67, 1), (96, 1), (112, 1), (13, 28),
+    (94, 5), (49, 13), (21, 107), (3, 139), (56, 77),
+    (39, 53), (31, 18), (17, 1), (18, 10), (2, 152),
+]
+
+
+def _ensure_verse_of_the_day_table():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS verse_of_the_day_pool (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chapter INTEGER NOT NULL,
+                verse INTEGER NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(chapter, verse)
+            )
+        """)
+        # Seed if empty. Idempotent: a deploy that adds the table for the
+        # first time gets the 20 originals; subsequent boots see existing
+        # rows and skip. Admin edits are preserved across redeploys.
+        existing = conn.execute(
+            "SELECT COUNT(*) FROM verse_of_the_day_pool"
+        ).fetchone()[0]
+        if existing == 0:
+            for pos, (c, v) in enumerate(_VERSE_OF_THE_DAY_SEED):
+                conn.execute(
+                    "INSERT INTO verse_of_the_day_pool (chapter, verse, position) "
+                    "VALUES (?, ?, ?)",
+                    (c, v, pos),
+                )
+            print(f"  Seeded verse_of_the_day_pool with {len(_VERSE_OF_THE_DAY_SEED)} entries")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_verse_of_the_day_table()
+
+
+def _list_verse_of_the_day_pool(conn) -> list[dict]:
+    """Return the full pool ordered by id ASC (insertion order). Each row
+    is enriched with the surah name + a short translation snippet so
+    the admin UI can render rich rows without a second roundtrip."""
+    rows = conn.execute(
+        "SELECT id, chapter, verse, position, created_at "
+        "FROM verse_of_the_day_pool ORDER BY id ASC"
+    ).fetchall()
+    out: list[dict] = []
+    for r in rows:
+        c = r["chapter"]; v = r["verse"]
+        # Best-effort enrichment — if the verse is missing from the
+        # corpus (shouldn't happen for valid Quran refs but defensive)
+        # we still return the row so the admin can delete it.
+        sname = ""
+        translation = ""
+        arabic = ""
+        try:
+            srow = conn.execute(
+                "SELECT name FROM surahs WHERE id = ?", (c,),
+            ).fetchone()
+            if srow:
+                sname = srow["name"]
+            arow = conn.execute(
+                "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
+                (c, v),
+            ).fetchone()
+            if arow:
+                arabic = arow["text_uthmani"]
+            trow = conn.execute(
+                "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+                (c, v),
+            ).fetchone()
+            if trow and trow["text_en"]:
+                t = trow["text_en"].strip()
+                translation = t if len(t) <= 140 else t[:137] + "…"
+        except Exception:
+            pass
+        out.append({
+            "id": r["id"],
+            "chapter": c,
+            "verse": v,
+            "position": r["position"],
+            "created_at": r["created_at"],
+            "surah_name": sname,
+            "arabic_preview": (arabic[:60] + "…") if len(arabic) > 60 else arabic,
+            "translation_preview": translation,
+        })
+    return out
+
+
+def _todays_verse_of_the_day(conn) -> tuple[int, int] | None:
+    """Pick today's verse deterministically: day-of-year mod pool size.
+    Matches the old VerseOfTheDay.tsx behavior exactly so a deploy that
+    flips frontend to API-driven doesn't change which verse shows on a
+    given day. Returns None if the pool is empty."""
+    rows = conn.execute(
+        "SELECT chapter, verse FROM verse_of_the_day_pool ORDER BY id ASC"
+    ).fetchall()
+    if not rows:
+        return None
+    now = datetime.now()
+    start_of_year = datetime(now.year, 1, 1)
+    day_of_year = (now - start_of_year).days
+    pick = rows[day_of_year % len(rows)]
+    return int(pick["chapter"]), int(pick["verse"])
+
+
+@app.route("/api/verse-of-the-day", methods=["GET"])
+def public_verse_of_the_day():
+    """Public endpoint — homepage / NotFound / BadGateway pages call
+    this to know which verse to surface today. Returns just the
+    chapter:verse reference; the consumer fetches the full verse data
+    via the existing /api/verse/<surah>:<ayah> endpoint. Splitting
+    those keeps this endpoint cheap and cacheable."""
+    conn = get_db()
+    try:
+        pick = _todays_verse_of_the_day(conn)
+    finally:
+        conn.close()
+    if not pick:
+        # Empty pool — fall back to a safe canonical default rather
+        # than 404'ing, so the homepage's verse-of-the-day section
+        # never renders blank just because an admin emptied the pool.
+        return jsonify({"chapter": 2, "verse": 255})
+    return jsonify({"chapter": pick[0], "verse": pick[1]})
+
+
+@app.route("/api/admin/verse-of-the-day-pool", methods=["GET"])
+@admin_required
+def admin_verse_of_the_day_list():
+    """List all verses in the rotation, with surah name + previews so
+    the admin UI can render rich rows in one fetch."""
+    conn = get_db()
+    try:
+        items = _list_verse_of_the_day_pool(conn)
+        today = _todays_verse_of_the_day(conn)
+    finally:
+        conn.close()
+    return jsonify({
+        "items": items,
+        "today": ({"chapter": today[0], "verse": today[1]} if today else None),
+    })
+
+
+@app.route("/api/admin/verse-of-the-day-pool", methods=["POST"])
+@admin_required
+def admin_verse_of_the_day_add():
+    """Add a verse to the rotation. Validates that the verse actually
+    exists in the corpus before inserting — prevents typo'd refs from
+    silently producing a blank verse-of-the-day display."""
+    body = request.get_json(force=True, silent=True) or {}
+    try:
+        chapter = int(body.get("chapter"))
+        verse = int(body.get("verse"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "chapter and verse must be integers"}), 400
+    if not (1 <= chapter <= 114 and verse >= 1):
+        return jsonify({"error": "chapter must be 1-114, verse >= 1"}), 400
+
+    conn = get_db()
+    try:
+        # Validate the reference exists.
+        vrow = conn.execute(
+            "SELECT 1 FROM verses WHERE chapter = ? AND verse = ?",
+            (chapter, verse),
+        ).fetchone()
+        if not vrow:
+            return jsonify({"error": f"Quran {chapter}:{verse} doesn't exist"}), 404
+        # Reject duplicate. The UNIQUE constraint would catch this anyway
+        # but we want a clean 409 rather than a 500 from an integrity error.
+        existing = conn.execute(
+            "SELECT id FROM verse_of_the_day_pool WHERE chapter = ? AND verse = ?",
+            (chapter, verse),
+        ).fetchone()
+        if existing:
+            return jsonify({"error": f"Quran {chapter}:{verse} is already in the rotation"}), 409
+        cur = conn.execute(
+            "INSERT INTO verse_of_the_day_pool (chapter, verse, position) "
+            "VALUES (?, ?, COALESCE((SELECT MAX(position) + 1 FROM verse_of_the_day_pool), 0))",
+            (chapter, verse),
+        )
+        conn.commit()
+        new_id = cur.lastrowid
+        items = _list_verse_of_the_day_pool(conn)
+    finally:
+        conn.close()
+    # Return the freshly-inserted row (looked up from the enriched list)
+    # so the frontend gets the surah name + previews without a follow-up.
+    new_row = next((i for i in items if i["id"] == new_id), None)
+    return jsonify(new_row or {"id": new_id, "chapter": chapter, "verse": verse}), 201
+
+
+@app.route("/api/admin/verse-of-the-day-pool/<int:pool_id>", methods=["DELETE"])
+@admin_required
+def admin_verse_of_the_day_delete(pool_id: int):
+    """Remove a verse from the rotation. The home page falls back to
+    2:255 if the pool ends up empty."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "DELETE FROM verse_of_the_day_pool WHERE id = ?", (pool_id,),
+        )
+        conn.commit()
+        deleted = cur.rowcount
+    finally:
+        conn.close()
+    if not deleted:
+        return jsonify({"error": "Pool entry not found"}), 404
+    return jsonify({"id": pool_id, "deleted": True})
 
 
 def _create_admin_token(user_id: int, username: str, pw_changed_at: int = 0) -> str:

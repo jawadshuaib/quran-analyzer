@@ -1,40 +1,52 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import type { VerseData } from '../../types';
-import { fetchVerse } from '../../api/quran';
+import { fetchVerse, getDailyVerse } from '../../api/quran';
 
-// Pool of well-known verses to pick from
-const VERSE_POOL: [number, number][] = [
-  [1, 1], [2, 255], [24, 35], [36, 1], [55, 13],
-  [59, 22], [67, 1], [96, 1], [112, 1], [13, 28],
-  [94, 5], [49, 13], [21, 107], [3, 139], [56, 77],
-  [39, 53], [31, 18], [17, 1], [18, 10], [2, 152],
-];
-
-/** Pick a deterministic "daily" verse based on day-of-year */
-function pickDailyVerse(): [number, number] {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86_400_000);
-  return VERSE_POOL[dayOfYear % VERSE_POOL.length];
-}
+// Fallback used only when /api/verse-of-the-day is unreachable
+// (e.g. backend is down on a NotFound or BadGateway page). The
+// pool itself lives in the backend and is admin-curated via
+// /admin/verse-of-the-day; on a healthy site the API response
+// always wins.
+const FALLBACK: [number, number] = [2, 255];
 
 interface Props {
   onNavigate: (surah: number, ayah: number) => void;
 }
 
 export default function VerseOfTheDay({ onNavigate }: Props) {
-  const [surah, ayah] = useMemo(pickDailyVerse, []);
+  const [pick, setPick] = useState<[number, number] | null>(null);
   const [data, setData] = useState<VerseData | null>(null);
 
+  // Two-step fetch: first ask the backend which verse is "today's"
+  // (cheap, just a chapter:verse pair), then fetch the full verse
+  // payload via the existing endpoint. Both fail closed — if the
+  // pool API errors we use a known-good fallback ref, and if the
+  // verse fetch errors we render nothing.
   useEffect(() => {
     let cancelled = false;
-    fetchVerse(surah, ayah)
+    getDailyVerse()
+      .then((p) => {
+        if (cancelled) return;
+        setPick([p.chapter, p.verse]);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPick(FALLBACK);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (!pick) return;
+    let cancelled = false;
+    fetchVerse(pick[0], pick[1])
       .then((v) => { if (!cancelled) setData(v); })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [surah, ayah]);
+  }, [pick]);
 
-  if (!data) return null;
+  if (!pick || !data) return null;
+  const [surah, ayah] = pick;
 
   // Get up to 4 meaningful roots (skip those without root_arabic)
   const roots = data.roots_summary

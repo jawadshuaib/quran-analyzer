@@ -1960,3 +1960,60 @@ export async function getAllEducationalScheduleRuns(
   if (!res.ok) throw new Error(data.error || 'Failed to fetch educational schedule runs');
   return data as EducationalScheduleRunGlobal[];
 }
+
+/* =================================================================== */
+/*  Verse of the Day pool                                              */
+/* =================================================================== */
+
+// One row in the homepage's verse-of-the-day rotation. Backend
+// enriches each row with the surah name + 60-char Arabic preview +
+// 140-char translation preview so the admin UI can render rich rows
+// without a per-row /api/verse fetch.
+export interface VerseOfTheDayPoolItem {
+  id: number;
+  chapter: number;
+  verse: number;
+  position: number;
+  created_at: string;
+  surah_name: string;
+  arabic_preview: string;
+  translation_preview: string;
+}
+
+export interface VerseOfTheDayPoolList {
+  items: VerseOfTheDayPoolItem[];
+  // Today's deterministic pick (day-of-year mod pool size). null only
+  // if the pool is empty.
+  today: { chapter: number; verse: number } | null;
+}
+
+export async function getVerseOfTheDayPool(): Promise<VerseOfTheDayPoolList> {
+  const res = await authFetch(`${BASE}/verse-of-the-day-pool`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch pool');
+  return data as VerseOfTheDayPoolList;
+}
+
+export async function addVerseOfTheDay(
+  chapter: number,
+  verse: number,
+): Promise<VerseOfTheDayPoolItem> {
+  const res = await authFetch(`${BASE}/verse-of-the-day-pool`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chapter, verse }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to add verse');
+  return data as VerseOfTheDayPoolItem;
+}
+
+export async function deleteVerseOfTheDay(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/verse-of-the-day-pool/${id}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Failed to delete');
+  }
+}

@@ -29,6 +29,7 @@ import VerseSettings from './VerseSettings';
 import AdminEducational from './AdminEducational';
 import AdminEducationalPipelines from './AdminEducationalPipelines';
 import AdminPipelines from './AdminPipelines';
+import AdminVerseOfTheDay from './AdminVerseOfTheDay';
 
 type AdminRoute =
   | 'dashboard' | 'settings' | 'scheduler'
@@ -40,7 +41,8 @@ type AdminRoute =
   | 'pipelines-educational'
   | 'pipelines-educational-candidates'
   | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns'
-  | 'verse-settings';
+  | 'verse-settings'
+  | 'verse-of-the-day';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -71,6 +73,7 @@ function getAdminRoute(): AdminRoute {
   if (m) return 'vocabulary-studio';
   if (/^\/admin\/proper-nouns\/?$/.test(path)) return 'proper-nouns';
   if (/^\/admin\/verse-settings\/?$/.test(path)) return 'verse-settings';
+  if (/^\/admin\/verse-of-the-day\/?$/.test(path)) return 'verse-of-the-day';
   return 'dashboard';
 }
 
@@ -109,6 +112,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Revisions',
     description: 'Vocabulary surveys and proper-noun edits.',
     matches: (r) => r === 'revisions' || r === 'vocabulary' || r === 'vocabulary-studio' || r === 'proper-nouns',
+  },
+  {
+    href: '/admin/verse-of-the-day',
+    label: 'Verse of the Day',
+    description: 'Curate the rotation of verses shown on the homepage.',
+    matches: (r) => r === 'verse-of-the-day',
   },
   {
     href: '/admin/verse-settings',
@@ -288,6 +297,7 @@ export default function AdminPage() {
         {route === 'vocabulary-studio' && <AdminVocabularyStudio />}
         {route === 'proper-nouns' && <AdminProperNouns />}
         {route === 'verse-settings' && <VerseSettings />}
+        {route === 'verse-of-the-day' && <AdminVerseOfTheDay />}
       </div>
     </div>
   );
@@ -581,6 +591,18 @@ const SECTION_STYLES: SectionStyle[] = [
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
         <path d="M14 4l6 6-10 10H4v-6z" />
         <path d="M13 5l6 6" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/verse-of-the-day',
+    label: 'Verse of the Day',
+    description: 'Curate the rotation of verses shown on the homepage.',
+    accent: 'bg-teal-50 text-teal-700 ring-teal-100',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M4 19V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14l-4-3-4 3-4-3-4 3z" />
+        <path d="M9 8h6M9 12h4" />
       </svg>
     ),
   },

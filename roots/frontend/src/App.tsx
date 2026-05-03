@@ -404,7 +404,7 @@ export default function App() {
     );
   }
 
-  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/verse-settings|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(currentPath)) {
+  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/verse-settings|\/verse-of-the-day|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(currentPath)) {
     return <AdminPage />;
   }
 
