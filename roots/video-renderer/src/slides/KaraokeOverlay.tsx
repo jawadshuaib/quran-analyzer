@@ -31,6 +31,49 @@ interface WordSpan {
   endMs: number;
 }
 
+interface Chunk {
+  words: WordSpan[];
+  startMs: number;
+  endMs: number;
+}
+
+// At ~104px font / 600 weight, the 1080px-wide canvas with our
+// padding fits roughly 18-22 characters before wrapping. Greedy-
+// pack words into chunks of at most MAX_CHUNK_CHARS so the active
+// chunk always renders on a single line. A single word longer
+// than the limit becomes its own chunk (graceful overflow rather
+// than truncation).
+const MAX_CHUNK_CHARS = 20;
+
+function buildChunks(words: WordSpan[]): Chunk[] {
+  const chunks: Chunk[] = [];
+  let buf: WordSpan[] = [];
+  let bufLen = 0;
+  for (const w of words) {
+    const proposed = bufLen + (buf.length > 0 ? 1 : 0) + w.display.length;
+    if (buf.length > 0 && proposed > MAX_CHUNK_CHARS) {
+      chunks.push({
+        words: buf,
+        startMs: buf[0].startMs,
+        endMs: buf[buf.length - 1].endMs,
+      });
+      buf = [w];
+      bufLen = w.display.length;
+    } else {
+      buf.push(w);
+      bufLen = proposed;
+    }
+  }
+  if (buf.length > 0) {
+    chunks.push({
+      words: buf,
+      startMs: buf[0].startMs,
+      endMs: buf[buf.length - 1].endMs,
+    });
+  }
+  return chunks;
+}
+
 // Walk the alignment to produce per-word timing. `text` is the TTS
 // input (must match alignment). `displayText` is what we render —
 // if missing, we render `text`. We split both on whitespace and
@@ -82,10 +125,23 @@ export function KaraokeOverlay({
 
   const words = alignmentToWords(narration);
   if (words.length === 0) return null;
+  const chunks = buildChunks(words);
+  if (chunks.length === 0) return null;
 
   // Time elapsed since audio start, in milliseconds. Frame 0 of the
   // slide (where the narration starts via <Audio>) is our zero.
   const elapsedMs = ((frame - audioStartFrame) / fps) * 1000;
+
+  // Pick the active chunk — the one whose word range covers
+  // elapsedMs. If we're between chunks (small gap of silence), we
+  // bias to the previous chunk so it lingers rather than blanking
+  // out. Before the first word starts, show the first chunk faded.
+  let activeIdx = 0;
+  for (let i = 0; i < chunks.length; i++) {
+    if (elapsedMs >= chunks[i].startMs) activeIdx = i;
+    else break;
+  }
+  const activeChunk = chunks[activeIdx];
 
   // Fade in over the first 8 frames so the overlay doesn't pop in
   // at slide start; fade out the last 8 frames so it doesn't get
@@ -97,6 +153,14 @@ export function KaraokeOverlay({
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' },
   );
 
+  // Per-chunk soft fade-in. When a new chunk becomes active, ease
+  // the whole chunk in over ~133ms (4 frames at 30fps) so the
+  // transition reads as a "swap" rather than a snap. The previous
+  // chunk just disappears under the fade — fine, since the audio
+  // is already on the new chunk's words by then.
+  const elapsedInChunkMs = elapsedMs - activeChunk.startMs;
+  const chunkOpacity = Math.max(0, Math.min(1, elapsedInChunkMs / 133 + 0.3));
+
   return (
     <div
       style={{
@@ -104,11 +168,12 @@ export function KaraokeOverlay({
         left: 0,
         right: 0,
         bottom: 0,
-        // Tall enough to seat 2-3 lines of 104px text comfortably.
-        // The OutroPage's "al-nuqta.com" is 130px; karaoke at 104
-        // is ~80% of that — readable at arm's length on a phone
-        // without dominating the slide.
-        height: 560,
+        // Single-line chunks (max ~20 chars at 104px) only need ~140px
+        // for the line itself; the rest is breathing room + the
+        // gradient fade. The OutroPage's "al-nuqta.com" is 130px;
+        // karaoke at 104 is ~80% of that — readable at arm's length
+        // on a phone without dominating the slide.
+        height: 380,
         // Subtle dark gradient so the caption is legible on any
         // bg without being a heavy bar.
         background:
@@ -122,29 +187,40 @@ export function KaraokeOverlay({
       }}
     >
       <div
+        // Keying on the chunk start time forces React to re-mount
+        // the inner div when the chunk changes — the per-chunk
+        // fade-in then runs from 0 instead of staying at 1. Since
+        // we render only the active chunk, this is what produces
+        // the "swap" feel between chunks.
+        key={activeChunk.startMs}
         style={{
           fontFamily: SYSTEM_FONT,
           fontSize: 104,
           fontWeight: 600,
           color: '#FFFFFF',
-          // Tight line height so multi-line captions don't sprawl.
+          // Tight line height so multi-line captions don't sprawl
+          // (single-line is the target — see MAX_CHUNK_CHARS — but
+          // a too-long single word will wrap; this keeps it tidy).
           lineHeight: 1.18,
           letterSpacing: '-0.01em',
           textAlign: 'center',
           textShadow: '0 4px 14px rgba(0,0,0,0.6)',
           maxWidth: 960,
+          opacity: chunkOpacity,
+          whiteSpace: 'nowrap',
         }}
       >
-        {words.map((w, i) => {
+        {activeChunk.words.map((w, i) => {
           const isPast = elapsedMs > w.endMs;
           const isCurrent = elapsedMs >= w.startMs - 30 && elapsedMs <= w.endMs + 30;
           const isFuture = elapsedMs < w.startMs - 30;
 
-          // Future words sit at low opacity so the caption reads
-          // like a "what's coming" hint. Past words are full
-          // opacity. Current word gets a slight scale + gold
-          // accent so the eye locks on.
-          const opacity = isFuture ? 0.35 : 1;
+          // Within the active chunk, the same three-state highlight
+          // applies. Future words (ones already on screen but not
+          // yet spoken in this chunk) sit at lower opacity, current
+          // gets the gold accent + scale, past words stay full
+          // white.
+          const opacity = isFuture ? 0.5 : 1;
           const color = isCurrent ? COLORS.highlight : '#FFFFFF';
           const scale = isCurrent ? 1.06 : 1;
 
