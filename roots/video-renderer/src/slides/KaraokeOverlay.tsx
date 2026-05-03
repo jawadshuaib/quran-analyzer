@@ -217,7 +217,11 @@ export function KaraokeOverlay({
           // a color shift to gold so the eye tracks the audio
           // without the rest of the line redrawing around it.
           const isCurrent = elapsedMs >= w.startMs - 30 && elapsedMs <= w.endMs + 30;
-          const color = isCurrent ? COLORS.highlight : '#FFFFFF';
+          // Use the saturated `highlightText` (gold), not the
+          // pale `highlight` (which is designed as a background
+          // pill — at this scale on the dark caption gradient it
+          // reads as off-white and the highlight disappears).
+          const color = isCurrent ? COLORS.highlightText : '#FFFFFF';
 
           return (
             <span

@@ -10,7 +10,13 @@ export const COLORS = {
   text: '#1A1A1A',       // primary
   textSoft: '#2A2A2A',   // translation italic
   textMuted: '#9A9A9A',  // word-to-word English glosses
-  highlight: '#FFF1A8',  // soft yellow highlight (matched word)
+  highlight: '#FFF1A8',  // soft yellow highlight (matched word) — used as a BACKGROUND pill
+  // Saturated gold for use as TEXT color (e.g. karaoke active word
+  // over the dark caption gradient). The pale-yellow `highlight`
+  // disappears as a foreground color; this one pops without
+  // looking like a different design language. Matches the gold
+  // the existing ffmpeg pipeline uses (&H0000D7FF in ASS notation).
+  highlightText: '#FFD700',
   toggleOn: '#34C759',
   toggleOff: '#D9D9DD',
   hairline: '#ECEAE2',
