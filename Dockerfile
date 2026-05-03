@@ -25,7 +25,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
     libxfixes3 libxrandr2 libgbm1 libxss1 libpangocairo-1.0-0 \
-    libasound2 ca-certificates gnupg && \
+    ca-certificates gnupg && \
+    # libasound was renamed to libasound2t64 in some Debian 12 update
+    # tracks (time64 transition). Try the new name first, fall back
+    # to the old; one of them will be present whichever bookworm
+    # snapshot we're built against. Without `|| true` the apt-get
+    # rolls back the whole transaction on a missing package.
+    (apt-get install -y --no-install-recommends libasound2t64 || \
+     apt-get install -y --no-install-recommends libasound2) && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20 LTS via NodeSource. Required by the Remotion

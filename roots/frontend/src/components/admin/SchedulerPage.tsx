@@ -30,6 +30,11 @@ export default function SchedulerPage() {
   const [runs, setRuns] = useState<PipelineScheduleRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  // Bumped by every save anywhere on the page so the
+  // AutoPublishStatusPanel re-fetches its health summary. Without
+  // this the panel shows stale data after the user edits the
+  // upload schedule or one of the pipeline schedules.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     setErr('');
@@ -40,6 +45,7 @@ export default function SchedulerPage() {
       ]);
       setSchedules(s);
       setRuns(r);
+      setRefreshKey((k) => k + 1);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load schedules');
     } finally {
@@ -81,8 +87,10 @@ export default function SchedulerPage() {
       {/* Health check at the top — answers "is auto-publishing working?"
           across the three pieces (credentials, generation schedules,
           upload schedule) so an operator doesn't have to scroll
-          through three sections to figure out why nothing's flowing. */}
-      <AutoPublishStatusPanel />
+          through three sections to figure out why nothing's flowing.
+          The refreshKey is bumped by the parent's load() so the panel
+          re-fetches whenever any child card saves. */}
+      <AutoPublishStatusPanel refreshKey={refreshKey} />
       <div className="my-8 border-t border-stone-200" />
 
       {/* ==================== Recitation pipelines (English/Arabic) ==================== */}
@@ -990,10 +998,13 @@ function YoutubeUploadCard({
     setPrivacy(schedule.privacy);
   }, [schedule]);
 
-  // Did the form change since last save?
+  // Did the form change since last save? Sort both sides before
+  // comparing — the backend doesn't promise sorted times, and our
+  // form state is always sorted post-add. Without this sort, a load
+  // of unsorted data flags the form dirty before any user input.
   const dirty =
     enabled !== schedule.enabled ||
-    JSON.stringify(times) !== JSON.stringify(schedule.times) ||
+    JSON.stringify([...times].sort()) !== JSON.stringify([...schedule.times].sort()) ||
     grace !== schedule.grace_minutes ||
     sanity !== schedule.sanity_check_enabled ||
     privacy !== schedule.privacy;
@@ -1394,7 +1405,7 @@ interface HealthCell {
   fixLabel?: string;
 }
 
-function AutoPublishStatusPanel() {
+function AutoPublishStatusPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [creds, setCreds] = useState<{ ok: boolean; tokenAgeDays?: number } | null>(null);
   const [pipelineCount, setPipelineCount] = useState<{
     enabledWithTimes: number;
@@ -1403,6 +1414,8 @@ function AutoPublishStatusPanel() {
   } | null>(null);
   const [upload, setUpload] = useState<YoutubeUploadSchedule | null>(null);
 
+  // refreshKey is bumped by the parent on every save. Listing it as
+  // a dep makes the panel re-fetch on any save anywhere on the page.
   useEffect(() => {
     Promise.all([
       getPreferences().catch(() => ({} as Record<string, string>)),
@@ -1429,7 +1442,7 @@ function AutoPublishStatusPanel() {
       });
       setUpload(ytSched);
     });
-  }, []);
+  }, [refreshKey]);
 
   if (!creds || !pipelineCount || upload === null) {
     return (

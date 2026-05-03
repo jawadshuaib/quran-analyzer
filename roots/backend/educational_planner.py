@@ -196,10 +196,19 @@ def _validate_plan(plan: dict, available_verses: list[dict]) -> list[dict]:
     )
     expected_words_low = int(_TARGET_NARRATION_SEC_MIN * _WORDS_PER_SEC * 0.5)
     expected_words_high = int(_TARGET_NARRATION_SEC_MAX * _WORDS_PER_SEC * 1.5)
-    if not (expected_words_low <= total_words <= expected_words_high):
+    if total_words < expected_words_low:
+        approx_sec = round(total_words / _WORDS_PER_SEC)
         raise PlannerError(
-            f"total word count {total_words} outside acceptable band "
-            f"[{expected_words_low}, {expected_words_high}]"
+            f"plan is too short: {total_words} words ≈ {approx_sec}s spoken; "
+            f"target is {_TARGET_NARRATION_SEC_MIN}-{_TARGET_NARRATION_SEC_MAX}s. "
+            f"The Claude script likely needs more content per beat."
+        )
+    if total_words > expected_words_high:
+        approx_sec = round(total_words / _WORDS_PER_SEC)
+        raise PlannerError(
+            f"plan is too long: {total_words} words ≈ {approx_sec}s spoken; "
+            f"target is {_TARGET_NARRATION_SEC_MIN}-{_TARGET_NARRATION_SEC_MAX}s. "
+            f"The Claude script is producing too much narration; trim beats."
         )
 
     return slides
@@ -318,30 +327,38 @@ def plan_word_origins_slides(
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
-    try:
-        resp = requests.post(
-            f"{base_url}/api/chat",
-            headers=headers,
-            json={
-                "model": model,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are an experienced video editor for a Quranic etymology channel. "
-                            "You output strict JSON. You never invent verses. You do not add commentary."
-                        ),
-                    },
-                    {"role": "user", "content": user_prompt},
-                ],
-                "stream": False,
-                "options": {"temperature": 0.3},
-                "think": True,
-            },
-            timeout=180,
-        )
-    except requests.RequestException as e:
-        raise PlannerError(f"Ollama transport error: {e}")
+    system_msg = (
+        "You are an experienced video editor for a Quranic etymology channel. "
+        "You output strict JSON. You never invent verses. You do not add commentary."
+    )
+
+    def _post(body: dict):
+        try:
+            return requests.post(
+                f"{base_url}/api/chat", headers=headers, json=body, timeout=180,
+            )
+        except requests.RequestException as e:
+            raise PlannerError(f"Ollama transport error: {e}")
+
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_prompt},
+        ],
+        "stream": False,
+        "options": {"temperature": 0.3},
+        # Reasoning mode — only newer chain-of-thought models support
+        # this. Falls back below if the model rejects it.
+        "think": True,
+    }
+    resp = _post(body)
+    if resp.status_code == 400 and body.get("think"):
+        # Older / smaller Ollama models 400 on `think: True`. Drop the
+        # flag and retry once. If it still fails, the second 400 falls
+        # through to the generic error below.
+        body.pop("think", None)
+        resp = _post(body)
 
     if resp.status_code != 200:
         raise PlannerError(f"Ollama HTTP {resp.status_code}: {resp.text[:300]}")
