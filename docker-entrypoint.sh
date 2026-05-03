@@ -1001,4 +1001,30 @@ if [ -f /app/normalize_cognate_languages.py ]; then
     echo "  WARNING: migration failed — see traceback above; continuing deploy"
 fi
 
+# ============================================================================
+# Persist Remotion renderer's ElevenLabs audio cache across deploys.
+#
+# audio-cache/<sha256-hash>.{mp3,json} are slow + costly to regenerate (each
+# cache miss is one ElevenLabs API call, ≈ $0.02). Without this symlink they
+# live in the ephemeral image filesystem and get wiped on every redeploy,
+# forcing the next render of any cached script to re-pay the API.
+# Symlinking to /app/data/renderer-audio-cache (which is on the persistent
+# Docker volume) makes the cache survive deploys.
+#
+# public/<hash>.mp3 stays ephemeral on purpose — narration.mjs re-stages
+# from audio-cache → public on every render, so a wiped public/ self-heals
+# from the persistent cache without an API call.
+# ============================================================================
+RENDERER_DIR=/app/video-renderer
+if [ -d "$RENDERER_DIR" ]; then
+  RENDERER_CACHE_TARGET=/app/data/renderer-audio-cache
+  RENDERER_CACHE_LINK="$RENDERER_DIR/audio-cache"
+  mkdir -p "$RENDERER_CACHE_TARGET"
+  if [ ! -L "$RENDERER_CACHE_LINK" ]; then
+    rm -rf "$RENDERER_CACHE_LINK"
+    ln -s "$RENDERER_CACHE_TARGET" "$RENDERER_CACHE_LINK"
+    echo "Linked Remotion audio cache to persistent volume"
+  fi
+fi
+
 exec "$@"

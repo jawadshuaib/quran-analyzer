@@ -46,11 +46,16 @@ class RemotionRenderError(Exception):
     str(e)[:1000] into educational_videos.error_message."""
 
 
-# Where the renderer subproject lives. Relative to this file's
-# directory so dev + Docker prod both resolve correctly. The
-# Dockerfile must COPY the renderer dir + its node_modules.
+# Where the renderer subproject lives. Dev and prod have different
+# layouts:
+#   - Dev: /repo/roots/backend/  + /repo/roots/video-renderer/
+#     → resolved via _THIS_DIR/../video-renderer
+#   - Prod (Docker): /app/  + /app/video-renderer/
+#     → set REMOTION_RENDERER_DIR=/app/video-renderer in the image
+# Operators can also override locally for testing alternate trees.
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-RENDERER_DIR = os.path.normpath(os.path.join(_THIS_DIR, "..", "video-renderer"))
+_DEFAULT_RENDERER_DIR = os.path.normpath(os.path.join(_THIS_DIR, "..", "video-renderer"))
+RENDERER_DIR = os.environ.get("REMOTION_RENDERER_DIR", _DEFAULT_RENDERER_DIR)
 RENDER_SCRIPT = os.path.join(RENDERER_DIR, "scripts", "render.mjs")
 
 # Output directory mirrors the ffmpeg path so the orchestrator's

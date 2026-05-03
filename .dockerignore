@@ -10,6 +10,13 @@ roots/backend/data
 !roots/backend/data/fonts
 roots/frontend/node_modules
 roots/frontend/dist
+# Remotion video-renderer runtime artifacts — node_modules is
+# covered by the generic rule above; the rest are local build/cache
+# outputs that would just bloat the image and get rebuilt at
+# container start.
+roots/video-renderer/audio-cache
+roots/video-renderer/public/*.mp3
+roots/video-renderer/out
 *.md
 !requirements.txt
 docker-compose*.yml
