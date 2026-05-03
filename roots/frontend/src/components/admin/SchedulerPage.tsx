@@ -78,6 +78,13 @@ export default function SchedulerPage() {
         </div>
       )}
 
+      {/* Health check at the top — answers "is auto-publishing working?"
+          across the three pieces (credentials, generation schedules,
+          upload schedule) so an operator doesn't have to scroll
+          through three sections to figure out why nothing's flowing. */}
+      <AutoPublishStatusPanel />
+      <div className="my-8 border-t border-stone-200" />
+
       {/* ==================== Recitation pipelines (English/Arabic) ==================== */}
       <section>
         <div className="flex items-baseline justify-between mb-3">
@@ -942,6 +949,17 @@ function YoutubeUploadSection() {
   );
 }
 
+// Predefined upload-time presets. Operators almost always want one of
+// these — defining a custom schedule is rare. Presets nuke the
+// type-HH:MM-and-pray flow that was the biggest friction point in the
+// old card. "Custom" doesn't replace times; it just keeps whatever
+// you've already got and lets you edit individual times.
+const PRESETS: { id: string; label: string; help: string; times: string[] }[] = [
+  { id: 'once', label: '1×/day',  help: '9 AM',                   times: ['09:00'] },
+  { id: 'three', label: '3×/day', help: '9 AM, 1 PM, 8 PM',       times: ['09:00', '13:00', '20:00'] },
+  { id: 'five',  label: '5×/day', help: '9 AM – 9 PM, every 3h',  times: ['09:00', '12:00', '15:00', '18:00', '21:00'] },
+];
+
 function YoutubeUploadCard({
   schedule,
   onSaved,
@@ -949,17 +967,21 @@ function YoutubeUploadCard({
   schedule: YoutubeUploadSchedule;
   onSaved: () => void;
 }) {
-  const [editing, setEditing] = useState(false);
+  // Form state — always editable. We track unsaved changes so the
+  // Save button only shows when there's something to save, and
+  // Cancel reverts to the last-saved state.
   const [enabled, setEnabled] = useState(schedule.enabled);
   const [times, setTimes] = useState<string[]>(schedule.times);
-  const [newTime, setNewTime] = useState('');
+  const [newTime, setNewTime] = useState('09:00');
   const [grace, setGrace] = useState(schedule.grace_minutes);
   const [sanity, setSanity] = useState(schedule.sanity_check_enabled);
   const [privacy, setPrivacy] = useState<'public' | 'unlisted' | 'private'>(schedule.privacy);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const { confirm, dialog } = useConfirm();
 
+  // Re-sync when the parent re-fetches.
   useEffect(() => {
     setEnabled(schedule.enabled);
     setTimes(schedule.times);
@@ -968,18 +990,35 @@ function YoutubeUploadCard({
     setPrivacy(schedule.privacy);
   }, [schedule]);
 
-  // Compute smallest gap between times (for informational display)
-  const smallestGap = computeSmallestGap(times);
+  // Did the form change since last save?
+  const dirty =
+    enabled !== schedule.enabled ||
+    JSON.stringify(times) !== JSON.stringify(schedule.times) ||
+    grace !== schedule.grace_minutes ||
+    sanity !== schedule.sanity_check_enabled ||
+    privacy !== schedule.privacy;
+
+  // Identify which preset (if any) matches the current times list.
+  // Used to highlight the active preset button.
+  const activePresetId = PRESETS.find(
+    (p) => JSON.stringify([...p.times].sort()) === JSON.stringify([...times].sort()),
+  )?.id ?? 'custom';
+
+  // Next-fire preview — only meaningful when enabled + times exist.
+  const next = enabled ? nextFireFromTimes(times) : null;
+
+  function applyPreset(p: typeof PRESETS[number]) {
+    setTimes(p.times);
+    setErr('');
+  }
 
   function addTime() {
-    const m = newTime.trim().match(/^(\d{1,2}):(\d{2})$/);
-    if (!m) { setErr('Use HH:MM, e.g. 09:00'); return; }
-    const h = parseInt(m[1]); const mn = parseInt(m[2]);
-    if (h < 0 || h > 23 || mn < 0 || mn > 59) { setErr('Invalid time'); return; }
-    const padded = `${String(h).padStart(2,'0')}:${String(mn).padStart(2,'0')}`;
+    if (!/^\d{1,2}:\d{2}$/.test(newTime)) { setErr('Pick a time'); return; }
+    const [h, m] = newTime.split(':').map((x) => parseInt(x));
+    if (h < 0 || h > 23 || m < 0 || m > 59) { setErr('Invalid time'); return; }
+    const padded = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     if (times.includes(padded)) { setErr(`${padded} is already in the list`); return; }
     setTimes([...times, padded].sort());
-    setNewTime('');
     setErr('');
   }
 
@@ -988,22 +1027,38 @@ function YoutubeUploadCard({
   }
 
   async function handleSave() {
+    setErr('');
+    // Guardrail: enabled + no times = silently broken. Confirm before
+    // letting the operator save into that state.
     if (enabled && times.length === 0) {
       const ok = await confirm({
         title: 'Enable with no upload times?',
-        message: 'The scheduler is enabled but has no configured times. Nothing will upload. Save anyway?',
+        message: 'The scheduler is enabled but has no configured times — nothing will upload. Save anyway?',
         confirmLabel: 'Save',
       });
       if (!ok) return;
     }
+    // Privacy guardrail: switching TO public should be deliberate.
+    // The previous default was public-everywhere with no warning;
+    // we now explicitly confirm before saving a public schedule
+    // for the first time (or re-enabling one).
+    if (enabled && privacy === 'public' && schedule.privacy !== 'public') {
+      const ok = await confirm({
+        title: 'Publish videos publicly on YouTube?',
+        message:
+          'Public videos are immediately visible to everyone on YouTube. ' +
+          '"Unlisted" lets you share via link without showing up in search or recommendations — usually safer for a new pipeline. Continue with public?',
+        confirmLabel: 'Yes, publish public',
+        tone: 'danger',
+      });
+      if (!ok) return;
+    }
     setSaving(true);
-    setErr('');
     try {
       await saveYoutubeUploadSchedule({
         enabled, times, grace_minutes: grace,
         sanity_check_enabled: sanity, privacy,
       });
-      setEditing(false);
       onSaved();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Save failed');
@@ -1018,168 +1073,234 @@ function YoutubeUploadCard({
     setGrace(schedule.grace_minutes);
     setSanity(schedule.sanity_check_enabled);
     setPrivacy(schedule.privacy);
-    setNewTime('');
+    setNewTime('09:00');
     setErr('');
-    setEditing(false);
   }
+
+  const smallestGap = computeSmallestGap(times);
 
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-5">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="font-semibold text-stone-800">Upload schedule</h3>
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-            enabled ? 'bg-green-100 text-green-700' : 'bg-stone-200 text-stone-500'
-          }`}>
-            {enabled ? 'Enabled' : 'Disabled'}
-          </span>
+      {/* Header — toggle is the headline action; the small status
+          pill confirms the current saved state in case the operator
+          left the form mid-edit. */}
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-stone-800">Upload schedule</h3>
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+              schedule.enabled
+                ? 'bg-green-100 text-green-700'
+                : 'bg-stone-200 text-stone-500'
+            }`}>
+              {schedule.enabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+          <p className="text-xs text-stone-500 mt-1 max-w-md">
+            How often the queue gets drained to YouTube. One slot = one upload.
+          </p>
         </div>
-        {!editing && (
-          <button
-            onClick={() => setEditing(true)}
-            className="text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
-          >
-            Edit
-          </button>
+        {next && next.date && (
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-stone-400">Next upload</div>
+            <div className="text-sm font-semibold text-stone-800">{formatTimeOfDay(next.date)}</div>
+            <div className="text-[11px] text-stone-500">{next.isTomorrow ? `tomorrow · ${next.human}` : next.human}</div>
+          </div>
         )}
       </div>
 
-      {!editing ? (
-        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-stone-500">
-          <span>
-            Times:{' '}
-            {times.length === 0 ? (
-              <span className="text-stone-400 italic">none set</span>
-            ) : (
-              <span className="font-mono text-stone-700">{times.join(', ')}</span>
-            )}
-            {smallestGap !== null && smallestGap < 3 && (
-              <span className="ml-2 text-amber-600">
-                ⚠ smallest gap is {smallestGap}h (you wanted ≥ 3h)
-              </span>
-            )}
+      <div className="mt-5 space-y-5 max-w-2xl">
+        {/* Master toggle */}
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={enabled}
+            onChange={(e) => setEnabled(e.target.checked)}
+            className="rounded border-stone-300"
+          />
+          <span className="text-sm font-medium text-stone-700">
+            Enable automated YouTube upload
           </span>
-          <span>Privacy: <span className="font-medium">{privacy}</span></span>
-          <span>Sanity check: {sanity ? 'on' : 'off'}</span>
-          <span>Grace: {grace} min</span>
-        </div>
-      ) : (
-        <div className="mt-4 space-y-4 max-w-lg">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => setEnabled(e.target.checked)}
-              className="rounded border-stone-300"
-            />
-            <span className="text-sm text-stone-700">Enable automated YouTube upload</span>
+        </label>
+
+        {/* Quick presets — covers ≥95% of operator intent without
+            touching the times list manually. */}
+        <div>
+          <label className="block text-xs font-medium text-stone-600 mb-2">
+            Quick preset
           </label>
-
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">
-              Upload times (server local)
-            </label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {times.length === 0 && (
-                <span className="text-xs text-stone-400 italic">no times yet</span>
-              )}
-              {times.map((t) => (
-                <span
-                  key={t}
-                  className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-mono text-stone-700"
-                >
-                  {t}
-                  <button
-                    onClick={() => removeTime(t)}
-                    type="button"
-                    className="text-stone-400 hover:text-red-500 cursor-pointer text-sm leading-none"
-                    title="Remove"
-                  >×</button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newTime}
-                onChange={(e) => setNewTime(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTime(); } }}
-                placeholder="HH:MM"
-                className="w-28 px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
-              />
-              <button
-                onClick={addTime}
-                type="button"
-                className="px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 cursor-pointer"
-              >
-                Add time
-              </button>
-            </div>
-            <p className="mt-1 text-xs text-stone-400">
-              Defaults to 09:00, 12:00, 15:00, 18:00, 21:00 (5 uploads/day with 3-hour gaps).
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">Upload privacy</label>
-            <div className="flex gap-2">
-              {(['public', 'unlisted', 'private'] as const).map((p) => (
+          <div className="flex flex-wrap gap-2">
+            {PRESETS.map((p) => {
+              const active = activePresetId === p.id;
+              return (
                 <button
-                  key={p}
+                  key={p.id}
                   type="button"
-                  onClick={() => setPrivacy(p)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer ${
-                    privacy === p
+                  onClick={() => applyPreset(p)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                    active
                       ? 'bg-stone-800 text-white border-stone-800'
-                      : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-50'
+                      : 'bg-white text-stone-700 border-stone-300 hover:border-stone-400'
                   }`}
+                  title={p.help}
                 >
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                  <div className="font-semibold">{p.label}</div>
+                  <div className={`text-[10px] mt-0.5 ${active ? 'text-stone-200' : 'text-stone-500'}`}>{p.help}</div>
                 </button>
-              ))}
-            </div>
-          </div>
-
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={sanity}
-              onChange={(e) => setSanity(e.target.checked)}
-              className="mt-0.5 rounded border-stone-300"
-            />
-            <span className="text-sm text-stone-700">
-              Sanity check before upload
-              <span className="block text-xs text-stone-400 font-normal">
-                Ollama evaluates title/description/tags/verses one last time and rejects
-                videos with obvious issues (broken metadata, incoherent passage, generic slop).
-                Rejected videos are flagged and won't be retried automatically.
+              );
+            })}
+            {activePresetId === 'custom' && (
+              <span className="px-3 py-2 rounded-lg text-xs font-medium border bg-stone-50 text-stone-600 border-stone-300">
+                <div className="font-semibold">Custom</div>
+                <div className="text-[10px] mt-0.5 text-stone-500">{times.length} time{times.length === 1 ? '' : 's'}</div>
               </span>
-            </span>
-          </label>
-
-          <div>
-            <label className="block text-xs font-medium text-stone-600 mb-1">
-              Grace (min)
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={240}
-              value={grace}
-              onChange={(e) => setGrace(parseInt(e.target.value) || 1)}
-              className="w-24 px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
-            />
+            )}
           </div>
+        </div>
 
-          {err && <p className="text-xs text-red-600">{err}</p>}
+        {/* Times list with HTML time picker — no more HH:MM typo errors */}
+        <div>
+          <label className="block text-xs font-medium text-stone-600 mb-2">
+            Upload times <span className="font-normal text-stone-400">(server local)</span>
+          </label>
+          <div className="flex flex-wrap gap-2 mb-2">
+            {times.length === 0 && (
+              <span className="text-xs text-stone-400 italic py-1">No times yet — pick a preset above or add one below.</span>
+            )}
+            {times.map((t) => (
+              <span
+                key={t}
+                className="inline-flex items-center gap-1 rounded-full bg-stone-100 px-2.5 py-1 text-xs font-mono text-stone-700"
+              >
+                {t}
+                <button
+                  onClick={() => removeTime(t)}
+                  type="button"
+                  className="text-stone-400 hover:text-red-500 cursor-pointer text-sm leading-none"
+                  title="Remove"
+                  aria-label={`Remove ${t}`}
+                >×</button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-2 items-center">
+            <input
+              type="time"
+              value={newTime}
+              onChange={(e) => setNewTime(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-stone-300 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-stone-400"
+            />
+            <button
+              onClick={addTime}
+              type="button"
+              className="px-3 py-2 rounded-lg border border-stone-300 bg-white text-stone-700 text-xs font-medium hover:bg-stone-50 cursor-pointer"
+            >
+              Add time
+            </button>
+            {smallestGap !== null && smallestGap < 3 && times.length >= 2 && (
+              <span className="text-[11px] text-amber-600">
+                ⚠ smallest gap is {smallestGap}h
+              </span>
+            )}
+          </div>
+        </div>
 
+        {/* Privacy with built-in safety message under "Public" */}
+        <div>
+          <label className="block text-xs font-medium text-stone-600 mb-2">
+            Upload privacy
+          </label>
           <div className="flex gap-2">
+            {(['public', 'unlisted', 'private'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPrivacy(p)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border cursor-pointer ${
+                  privacy === p
+                    ? 'bg-stone-800 text-white border-stone-800'
+                    : 'bg-white text-stone-600 border-stone-300 hover:bg-stone-50'
+                }`}
+              >
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-[11px] text-stone-500">
+            {privacy === 'public' && 'Visible to everyone on YouTube the moment it uploads.'}
+            {privacy === 'unlisted' && 'Hidden from search/recommendations. Anyone with the link can watch.'}
+            {privacy === 'private' && 'Only you can see uploaded videos. Useful for review-before-publishing.'}
+          </p>
+        </div>
+
+        {/* Advanced — collapsed by default. Holds the technical knobs
+            most operators don't need to touch. */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((s) => !s)}
+            className="text-xs font-medium text-stone-500 hover:text-stone-700 cursor-pointer flex items-center gap-1"
+          >
+            <span>{advancedOpen ? '▾' : '▸'}</span>
+            Advanced settings
+          </button>
+          {advancedOpen && (
+            <div className="mt-3 space-y-4 pl-4 border-l-2 border-stone-100">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sanity}
+                  onChange={(e) => setSanity(e.target.checked)}
+                  className="mt-0.5 rounded border-stone-300"
+                />
+                <span className="text-sm text-stone-700">
+                  Run a quality check before each upload
+                  <span className="block text-xs text-stone-500 font-normal mt-0.5">
+                    Asks Ollama to scan the title, description, tags, and verses
+                    for obvious problems (broken text, generic AI filler) and
+                    skips uploading any video that's clearly not ready.
+                    Rejected videos can be re-armed manually.
+                  </span>
+                </span>
+              </label>
+
+              <div>
+                <label className="block text-xs font-medium text-stone-600 mb-1">
+                  Grace window
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    max={240}
+                    value={grace}
+                    onChange={(e) => setGrace(parseInt(e.target.value) || 1)}
+                    className="w-24 px-3 py-2 rounded-lg border border-stone-300 text-sm focus:outline-none focus:ring-2 focus:ring-stone-400"
+                  />
+                  <span className="text-xs text-stone-500">minutes</span>
+                </div>
+                <p className="mt-1 text-[11px] text-stone-500">
+                  How late after a slot we'll still fire. If the server
+                  was down at 9 AM and comes back at 9:25, a 30-minute
+                  grace catches the missed upload.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {err && <p className="text-xs text-red-600">{err}</p>}
+
+        {/* Save bar — only visible when there's something to save.
+            Keeps the form quiet during read-only browsing. */}
+        {dirty && (
+          <div className="flex items-center gap-2 pt-2 border-t border-stone-100">
             <button
               onClick={handleSave}
               disabled={saving}
               className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
             >
-              {saving ? 'Saving...' : 'Save'}
+              {saving ? 'Saving…' : 'Save changes'}
             </button>
             <button
               onClick={handleCancel}
@@ -1187,9 +1308,10 @@ function YoutubeUploadCard({
             >
               Cancel
             </button>
+            <span className="text-xs text-stone-400 ml-2">Unsaved changes</span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
       {dialog}
     </div>
   );
@@ -1205,4 +1327,282 @@ function computeSmallestGap(times: string[]): number | null {
     if (b - a < min) min = b - a;
   }
   return Math.round(min);
+}
+
+/* =================================================================== */
+/*  Auto-publish status panel                                          */
+/* =================================================================== */
+
+/**
+ * Pure-display function: given a list of HH:MM strings, returns the
+ * next one that hasn't passed yet today (or "tomorrow's first" if
+ * we're past all of today's slots), as both a Date object and a
+ * human-readable "in 2h 15m" string. Returns null if `times` is
+ * empty.
+ */
+function nextFireFromTimes(times: string[], now: Date = new Date()): {
+  date: Date;
+  human: string;
+  isTomorrow: boolean;
+} | null {
+  if (!times || times.length === 0) return null;
+  const sorted = [...times].sort();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  for (const t of sorted) {
+    const m = t.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) continue;
+    const slot = new Date(today);
+    slot.setHours(parseInt(m[1]), parseInt(m[2]), 0, 0);
+    if (slot.getTime() > now.getTime()) {
+      return { date: slot, human: humanizeDelta(slot.getTime() - now.getTime()), isTomorrow: false };
+    }
+  }
+  // All today's slots have passed — next is the first slot tomorrow.
+  const m = sorted[0].match(/^(\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(parseInt(m[1]), parseInt(m[2]), 0, 0);
+  return { date: tomorrow, human: humanizeDelta(tomorrow.getTime() - now.getTime()), isTomorrow: true };
+}
+
+function humanizeDelta(ms: number): string {
+  const totalMin = Math.round(ms / 60000);
+  if (totalMin < 1) return 'now';
+  if (totalMin < 60) return `in ${totalMin} min`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h < 24) return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? 'tomorrow' : `in ${d} days`;
+}
+
+function formatTimeOfDay(date: Date): string {
+  const h = date.getHours();
+  const m = date.getMinutes();
+  const ampm = h < 12 ? 'AM' : 'PM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+interface HealthCell {
+  label: string;
+  state: 'ok' | 'warn' | 'bad';
+  detail: string;
+  fixHref?: string;
+  fixLabel?: string;
+}
+
+function AutoPublishStatusPanel() {
+  const [creds, setCreds] = useState<{ ok: boolean; tokenAgeDays?: number } | null>(null);
+  const [pipelineCount, setPipelineCount] = useState<{
+    enabledWithTimes: number;
+    enabledNoTimes: number;
+    total: number;
+  } | null>(null);
+  const [upload, setUpload] = useState<YoutubeUploadSchedule | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      getPreferences().catch(() => ({} as Record<string, string>)),
+      getPipelineSchedules().catch(() => []),
+      getAllEducationalSchedules().catch(() => []),
+      getYoutubeUploadSchedule().catch(() => null),
+    ]).then(([prefs, recScheds, eduScheds, ytSched]) => {
+      const hasCreds = !!(prefs.youtube_client_id && prefs.youtube_client_secret && prefs.youtube_refresh_token);
+      let tokenAgeDays: number | undefined;
+      if (prefs.youtube_refresh_token_saved_at) {
+        const days = (Date.now() - new Date(prefs.youtube_refresh_token_saved_at).getTime()) / 86_400_000;
+        if (!isNaN(days)) tokenAgeDays = Math.round(days);
+      }
+      setCreds({ ok: hasCreds, tokenAgeDays });
+
+      const all = [
+        ...recScheds.map((s) => ({ enabled: s.enabled, times: s.times })),
+        ...eduScheds.map((s) => ({ enabled: s.enabled, times: s.times })),
+      ];
+      setPipelineCount({
+        enabledWithTimes: all.filter((s) => s.enabled && s.times.length > 0).length,
+        enabledNoTimes: all.filter((s) => s.enabled && s.times.length === 0).length,
+        total: all.length,
+      });
+      setUpload(ytSched);
+    });
+  }, []);
+
+  if (!creds || !pipelineCount || upload === null) {
+    return (
+      <div className="rounded-xl border border-stone-200 bg-white p-5">
+        <div className="text-sm text-stone-400">Loading status…</div>
+      </div>
+    );
+  }
+
+  // Build the three health cells.
+  const cells: HealthCell[] = [];
+
+  // 1. YouTube credentials
+  if (!creds.ok) {
+    cells.push({
+      label: 'YouTube credentials',
+      state: 'bad',
+      detail: 'Not connected — uploads will fail.',
+      fixHref: '/admin/settings',
+      fixLabel: 'Connect',
+    });
+  } else if ((creds.tokenAgeDays ?? 0) >= 7) {
+    cells.push({
+      label: 'YouTube credentials',
+      state: 'bad',
+      detail: `Refresh token is ${creds.tokenAgeDays}d old — likely expired.`,
+      fixHref: '/admin/settings',
+      fixLabel: 'Refresh',
+    });
+  } else if ((creds.tokenAgeDays ?? 0) >= 5) {
+    cells.push({
+      label: 'YouTube credentials',
+      state: 'warn',
+      detail: `Refresh token is ${creds.tokenAgeDays}d old — refresh soon.`,
+      fixHref: '/admin/settings',
+      fixLabel: 'Refresh',
+    });
+  } else {
+    cells.push({
+      label: 'YouTube credentials',
+      state: 'ok',
+      detail: creds.tokenAgeDays != null
+        ? `Connected, token ${creds.tokenAgeDays}d old.`
+        : 'Connected.',
+    });
+  }
+
+  // 2. Pipeline schedules (the things that GENERATE the videos)
+  if (pipelineCount.total === 0) {
+    cells.push({
+      label: 'Pipeline schedules',
+      state: 'bad',
+      detail: 'No pipelines exist. Create one to start generating videos.',
+      fixHref: '/admin/pipelines',
+      fixLabel: 'Create',
+    });
+  } else if (pipelineCount.enabledWithTimes === 0 && pipelineCount.enabledNoTimes === 0) {
+    cells.push({
+      label: 'Pipeline schedules',
+      state: 'bad',
+      detail: `${pipelineCount.total} pipeline(s) exist but none are scheduled — no videos will be generated.`,
+      fixHref: '/admin/pipelines',
+      fixLabel: 'Schedule',
+    });
+  } else if (pipelineCount.enabledNoTimes > 0) {
+    cells.push({
+      label: 'Pipeline schedules',
+      state: 'warn',
+      detail: `${pipelineCount.enabledNoTimes} schedule(s) enabled but missing times — they'll never fire.`,
+    });
+  } else {
+    cells.push({
+      label: 'Pipeline schedules',
+      state: 'ok',
+      detail: `${pipelineCount.enabledWithTimes} schedule(s) firing.`,
+    });
+  }
+
+  // 3. YouTube upload schedule (drains the queue → publishes)
+  const next = upload && upload.enabled ? nextFireFromTimes(upload.times) : null;
+  if (!upload.enabled) {
+    cells.push({
+      label: 'Upload schedule',
+      state: 'bad',
+      detail: 'Disabled — generated videos will queue up but never publish.',
+    });
+  } else if (upload.times.length === 0) {
+    cells.push({
+      label: 'Upload schedule',
+      state: 'bad',
+      detail: 'Enabled but no times set — nothing will publish.',
+    });
+  } else {
+    cells.push({
+      label: 'Upload schedule',
+      state: 'ok',
+      detail: `${upload.times.length} slot${upload.times.length === 1 ? '' : 's'}/day, privacy: ${upload.privacy}.`,
+    });
+  }
+
+  // Aggregate. ONE bad → ✕ Off. ONE warn → ⚠ Setup incomplete. All ok → ✓ Running.
+  const aggregate: 'ok' | 'warn' | 'bad' =
+    cells.some((c) => c.state === 'bad') ? 'bad'
+    : cells.some((c) => c.state === 'warn') ? 'warn'
+    : 'ok';
+
+  const aggregateUI = {
+    ok:   { label: 'Running', dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', ring: 'ring-emerald-200' },
+    warn: { label: 'Setup incomplete', dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', ring: 'ring-amber-200' },
+    bad:  { label: 'Not publishing', dot: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50', ring: 'ring-red-200' },
+  }[aggregate];
+
+  return (
+    <section>
+      <div className={`rounded-xl border border-stone-200 bg-white p-5 ring-1 ${aggregateUI.ring}`}>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 rounded-full ${aggregateUI.dot}`} />
+              <h2 className="text-base font-semibold text-stone-800">Auto-publishing to YouTube</h2>
+              <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${aggregateUI.bg} ${aggregateUI.text}`}>
+                {aggregateUI.label}
+              </span>
+            </div>
+            <p className="text-xs text-stone-500 mt-1.5 max-w-xl">
+              Three pieces have to be configured for a video to reach YouTube on its own:
+              YouTube credentials, at least one pipeline schedule with daily times, and the
+              global upload schedule below.
+            </p>
+          </div>
+          {aggregate === 'ok' && next && (
+            <div className="text-right">
+              <div className="text-[10px] uppercase tracking-wider text-stone-400">Next upload</div>
+              <div className="text-lg font-semibold text-stone-800">{formatTimeOfDay(next.date)}</div>
+              <div className="text-xs text-stone-500">{next.isTomorrow ? `tomorrow · ${next.human}` : next.human}</div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {cells.map((c, i) => (
+            <HealthCellView key={i} cell={c} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HealthCellView({ cell }: { cell: HealthCell }) {
+  const ring =
+    cell.state === 'ok' ? 'border-emerald-200 bg-emerald-50/40'
+    : cell.state === 'warn' ? 'border-amber-200 bg-amber-50/40'
+    : 'border-red-200 bg-red-50/40';
+  const dot =
+    cell.state === 'ok' ? 'bg-emerald-500'
+    : cell.state === 'warn' ? 'bg-amber-500'
+    : 'bg-red-500';
+  return (
+    <div className={`rounded-lg border ${ring} px-3 py-2.5`}>
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+        <div className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold">{cell.label}</div>
+      </div>
+      <div className="text-xs text-stone-700 leading-snug">{cell.detail}</div>
+      {cell.fixHref && cell.fixLabel && (
+        <a
+          href={cell.fixHref}
+          className="mt-1.5 inline-block text-[11px] font-medium text-stone-700 hover:text-stone-900 underline decoration-dotted underline-offset-2"
+        >
+          {cell.fixLabel} →
+        </a>
+      )}
+    </div>
+  );
 }
