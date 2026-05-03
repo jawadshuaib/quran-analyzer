@@ -46,13 +46,20 @@ export function OutroPage({ slide }: { slide: OutroSlideT }) {
         <div
           style={{
             fontFamily: SYSTEM_FONT,
-            fontSize: 130,
+            // Was 130px — wrapped to two lines on some renderings
+            // because the dot in "al-nuqta.com" is a soft line break
+            // point. 100px fits comfortably on one line at 1080-wide
+            // and still reads as the headline element of the splash.
+            fontSize: 100,
             fontWeight: 700,
             color: COLORS.outroText,
             letterSpacing: '-0.02em',
             opacity: siteOpacity,
             transform: `translateY(${siteTranslateY}px)`,
             marginBottom: 36,
+            // Belt-and-braces: even at 100px, force single line so
+            // the dot or hyphen never breaks the brand wordmark.
+            whiteSpace: 'nowrap',
           }}
         >
           {slide.siteName}

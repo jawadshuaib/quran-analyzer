@@ -168,12 +168,12 @@ export function KaraokeOverlay({
         left: 0,
         right: 0,
         bottom: 0,
-        // Single-line chunks (max ~20 chars at 104px) only need ~140px
+        // Single-line chunks (max ~20 chars at 84px) only need ~110px
         // for the line itself; the rest is breathing room + the
-        // gradient fade. The OutroPage's "al-nuqta.com" is 130px;
-        // karaoke at 104 is ~80% of that — readable at arm's length
-        // on a phone without dominating the slide.
-        height: 380,
+        // gradient fade. Was 104px but some longer chunks overflowed
+        // the 1080-wide canvas; 84px gives ~20% headroom on the
+        // wide-chunk case.
+        height: 320,
         // Subtle dark gradient so the caption is legible on any
         // bg without being a heavy bar.
         background:
@@ -195,7 +195,7 @@ export function KaraokeOverlay({
         key={activeChunk.startMs}
         style={{
           fontFamily: SYSTEM_FONT,
-          fontSize: 104,
+          fontSize: 84,
           fontWeight: 600,
           color: '#FFFFFF',
           // Tight line height so multi-line captions don't sprawl
@@ -229,7 +229,7 @@ export function KaraokeOverlay({
               style={{
                 display: 'inline-block',
                 color,
-                marginRight: 22,
+                marginRight: 18,
                 transition: 'none',
                 // Uniform weight across the chunk so words don't
                 // visibly thicken when they pass through "current".

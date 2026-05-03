@@ -210,44 +210,70 @@ def _build_verse_flow_slide(
     }
 
 
-def _build_outro_slide(close_text: str) -> dict:
-    """Slide N — al-nuqta brand splash. The close beat narrates the
-    splash so the video doesn't end on dead air. The optional
-    outro audio bite is wired in by the caller (which knows the
-    pipeline_id and can look up outro_audio_filename); we leave
-    that field empty here so this builder has no DB dependency."""
+def _build_outro_slide() -> dict:
+    """Slide N — al-nuqta brand splash. INTENTIONALLY has no
+    narration: the optional outro audio bite is the only sound
+    that should play here, and any close-beat narration goes on
+    the final verse slide instead so it finishes BEFORE the
+    splash appears (otherwise the splash visual is up while the
+    close text is still being spoken — visually wrong).
+
+    The outro audio bite is wired in by the caller (which knows
+    the pipeline_id and can look up outro_audio_filename); we
+    leave that field empty here so this builder has no DB
+    dependency."""
     return {
         "type": "outro",
         "durationSec": 5,
         "siteName": "al-nuqta.com",
         "tagline": "A Root Based Translation of the Quran",
-        "narration": {"text": sanitize_for_tts(close_text or "").strip()},
     }
 
 
-def _stage_outro_audio(pipeline_id: int | None, conn) -> str | None:
+def _merge_close_into_last_verse(slides: list[dict], close_text: str) -> None:
+    """Append the close-beat narration onto the last verse-flow
+    slide before the outro. Mutates `slides` in place. If there's
+    no verse slide to merge into (rare — shouldn't happen for
+    word_origins), the close is silently dropped to avoid
+    creating a phantom narration on the outro splash."""
+    close = (close_text or "").strip()
+    if not close:
+        return
+    # Walk backwards to find the last verse slide.
+    for s in reversed(slides):
+        if s.get("type") == "verse-flow":
+            existing = ((s.get("narration") or {}).get("text") or "").strip()
+            combined = f"{existing} {close}".strip() if existing else close
+            s["narration"] = {"text": sanitize_for_tts(combined).strip()}
+            return
+
+
+def _stage_outro_audio(pipeline_id: int | None, conn) -> tuple[str | None, float]:
     """If the pipeline has an outro_audio_filename configured AND the
     file exists on disk, copy it into the renderer's public/
-    directory and return the bare filename. Returns None if no
-    outro audio is configured or the file is missing.
+    directory and return (filename, duration_seconds). Returns
+    (None, 0.0) if no outro audio is configured or the file is
+    missing.
 
     Mirrors the flow educational_render uses to find the outro
     audio for the ffmpeg path; reusing OUTRO_AUDIO_DIR from that
-    module keeps the source-of-truth single."""
+    module keeps the source-of-truth single. Also reuses
+    educational_render._probe_duration so the duration math is
+    consistent across both renderers."""
     if not pipeline_id:
-        return None
+        return None, 0.0
     try:
         prow = conn.execute(
             "SELECT outro_audio_filename FROM educational_pipelines WHERE id = ?",
             (pipeline_id,),
         ).fetchone()
     except Exception:
-        return None
+        return None, 0.0
     if not prow:
-        return None
+        return None, 0.0
     fname = prow["outro_audio_filename"] if "outro_audio_filename" in prow.keys() else None
     if not fname:
-        return None
+        return None, 0.0
 
     # Pull the source from educational_render's directory rather
     # than re-defining the path. Single source of truth — if that
@@ -255,16 +281,25 @@ def _stage_outro_audio(pipeline_id: int | None, conn) -> str | None:
     import educational_render as _r
     src = os.path.join(_r.OUTRO_AUDIO_DIR, fname)
     if not os.path.isfile(src):
-        return None
+        return None, 0.0
 
     dest_dir = os.path.join(RENDERER_DIR, "public")
     os.makedirs(dest_dir, exist_ok=True)
     dest = os.path.join(dest_dir, fname)
     # Always copy — file might have been replaced via the admin UI
-    # since the last render, and the rendererr's public/ is
+    # since the last render, and the renderer's public/ is
     # gitignored so there's no merge conflict to worry about.
     shutil.copyfile(src, dest)
-    return fname
+
+    # Probe duration so the outro slide can be sized to fit the
+    # whole bite. Failure here just falls back to the default
+    # 5s — better than refusing to render.
+    duration = 0.0
+    try:
+        duration = _r._probe_duration(dest)
+    except Exception as e:
+        print(f"[remotion] outro audio probe failed: {e}; using default duration")
+    return fname, duration
 
 
 def _payload_from_planner_slides(
@@ -278,18 +313,27 @@ def _payload_from_planner_slides(
     + verse refs); we look up the verse Arabic/translation and the
     per-word gloss here so that's done once and the renderer doesn't
     need to round-trip back to SQLite.
+
+    Special case: any narration the planner placed on the OUTRO
+    slide is moved onto the last verse slide instead. The outro
+    splash should be silent (or play just the optional outro audio
+    bite); narration overlapping with the splash visual is
+    confusing — the audience reads the splash as "the end" but
+    hears the speaker still talking.
     """
     out: list[dict] = []
+    pending_outro_narration = ""
+
     for s in planned:
         narration_text = (s.get("narration") or "").strip()
         if s["type"] == "root":
             hook = narration_text or (rd.get("hook") or "")
-            # tidbit_root is unused now — the planner has already
+            # tidbit_root is unused here — the planner has already
             # decided what the root slide says, and that text lives
             # in narration_text.
             out.append(_build_root_slide(payload_inner, hook, ""))
-            # The default _build_root_slide uses hook+tidbit for
-            # narration; we want the planner's polished narration
+            # _build_root_slide synthesizes its own narration from
+            # hook+tidbit; we want the planner's polished version
             # exactly, so overwrite.
             out[-1]["narration"] = {"text": sanitize_for_tts(narration_text).strip()}
         elif s["type"] == "verse":
@@ -303,9 +347,17 @@ def _payload_from_planner_slides(
             if verse_slide:
                 out.append(verse_slide)
         elif s["type"] == "outro":
-            out.append(_build_outro_slide(narration_text))
-        # Unknown types are silently dropped — the planner's output
-        # was validated upstream so this should never fire.
+            # Defer the planner's outro narration — we'll merge it
+            # onto the last verse slide AFTER the loop finishes.
+            pending_outro_narration = narration_text
+            out.append(_build_outro_slide())
+
+    # Merge the planner's outro narration onto the last verse slide.
+    # This guarantees the close-beat finishes BEFORE the splash
+    # appears.
+    if pending_outro_narration:
+        _merge_close_into_last_verse(out, pending_outro_narration)
+
     return out
 
 
@@ -351,7 +403,12 @@ def _static_fallback_slides(conn, rd: dict, script: dict, payload_inner: dict) -
             slides.append(cross_slide)
         break
 
-    slides.append(_build_outro_slide(script.get("close", "")))
+    # Outro slide is silent — close beat goes onto the LAST verse
+    # slide instead so it finishes before the splash appears. Same
+    # rule the planner output processor applies, kept consistent
+    # so both paths produce identically-shaped output.
+    slides.append(_build_outro_slide())
+    _merge_close_into_last_verse(slides, script.get("close", ""))
     return slides
 
 
@@ -393,12 +450,16 @@ def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
     # Stage the pipeline's outro sound bite (if any) into the
     # renderer's public/ and attach to whichever slide is the outro.
     # We do this last so both the planner and fallback paths get the
-    # same treatment.
-    outro_audio_filename = _stage_outro_audio(rd.get("pipeline_id"), conn)
+    # same treatment. Also extend the outro slide's durationSec to
+    # cover the bite plus a 0.5s tail — same logic the legacy ffmpeg
+    # path uses (educational_render._compose_mp4 outro_duration).
+    outro_audio_filename, outro_audio_duration = _stage_outro_audio(rd.get("pipeline_id"), conn)
     if outro_audio_filename:
         for s in slides:
             if s.get("type") == "outro":
                 s["outroAudioFile"] = outro_audio_filename
+                if outro_audio_duration > 0:
+                    s["durationSec"] = max(s.get("durationSec", 5), outro_audio_duration + 0.5)
                 break
 
     return {

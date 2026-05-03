@@ -49,7 +49,13 @@ export function RootPage({ slide }: { slide: RootSlideT }) {
           textAlign: 'center',
         }}
       >
-        {/* Root Arabic — biggest visual weight on the slide */}
+        {/* Root Arabic — biggest visual weight on the slide.
+            marginBottom is generous (was 16, now 56) because tall
+            Arabic letters like ع / ل / ك have visual descenders
+            that touched the "Root: ..." label below at the smaller
+            gap. Doesn't push the meaning block down materially —
+            the parent flexbox is justify-center'd so spacing
+            redistributes evenly. */}
         <div
           style={{
             fontFamily: ARABIC_FONT,
@@ -59,7 +65,7 @@ export function RootPage({ slide }: { slide: RootSlideT }) {
             direction: 'rtl',
             letterSpacing: '0.18em',
             color: COLORS.text,
-            marginBottom: 16,
+            marginBottom: 56,
             opacity: rootOpacity,
             transform: `scale(${rootScale})`,
           }}

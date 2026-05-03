@@ -117,7 +117,7 @@ RULES
 
 6. If the script doesn't explicitly tie a sentence to a specific verse, you can still use a verse slide — pick the verse from the pool that BEST illustrates the sentence's claim.
 
-7. The outro narration is a brief reflective close — typically the script's last sentence, polished. Should be 3-7 seconds.
+7. The outro slide carries NO narration. It's a silent al-nuqta brand splash that plays an optional sound bite. Set narration to "" (empty string) on the outro slide. The script's reflective close sentence should be APPENDED to the LAST verse slide's narration so it finishes BEFORE the splash appears (otherwise the splash visual is up while the speaker is still talking, which reads as broken).
 
 8. POLISHING the text — apply ALL of these:
    - Remove em dashes (—). Replace with a period (full pause) or comma (brief pause), whichever reads more naturally.
@@ -181,10 +181,14 @@ def _validate_plan(plan: dict, available_verses: list[dict]) -> list[dict]:
         # pool comes from morphology data and is canonical.
         slide["word_pos"] = pool[(s, a)]
 
-    # Every slide must have non-empty narration text.
+    # Every NON-OUTRO slide must have non-empty narration text. The
+    # outro is intentionally silent now — its narration (if any)
+    # gets merged onto the last verse slide downstream, and we want
+    # to allow the planner to leave it empty here so we don't have
+    # to discard a non-empty one and silently lose content.
     for idx, slide in enumerate(slides):
         narration = (slide.get("narration") or "").strip()
-        if not narration:
+        if not narration and slide.get("type") != "outro":
             raise PlannerError(f"slide {idx} has empty narration")
         slide["narration"] = narration
 
