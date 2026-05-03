@@ -8393,10 +8393,43 @@ def admin_educational_render(video_id: int):
                 "error": "ElevenLabs API key not set (Admin → Settings → ElevenLabs)"
             }), 400
 
-        # Pick a voice — prefer the one specified in the body, else the
-        # first configured voice. Mirrors the recitation pipeline's
-        # voice selection.
+        # Pick a voice. Resolution order:
+        #   1. Explicit voice_id in the request body (lets the operator
+        #      override per-render — e.g. "what does this sound like
+        #      with a different voice?").
+        #   2. The owning pipeline's voice_id, when the row has a
+        #      pipeline_id (auto-queued by the orchestrator).
+        #   3. The voice of any pipeline matching the row's type. This
+        #      handles candidates manually queued from the candidates
+        #      page (no pipeline_id is set there) — the operator
+        #      almost always has a word_origins / translation_hides /
+        #      grammar_insights pipeline already configured with the
+        #      voice they want, and falling back to it picks up the
+        #      right one.
+        #   4. As a last resort, the first row in admin_voices.
+        #      Reached only when no pipeline of the matching type
+        #      exists yet (early setup).
         voice_id = body.get("voice_id")
+        if not voice_id and rd.get("pipeline_id"):
+            prow = conn.execute(
+                "SELECT voice_id FROM educational_pipelines WHERE id = ?",
+                (rd["pipeline_id"],),
+            ).fetchone()
+            if prow and prow["voice_id"]:
+                voice_id = prow["voice_id"]
+        if not voice_id:
+            # Find any pipeline of the same type and use its voice. We
+            # take the most-recently-updated one so an operator who
+            # tweaks voice on a pipeline gets that voice on subsequent
+            # candidate renders without changing the candidate.
+            prow = conn.execute(
+                "SELECT voice_id FROM educational_pipelines "
+                "WHERE type = ? AND voice_id IS NOT NULL AND voice_id != '' "
+                "ORDER BY updated_at DESC LIMIT 1",
+                (rd["type"],),
+            ).fetchone()
+            if prow and prow["voice_id"]:
+                voice_id = prow["voice_id"]
         if not voice_id:
             v = conn.execute(
                 "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
