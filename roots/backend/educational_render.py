@@ -924,6 +924,13 @@ def render_video(
     format: 'long' or 'short' — picks voiceover_long (from
             voiceover_text column) or voiceover_short (from
             script_json).
+
+    Routing: `word_origins` videos render through the Remotion
+    pipeline (richer per-slide visuals + karaoke captions). The
+    other types stay on the ffmpeg + ASS path below until they get
+    Remotion templates of their own. The orchestrator's status
+    transitions and DB writes are unaffected — both renderers
+    return the same (filename, size) shape.
     """
     if format not in ("long", "short"):
         raise RenderError(f"unknown format: {format}")
@@ -934,6 +941,28 @@ def render_video(
     if not row:
         raise RenderError(f"video {video_id} not found")
     rd = dict(row)
+
+    # Route word_origins to the Remotion renderer. The shape of the
+    # call is the same — same inputs, same return, same output
+    # path — so the orchestrator's UPDATE statement after this
+    # function returns is unchanged.
+    if rd["type"] == "word_origins":
+        try:
+            import educational_render_remotion as _rr
+        except Exception as e:
+            raise RenderError(f"Remotion renderer module failed to load: {e}")
+        try:
+            return _rr.render_word_origins_video(
+                conn, video_id,
+                format=format,
+                elevenlabs_api_key=elevenlabs_api_key,
+                voice_id=voice_id,
+            )
+        except _rr.RemotionRenderError as e:
+            # Convert to RenderError so the orchestrator's existing
+            # exception-to-status-failed path catches it identically
+            # to ffmpeg failures.
+            raise RenderError(str(e))
     # NOTE: We deliberately don't check status here. The HTTP endpoint
     # already gates on status before flipping the row to 'rendering'
     # and spawning this work in a background thread; by the time we
