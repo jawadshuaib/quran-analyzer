@@ -374,13 +374,13 @@ function PipelineDetailView({
         <span>
           <strong className="text-stone-700">Schedule:</strong> firing times,
           daily cap, and grace window are managed in{' '}
-          <a href="/admin/scheduler" className="underline decoration-dotted underline-offset-2 hover:text-stone-800">
-            Scheduler
+          <a href="/admin/scheduler#educational" className="underline decoration-dotted underline-offset-2 hover:text-stone-800">
+            Scheduler → Educational
           </a>
           {' '}alongside recitation pipelines and the YouTube upload schedule.
         </span>
         <a
-          href="/admin/scheduler"
+          href="/admin/scheduler#educational"
           className="px-3 py-1.5 rounded-md border border-stone-300 bg-white text-stone-700 text-xs font-medium hover:bg-stone-100"
         >
           Open Scheduler →

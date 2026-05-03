@@ -90,11 +90,37 @@ export default function SchedulerPage() {
           through three sections to figure out why nothing's flowing.
           The refreshKey is bumped by the parent's load() so the panel
           re-fetches whenever any child card saves. */}
-      <AutoPublishStatusPanel refreshKey={refreshKey} />
-      <div className="my-8 border-t border-stone-200" />
+      <section id="status">
+        <AutoPublishStatusPanel refreshKey={refreshKey} />
+      </section>
+
+      {/* Quick-nav. The page has four logical sections; without this
+          row a user landing here from /admin/pipelines/educational
+          has no signal that the YouTube upload card or the
+          educational schedules even exist below the fold. */}
+      <nav className="mt-4 mb-8 flex flex-wrap gap-2 text-xs">
+        <span className="text-stone-400">Jump to:</span>
+        <a href="#youtube-upload" className="text-stone-600 hover:text-stone-900 underline decoration-dotted underline-offset-2">YouTube upload</a>
+        <span className="text-stone-300">·</span>
+        <a href="#recitation" className="text-stone-600 hover:text-stone-900 underline decoration-dotted underline-offset-2">Recitation generation</a>
+        <span className="text-stone-300">·</span>
+        <a href="#educational" className="text-stone-600 hover:text-stone-900 underline decoration-dotted underline-offset-2">Educational generation</a>
+      </nav>
+
+      {/* ==================== YouTube upload schedule ====================
+          Promoted to right-under-status because it's THE thing
+          operators come here to manage. The status panel above
+          tells you whether it's running; the card below lets you
+          fix it. Used to be buried at the bottom of the page below
+          two unrelated sections. */}
+      <section id="youtube-upload" className="scroll-mt-4">
+        <YoutubeUploadSection refreshTrigger={refreshKey} onSaved={load} />
+      </section>
+
+      <div className="my-10 border-t border-stone-200" />
 
       {/* ==================== Recitation pipelines (English/Arabic) ==================== */}
-      <section>
+      <section id="recitation" className="scroll-mt-4">
         <div className="flex items-baseline justify-between mb-3">
           <h2 className="text-base font-semibold text-stone-800">Recitation pipelines (English / Arabic)</h2>
           <span className="text-xs text-stone-400">
@@ -172,11 +198,9 @@ export default function SchedulerPage() {
 
       {/* ==================== Educational pipelines (word origins / etc.) ==================== */}
       <div className="my-10 border-t border-stone-200" />
-      <EducationalScheduleSection />
-
-      {/* ==================== YouTube upload ==================== */}
-      <div className="my-10 border-t border-stone-200" />
-      <YoutubeUploadSection />
+      <section id="educational" className="scroll-mt-4">
+        <EducationalScheduleSection />
+      </section>
     </div>
   );
 }
@@ -824,7 +848,13 @@ function EducationalScheduleCard({
 /*  YouTube Upload Section                                       */
 /* ============================================================ */
 
-function YoutubeUploadSection() {
+function YoutubeUploadSection({
+  refreshTrigger = 0,
+  onSaved,
+}: {
+  refreshTrigger?: number;
+  onSaved?: () => void;
+} = {}) {
   const [schedule, setSchedule] = useState<YoutubeUploadSchedule | null>(null);
   const [runs, setRuns] = useState<YoutubeUploadRun[]>([]);
   const [ytConfigured, setYtConfigured] = useState<boolean | null>(null);
@@ -852,7 +882,16 @@ function YoutubeUploadSection() {
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
-  }, [load]);
+  }, [load, refreshTrigger]);
+
+  // When the upload card saves, the parent's load() (passed in as
+  // onSaved) bumps refreshKey which propagates to the status panel.
+  // We also re-fetch our own data so the audit log + schedule view
+  // update immediately.
+  const handleCardSaved = useCallback(() => {
+    load();
+    if (onSaved) onSaved();
+  }, [load, onSaved]);
 
   if (!schedule) {
     return (
@@ -896,7 +935,7 @@ function YoutubeUploadSection() {
         </div>
       )}
 
-      <YoutubeUploadCard schedule={schedule} onSaved={load} />
+      <YoutubeUploadCard schedule={schedule} onSaved={handleCardSaved} />
 
       <div className="mt-6">
         <h3 className="text-sm font-semibold text-stone-600 mb-3">

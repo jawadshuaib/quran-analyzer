@@ -458,7 +458,7 @@ export default function PipelineManager() {
         Configure an English (TTS) or Arabic (recitation) pipeline. Each
         pipeline picks verses, generates a video, and lands in the global
         queue. Run on demand here, or schedule daily fires from{' '}
-        <a href="/admin/scheduler" className="underline decoration-dotted underline-offset-2 hover:text-stone-700">
+        <a href="/admin/scheduler#recitation" className="underline decoration-dotted underline-offset-2 hover:text-stone-700">
           Scheduler
         </a>
         .
@@ -849,13 +849,13 @@ export default function PipelineManager() {
             <span>
               <strong className="text-stone-700">Schedule:</strong> daily fire
               times, daily cap, and grace window are managed in{' '}
-              <a href="/admin/scheduler" className="underline decoration-dotted underline-offset-2 hover:text-stone-800">
-                Scheduler
+              <a href="/admin/scheduler#recitation" className="underline decoration-dotted underline-offset-2 hover:text-stone-800">
+                Scheduler → Recitation
               </a>
               {' '}alongside educational pipelines and the YouTube upload schedule.
             </span>
             <a
-              href="/admin/scheduler"
+              href="/admin/scheduler#recitation"
               className="px-3 py-1.5 rounded-md border border-stone-300 bg-white text-stone-700 text-xs font-medium hover:bg-stone-100"
             >
               Open Scheduler →
