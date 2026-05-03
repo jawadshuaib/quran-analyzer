@@ -6,7 +6,8 @@
   "description": "Remotion-based video renderer for al-nuqta word-detail Shorts. Standalone — has its own node_modules so the main backend / frontend builds aren't affected.",
   "scripts": {
     "studio": "remotion studio src/Root.tsx",
-    "render:sample": "node scripts/render.mjs --payload sample-payload.json --out out/sample.mp4",
+    "prepare-narration": "node --env-file-if-exists=.env scripts/narration.mjs sample-payload.json",
+    "render:sample": "node --env-file-if-exists=.env scripts/render.mjs --payload sample-payload.json --out out/sample.mp4",
     "browser:ensure": "npx remotion browser ensure"
   },
   "dependencies": {

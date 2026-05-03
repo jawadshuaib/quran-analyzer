@@ -23,9 +23,10 @@ import {
   selectComposition,
   ensureBrowser,
 } from '@remotion/renderer';
-import { readFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { dirname, resolve, isAbsolute, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { prepareNarration } from './narration.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -85,6 +86,18 @@ try {
 if (!Array.isArray(payload?.slides) || payload.slides.length === 0) {
   fatal('Payload must contain a non-empty slides[] array');
 }
+
+// Run narration prep BEFORE bundling so audio files exist in
+// public/ when Remotion serves them. Cache hits are free; cache
+// misses hit the ElevenLabs API. Slide durations are bumped to
+// match audio length where audio is longer than the visual dwell.
+//
+// Mutates the input file in place so the studio (which imports
+// sample-payload.json directly) picks up the same karaoke data.
+console.error('[render.mjs] Preparing narration…');
+payload = await prepareNarration(payload);
+writeFileSync(payloadPath, JSON.stringify(payload, null, 2) + '\n');
+console.error(`[render.mjs] Updated payload in place → ${basename(payloadPath)}`);
 
 // If audio is referenced, ensure it lives in public/. Caller can
 // either drop it in there beforehand or pass --audio <path> and

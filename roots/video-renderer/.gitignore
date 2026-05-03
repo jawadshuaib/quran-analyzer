@@ -2,4 +2,6 @@ node_modules/
 out/
 public/*
 !public/.gitkeep
+audio-cache/
+.env
 .DS_Store

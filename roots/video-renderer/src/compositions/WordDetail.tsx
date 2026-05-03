@@ -5,13 +5,24 @@ import { RootPage } from '../slides/RootPage';
 import { VerseFlowPage } from '../slides/VerseFlowPage';
 import { WordToWordPage } from '../slides/WordToWordPage';
 import { OutroPage } from '../slides/OutroPage';
+import { KaraokeOverlay } from '../slides/KaraokeOverlay';
 
-// Top-level composition for word-detail videos. The Composition's
-// duration is computed from the sum of slide durations (or set to
-// the audio length, whichever is longer — see Root.tsx). Each slide
-// is wrapped in a <Sequence> so its useCurrentFrame() resets at the
-// slide's start, which is what makes the entry animations feel
-// natural per slide.
+// Top-level composition for word-detail videos.
+//
+// Layout per slide:
+//   - The slide itself (RootPage / VerseFlowPage / etc.) fills the frame.
+//   - If the slide has narration: an <Audio> tag plays the per-slide
+//     narration mp3, AND a KaraokeOverlay anchored to the bottom
+//     280px shows the caption with the active word highlighted.
+//
+// The composition's total duration is the sum of slide durations
+// (computed by totalFrames). Each slide's duration was bumped by
+// scripts/narration.mjs to be at least audio_length + 0.4s, so the
+// audio never gets cut.
+//
+// Audio for separate slides is layered at non-overlapping <Sequence>
+// offsets so they don't cross-talk. Optional payload-level
+// `audioFile` (e.g. background music) plays globally.
 
 export function WordDetailComposition({ payload }: { payload: PayloadT }) {
   let cursor = 0;
@@ -19,7 +30,7 @@ export function WordDetailComposition({ payload }: { payload: PayloadT }) {
     const durationFrames = Math.max(1, Math.round(slide.durationSec * FPS));
     const seq = (
       <Sequence key={i} from={cursor} durationInFrames={durationFrames}>
-        <SlideRenderer slide={slide} />
+        <SlideWithNarration slide={slide} />
       </Sequence>
     );
     cursor += durationFrames;
@@ -36,10 +47,27 @@ export function WordDetailComposition({ payload }: { payload: PayloadT }) {
   );
 }
 
-// Discriminator on slide.type — adding a new slide kind means adding
-// a case here plus a component under src/slides/. Keeping the
-// switch explicit (rather than a lookup table) so TypeScript can
-// narrow each branch via the discriminated union in types.ts.
+// Renders the slide visual + (when present) the audio track + the
+// karaoke overlay. Karaoke uses audioStartFrame=0 because we're
+// inside the slide's <Sequence>, which already resets useCurrentFrame.
+function SlideWithNarration({ slide }: { slide: SlideT }) {
+  const hasNarration = 'narration' in slide && !!slide.narration;
+  return (
+    <>
+      <SlideRenderer slide={slide} />
+      {hasNarration && slide.narration?.audioFile && (
+        <Audio src={staticFile(slide.narration.audioFile)} />
+      )}
+      {hasNarration && slide.narration?.alignment && (
+        <KaraokeOverlay
+          narration={slide.narration}
+          audioStartFrame={0}
+        />
+      )}
+    </>
+  );
+}
+
 function SlideRenderer({ slide }: { slide: SlideT }) {
   switch (slide.type) {
     case 'root':
@@ -51,17 +79,12 @@ function SlideRenderer({ slide }: { slide: SlideT }) {
     case 'outro':
       return <OutroPage slide={slide} />;
     default: {
-      // Exhaustiveness guard — TS errors if a new variant is added
-      // to the union but not handled above.
       const _exhaustive: never = slide;
       return _exhaustive;
     }
   }
 }
 
-// Sum slide durations to compute the composition length in frames.
-// render.mjs and Root.tsx both need this so they declare the same
-// duration to Remotion.
 export function totalFrames(payload: PayloadT): number {
   return payload.slides.reduce(
     (acc, s) => acc + Math.max(1, Math.round(s.durationSec * FPS)),
