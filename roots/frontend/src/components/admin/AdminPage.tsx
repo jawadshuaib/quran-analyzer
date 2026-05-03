@@ -10,6 +10,7 @@ import type {
   PipelineScheduleRun, YoutubeUploadRun,
   EducationalScheduleRunGlobal,
 } from '../../api/admin';
+import { getBuildInfo, type BuildInfo } from '../../api/quran';
 import AdminLogin from './AdminLogin';
 import AdminSettings from './AdminSettings';
 import AdminMedia from './AdminMedia';
@@ -348,6 +349,14 @@ function DashboardHero({ username }: { username: string }) {
   // shows, condensed to a chip.
   const [healthState, setHealthState] = useState<'ok' | 'warn' | 'bad' | 'loading'>('loading');
   const [healthDetail, setHealthDetail] = useState('');
+  // Build metadata baked into the image at deploy time. On local dev
+  // these come back empty and we just render nothing; the dashboard
+  // doesn't need a "running locally" hint cluttering the hero.
+  const [build, setBuild] = useState<BuildInfo | null>(null);
+
+  useEffect(() => {
+    getBuildInfo().then(setBuild).catch(() => setBuild(null));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -409,6 +418,9 @@ function DashboardHero({ username }: { username: string }) {
             Here's what's happening with your pipelines and the
             content flowing through them today.
           </p>
+          {build && build.sha_short && (
+            <BuildInfoLine build={build} />
+          )}
         </div>
         <a
           href="/admin/scheduler"
@@ -421,6 +433,69 @@ function DashboardHero({ username }: { username: string }) {
       </div>
     </div>
   );
+}
+
+function BuildInfoLine({ build }: { build: BuildInfo }) {
+  // Format the deploy timestamp as a relative-then-absolute hint:
+  // "2 hours ago" reads at a glance, but a hover-title showing the
+  // exact ISO timestamp + commit subject lets the operator
+  // disambiguate "is this the deploy I just pushed?".
+  const date = build.date ? new Date(build.date) : null;
+  const relative = date && !isNaN(date.getTime()) ? buildRelative(date) : '';
+  const absolute = date && !isNaN(date.getTime()) ? date.toLocaleString() : '';
+  const commitUrl = build.repo
+    ? `https://github.com/${build.repo}/commit/${build.sha}`
+    : null;
+
+  return (
+    <p className="text-[11px] text-stone-500 mt-2.5 max-w-xl">
+      Website last updated{' '}
+      <span title={absolute || undefined}>
+        {relative || (absolute || 'recently')}
+      </span>
+      {build.sha_short && (
+        <>
+          {' '}via commit{' '}
+          {commitUrl ? (
+            <a
+              href={commitUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-stone-700 underline decoration-dotted underline-offset-2 hover:text-stone-900"
+              title={build.message || build.sha}
+            >
+              {build.sha_short}
+            </a>
+          ) : (
+            <span className="font-mono text-stone-700" title={build.message || build.sha}>
+              {build.sha_short}
+            </span>
+          )}
+        </>
+      )}
+      {build.message && (
+        <span className="text-stone-400"> — {truncate(build.message, 80)}</span>
+      )}
+    </p>
+  );
+}
+
+function buildRelative(d: Date): string {
+  const diffMs = Date.now() - d.getTime();
+  if (diffMs < 0) return 'in the future';
+  const min = Math.round(diffMs / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} minute${min === 1 ? '' : 's'} ago`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} hour${h === 1 ? '' : 's'} ago`;
+  const days = Math.round(h / 24);
+  if (days < 30) return `${days} day${days === 1 ? '' : 's'} ago`;
+  return d.toLocaleDateString();
+}
+
+function truncate(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return s.slice(0, max - 1).trimEnd() + '…';
 }
 
 /* ------------------------------------------------------------- */

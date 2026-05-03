@@ -107,6 +107,22 @@ RUN chmod +x ./docker-entrypoint.sh
 # Create data directory for volume mount
 RUN mkdir -p /app/data
 
+# Build metadata — captured by GitHub Actions and passed as build
+# args. The backend exposes these via /api/build-info so the admin
+# dashboard can display "Last updated on X via commit Y" without
+# any GitHub API call. Setting them at the END of the Dockerfile
+# means the heavier earlier layers (npm ci, remotion browser ensure,
+# pip install) stay cache-hot across deploys; only this trivial
+# layer rebuilds when the SHA changes.
+ARG BUILD_GIT_SHA=
+ARG BUILD_GIT_SHA_SHORT=
+ARG BUILD_GIT_DATE=
+ARG BUILD_GIT_MESSAGE=
+ENV BUILD_GIT_SHA=$BUILD_GIT_SHA \
+    BUILD_GIT_SHA_SHORT=$BUILD_GIT_SHA_SHORT \
+    BUILD_GIT_DATE=$BUILD_GIT_DATE \
+    BUILD_GIT_MESSAGE=$BUILD_GIT_MESSAGE
+
 EXPOSE 8000
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

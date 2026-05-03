@@ -344,3 +344,19 @@ export async function getDailyVerse(): Promise<{ chapter: number; verse: number 
   if (!res.ok) throw new Error('Failed to fetch daily verse');
   return res.json();
 }
+
+/** Deploy metadata baked into the image at build time. Empty
+ * strings when running locally without a GitHub-Actions build. */
+export interface BuildInfo {
+  sha: string;
+  sha_short: string;
+  date: string;       // ISO 8601
+  message: string;
+  repo: string;       // owner/name, used to build commit URLs
+}
+
+export async function getBuildInfo(): Promise<BuildInfo> {
+  const res = await fetch(`${BASE}/build-info`);
+  if (!res.ok) throw new Error('Failed to fetch build info');
+  return res.json();
+}

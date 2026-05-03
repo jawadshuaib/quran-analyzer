@@ -31,7 +31,23 @@ jobs:
       - name: Build and push
         run: |
           IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          docker build -t "${IMAGE_TAG}:latest" -t "${IMAGE_TAG}:${{ github.sha }}" .
+          # Capture deploy metadata so the running container can
+          # surface "last updated on X via commit Y" in the admin
+          # dashboard. The data is baked into the image as ENV vars
+          # at build time (see Dockerfile), so a container restart
+          # carries the same info, and a fresh build = fresh info.
+          GIT_SHA="${{ github.sha }}"
+          GIT_SHA_SHORT="$(git rev-parse --short HEAD)"
+          GIT_DATE="$(git log -1 --format=%cI HEAD)"
+          # Truncate the commit subject to 200 chars; long subjects
+          # would just clutter the dashboard.
+          GIT_MESSAGE="$(git log -1 --format=%s HEAD | cut -c1-200)"
+          docker build \
+            --build-arg "BUILD_GIT_SHA=${GIT_SHA}" \
+            --build-arg "BUILD_GIT_SHA_SHORT=${GIT_SHA_SHORT}" \
+            --build-arg "BUILD_GIT_DATE=${GIT_DATE}" \
+            --build-arg "BUILD_GIT_MESSAGE=${GIT_MESSAGE}" \
+            -t "${IMAGE_TAG}:latest" -t "${IMAGE_TAG}:${{ github.sha }}" .
           docker push "${IMAGE_TAG}:latest"
           docker push "${IMAGE_TAG}:${{ github.sha }}"
 

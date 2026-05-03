@@ -2956,6 +2956,30 @@ def get_verse(surah: int, ayah: int):
         conn.close()
 
 
+@app.route("/api/build-info")
+def build_info():
+    """Deploy metadata baked into the image at build time by the
+    GitHub Actions workflow + Dockerfile ARGs. Used by the admin
+    dashboard to show "Website last updated on X via commit Y"
+    without an external GitHub API call. Returns empty strings on
+    local dev (no build args set) so the dashboard can render a
+    "running locally" hint.
+
+    Public endpoint — the data is harmless deployment metadata
+    (commit SHA + message + date) and a future public footer might
+    want to surface it too."""
+    return jsonify({
+        "sha": os.environ.get("BUILD_GIT_SHA", ""),
+        "sha_short": os.environ.get("BUILD_GIT_SHA_SHORT", ""),
+        "date": os.environ.get("BUILD_GIT_DATE", ""),
+        "message": os.environ.get("BUILD_GIT_MESSAGE", ""),
+        # Hard-coded so the dashboard can build a commit URL
+        # without parsing the git remote at runtime. If we ever
+        # rename the repo, update here.
+        "repo": "jawadshuaib/quran-analyzer",
+    })
+
+
 @app.route("/api/surahs")
 def get_surahs():
     """List all 114 surahs with English + Arabic names + verse counts.
