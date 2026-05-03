@@ -21,18 +21,26 @@ WORKDIR /app
 #     dependencies of chrome-headless-shell that Remotion bundles.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl ffmpeg \
-    fonts-liberation fonts-dejavu-core fonts-amiri \
+    fonts-liberation fonts-dejavu-core \
     libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
     libxfixes3 libxrandr2 libgbm1 libxss1 libpangocairo-1.0-0 \
     ca-certificates gnupg && \
-    # libasound was renamed to libasound2t64 in some Debian 12 update
-    # tracks (time64 transition). Try the new name first, fall back
-    # to the old; one of them will be present whichever bookworm
-    # snapshot we're built against. Without `|| true` the apt-get
-    # rolls back the whole transaction on a missing package.
+    # libasound was renamed to libasound2t64 in the Debian time64
+    # transition (bookworm-updates → trixie). Try the new name
+    # first, fall back to the old. One will be present in whatever
+    # snapshot we're building against.
     (apt-get install -y --no-install-recommends libasound2t64 || \
      apt-get install -y --no-install-recommends libasound2) && \
+    # fonts-amiri was renamed to fonts-hosny-amiri in trixie (Debian
+    # 13). Same try-fallback. The Remotion renderer ALSO loads Amiri
+    # via @remotion/google-fonts at bundle time so the system font
+    # is mostly belt-and-braces — if neither apt name resolves
+    # (some future trixie update), don't fail the build; emit a
+    # warning so it shows up in CI logs and we can revisit.
+    (apt-get install -y --no-install-recommends fonts-hosny-amiri || \
+     apt-get install -y --no-install-recommends fonts-amiri || \
+     echo "WARNING: no system Amiri font installed; Remotion's @remotion/google-fonts is the only source") && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20 LTS via NodeSource. Required by the Remotion
