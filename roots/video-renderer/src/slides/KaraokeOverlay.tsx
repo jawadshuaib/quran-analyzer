@@ -104,15 +104,19 @@ export function KaraokeOverlay({
         left: 0,
         right: 0,
         bottom: 0,
-        height: 320,
+        // Tall enough to seat 2-3 lines of 104px text comfortably.
+        // The OutroPage's "al-nuqta.com" is 130px; karaoke at 104
+        // is ~80% of that — readable at arm's length on a phone
+        // without dominating the slide.
+        height: 560,
         // Subtle dark gradient so the caption is legible on any
         // bg without being a heavy bar.
         background:
-          'linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 60%, rgba(0,0,0,0) 100%)',
+          'linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0) 100%)',
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        padding: '0 80px 50px',
+        padding: '0 60px 60px',
         opacity: overlayOpacity,
         pointerEvents: 'none',
       }}
@@ -120,14 +124,15 @@ export function KaraokeOverlay({
       <div
         style={{
           fontFamily: SYSTEM_FONT,
-          fontSize: 38,
-          fontWeight: 500,
+          fontSize: 104,
+          fontWeight: 600,
           color: '#FFFFFF',
-          lineHeight: 1.4,
-          letterSpacing: '-0.005em',
+          // Tight line height so multi-line captions don't sprawl.
+          lineHeight: 1.18,
+          letterSpacing: '-0.01em',
           textAlign: 'center',
-          textShadow: '0 2px 8px rgba(0,0,0,0.5)',
-          maxWidth: 920,
+          textShadow: '0 4px 14px rgba(0,0,0,0.6)',
+          maxWidth: 960,
         }}
       >
         {words.map((w, i) => {
@@ -152,9 +157,9 @@ export function KaraokeOverlay({
                 transform: `scale(${scale})`,
                 color,
                 opacity,
-                marginRight: 10,
+                marginRight: 22,
                 transition: 'none',
-                fontWeight: isPast || isCurrent ? 600 : 500,
+                fontWeight: isCurrent ? 700 : isPast ? 600 : 500,
               }}
             >
               {w.display}
