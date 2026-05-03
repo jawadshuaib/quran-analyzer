@@ -5889,6 +5889,55 @@ def _ensure_admin_table():
 _ensure_admin_table()
 
 
+# admin_required must be defined BEFORE any @admin_required-decorated
+# route, because Python evaluates decorators at module-import time.
+# Adding a route between this point and the original definition (which
+# used to live further down the file) was a recurring source of
+# import-time crashes — fixed by moving the definition up here, right
+# after admin_users is created (which is what the decorator reads
+# from). Don't move it back down, and don't add new helpers here that
+# admin_required depends on without checking import order.
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # Bearer header is the primary path. Fall back to a `?token=`
+        # query-string for cases where the browser can't set headers
+        # — chiefly, <video> / <audio> / <a target="_blank"> tags
+        # that need to authenticate a binary GET. Same JWT, same
+        # validation downstream, so the security model is unchanged.
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+        elif request.args.get("token"):
+            token = request.args["token"]
+        else:
+            return jsonify({"error": "Missing token"}), 401
+        try:
+            payload = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token expired"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
+
+        # Check token wasn't issued before a password change
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT pw_changed_at FROM admin_users WHERE id = ?",
+                (int(payload["sub"]),),
+            ).fetchone()
+            if not row:
+                return jsonify({"error": "User not found"}), 401
+            if payload.get("pwc", 0) < row["pw_changed_at"]:
+                return jsonify({"error": "Token invalidated by password change"}), 401
+        finally:
+            conn.close()
+
+        request.admin_user = payload
+        return f(*args, **kwargs)
+    return decorated
+
+
 def _ensure_admin_media_tables():
     conn = get_db()
     try:
@@ -6152,47 +6201,6 @@ def _create_admin_token(user_id: int, username: str, pw_changed_at: int = 0) -> 
         "pwc": pw_changed_at,  # invalidated when password changes
     }
     return jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
-
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        # Bearer header is the primary path. Fall back to a `?token=`
-        # query-string for cases where the browser can't set headers
-        # — chiefly, <video> / <audio> / <a target="_blank"> tags
-        # that need to authenticate a binary GET. Same JWT, same
-        # validation downstream, so the security model is unchanged.
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Bearer "):
-            token = auth_header[7:]
-        elif request.args.get("token"):
-            token = request.args["token"]
-        else:
-            return jsonify({"error": "Missing token"}), 401
-        try:
-            payload = jwt.decode(token, app.config["SECRET_KEY"], algorithms=["HS256"])
-        except jwt.ExpiredSignatureError:
-            return jsonify({"error": "Token expired"}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({"error": "Invalid token"}), 401
-
-        # Check token wasn't issued before a password change
-        conn = get_db()
-        try:
-            row = conn.execute(
-                "SELECT pw_changed_at FROM admin_users WHERE id = ?",
-                (int(payload["sub"]),),
-            ).fetchone()
-            if not row:
-                return jsonify({"error": "User not found"}), 401
-            if payload.get("pwc", 0) < row["pw_changed_at"]:
-                return jsonify({"error": "Token invalidated by password change"}), 401
-        finally:
-            conn.close()
-
-        request.admin_user = payload
-        return f(*args, **kwargs)
-    return decorated
 
 
 @app.route("/api/admin/login", methods=["POST"])

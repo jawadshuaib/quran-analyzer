@@ -94,6 +94,33 @@ ENV REMOTION_RENDERER_DIR=/app/video-renderer
 # Copy database as seed (entrypoint copies to volume on first run)
 COPY assets/quran.db ./seed-quran.db
 
+# ---------------------------------------------------------------------------
+# Defense-in-depth: fail the build if app.py can't import.
+#
+# Why this exists: a forward-reference bug (e.g. @admin_required used on a
+# route defined ABOVE the decorator's own definition) doesn't manifest
+# until gunicorn's worker tries to load app.py at runtime. Without this
+# step, GitHub Actions happily builds + pushes a broken image to GHCR, the
+# server pulls it, the worker fails to boot, the container restart-loops,
+# and each restart writes a fresh ~600MB DB snapshot until the disk fills.
+#
+# This `python3 -c "import app"` runs the same import gunicorn would —
+# decorator evaluation, schema migrations, similarity-engine load,
+# scheduler-thread init — but here, BEFORE the image gets tagged. If any
+# of that fails, the docker build fails, the GHCR push never happens, and
+# prod stays on the previous (working) image.
+#
+# The import needs DB_PATH (/app/data/quran.db) to exist because app.py
+# loads the corpus into the similarity engine at import time. Stage the
+# seed DB into the runtime path before the check; it'll be either
+# overwritten or shadowed by the persistent volume mount at runtime, so
+# leaving it in place has no side effects.
+# ---------------------------------------------------------------------------
+RUN mkdir -p /app/data && \
+    cp /app/seed-quran.db /app/data/quran.db && \
+    python3 -c "import app" && \
+    echo "[Dockerfile] app.py import check passed"
+
 # Copy mnemonic images as seed (entrypoint deploys to data volume)
 COPY assets/mnemonic_images ./seed-mnemonic-images
 

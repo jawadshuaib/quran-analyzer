@@ -989,12 +989,44 @@ if [ -d /app/seed-mnemonic-images ] && [ "$(ls -A /app/seed-mnemonic-images 2>/d
   cp /app/seed-mnemonic-images/* /app/data/mnemonic_images/
 fi
 
+# ============================================================================
+# Final pre-flight: verify app.py can import before handing off to gunicorn.
+#
+# Why a dedicated check: a forward-reference bug (e.g. @admin_required used
+# above its own definition) doesn't manifest until gunicorn's worker tries
+# to load app.py. Without this check, gunicorn's master spawns a worker,
+# the worker fails to import app.py, the master shuts down, Docker's
+# restart policy puts the container in an infinite restart loop, and each
+# restart writes a fresh ~600MB DB snapshot until the disk fills.
+#
+# Failing here exits with a single readable ImportError per restart cycle
+# instead of the confusing two-stage "Worker failed to boot" message
+# gunicorn produces when a worker crashes during import.
+#
+# Note: this is the runtime safety net. The Dockerfile already runs the
+# same check at build time so a broken commit can't even produce a tagged
+# image — but a runtime check defends against runtime-only failures
+# (incompatible DB schema in the persistent volume, missing env var the
+# app reads at module load, etc.) that the build-time check can't see.
+# ============================================================================
+echo "Verifying app.py can import..."
+if ! python3 -c "import app" >/dev/null 2>&1; then
+  echo "" >&2
+  echo "FATAL: app.py failed to import. Aborting before gunicorn startup." >&2
+  echo "Re-running with traceback for diagnostics:" >&2
+  python3 -c "import app" >&2 || true
+  exit 1
+fi
+echo "  ✓ app.py imports cleanly"
+
 # Run cognate languages migration (idempotent — skips if already applied).
 # `|| true` so a migration failure doesn't block the deploy: the app
 # already has the defensive crash guard from 52c1bff for the symptom,
 # and we'd rather serve traffic with stale cognate_languages than fail
 # to come up at all. The set -e at the top of this script would
-# otherwise abort here on any non-zero exit.
+# otherwise abort here on any non-zero exit. Note: an ImportError in
+# this step would have been caught by the import sanity check above —
+# anything reaching this fallback is a genuine migration data issue.
 if [ -f /app/normalize_cognate_languages.py ]; then
   echo "Running cognate languages migration..."
   python3 /app/normalize_cognate_languages.py 2>&1 || \
