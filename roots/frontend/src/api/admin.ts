@@ -2017,3 +2017,100 @@ export async function deleteVerseOfTheDay(id: number): Promise<void> {
     throw new Error(data.error || 'Failed to delete');
   }
 }
+
+// ===========================================================================
+// Stats — website + YouTube analytics for the /admin/stats page and the
+// summary tiles on the admin dashboard.
+// ===========================================================================
+export type StatsRange = '7d' | '30d';
+
+export interface WebsiteStatsTotals {
+  page_views: number;
+  unique_visitors: number;
+  page_views_prior: number;
+  unique_visitors_prior: number;
+}
+
+export interface WebsiteStatsDailyPoint {
+  date: string;
+  page_views: number;
+  unique_visitors: number;
+}
+
+export interface WebsiteStatsTopPage {
+  path: string;
+  page_views: number;
+  unique_visitors: number;
+}
+
+export interface WebsiteStatsTopReferrer {
+  referrer: string;
+  page_views: number;
+}
+
+export interface WebsiteStats {
+  range: string;
+  since: string;
+  until: string;
+  totals: WebsiteStatsTotals;
+  daily: WebsiteStatsDailyPoint[];
+  top_pages: WebsiteStatsTopPage[];
+  top_referrers: WebsiteStatsTopReferrer[];
+  live: { active_last_5min: number };
+}
+
+export async function getWebsiteStats(range: StatsRange): Promise<WebsiteStats> {
+  const res = await authFetch(`${BASE}/stats/website?range=${range}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load website stats');
+  return data as WebsiteStats;
+}
+
+export interface YoutubeStatsVideo {
+  youtube_video_id: string;
+  url: string;
+  title: string | null;
+  published_at: string | null;
+  current_views: number;
+  current_likes: number;
+  current_comments: number;
+  views_gain: number;
+  likes_gain: number;
+  source_table: string;
+  source_id: number;
+}
+
+export interface YoutubeStats {
+  range: string;
+  totals: {
+    videos: number;
+    total_views: number;
+    total_likes: number;
+    views_gain_period: number;
+    likes_gain_period: number;
+  };
+  videos: YoutubeStatsVideo[];
+  last_refresh: string | null;
+  snapshot_count: number;
+}
+
+export async function getYoutubeStats(range: StatsRange): Promise<YoutubeStats> {
+  const res = await authFetch(`${BASE}/stats/youtube?range=${range}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load YouTube stats');
+  return data as YoutubeStats;
+}
+
+export interface YoutubeRefreshResult {
+  ok: boolean;
+  videos_refreshed?: number;
+  fetched_at?: string;
+  error?: string;
+}
+
+export async function refreshYoutubeStats(): Promise<YoutubeRefreshResult> {
+  const res = await authFetch(`${BASE}/stats/youtube/refresh`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Refresh failed');
+  return data as YoutubeRefreshResult;
+}

@@ -5,6 +5,7 @@ import {
   getAllEducationalSchedules,
   getPipelineScheduleRuns, getYoutubeUploadRuns,
   getAllEducationalScheduleRuns, getEducationalPool,
+  getWebsiteStats, getYoutubeStats,
 } from '../../api/admin';
 import type {
   PipelineScheduleRun, YoutubeUploadRun,
@@ -31,6 +32,7 @@ import AdminEducational from './AdminEducational';
 import AdminEducationalPipelines from './AdminEducationalPipelines';
 import AdminPipelines from './AdminPipelines';
 import AdminVerseOfTheDay from './AdminVerseOfTheDay';
+import StatsPage from './StatsPage';
 
 type AdminRoute =
   | 'dashboard' | 'settings' | 'scheduler'
@@ -43,7 +45,8 @@ type AdminRoute =
   | 'pipelines-educational-candidates'
   | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns'
   | 'verse-settings'
-  | 'verse-of-the-day';
+  | 'verse-of-the-day'
+  | 'stats';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -75,6 +78,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/proper-nouns\/?$/.test(path)) return 'proper-nouns';
   if (/^\/admin\/verse-settings\/?$/.test(path)) return 'verse-settings';
   if (/^\/admin\/verse-of-the-day\/?$/.test(path)) return 'verse-of-the-day';
+  if (/^\/admin\/stats\/?$/.test(path)) return 'stats';
   return 'dashboard';
 }
 
@@ -119,6 +123,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Verse of the Day',
     description: 'Curate the rotation of verses shown on the homepage.',
     matches: (r) => r === 'verse-of-the-day',
+  },
+  {
+    href: '/admin/stats',
+    label: 'Stats',
+    description: 'Public-site analytics and YouTube performance with 7d/30d trends.',
+    matches: (r) => r === 'stats',
   },
   {
     href: '/admin/verse-settings',
@@ -299,6 +309,7 @@ export default function AdminPage() {
         {route === 'proper-nouns' && <AdminProperNouns />}
         {route === 'verse-settings' && <VerseSettings />}
         {route === 'verse-of-the-day' && <AdminVerseOfTheDay />}
+        {route === 'stats' && <StatsPage />}
       </div>
     </div>
   );
@@ -512,38 +523,73 @@ function DashboardStats() {
   const [tiles, setTiles] = useState<StatTile[] | null>(null);
 
   useEffect(() => {
-    // Pull the raw data we need to compute three at-a-glance stats:
-    //   1. Scheduler runs in the last 7 days (recitation + educational)
-    //   2. YouTube uploads in the last 7 days
-    //   3. Educational candidate pool size
-    const since = Date.now() - 7 * 86_400_000;
+    // Pull every source the dashboard summarizes. Each .catch returns a
+    // sentinel so one failing endpoint doesn't blank the whole strip.
     Promise.all([
-      getPipelineScheduleRuns({ limit: 200 }).catch(() => [] as PipelineScheduleRun[]),
-      getAllEducationalScheduleRuns(200).catch(() => [] as EducationalScheduleRunGlobal[]),
+      getWebsiteStats('7d').catch(() => null),
+      getYoutubeStats('7d').catch(() => null),
       getYoutubeUploadRuns(200).catch(() => [] as YoutubeUploadRun[]),
       getEducationalPool().catch(() => null),
-    ]).then(([recRuns, eduRuns, ytRuns, pool]) => {
-      const recentRec = recRuns.filter((r) => new Date(r.fired_at).getTime() >= since);
-      const recentEdu = eduRuns.filter((r) => new Date(r.fired_at).getTime() >= since);
-      const recentRuns = [...recentRec, ...recentEdu];
-      const fired = recentRuns.filter((r) => r.status === 'fired').length;
-      const skipped = recentRuns.filter((r) => r.status.startsWith('skipped')).length;
+    ]).then(([webStats, ytStats, ytRuns, pool]) => {
+      const since = Date.now() - 7 * 86_400_000;
 
+      // Tile 1 — Website visits (replaces the old Pipeline Runs tile).
+      // Primary = page views; secondary = unique visitors. Trend pill in
+      // the secondary line so the operator sees instantly whether the
+      // site is growing.
+      let webPrimary = '—';
+      let webSecondary = 'unavailable';
+      let webState: StatTile['state'] = 'neutral';
+      if (webStats) {
+        const pv = webStats.totals.page_views;
+        const uv = webStats.totals.unique_visitors;
+        const pvPrior = webStats.totals.page_views_prior;
+        const trend = pvPrior > 0
+          ? Math.round(((pv - pvPrior) / pvPrior) * 100)
+          : (pv > 0 ? 100 : 0);
+        const arrow = trend > 0 ? '▲' : trend < 0 ? '▼' : '·';
+        webPrimary = pv.toLocaleString();
+        webSecondary = `${uv.toLocaleString()} unique · ${arrow} ${Math.abs(trend)}%`;
+        webState = pv === 0 ? 'neutral' : (trend < 0 ? 'warn' : 'ok');
+      }
+
+      // Tile 2 — YouTube views with 7-day gain. Empty when no snapshots
+      // have been taken yet (post-deploy / fresh install).
+      let ytPrimary = '—';
+      let ytSecondary = 'no snapshots yet';
+      let ytState: StatTile['state'] = 'neutral';
+      if (ytStats && ytStats.snapshot_count > 0) {
+        const total = ytStats.totals.total_views;
+        const gain = ytStats.totals.views_gain_period;
+        ytPrimary = total.toLocaleString();
+        ytSecondary = `+${gain.toLocaleString()} this week`;
+        ytState = gain > 0 ? 'ok' : 'neutral';
+      }
+
+      // Tile 3 — YouTube upload pipeline health (kept from old dashboard).
       const recentUploads = ytRuns.filter((r) => new Date(r.fired_at).getTime() >= since);
       const uploaded = recentUploads.filter((r) => r.status === 'uploaded').length;
       const failed = recentUploads.filter((r) => r.status === 'error').length;
 
+      // Tile 4 — Educational candidate pool (kept).
       const poolTotal = pool
         ? (pool.word_origins ?? 0) + (pool.translation_hides ?? 0) + (pool.grammar_insights ?? 0)
         : 0;
 
       setTiles([
         {
-          label: 'Pipeline runs · 7d',
-          primary: `${fired}`,
-          secondary: skipped > 0 ? `${fired} fired · ${skipped} skipped` : `${fired} fired`,
-          href: '/admin/scheduler',
-          state: fired === 0 ? 'warn' : 'ok',
+          label: 'Website visits · 7d',
+          primary: webPrimary,
+          secondary: webSecondary,
+          href: '/admin/stats',
+          state: webState,
+        },
+        {
+          label: 'YouTube views · 7d',
+          primary: ytPrimary,
+          secondary: ytSecondary,
+          href: '/admin/stats',
+          state: ytState,
         },
         {
           label: 'YouTube uploads · 7d',
@@ -566,8 +612,8 @@ function DashboardStats() {
   }, []);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-      {(tiles ?? Array(3).fill(null)).map((t, i) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+      {(tiles ?? Array(4).fill(null)).map((t, i) => (
         <StatTileView key={i} tile={t} />
       ))}
     </div>

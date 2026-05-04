@@ -31,6 +31,7 @@ import numpy as np
 import requests
 from flask import Flask, Response, jsonify, redirect, request, send_file, send_from_directory
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Bump this when mnemonic images are regenerated to bust browser caches
 _MNEMONIC_VERSION = 12
@@ -44,6 +45,13 @@ app = Flask(
     static_folder=None,  # We handle static files in the catch-all route
 )
 CORS(app)
+# Trust the X-Forwarded-* headers from our nginx reverse proxy so
+# `request.remote_addr` is the real client IP, not nginx's. Critical for
+# the analytics tables (admin_ips, page_views) to dedupe correctly.
+# x_for=1 means "trust exactly one hop"; if we ever sit behind multiple
+# proxies bump it. x_proto/x_host let url_for() generate https URLs in
+# prod. Local dev (no proxy) is a no-op — the headers won't be present.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB upload limit
 
 # Secret key for JWT — persisted so tokens survive restarts
@@ -6203,6 +6211,155 @@ def _create_admin_token(user_id: int, username: str, pw_changed_at: int = 0) -> 
     return jwt.encode(payload, app.config["SECRET_KEY"], algorithm="HS256")
 
 
+# ---------------------------------------------------------------------------
+# Analytics: admin_ips, page_views, youtube_video_stats
+#
+# admin_ips     — every IP that has ever successfully logged into the admin
+#                 CMS. Used to *exclude* admins from public-site visitor
+#                 counts so the operator's own browsing doesn't pollute the
+#                 metrics.
+# page_views    — one row per public-site page load. ip_hash = sha256(salt
+#                 + ip). The salt is per-deployment and stored in
+#                 admin_preferences; an attacker with read-only DB access
+#                 can't reverse-engineer raw IPs.
+# youtube_video_stats — daily snapshots so we can compute "views gained in
+#                 the last 7d" without continuously hammering the YouTube
+#                 Data API. Refreshed by a daily background thread (and on
+#                 demand from the Stats page).
+# ---------------------------------------------------------------------------
+def _ensure_analytics_tables():
+    conn = get_db()
+    try:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS admin_ips (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip TEXT NOT NULL UNIQUE,
+                username TEXT,
+                user_agent TEXT,
+                first_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                notes TEXT
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS page_views (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ip_hash TEXT NOT NULL,
+                path TEXT NOT NULL,
+                referrer TEXT,
+                user_agent TEXT,
+                viewed_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_viewed_at ON page_views(viewed_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_path_viewed ON page_views(path, viewed_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_pv_ip_viewed ON page_views(ip_hash, viewed_at)")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS youtube_video_stats (
+                youtube_video_id TEXT NOT NULL,
+                source_table TEXT NOT NULL,
+                source_id INTEGER NOT NULL,
+                title TEXT,
+                published_at TEXT,
+                views INTEGER NOT NULL DEFAULT 0,
+                likes INTEGER NOT NULL DEFAULT 0,
+                comments INTEGER NOT NULL DEFAULT 0,
+                snapshot_date TEXT NOT NULL,
+                fetched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (youtube_video_id, snapshot_date)
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_yvs_video_date "
+            "ON youtube_video_stats(youtube_video_id, snapshot_date DESC)"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+_ensure_analytics_tables()
+
+
+def _get_client_ip() -> str:
+    """Best-effort real client IP. ProxyFix handled X-Forwarded-For above."""
+    return (request.remote_addr or "unknown").strip()
+
+
+# Module-level cache so we don't hit the DB on every pageview request.
+_pageview_salt_cache: dict = {"value": None}
+
+
+def _get_pageview_salt() -> str:
+    """Return a per-deployment secret salt used to hash visitor IPs.
+
+    Generated lazily on first use and persisted in admin_preferences so it
+    survives restarts. Caching matters: pageviews are write-heavy and
+    fetching the salt fresh every time would double the DB hits.
+    """
+    if _pageview_salt_cache["value"]:
+        return _pageview_salt_cache["value"]
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key = 'pageview_ip_salt'"
+        ).fetchone()
+        if row and row["value"]:
+            _pageview_salt_cache["value"] = row["value"]
+            return row["value"]
+        salt = secrets.token_hex(16)
+        conn.execute(
+            "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) "
+            "VALUES ('pageview_ip_salt', ?, CURRENT_TIMESTAMP)",
+            (salt,),
+        )
+        conn.commit()
+        _pageview_salt_cache["value"] = salt
+        return salt
+    finally:
+        conn.close()
+
+
+def _hash_ip(ip: str) -> str:
+    salt = _get_pageview_salt()
+    return hashlib.sha256((salt + ip).encode("utf-8")).hexdigest()
+
+
+def _record_admin_ip(ip: str, username: str, user_agent: str) -> None:
+    """Idempotent: first seen -> INSERT, subsequent -> bump last_seen."""
+    if not ip:
+        return
+    user_agent = (user_agent or "")[:500]
+    username = (username or "")[:120]
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO admin_ips (ip, username, user_agent) VALUES (?, ?, ?)",
+            (ip, username, user_agent),
+        )
+        conn.execute(
+            "UPDATE admin_ips SET last_seen_at = CURRENT_TIMESTAMP, "
+            "username = ?, user_agent = ? WHERE ip = ?",
+            (username, user_agent, ip),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _is_admin_ip(ip: str) -> bool:
+    if not ip:
+        return False
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM admin_ips WHERE ip = ? LIMIT 1", (ip,)
+        ).fetchone()
+        return row is not None
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/login", methods=["POST"])
 def admin_login():
     ip = request.remote_addr or "unknown"
@@ -6226,6 +6383,15 @@ def admin_login():
             _record_attempt(ip)
             return jsonify({"error": "Invalid credentials"}), 401
 
+        # Track this IP so the analytics page can exclude admin browsing
+        # from public-site visitor counts. Failures here must NOT break
+        # login — the user shouldn't get locked out because of an
+        # analytics-table issue.
+        try:
+            _record_admin_ip(ip, row["username"], request.headers.get("User-Agent", ""))
+        except Exception as e:
+            print(f"WARNING: _record_admin_ip failed: {e}")
+
         token = _create_admin_token(row["id"], row["username"], row["pw_changed_at"])
         return jsonify({"token": token, "username": row["username"]})
     finally:
@@ -6236,6 +6402,346 @@ def admin_login():
 @admin_required
 def admin_me():
     return jsonify({"username": request.admin_user["username"]})
+
+
+# ---------------------------------------------------------------------------
+# Analytics endpoints: pageview ingest + stats summaries
+# ---------------------------------------------------------------------------
+@app.route("/api/track/pageview", methods=["POST"])
+def track_pageview():
+    """Public endpoint hit by the frontend on every route change.
+
+    Quietly drops admin-IP visits, /admin paths, and /api paths so the
+    metrics reflect actual public-site usage. Always returns 204 on
+    well-formed requests so a malicious client can't probe whether their
+    IP is admin via timing or response body."""
+    body = request.get_json(silent=True) or {}
+    path = (body.get("path") or "").strip()
+    referrer = (body.get("referrer") or "").strip()
+    if not path or len(path) > 500:
+        return ("", 400)
+    if path.startswith("/admin") or path.startswith("/api/"):
+        return ("", 204)
+    ip = _get_client_ip()
+    if _is_admin_ip(ip):
+        return ("", 204)
+    referrer = referrer[:500]
+    user_agent = (request.headers.get("User-Agent") or "")[:500]
+    try:
+        conn = get_db()
+        try:
+            conn.execute(
+                "INSERT INTO page_views (ip_hash, path, referrer, user_agent) "
+                "VALUES (?, ?, ?, ?)",
+                (_hash_ip(ip), path, referrer, user_agent),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"WARNING: pageview insert failed: {e}")
+    return ("", 204)
+
+
+def _parse_stats_range(arg: str | None) -> int:
+    """Returns the range in days. Defaults to 7. Allowed: 7, 30."""
+    if arg == "30d":
+        return 30
+    if arg == "7d":
+        return 7
+    return 7
+
+
+@app.route("/api/admin/stats/website", methods=["GET"])
+@admin_required
+def admin_stats_website():
+    days = _parse_stats_range(request.args.get("range"))
+    now = datetime.now(timezone.utc)
+    since = now - timedelta(days=days)
+    prior_since = since - timedelta(days=days)
+    five_min_ago = now - timedelta(minutes=5)
+
+    since_iso = since.strftime("%Y-%m-%d %H:%M:%S")
+    until_iso = now.strftime("%Y-%m-%d %H:%M:%S")
+    prior_since_iso = prior_since.strftime("%Y-%m-%d %H:%M:%S")
+    five_min_ago_iso = five_min_ago.strftime("%Y-%m-%d %H:%M:%S")
+
+    conn = get_db()
+    try:
+        # Current period totals
+        row = conn.execute(
+            "SELECT COUNT(*) AS pv, COUNT(DISTINCT ip_hash) AS uv "
+            "FROM page_views WHERE viewed_at >= ?",
+            (since_iso,),
+        ).fetchone()
+        pv = int(row["pv"] or 0)
+        uv = int(row["uv"] or 0)
+
+        # Prior period totals (same length, immediately preceding)
+        prior_row = conn.execute(
+            "SELECT COUNT(*) AS pv, COUNT(DISTINCT ip_hash) AS uv "
+            "FROM page_views WHERE viewed_at >= ? AND viewed_at < ?",
+            (prior_since_iso, since_iso),
+        ).fetchone()
+        pv_prior = int(prior_row["pv"] or 0)
+        uv_prior = int(prior_row["uv"] or 0)
+
+        # Daily breakdown — fill in zeros so the chart is dense
+        daily_rows = conn.execute(
+            "SELECT date(viewed_at) AS d, COUNT(*) AS pv, "
+            "COUNT(DISTINCT ip_hash) AS uv "
+            "FROM page_views WHERE viewed_at >= ? "
+            "GROUP BY date(viewed_at) ORDER BY d ASC",
+            (since_iso,),
+        ).fetchall()
+        daily_map = {r["d"]: (int(r["pv"]), int(r["uv"])) for r in daily_rows}
+        daily = []
+        for i in range(days):
+            d = (since + timedelta(days=i)).strftime("%Y-%m-%d")
+            pvi, uvi = daily_map.get(d, (0, 0))
+            daily.append({"date": d, "page_views": pvi, "unique_visitors": uvi})
+
+        # Top pages
+        top_pages_rows = conn.execute(
+            "SELECT path, COUNT(*) AS pv, COUNT(DISTINCT ip_hash) AS uv "
+            "FROM page_views WHERE viewed_at >= ? "
+            "GROUP BY path ORDER BY pv DESC LIMIT 10",
+            (since_iso,),
+        ).fetchall()
+        top_pages = [
+            {"path": r["path"], "page_views": int(r["pv"]), "unique_visitors": int(r["uv"])}
+            for r in top_pages_rows
+        ]
+
+        # Top referrers — bucket NULL/empty as "(direct)"
+        top_ref_rows = conn.execute(
+            "SELECT COALESCE(NULLIF(referrer, ''), '(direct)') AS ref, COUNT(*) AS pv "
+            "FROM page_views WHERE viewed_at >= ? "
+            "GROUP BY ref ORDER BY pv DESC LIMIT 10",
+            (since_iso,),
+        ).fetchall()
+        top_referrers = [{"referrer": r["ref"], "page_views": int(r["pv"])} for r in top_ref_rows]
+
+        # Live: distinct visitors in the last 5 minutes
+        live_row = conn.execute(
+            "SELECT COUNT(DISTINCT ip_hash) AS active FROM page_views "
+            "WHERE viewed_at >= ?",
+            (five_min_ago_iso,),
+        ).fetchone()
+        active = int(live_row["active"] or 0)
+    finally:
+        conn.close()
+
+    return jsonify({
+        "range": f"{days}d",
+        "since": since_iso,
+        "until": until_iso,
+        "totals": {
+            "page_views": pv,
+            "unique_visitors": uv,
+            "page_views_prior": pv_prior,
+            "unique_visitors_prior": uv_prior,
+        },
+        "daily": daily,
+        "top_pages": top_pages,
+        "top_referrers": top_referrers,
+        "live": {"active_last_5min": active},
+    })
+
+
+# ---------------------------------------------------------------------------
+# YouTube stats: daily snapshots + on-demand refresh + summary endpoint.
+# ---------------------------------------------------------------------------
+def _refresh_youtube_stats() -> dict:
+    """Fetch current view/like/comment counts for every uploaded video and
+    write a snapshot row dated today. Idempotent — running twice in the
+    same UTC day just overwrites that day's row (PK is video_id+date)."""
+    conn = get_db()
+    id_to_source: dict[str, tuple[str, int]] = {}
+    try:
+        # Prefer educational_videos when an id appears in both (more
+        # reliable schema; admin_pipeline_videos.youtube_video_id is
+        # populated less consistently).
+        try:
+            for r in conn.execute(
+                "SELECT id, youtube_video_id FROM educational_videos "
+                "WHERE youtube_video_id IS NOT NULL AND youtube_video_id != ''"
+            ).fetchall():
+                id_to_source[r["youtube_video_id"]] = ("educational_videos", int(r["id"]))
+        except sqlite3.OperationalError:
+            # Educational tables may not exist on a fresh install
+            pass
+        for r in conn.execute(
+            "SELECT id, youtube_video_id FROM admin_pipeline_videos "
+            "WHERE youtube_video_id IS NOT NULL AND youtube_video_id != ''"
+        ).fetchall():
+            yid = r["youtube_video_id"]
+            if yid not in id_to_source:
+                id_to_source[yid] = ("admin_pipeline_videos", int(r["id"]))
+    finally:
+        conn.close()
+
+    if not id_to_source:
+        return {"ok": True, "videos_refreshed": 0, "fetched_at": datetime.now(timezone.utc).isoformat()}
+
+    try:
+        access_token = _youtube_get_access_token()
+    except RuntimeError as e:
+        return {"ok": False, "error": str(e), "videos_refreshed": 0}
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    refreshed = 0
+    ids = list(id_to_source.keys())
+    for batch_start in range(0, len(ids), 50):
+        batch = ids[batch_start:batch_start + 50]
+        try:
+            resp = requests.get(
+                "https://www.googleapis.com/youtube/v3/videos",
+                params={"part": "statistics,snippet", "id": ",".join(batch)},
+                headers={"Authorization": f"Bearer {access_token}"},
+                timeout=30,
+            )
+        except requests.RequestException as e:
+            return {"ok": False, "error": f"YouTube request failed: {e}", "videos_refreshed": refreshed}
+        if resp.status_code != 200:
+            try:
+                err = resp.json().get("error", {}).get("message") or resp.text[:300]
+            except Exception:
+                err = resp.text[:300]
+            return {"ok": False, "error": f"YouTube {resp.status_code}: {err}", "videos_refreshed": refreshed}
+
+        items = resp.json().get("items") or []
+        conn = get_db()
+        try:
+            for item in items:
+                yid = item.get("id")
+                if not yid or yid not in id_to_source:
+                    continue
+                stats = item.get("statistics") or {}
+                snippet = item.get("snippet") or {}
+
+                def _i(k: str) -> int:
+                    v = stats.get(k)
+                    try:
+                        return int(v) if v is not None else 0
+                    except (TypeError, ValueError):
+                        return 0
+
+                source_table, source_id = id_to_source[yid]
+                conn.execute(
+                    "INSERT OR REPLACE INTO youtube_video_stats "
+                    "(youtube_video_id, source_table, source_id, title, published_at, "
+                    " views, likes, comments, snapshot_date, fetched_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                    (
+                        yid, source_table, source_id,
+                        snippet.get("title"), snippet.get("publishedAt"),
+                        _i("viewCount"), _i("likeCount"), _i("commentCount"),
+                        today,
+                    ),
+                )
+                refreshed += 1
+            conn.commit()
+        finally:
+            conn.close()
+
+    return {"ok": True, "videos_refreshed": refreshed, "fetched_at": datetime.now(timezone.utc).isoformat()}
+
+
+@app.route("/api/admin/stats/youtube/refresh", methods=["POST"])
+@admin_required
+def admin_stats_youtube_refresh():
+    return jsonify(_refresh_youtube_stats())
+
+
+@app.route("/api/admin/stats/youtube", methods=["GET"])
+@admin_required
+def admin_stats_youtube():
+    days = _parse_stats_range(request.args.get("range"))
+    now = datetime.now(timezone.utc)
+    cutoff = (now - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    conn = get_db()
+    try:
+        # Most-recent snapshot per video
+        current_rows = conn.execute(
+            "SELECT s.* FROM youtube_video_stats s "
+            "JOIN ( "
+            "  SELECT youtube_video_id, MAX(snapshot_date) AS d "
+            "  FROM youtube_video_stats GROUP BY youtube_video_id "
+            ") m ON m.youtube_video_id = s.youtube_video_id AND m.d = s.snapshot_date"
+        ).fetchall()
+
+        # Prior snapshot per video — most recent strictly before cutoff
+        prior_rows = conn.execute(
+            "SELECT s.* FROM youtube_video_stats s "
+            "JOIN ( "
+            "  SELECT youtube_video_id, MAX(snapshot_date) AS d "
+            "  FROM youtube_video_stats "
+            "  WHERE snapshot_date <= ? "
+            "  GROUP BY youtube_video_id "
+            ") m ON m.youtube_video_id = s.youtube_video_id AND m.d = s.snapshot_date",
+            (cutoff,),
+        ).fetchall()
+
+        snapshot_count = int(conn.execute(
+            "SELECT COUNT(*) FROM youtube_video_stats"
+        ).fetchone()[0])
+        last_refresh_row = conn.execute(
+            "SELECT MAX(fetched_at) FROM youtube_video_stats"
+        ).fetchone()
+        last_refresh = last_refresh_row[0] if last_refresh_row else None
+    finally:
+        conn.close()
+
+    prior_map = {r["youtube_video_id"]: r for r in prior_rows}
+
+    videos = []
+    total_views = 0
+    total_likes = 0
+    views_gain = 0
+    likes_gain = 0
+    for r in current_rows:
+        yid = r["youtube_video_id"]
+        cur_views = int(r["views"] or 0)
+        cur_likes = int(r["likes"] or 0)
+        cur_comments = int(r["comments"] or 0)
+        prior = prior_map.get(yid)
+        gain_v = cur_views - int(prior["views"] or 0) if prior else 0
+        gain_l = cur_likes - int(prior["likes"] or 0) if prior else 0
+        videos.append({
+            "youtube_video_id": yid,
+            "url": f"https://youtube.com/watch?v={yid}",
+            "title": r["title"],
+            "published_at": r["published_at"],
+            "current_views": cur_views,
+            "current_likes": cur_likes,
+            "current_comments": cur_comments,
+            "views_gain": gain_v,
+            "likes_gain": gain_l,
+            "source_table": r["source_table"],
+            "source_id": int(r["source_id"]),
+        })
+        total_views += cur_views
+        total_likes += cur_likes
+        views_gain += gain_v
+        likes_gain += gain_l
+
+    videos.sort(key=lambda v: v["views_gain"], reverse=True)
+
+    return jsonify({
+        "range": f"{days}d",
+        "totals": {
+            "videos": len(videos),
+            "total_views": total_views,
+            "total_likes": total_likes,
+            "views_gain_period": views_gain,
+            "likes_gain_period": likes_gain,
+        },
+        "videos": videos,
+        "last_refresh": last_refresh,
+        "snapshot_count": snapshot_count,
+    })
 
 
 @app.route("/api/admin/change-password", methods=["POST"])
@@ -15064,6 +15570,58 @@ def _start_scheduler_once():
         print(f"WARNING: could not start scheduler daemon: {e}")
 
 
+def _youtube_stats_refresh_loop():
+    """Daily YouTube stats refresh. Runs at 03:15 UTC; on startup fires
+    once if today's snapshot is missing so the dashboard isn't stale
+    after a deploy."""
+    # Initial check: if no snapshot exists for today AND we have OAuth
+    # credentials, populate one immediately. Useful after a deploy or
+    # cold start.
+    try:
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        conn = get_db()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM youtube_video_stats WHERE snapshot_date = ?",
+                (today,),
+            ).fetchone()
+        finally:
+            conn.close()
+        if int(row[0]) == 0:
+            # Tiny delay so the app finishes booting before we hit YouTube
+            time.sleep(30)
+            try:
+                _refresh_youtube_stats()
+            except Exception as e:
+                print(f"[youtube-stats] initial refresh failed: {e}")
+    except Exception as e:
+        print(f"[youtube-stats] initial-check failed: {e}")
+
+    while True:
+        # Sleep until next 03:15 UTC
+        now = datetime.now(timezone.utc)
+        target = now.replace(hour=3, minute=15, second=0, microsecond=0)
+        if target <= now:
+            target = target + timedelta(days=1)
+        wait_seconds = max(60, (target - now).total_seconds())
+        time.sleep(wait_seconds)
+        try:
+            result = _refresh_youtube_stats()
+            print(f"[youtube-stats] daily refresh: {result}")
+        except Exception as e:
+            print(f"[youtube-stats] daily refresh error: {e}")
+
+
+def _start_youtube_stats_thread_once():
+    if getattr(_start_youtube_stats_thread_once, "_started", False):
+        return
+    try:
+        threading.Thread(target=_youtube_stats_refresh_loop, daemon=True).start()
+        _start_youtube_stats_thread_once._started = True
+    except Exception as e:
+        print(f"WARNING: could not start YouTube stats thread: {e}")
+
+
 # When imported by a WSGI server (gunicorn, uwsgi) the module is loaded
 # exactly once per worker and __name__ is the module name — safe to start.
 # When `python app.py` is run directly the __main__ block below handles it
@@ -15071,6 +15629,7 @@ def _start_scheduler_once():
 # this branch is skipped.
 if __name__ != "__main__":
     _start_scheduler_once()
+    _start_youtube_stats_thread_once()
 
 
 # --------------- Admin: Pipeline Scheduler endpoints ---------------
@@ -16699,6 +17258,7 @@ if __name__ == "__main__":
     # and only one scheduler daemon alive, even across code reloads.
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         _start_scheduler_once()
+        _start_youtube_stats_thread_once()
     else:
         print("[scheduler] parent watcher — deferring start to reloader child")
     app.run(debug=True, port=5000)
