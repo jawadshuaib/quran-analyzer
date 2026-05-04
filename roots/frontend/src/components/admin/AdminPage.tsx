@@ -588,7 +588,10 @@ function DashboardStats() {
           label: 'YouTube views · 7d',
           primary: ytPrimary,
           secondary: ytSecondary,
-          href: '/admin/stats',
+          // Deep-link with #youtube hash so StatsPage opens on the
+          // YouTube tab directly. The Website tile keeps the bare path
+          // since 'website' is the default.
+          href: '/admin/stats#youtube',
           state: ytState,
         },
         {

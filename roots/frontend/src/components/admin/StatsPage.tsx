@@ -20,7 +20,13 @@ type YoutubeSortKey = 'recent' | 'views' | 'growth';
 type Tab = 'website' | 'youtube';
 
 export default function StatsPage() {
-  const [tab, setTab] = useState<Tab>('website');
+  // Honor a #youtube hash on initial load so the dashboard's YouTube
+  // tile can deep-link straight to that tab. Read once on mount; later
+  // clicks on the tab buttons update React state without touching the
+  // URL.
+  const initialTab: Tab = typeof window !== 'undefined'
+    && window.location.hash === '#youtube' ? 'youtube' : 'website';
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [range, setRange] = useState<StatsRange>('7d');
 
   return (
@@ -235,6 +241,19 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState('');
   const [sortKey, setSortKey] = useState<YoutubeSortKey>('recent');
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // When a bar is clicked: scroll the matching <tr> into view and flash
+  // a subtle highlight so the eye lands on the right row immediately.
+  // The DOM id on each row is `yt-row-${youtube_video_id}` — a string
+  // YouTube guarantees is alphanumeric/dash, safe for an HTML id.
+  const handleBarClick = useCallback((videoId: string) => {
+    const row = document.getElementById(`yt-row-${videoId}`);
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightId(videoId);
+    window.setTimeout(() => setHighlightId((v) => (v === videoId ? null : v)), 2000);
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -300,13 +319,14 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
 
       {/* Trend chart — videos ordered chronologically (oldest left,
           newest right). Visual shape answers "are recent videos
-          getting more views than older ones?" without reading rows. */}
+          getting more views than older ones?" without reading rows.
+          Clicking a bar scrolls the corresponding row into view. */}
       {!noData && (
         <ChartCard
           title="Views per video over time"
-          subtitle="Each bar is one video, ordered by upload date (oldest → newest). Hover for details."
+          subtitle="Each bar is one video, ordered by upload date. Click a bar to jump to its row."
         >
-          <YoutubeViewsTrendChart videos={data.videos} />
+          <YoutubeViewsTrendChart videos={data.videos} onBarClick={handleBarClick} />
         </ChartCard>
       )}
 
@@ -359,7 +379,16 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {sortVideos(data.videos, sortKey).map((v) => (
-                  <tr key={v.youtube_video_id} className="hover:bg-stone-50">
+                  <tr
+                    key={v.youtube_video_id}
+                    id={`yt-row-${v.youtube_video_id}`}
+                    className={
+                      'transition-colors duration-700 ' +
+                      (highlightId === v.youtube_video_id
+                        ? 'bg-sky-100'
+                        : 'hover:bg-stone-50')
+                    }
+                  >
                     <td className="px-5 py-2">
                       <a
                         href={v.url}
@@ -444,14 +473,20 @@ function sortDescription(key: YoutubeSortKey, range: StatsRange): string {
 // actually a sign the newer content is *outperforming* the channel
 // average. Worth knowing at a glance.
 // ---------------------------------------------------------------------------
-function YoutubeViewsTrendChart({ videos }: { videos: YoutubeStatsVideo[] }) {
+function YoutubeViewsTrendChart({
+  videos, onBarClick,
+}: {
+  videos: YoutubeStatsVideo[];
+  onBarClick: (videoId: string) => void;
+}) {
   const chronological = videos
     .slice()
     .filter((v) => v.published_at)
     .sort((a, b) => (a.published_at ?? '').localeCompare(b.published_at ?? ''));
 
   // recharts wants a stable shape: x = a label key, y = the value. We
-  // also pass title + date through so the tooltip can render them.
+  // also pass title + date + video id through so the tooltip can render
+  // them and the click handler can resolve which row to scroll to.
   const chartData = chronological.map((v, i) => ({
     idx: i + 1,
     views: v.current_views,
@@ -459,6 +494,7 @@ function YoutubeViewsTrendChart({ videos }: { videos: YoutubeStatsVideo[] }) {
     date: v.published_at
       ? new Date(v.published_at).toLocaleDateString()
       : '—',
+    youtube_video_id: v.youtube_video_id,
   }));
 
   if (chartData.length === 0) {
@@ -466,15 +502,40 @@ function YoutubeViewsTrendChart({ videos }: { videos: YoutubeStatsVideo[] }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-        <XAxis dataKey="idx" tick={false} label={{ value: 'oldest →  newest', position: 'insideBottom', offset: -2, style: { fontSize: 11, fill: '#78716c' } }} />
-        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} tickFormatter={compactNumber} />
-        <Tooltip content={<YoutubeBarTooltip />} />
-        <Bar dataKey="views" fill="#0ea5e9" />
-      </BarChart>
-    </ResponsiveContainer>
+    // Extra bottom padding gives the "oldest → newest" axis hint room
+    // to breathe — without it the label gets clipped against the card
+    // border at typical viewport sizes.
+    <div className="pb-2">
+      <ResponsiveContainer width="100%" height={290}>
+        <BarChart
+          data={chartData}
+          margin={{ top: 10, right: 16, left: 0, bottom: 28 }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+          <XAxis
+            dataKey="idx"
+            tick={false}
+            label={{
+              value: 'oldest  →  newest',
+              position: 'insideBottom',
+              offset: -18,
+              style: { fontSize: 11, fill: '#78716c' },
+            }}
+          />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} tickFormatter={compactNumber} />
+          <Tooltip content={<YoutubeBarTooltip />} cursor={{ fill: 'rgba(14, 165, 233, 0.08)' }} />
+          <Bar
+            dataKey="views"
+            fill="#0ea5e9"
+            cursor="pointer"
+            onClick={(payload: unknown) => {
+              const p = payload as { youtube_video_id?: string } | undefined;
+              if (p?.youtube_video_id) onBarClick(p.youtube_video_id);
+            }}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
