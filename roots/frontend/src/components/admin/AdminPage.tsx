@@ -531,7 +531,10 @@ function DashboardStats() {
       getYoutubeUploadRuns(200).catch(() => [] as YoutubeUploadRun[]),
       getEducationalPool().catch(() => null),
     ]).then(([webStats, ytStats, ytRuns, pool]) => {
-      const since = Date.now() - 7 * 86_400_000;
+      // YouTube uploads tile shows the last 24h — operationally that's
+      // the window where a stuck or failing scheduler matters. The
+      // analytics tiles next to it use 7d via the stats API.
+      const since = Date.now() - 86_400_000;
 
       // Tile 1 — Website visits (replaces the old Pipeline Runs tile).
       // Primary = page views; secondary = unique visitors. Trend pill in
@@ -595,7 +598,7 @@ function DashboardStats() {
           state: ytState,
         },
         {
-          label: 'YouTube uploads · 7d',
+          label: 'YouTube uploads · 24h',
           primary: `${uploaded}`,
           secondary: failed > 0 ? `${uploaded} published · ${failed} failed` : `${uploaded} published`,
           href: '/admin/scheduler#youtube-upload',
