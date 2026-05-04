@@ -7,6 +7,8 @@ import {
   getWebsiteStats, getYoutubeStats, refreshYoutubeStats,
   type WebsiteStats, type YoutubeStats, type YoutubeStatsVideo, type StatsRange,
 } from '../../api/admin';
+import { getSurahsForSearch } from '../../utils/surah-search';
+import type { SurahInfo } from '../../types';
 
 type YoutubeSortKey = 'recent' | 'views' | 'growth';
 
@@ -107,6 +109,11 @@ function WebsiteStatsView({ range }: { range: StatsRange }) {
   const [data, setData] = useState<WebsiteStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Surah list is fetched once and cached at the module level by
+  // getSurahsForSearch — prefetched here so the top-pages tooltip can
+  // resolve "Surah 2" → "Al-Baqarah" synchronously on hover. Failure
+  // is non-fatal: the tooltip falls back to surah numbers.
+  const [surahs, setSurahs] = useState<SurahInfo[] | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -115,6 +122,10 @@ function WebsiteStatsView({ range }: { range: StatsRange }) {
       .then((d) => { setData(d); setLoading(false); })
       .catch((e: Error) => { setError(e.message); setLoading(false); });
   }, [range]);
+
+  useEffect(() => {
+    getSurahsForSearch().then(setSurahs).catch(() => { /* fall back to numbers */ });
+  }, []);
 
   if (loading) return <div className="text-stone-500 py-12 text-center">Loading…</div>;
   if (error) return <div className="text-red-600 py-12 text-center">{error}</div>;
@@ -180,7 +191,10 @@ function WebsiteStatsView({ range }: { range: StatsRange }) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
                 <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
                 <YAxis type="category" dataKey="path" tick={{ fontSize: 11 }} width={140} />
-                <Tooltip />
+                <Tooltip
+                  content={<TopPagesTooltip surahs={surahs} />}
+                  cursor={{ fill: 'rgba(14, 165, 233, 0.08)' }}
+                />
                 <Bar dataKey="page_views" fill="#0ea5e9" name="Views" />
               </BarChart>
             </ResponsiveContainer>
@@ -220,6 +234,98 @@ function shortDate(d: string): string {
   } catch {
     return d;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Smart tooltip for the Top Pages chart.
+//
+// Routes look like /verse/2:255 or /word/3:18/4 or /root/jml — fine for
+// computer code, opaque to a human. Resolve them to "Surah Al-Baqarah,
+// verse 255" or "Word #4, Surah Al-Imran, ayah 18" or "Root: jml" using
+// regex parsing + the cached surah list. Failure modes degrade to the
+// raw path so the chart never *loses* information by adding the
+// tooltip; we just augment it.
+// ---------------------------------------------------------------------------
+interface PathLabel {
+  primary: string;
+  secondary?: string;
+}
+
+function pathToHumanLabel(path: string, surahs: SurahInfo[] | null): PathLabel {
+  if (!path || path === '/') return { primary: 'Home' };
+
+  const surahName = (n: number): string => {
+    const s = surahs?.find((x) => x.number === n);
+    return s ? `${n}. ${s.name}` : `Surah ${n}`;
+  };
+
+  let m = path.match(/^\/verse\/(\d+):(\d+)\/?$/);
+  if (m) return {
+    primary: surahName(parseInt(m[1], 10)),
+    secondary: `Verse ${m[1]}:${m[2]}`,
+  };
+
+  m = path.match(/^\/word\/(\d+):(\d+)\/(\d+)\/?$/);
+  if (m) return {
+    primary: surahName(parseInt(m[1], 10)),
+    secondary: `Word #${m[3]}, ayah ${m[2]}`,
+  };
+
+  m = path.match(/^\/learning\/root\/(.+?)\/?$/);
+  if (m) return { primary: 'Root learning', secondary: decodeURIComponent(m[1]) };
+
+  m = path.match(/^\/root\/(.+?)\/?$/);
+  if (m) return { primary: 'Root', secondary: decodeURIComponent(m[1]) };
+
+  m = path.match(/^\/read\/(\d+)(?::(\d+)(?:-(\d+))?)?\/?$/);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    const range = m[2] ? (m[3] ? `verses ${m[2]}–${m[3]}` : `verse ${m[2]}`) : 'full surah';
+    return { primary: `Reader — ${surahName(n)}`, secondary: range };
+  }
+
+  if (/^\/learning\/mnemonic-sheet\/?$/.test(path)) return { primary: 'Mnemonic sheet' };
+  if (/^\/learning\/?$/.test(path)) return { primary: 'Learning hub' };
+  if (/^\/methodology\/?$/.test(path)) return { primary: 'Methodology' };
+  if (/^\/grammar-glossary\/?$/.test(path)) return { primary: 'Grammar glossary' };
+  if (/^\/quran-vocabulary\/?$/.test(path)) return { primary: 'Quran vocabulary' };
+  if (/^\/privacy(\/extension)?\/?$/.test(path)) return { primary: 'Privacy' };
+  if (/^\/terms\/?$/.test(path)) return { primary: 'Terms of use' };
+  if (/^\/developers\/?$/.test(path)) return { primary: 'Developers' };
+  if (/^\/settings\/?$/.test(path)) return { primary: 'Settings' };
+  if (/^\/502\/?$/.test(path)) return { primary: 'Error page (502)' };
+
+  return { primary: path };
+}
+
+interface TopPagesTooltipPayload {
+  payload: { path: string; page_views: number; unique_visitors: number };
+}
+
+function TopPagesTooltip({
+  active, payload, surahs,
+}: {
+  active?: boolean;
+  payload?: TopPagesTooltipPayload[];
+  surahs: SurahInfo[] | null;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const p = payload[0].payload;
+  const label = pathToHumanLabel(p.path, surahs);
+  return (
+    <div className="bg-white border border-stone-200 rounded-lg shadow-sm px-3 py-2 text-xs max-w-xs">
+      <div className="font-medium text-stone-900">{label.primary}</div>
+      {label.secondary && (
+        <div className="text-stone-600 mt-0.5">{label.secondary}</div>
+      )}
+      <div className="font-mono text-[10px] text-stone-400 mt-1 truncate">{p.path}</div>
+      <div className="mt-1 pt-1 border-t border-stone-100 text-stone-700 tabular-nums">
+        <strong>{p.page_views.toLocaleString()}</strong> view{p.page_views === 1 ? '' : 's'}
+        {' · '}
+        <span>{p.unique_visitors.toLocaleString()} unique</span>
+      </div>
+    </div>
+  );
 }
 
 function shortReferrer(url: string): string {

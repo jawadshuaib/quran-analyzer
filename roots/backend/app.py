@@ -6496,8 +6496,13 @@ def admin_stats_website():
         ).fetchall()
         daily_map = {r["d"]: (int(r["pv"]), int(r["uv"])) for r in daily_rows}
         daily = []
+        # Buckets are calendar days ending TODAY. Earlier off-by-one
+        # produced [now-7d .. now-1d] which silently dropped every
+        # event landing on the current calendar day — the dashboard's
+        # "page_views" total said 25 while the chart showed nothing.
+        today_date = now.date()
         for i in range(days):
-            d = (since + timedelta(days=i)).strftime("%Y-%m-%d")
+            d = (today_date - timedelta(days=days - 1 - i)).strftime("%Y-%m-%d")
             pvi, uvi = daily_map.get(d, (0, 0))
             daily.append({"date": d, "page_views": pvi, "unique_visitors": uvi})
 
