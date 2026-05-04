@@ -4,7 +4,7 @@ import {
   getYoutubeUploadSchedule, getPipelineSchedules,
   getAllEducationalSchedules,
   getPipelineScheduleRuns, getYoutubeUploadRuns,
-  getAllEducationalScheduleRuns, getEducationalPool,
+  getAllEducationalScheduleRuns,
   getWebsiteStats, getYoutubeStats,
 } from '../../api/admin';
 import type {
@@ -529,8 +529,7 @@ function DashboardStats() {
       getWebsiteStats('7d').catch(() => null),
       getYoutubeStats('7d').catch(() => null),
       getYoutubeUploadRuns(200).catch(() => [] as YoutubeUploadRun[]),
-      getEducationalPool().catch(() => null),
-    ]).then(([webStats, ytStats, ytRuns, pool]) => {
+    ]).then(([webStats, ytStats, ytRuns]) => {
       // YouTube uploads tile shows the last 24h — operationally that's
       // the window where a stuck or failing scheduler matters. The
       // analytics tiles next to it use 7d via the stats API.
@@ -574,10 +573,26 @@ function DashboardStats() {
       const uploaded = recentUploads.filter((r) => r.status === 'uploaded').length;
       const failed = recentUploads.filter((r) => r.status === 'error').length;
 
-      // Tile 4 — Educational candidate pool (kept).
-      const poolTotal = pool
-        ? (pool.word_origins ?? 0) + (pool.translation_hides ?? 0) + (pool.grammar_insights ?? 0)
-        : 0;
+      // Tile 4 — YouTube subscribers (replaces the old Educational
+      // Candidates tile). null channel block means we haven't taken
+      // the first snapshot yet (post-deploy / OAuth scope issue).
+      let subPrimary = '—';
+      let subSecondary = 'no snapshots yet';
+      let subState: StatTile['state'] = 'neutral';
+      if (ytStats && ytStats.channel) {
+        const ch = ytStats.channel;
+        subPrimary = ch.current_subscribers.toLocaleString();
+        if (ch.subscribers_gain > 0) {
+          subSecondary = `+${ch.subscribers_gain.toLocaleString()} this week`;
+          subState = 'ok';
+        } else if (ch.subscribers_gain < 0) {
+          subSecondary = `${ch.subscribers_gain.toLocaleString()} this week`;
+          subState = 'warn';
+        } else {
+          subSecondary = 'flat this week';
+          subState = 'neutral';
+        }
+      }
 
       setTiles([
         {
@@ -605,13 +620,11 @@ function DashboardStats() {
           state: failed > 0 ? 'warn' : (uploaded === 0 ? 'neutral' : 'ok'),
         },
         {
-          label: 'Educational candidates',
-          primary: pool ? `${poolTotal}` : '—',
-          secondary: pool
-            ? `${pool.word_origins ?? 0} word origins · ${pool.translation_hides ?? 0} hides`
-            : 'unavailable',
-          href: '/admin/pipelines/educational/candidates',
-          state: 'neutral',
+          label: 'YouTube subscribers',
+          primary: subPrimary,
+          secondary: subSecondary,
+          href: '/admin/stats#youtube',
+          state: subState,
         },
       ]);
     });

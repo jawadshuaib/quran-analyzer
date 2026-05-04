@@ -6273,6 +6273,22 @@ def _ensure_analytics_tables():
             "CREATE INDEX IF NOT EXISTS idx_yvs_video_date "
             "ON youtube_video_stats(youtube_video_id, snapshot_date DESC)"
         )
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS youtube_channel_stats (
+                channel_id TEXT NOT NULL,
+                title TEXT,
+                subscriber_count INTEGER NOT NULL DEFAULT 0,
+                view_count INTEGER NOT NULL DEFAULT 0,
+                video_count INTEGER NOT NULL DEFAULT 0,
+                snapshot_date TEXT NOT NULL,
+                fetched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (channel_id, snapshot_date)
+            )
+        """)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_ycs_date "
+            "ON youtube_channel_stats(snapshot_date DESC)"
+        )
         conn.commit()
     finally:
         conn.close()
@@ -6650,7 +6666,67 @@ def _refresh_youtube_stats() -> dict:
         finally:
             conn.close()
 
-    return {"ok": True, "videos_refreshed": refreshed, "fetched_at": datetime.now(timezone.utc).isoformat()}
+    # Channel-level snapshot — subscriber/view/video counts for the
+    # authenticated channel. Single API call, separate from the per-
+    # video loop. `mine=true` resolves the channel from the OAuth
+    # token, so we don't need to know the channel ID upfront. Failure
+    # here is non-fatal — we already have the per-video data; just
+    # log and move on.
+    channel_ok = False
+    try:
+        ch_resp = requests.get(
+            "https://www.googleapis.com/youtube/v3/channels",
+            params={"part": "statistics,snippet", "mine": "true"},
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=20,
+        )
+        if ch_resp.status_code == 200:
+            ch_items = ch_resp.json().get("items") or []
+            if ch_items:
+                ch = ch_items[0]
+                ch_id = ch.get("id")
+                ch_stats = ch.get("statistics") or {}
+                ch_snippet = ch.get("snippet") or {}
+
+                def _ci(k: str) -> int:
+                    v = ch_stats.get(k)
+                    try:
+                        return int(v) if v is not None else 0
+                    except (TypeError, ValueError):
+                        return 0
+
+                if ch_id:
+                    conn = get_db()
+                    try:
+                        conn.execute(
+                            "INSERT OR REPLACE INTO youtube_channel_stats "
+                            "(channel_id, title, subscriber_count, view_count, "
+                            " video_count, snapshot_date, fetched_at) "
+                            "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                            (
+                                ch_id,
+                                ch_snippet.get("title"),
+                                _ci("subscriberCount"),
+                                _ci("viewCount"),
+                                _ci("videoCount"),
+                                today,
+                            ),
+                        )
+                        conn.commit()
+                        channel_ok = True
+                    finally:
+                        conn.close()
+        else:
+            print(f"[youtube-stats] channels.list returned {ch_resp.status_code}: {ch_resp.text[:200]}")
+    except Exception as e:
+        print(f"[youtube-stats] channel snapshot failed: {e}")
+
+    return {
+        "ok": True,
+        "videos_refreshed": refreshed,
+        "channel_refreshed": channel_ok,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @app.route("/api/admin/stats/youtube/refresh", methods=["POST"])
@@ -6696,6 +6772,35 @@ def admin_stats_youtube():
             "SELECT MAX(fetched_at) FROM youtube_video_stats"
         ).fetchone()
         last_refresh = last_refresh_row[0] if last_refresh_row else None
+
+        # Channel: most-recent snapshot + the snapshot covering the
+        # start of the range (for gain) + a daily series for the
+        # subscribers chart on the frontend. There's only one channel
+        # in practice (the OAuth credentials point at one), but the
+        # schema admits multiple — we use the row with the highest
+        # snapshot_date and tie-break by channel_id.
+        channel_current = conn.execute(
+            "SELECT * FROM youtube_channel_stats "
+            "WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM youtube_channel_stats) "
+            "ORDER BY channel_id LIMIT 1"
+        ).fetchone()
+        channel_prior = None
+        channel_daily_rows: list = []
+        if channel_current:
+            channel_prior = conn.execute(
+                "SELECT * FROM youtube_channel_stats "
+                "WHERE channel_id = ? AND snapshot_date <= ? "
+                "ORDER BY snapshot_date DESC LIMIT 1",
+                (channel_current["channel_id"], cutoff),
+            ).fetchone()
+            channel_daily_rows = conn.execute(
+                "SELECT snapshot_date AS d, subscriber_count, view_count, video_count "
+                "FROM youtube_channel_stats "
+                "WHERE channel_id = ? AND snapshot_date >= ? "
+                "ORDER BY snapshot_date ASC",
+                (channel_current["channel_id"],
+                 (now - timedelta(days=days)).strftime("%Y-%m-%d")),
+            ).fetchall()
     finally:
         conn.close()
 
@@ -6738,6 +6843,28 @@ def admin_stats_youtube():
     # round-trip — it reorders the list client-side.
     videos.sort(key=lambda v: v["published_at"] or "", reverse=True)
 
+    # Shape the channel block for the response — None if no snapshot
+    # exists yet (post-deploy / OAuth not configured).
+    channel_block = None
+    if channel_current:
+        cur_subs = int(channel_current["subscriber_count"] or 0)
+        prior_subs = int(channel_prior["subscriber_count"] or 0) if channel_prior else cur_subs
+        channel_block = {
+            "channel_id": channel_current["channel_id"],
+            "title": channel_current["title"],
+            "current_subscribers": cur_subs,
+            "current_view_count": int(channel_current["view_count"] or 0),
+            "current_video_count": int(channel_current["video_count"] or 0),
+            "subscribers_gain": cur_subs - prior_subs,
+            "subscribers_daily": [
+                {
+                    "date": r["d"],
+                    "subscribers": int(r["subscriber_count"] or 0),
+                }
+                for r in channel_daily_rows
+            ],
+        }
+
     return jsonify({
         "range": f"{days}d",
         "totals": {
@@ -6748,6 +6875,7 @@ def admin_stats_youtube():
             "likes_gain_period": likes_gain,
         },
         "videos": videos,
+        "channel": channel_block,
         "last_refresh": last_refresh,
         "snapshot_count": snapshot_count,
     })

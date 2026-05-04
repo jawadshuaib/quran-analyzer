@@ -396,13 +396,22 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
 
   const noData = data.snapshot_count === 0;
 
+  const ch = data.channel;
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryTile
-          label="Total videos"
-          value={data.totals.videos}
-          help="snapshots present"
+          label="Subscribers"
+          value={ch?.current_subscribers ?? 0}
+          gain={ch?.subscribers_gain ?? 0}
+          help={
+            ch
+              ? (ch.subscribers_gain !== 0
+                  ? `${ch.subscribers_gain > 0 ? '+' : ''}${ch.subscribers_gain.toLocaleString()} in ${range}`
+                  : `flat in ${range}`)
+              : 'no snapshots yet'
+          }
         />
         <SummaryTile
           label="Total views"
@@ -417,11 +426,35 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
           help={`+${data.totals.likes_gain_period.toLocaleString()} in ${range}`}
         />
         <SummaryTile
-          label="Last refresh"
-          stringValue={data.last_refresh ? relativeTime(data.last_refresh) : '—'}
-          help={data.last_refresh ?? 'never'}
+          label="Total videos"
+          value={data.totals.videos}
+          help={
+            data.last_refresh
+              ? `last refreshed ${relativeTime(data.last_refresh)}`
+              : 'snapshots present'
+          }
         />
       </div>
+
+      {/* Subscribers-over-time line. Two snapshots are needed for the
+          line to be more than a dot; we show it the moment we have any
+          data (the daemon takes a snapshot daily). */}
+      {ch && ch.subscribers_daily.length >= 2 && (
+        <ChartCard
+          title="Subscribers over time"
+          subtitle={ch.title ? `Channel: ${ch.title}` : undefined}
+        >
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={ch.subscribers_daily} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={shortDate} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} domain={['auto', 'auto']} />
+              <Tooltip />
+              <Line type="monotone" dataKey="subscribers" stroke="#dc2626" strokeWidth={2} dot={{ r: 3 }} name="Subscribers" />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
 
       {/* Trend chart — videos ordered chronologically (oldest left,
           newest right). Visual shape answers "are recent videos

@@ -2080,6 +2080,21 @@ export interface YoutubeStatsVideo {
   source_id: number;
 }
 
+export interface YoutubeChannelDailyPoint {
+  date: string;
+  subscribers: number;
+}
+
+export interface YoutubeChannelStats {
+  channel_id: string;
+  title: string | null;
+  current_subscribers: number;
+  current_view_count: number;
+  current_video_count: number;
+  subscribers_gain: number;
+  subscribers_daily: YoutubeChannelDailyPoint[];
+}
+
 export interface YoutubeStats {
   range: string;
   totals: {
@@ -2090,6 +2105,8 @@ export interface YoutubeStats {
     likes_gain_period: number;
   };
   videos: YoutubeStatsVideo[];
+  // null until the first refresh succeeds with channels.list permission
+  channel: YoutubeChannelStats | null;
   last_refresh: string | null;
   snapshot_count: number;
 }
