@@ -5,8 +5,10 @@ import {
 } from 'recharts';
 import {
   getWebsiteStats, getYoutubeStats, refreshYoutubeStats,
-  type WebsiteStats, type YoutubeStats, type StatsRange,
+  type WebsiteStats, type YoutubeStats, type YoutubeStatsVideo, type StatsRange,
 } from '../../api/admin';
+
+type YoutubeSortKey = 'recent' | 'views' | 'growth';
 
 // ---------------------------------------------------------------------------
 // StatsPage — admin /admin/stats
@@ -232,6 +234,7 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
   const [error, setError] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState('');
+  const [sortKey, setSortKey] = useState<YoutubeSortKey>('recent');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -295,13 +298,31 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
         />
       </div>
 
+      {/* Trend chart — videos ordered chronologically (oldest left,
+          newest right). Visual shape answers "are recent videos
+          getting more views than older ones?" without reading rows. */}
+      {!noData && (
+        <ChartCard
+          title="Views per video over time"
+          subtitle="Each bar is one video, ordered by upload date (oldest → newest). Hover for details."
+        >
+          <YoutubeViewsTrendChart videos={data.videos} />
+        </ChartCard>
+      )}
+
       <div className="bg-white rounded-xl border border-stone-200">
-        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-stone-100">
+        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-stone-100 flex-wrap">
           <div>
             <div className="font-medium text-stone-900">Per-video performance</div>
-            <div className="text-xs text-stone-500">Sorted by views gained in the last {range}</div>
+            <div className="text-xs text-stone-500">{sortDescription(sortKey, range)}</div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-stone-500 mr-1">Sort:</span>
+              <SortChip active={sortKey === 'recent'} onClick={() => setSortKey('recent')}>Most recent</SortChip>
+              <SortChip active={sortKey === 'views'} onClick={() => setSortKey('views')}>Most views</SortChip>
+              <SortChip active={sortKey === 'growth'} onClick={() => setSortKey('growth')}>Most growth</SortChip>
+            </div>
             {refreshMsg && (
               <div className="text-xs text-stone-500">{refreshMsg}</div>
             )}
@@ -337,7 +358,7 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {data.videos.map((v) => (
+                {sortVideos(data.videos, sortKey).map((v) => (
                   <tr key={v.youtube_video_id} className="hover:bg-stone-50">
                     <td className="px-5 py-2">
                       <a
@@ -369,6 +390,118 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
             </table>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SortChip({
+  active, onClick, children,
+}: {
+  active: boolean; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={
+        'px-2 py-1 rounded-md font-medium transition-colors ' +
+        (active
+          ? 'bg-stone-900 text-white'
+          : 'bg-white text-stone-600 hover:bg-stone-100 border border-stone-200')
+      }
+    >
+      {children}
+    </button>
+  );
+}
+
+function sortVideos(videos: YoutubeStatsVideo[], key: YoutubeSortKey): YoutubeStatsVideo[] {
+  const out = videos.slice();
+  if (key === 'recent') {
+    out.sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''));
+  } else if (key === 'views') {
+    out.sort((a, b) => b.current_views - a.current_views);
+  } else if (key === 'growth') {
+    out.sort((a, b) => b.views_gain - a.views_gain);
+  }
+  return out;
+}
+
+function sortDescription(key: YoutubeSortKey, range: StatsRange): string {
+  if (key === 'recent') return 'Sorted by upload date — newest first';
+  if (key === 'views') return 'Sorted by lifetime view count';
+  return `Sorted by views gained in the last ${range}`;
+}
+
+// ---------------------------------------------------------------------------
+// Views-per-video bar chart, ordered by upload date (oldest → newest).
+//
+// With a fully populated channel this can be 30+ bars. We hide the X-axis
+// labels because video titles or even short dates would overlap badly;
+// the visual shape is what matters (rising / falling trend), and the
+// tooltip exposes the per-bar identity. Older videos accumulate views
+// faster simply by being out longer, so a *flat* trend over time is
+// actually a sign the newer content is *outperforming* the channel
+// average. Worth knowing at a glance.
+// ---------------------------------------------------------------------------
+function YoutubeViewsTrendChart({ videos }: { videos: YoutubeStatsVideo[] }) {
+  const chronological = videos
+    .slice()
+    .filter((v) => v.published_at)
+    .sort((a, b) => (a.published_at ?? '').localeCompare(b.published_at ?? ''));
+
+  // recharts wants a stable shape: x = a label key, y = the value. We
+  // also pass title + date through so the tooltip can render them.
+  const chartData = chronological.map((v, i) => ({
+    idx: i + 1,
+    views: v.current_views,
+    title: v.title ?? v.youtube_video_id,
+    date: v.published_at
+      ? new Date(v.published_at).toLocaleDateString()
+      : '—',
+  }));
+
+  if (chartData.length === 0) {
+    return <EmptyHint>No videos with a known publish date.</EmptyHint>;
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <BarChart data={chartData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+        <XAxis dataKey="idx" tick={false} label={{ value: 'oldest →  newest', position: 'insideBottom', offset: -2, style: { fontSize: 11, fill: '#78716c' } }} />
+        <YAxis tick={{ fontSize: 11 }} allowDecimals={false} tickFormatter={compactNumber} />
+        <Tooltip content={<YoutubeBarTooltip />} />
+        <Bar dataKey="views" fill="#0ea5e9" />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+function compactNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
+interface BarTooltipPayload {
+  payload: { idx: number; views: number; title: string; date: string };
+}
+
+function YoutubeBarTooltip({
+  active, payload,
+}: {
+  active?: boolean;
+  payload?: BarTooltipPayload[];
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const p = payload[0].payload;
+  return (
+    <div className="bg-white border border-stone-200 rounded-lg shadow-sm px-3 py-2 text-xs">
+      <div className="font-medium text-stone-900 mb-1 max-w-xs truncate">{p.title}</div>
+      <div className="text-stone-500">Uploaded: {p.date}</div>
+      <div className="text-stone-700 mt-0.5">
+        <strong className="tabular-nums">{p.views.toLocaleString()}</strong> views
       </div>
     </div>
   );

@@ -6727,7 +6727,11 @@ def admin_stats_youtube():
         views_gain += gain_v
         likes_gain += gain_l
 
-    videos.sort(key=lambda v: v["views_gain"], reverse=True)
+    # Default sort: most recently uploaded first. Videos with no
+    # published_at (older edge cases) sort to the bottom. The frontend
+    # offers alternative sorts (most views, most growth) without a
+    # round-trip — it reorders the list client-side.
+    videos.sort(key=lambda v: v["published_at"] or "", reverse=True)
 
     return jsonify({
         "range": f"{days}d",
