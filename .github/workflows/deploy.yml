@@ -65,12 +65,40 @@ jobs:
           script: |
             set -e
             cd /opt/quran-root-analyzer
-            # Free disk BEFORE pulling so a near-full server doesn't fail
-            # the pull silently. Keep recent stuff in case we need to
-            # roll back; sweep older. `|| true` so a stale prune lock
-            # doesn't itself take down the deploy.
+            # The new image is ~4.7 GB extracted; the server has a 38 GB
+            # disk shared with the `iv-*` project's images and our
+            # /var/lib/docker/volumes (8+ GB of runtime data, growing).
+            # We need ≥6 GB free BEFORE pulling — anything less risks the
+            # overlayfs extract crashing mid-layer (which leaves orphan
+            # snapshots that take more cleanup to recover from).
+            #
+            # Strategy:
+            #   1. Always-on cleanup: builder cache (no `until` filter —
+            #      cache from a previous build is not useful for the
+            #      pull-only workflow). Frees ~4 GB on a typical run.
+            #   2. Old image prune (24h+) — keeps the previous tagged
+            #      image around for one cycle in case we need to roll
+            #      back via SSH.
+            #   3. Disk-pressure check: if free space is still < 6 GB,
+            #      drop the rollback safety net and prune unused images
+            #      aggressively. Logs a warning so we notice the trend.
+            #
+            # `|| true` on the prune calls so a stale prune lock doesn't
+            # itself take down the deploy.
+            docker builder prune -af || true
             docker image prune -af --filter "until=24h" || true
-            docker builder prune -af --filter "until=168h" || true
+
+            FREE_KB=$(df -k / | awk 'NR==2 {print $4}')
+            FREE_GB=$((FREE_KB / 1024 / 1024))
+            echo "[deploy] free disk after first prune pass: ${FREE_GB} GB"
+            if [ "$FREE_GB" -lt 6 ]; then
+              echo "[deploy] ⚠ free space < 6 GB — pruning unused images aggressively"
+              docker image prune -af || true
+              FREE_KB=$(df -k / | awk 'NR==2 {print $4}')
+              FREE_GB=$((FREE_KB / 1024 / 1024))
+              echo "[deploy] free disk after aggressive prune: ${FREE_GB} GB"
+            fi
+
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --force-recreate
             # Mop up the now-dangling previous image after the swap.
