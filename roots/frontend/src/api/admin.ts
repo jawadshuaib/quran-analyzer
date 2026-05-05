@@ -1456,6 +1456,14 @@ export interface EducationalCandidate {
   title?: string;
   confidence?: number;
   has_counterfactual?: boolean;
+  // 'A' (counterfactual + video-shaped category, × 2.0)
+  // 'B' (counterfactual, other categories, × 1.5)
+  // 'C' (no counterfactual, baseline)
+  tier?: 'A' | 'B' | 'C';
+  // Surfaced for the candidate preview drawer.
+  claim_observation?: string;
+  counterfactual_text?: string;
+  payoff_text?: string;
   // Common
   score: number;
   text_uthmani?: string;

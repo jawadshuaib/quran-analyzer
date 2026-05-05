@@ -126,12 +126,19 @@ function CandidatesPanel({ type }: { type: EducationalType }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [bumpKey, setBumpKey] = useState(0);
+  // Grammar Insights only — filter the visible candidates by V7
+  // category. 'all' shows everything. Calculated client-side from
+  // the loaded list so changing the filter doesn't refetch.
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setErr('');
-    getEducationalCandidates(type, 12)
+    // Pull a deeper pool for grammar so the category filter has
+    // material to work with — different categories may be sparse.
+    const fetchLimit = type === 'grammar_insights' ? 40 : 12;
+    getEducationalCandidates(type, fetchLimit)
       .then((rows) => { if (!cancelled) setCandidates(rows); })
       .catch((e) => { if (!cancelled) setErr(e instanceof Error ? e.message : String(e)); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -148,18 +155,54 @@ function CandidatesPanel({ type }: { type: EducationalType }) {
     }
   }
 
+  // Distinct categories present in the current candidate list
+  // (grammar only). Sorted by frequency desc so the most common
+  // categories appear first in the filter dropdown.
+  const categoryCounts = (() => {
+    if (type !== 'grammar_insights') return [];
+    const map = new Map<string, number>();
+    for (const c of candidates) {
+      const k = c.category || '(uncategorized)';
+      map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  })();
+
+  const visibleCandidates = (
+    type === 'grammar_insights' && categoryFilter !== 'all'
+      ? candidates.filter((c) => (c.category || '(uncategorized)') === categoryFilter)
+      : candidates
+  ).slice(0, 12);
+
   return (
     <section className="mb-10">
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between mb-3 gap-3 flex-wrap">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-stone-400">
           Top candidates
         </h2>
-        <button
-          onClick={() => setBumpKey((k) => k + 1)}
-          className="text-xs text-stone-500 hover:text-stone-800 cursor-pointer"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {type === 'grammar_insights' && categoryCounts.length > 1 && (
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="text-xs border border-stone-200 rounded-md px-2 py-1 bg-white text-stone-700"
+              aria-label="Filter by V7 category"
+            >
+              <option value="all">All categories ({candidates.length})</option>
+              {categoryCounts.map(([cat, count]) => (
+                <option key={cat} value={cat}>
+                  {cat.replace(/_/g, ' ')} ({count})
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            onClick={() => setBumpKey((k) => k + 1)}
+            className="text-xs text-stone-500 hover:text-stone-800 cursor-pointer"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {err && (
@@ -170,11 +213,11 @@ function CandidatesPanel({ type }: { type: EducationalType }) {
 
       {loading ? (
         <div className="text-sm text-stone-400">Loading…</div>
-      ) : candidates.length === 0 ? (
+      ) : visibleCandidates.length === 0 ? (
         <div className="text-sm text-stone-400">No candidates available — pool exhausted.</div>
       ) : (
         <div className="space-y-2">
-          {candidates.map((c, i) => (
+          {visibleCandidates.map((c, i) => (
             <CandidateRow key={i} type={type} candidate={c} onQueue={() => handleQueue(c)} />
           ))}
         </div>
@@ -222,20 +265,72 @@ function CandidateRow({
           </p>
         )}
         {type === 'grammar_insights' && (
-          <div className="text-sm text-stone-700 mb-1">
-            <span className="font-medium">{c.title}</span>
-            <span className="ml-2 text-xs text-stone-500">
-              {c.category}
+          <>
+            <div className="text-sm text-stone-700 mb-1 flex items-center flex-wrap gap-1.5">
+              {/* Tier badge — A is the strongest video material; C is
+                  eligible but ranks below. Color reflects the rubric:
+                  emerald=A, amber=B, stone=C. */}
+              {c.tier && (
+                <span
+                  className={
+                    'inline-block px-1.5 py-0.5 rounded-sm text-[10px] font-bold tracking-wider ' +
+                    (c.tier === 'A' ? 'bg-emerald-100 text-emerald-800'
+                     : c.tier === 'B' ? 'bg-amber-100 text-amber-800'
+                     : 'bg-stone-100 text-stone-600')
+                  }
+                  title={
+                    c.tier === 'A' ? 'Counterfactual + video-shaped category — strongest material'
+                    : c.tier === 'B' ? 'Counterfactual present — strong'
+                    : 'Eligible but no counterfactual — ranks below'
+                  }
+                >
+                  Tier {c.tier}
+                </span>
+              )}
+              <span className="font-medium">{c.title}</span>
+            </div>
+            <div className="text-xs text-stone-500 flex items-center flex-wrap gap-1.5 mb-1">
+              <span>{(c.category || '').replace(/_/g, ' ')}</span>
               {c.has_counterfactual && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 text-[10px]">
+                <span className="px-1.5 py-0.5 rounded-sm bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">
                   counterfactual
                 </span>
               )}
-              <span className="ml-2 font-mono">
-                {((c.confidence ?? 0) * 100).toFixed(0)}%
+              <span className="font-mono">
+                {((c.confidence ?? 0) * 100).toFixed(0)}% conf
               </span>
-            </span>
-          </div>
+            </div>
+            {/* Preview drawer — collapsed details:summary so the row
+                stays scannable but the operator can read claim +
+                counterfactual + payoff before queueing. */}
+            {(c.claim_observation || c.counterfactual_text || c.payoff_text) && (
+              <details className="mt-1 mb-1">
+                <summary className="cursor-pointer text-xs text-stone-500 hover:text-stone-800 select-none">
+                  Preview details
+                </summary>
+                <div className="mt-2 ml-1 pl-3 border-l-2 border-stone-200 space-y-2 text-xs">
+                  {c.claim_observation && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Claim</div>
+                      <div className="text-stone-700 leading-relaxed">{c.claim_observation}</div>
+                    </div>
+                  )}
+                  {c.counterfactual_text && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Counterfactual</div>
+                      <div className="text-stone-700 leading-relaxed">{c.counterfactual_text}</div>
+                    </div>
+                  )}
+                  {c.payoff_text && (
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wider text-stone-400 mb-0.5">Meaning payoff</div>
+                      <div className="text-stone-700 leading-relaxed">{c.payoff_text}</div>
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+          </>
         )}
 
         {/* Verse text — same for all types */}

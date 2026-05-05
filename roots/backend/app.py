@@ -8724,6 +8724,39 @@ def admin_educational_candidates():
             ).fetchone()
             if t:
                 c["translation"] = t["text_en"]
+        # Grammar Insights — also hydrate the preview fields the
+        # candidate-row drawer renders (claim observation, the full
+        # counterfactual text, the meaning payoff). The candidate dict
+        # already carries category/title/confidence/tier/has_cf; we
+        # additionally surface the prose so the operator can read the
+        # actual content before queuing.
+        if vtype == "grammar_insights":
+            for c in candidates:
+                row = conn.execute(
+                    "SELECT insights_v7_json FROM verse_grammar_insights "
+                    "WHERE chapter = ? AND verse = ? "
+                    "  AND insights_v7_json IS NOT NULL AND insights_v7_json != '' "
+                    "ORDER BY id DESC LIMIT 1",
+                    (c["chapter"], c["verse"]),
+                ).fetchone()
+                if not row:
+                    continue
+                try:
+                    insights = json.loads(row["insights_v7_json"]) or []
+                except Exception:
+                    continue
+                target = next(
+                    (ins for ins in insights if ins.get("id") == c.get("insight_id")),
+                    None,
+                )
+                if not target:
+                    continue
+                claim = target.get("claim") or {}
+                cf = target.get("counterfactual") or {}
+                payoff = target.get("meaning_payoff") or {}
+                c["claim_observation"] = claim.get("observation") or ""
+                c["counterfactual_text"] = cf.get("text") if cf.get("present") else ""
+                c["payoff_text"] = payoff.get("text") or ""
         return jsonify({"type": vtype, "candidates": candidates})
     finally:
         conn.close()
