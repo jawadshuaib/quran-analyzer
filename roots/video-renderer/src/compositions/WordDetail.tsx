@@ -5,6 +5,8 @@ import { RootPage } from '../slides/RootPage';
 import { VerseFlowPage } from '../slides/VerseFlowPage';
 import { WordToWordPage } from '../slides/WordToWordPage';
 import { OutroPage } from '../slides/OutroPage';
+import { GrammarVersePage } from '../slides/GrammarVersePage';
+import { GrammarContrastPage } from '../slides/GrammarContrastPage';
 import { KaraokeOverlay } from '../slides/KaraokeOverlay';
 
 // Top-level composition for word-detail videos.
@@ -76,6 +78,10 @@ function SlideRenderer({ slide }: { slide: SlideT }) {
       return <VerseFlowPage slide={slide} />;
     case 'word-to-word':
       return <WordToWordPage slide={slide} />;
+    case 'grammar-verse':
+      return <GrammarVersePage slide={slide} />;
+    case 'grammar-contrast':
+      return <GrammarContrastPage slide={slide} />;
     case 'outro':
       return <OutroPage slide={slide} />;
     default: {

@@ -105,10 +105,82 @@ export const OutroSlide = z.object({
   narration: Narration.optional(),
 });
 
+// ---------------------------------------------------------------------------
+// Grammar Insights series slides
+//
+// These are bespoke for the grammatical-insights pipeline. They mirror
+// the visual language of the existing Word Origins slides (same fonts,
+// same card geometry) but use the amber accent palette so the Grammar
+// Insights series is visually distinct on the channel.
+// ---------------------------------------------------------------------------
+
+// One highlight on the verse — a word index (1-based) plus optional
+// metadata so the renderer can color-code by what kind of grammatical
+// move is being shown. Multiple highlights coexist on the same verse,
+// each in its own pastel color, so a viewer can see at a glance how
+// many moves are at play.
+export const GrammarHighlight = z.object({
+  // 1-indexed within the Arabic words split on whitespace.
+  wordIndex: z.number().int().positive(),
+  // Optional: the corresponding English token to highlight in parallel.
+  // Renderer searches the translation case-insensitively.
+  translationSubstring: z.string().optional(),
+  // Semantic color hint. Renderer maps to a pastel pill background.
+  // 'tense'    → amber  (e.g. perfective for future)
+  // 'pronoun'  → blue   (e.g. iltifat: He → We)
+  // 'fronted'  → rose   (taqdim: object brought to the front)
+  // 'agent'    → green  (passive voice / agent omission)
+  // 'default'  → amber  (when no semantic hint is provided)
+  marker: z.enum(['tense', 'pronoun', 'fronted', 'agent', 'default']).default('default'),
+});
+
+// The workhorse slide for the Grammar Insights series. Shows the verse
+// with one or more highlights and an optional small annotation pinned
+// below the card explaining what the highlight is doing — e.g.
+// "the past-tense form" or "the speaker is no longer 'He' but 'We'".
+export const GrammarVerseSlide = z.object({
+  type: z.literal('grammar-verse'),
+  durationSec: z.number().positive().default(7),
+  surah: z.number().int().positive(),
+  ayah: z.number().int().positive(),
+  arabicText: z.string(),
+  translation: z.string(),
+  highlights: z.array(GrammarHighlight).default([]),
+  // Small annotation pinned below the verse card. Plain English; not
+  // technical. Kept short (~6-10 words). Optional — when omitted the
+  // slide is a plain verse render with highlights only.
+  annotation: z.string().optional(),
+  narration: Narration.optional(),
+});
+
+// Counterfactual contrast slide: "It could have said X. It said Y."
+// Renders two stacked rows — the alternative on top in muted stone,
+// the chosen form below in saturated teal. Each row has its Arabic
+// form and a plain-English gloss right beside it.
+export const GrammarContrastSlide = z.object({
+  type: z.literal('grammar-contrast'),
+  durationSec: z.number().positive().default(8),
+  // Top (muted) row — the natural alternative the verse did NOT use.
+  alternativeArabic: z.string(),
+  alternativeGloss: z.string(),
+  alternativeLabel: z.string().default('Could have said'),
+  // Bottom (accented) row — what the verse actually says.
+  saidArabic: z.string(),
+  saidGloss: z.string(),
+  saidLabel: z.string().default('It said'),
+  // Optional one-line tagline below both rows that names the move
+  // in plain English (e.g. "the past tense, treating the future as
+  // already done"). Kept short — narration handles depth.
+  tagline: z.string().optional(),
+  narration: Narration.optional(),
+});
+
 export const Slide = z.discriminatedUnion('type', [
   RootSlide,
   VerseFlowSlide,
   WordToWordSlide,
+  GrammarVerseSlide,
+  GrammarContrastSlide,
   OutroSlide,
 ]);
 
@@ -128,6 +200,9 @@ export type RootSlideT = z.infer<typeof RootSlide>;
 export type VerseFlowSlideT = z.infer<typeof VerseFlowSlide>;
 export type WordToWordSlideT = z.infer<typeof WordToWordSlide>;
 export type OutroSlideT = z.infer<typeof OutroSlide>;
+export type GrammarVerseSlideT = z.infer<typeof GrammarVerseSlide>;
+export type GrammarContrastSlideT = z.infer<typeof GrammarContrastSlide>;
+export type GrammarHighlightT = z.infer<typeof GrammarHighlight>;
 export type SlideT = z.infer<typeof Slide>;
 export type PayloadT = z.infer<typeof Payload>;
 export type NarrationT = z.infer<typeof Narration>;

@@ -1,0 +1,47 @@
+{
+  "videoId": "sample-grammar-16-1",
+  "title": "Verse 16:1 — perfective tense for a future event",
+  "slides": [
+    {
+      "type": "grammar-verse",
+      "durationSec": 6,
+      "surah": 16,
+      "ayah": 1,
+      "arabicText": "أَتَىٰ أَمْرُ ٱللَّهِ فَلَا تَسْتَعْجِلُوهُ",
+      "translation": "The decree of Allah has come — so do not seek to hasten it.",
+      "highlights": [
+        { "wordIndex": 1, "translationSubstring": "has come", "marker": "tense" }
+      ],
+      "annotation": "the past-tense form, used for an event still ahead in time"
+    },
+    {
+      "type": "grammar-contrast",
+      "durationSec": 8,
+      "alternativeArabic": "يَأْتِي أَمْرُ ٱللَّهِ",
+      "alternativeGloss": "The decree of Allah is coming",
+      "alternativeLabel": "Could have said",
+      "saidArabic": "أَتَىٰ أَمْرُ ٱللَّهِ",
+      "saidGloss": "The decree of Allah has come",
+      "saidLabel": "It said",
+      "tagline": "the past tense, treating the future as already done"
+    },
+    {
+      "type": "grammar-verse",
+      "durationSec": 7,
+      "surah": 16,
+      "ayah": 1,
+      "arabicText": "أَتَىٰ أَمْرُ ٱللَّهِ فَلَا تَسْتَعْجِلُوهُ",
+      "translation": "The decree of Allah has come — so do not seek to hasten it.",
+      "highlights": [
+        { "wordIndex": 1, "translationSubstring": "has come", "marker": "tense" }
+      ],
+      "annotation": "certainty doesn't wait for our clocks"
+    },
+    {
+      "type": "outro",
+      "durationSec": 5,
+      "siteName": "al-nuqta.com",
+      "tagline": "A Root Based Translation of the Quran"
+    }
+  ]
+}

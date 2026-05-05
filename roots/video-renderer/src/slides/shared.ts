@@ -27,6 +27,25 @@ export const COLORS = {
   outroBg: '#2D2620',
   outroText: '#FFFFFF',
   outroTagline: 'rgba(255, 255, 255, 0.5)',
+  // Grammar Insights series — amber accent.
+  // Distinguishes the series from Word Origins (yellow) at a glance
+  // on the channel page, and gives each highlight category a
+  // semantic color when a verse has multiple highlights.
+  grammarAccent: '#D97706',          // amber-600 — primary accent (lines, labels)
+  grammarAccentSoft: '#FDE68A',      // amber-200 — highlight pill background
+  grammarAccentDeep: '#92400E',      // amber-800 — body emphasis text
+  // Per-feature highlight colors when a single verse has multiple
+  // grammar markers (e.g. tense + pronoun + fronted phrase).
+  // Stayed pastel-light so the verse text on top remains legible.
+  grammarMarkerTense: '#FDE68A',     // amber  — tense markers
+  grammarMarkerPronoun: '#BFDBFE',   // blue   — pronoun shifts (iltifat)
+  grammarMarkerFronted: '#FCA5A5',   // rose   — fronted/taqdim phrases
+  grammarMarkerAgent: '#A7F3D0',     // green  — passive/agent markers
+  // Counterfactual contrast slide — said vs alternative.
+  contrastSaid: '#0F766E',           // teal-700 — what the Quran said (positive accent)
+  contrastSaidBg: '#CCFBF1',         // teal-100 — pill background
+  contrastAlt: '#78716C',            // stone-500 — alternative (muted)
+  contrastAltBg: '#F5F5F4',          // stone-100 — pill background
 } as const;
 
 // Vertical 1080x1920 to match the existing educational pipeline
