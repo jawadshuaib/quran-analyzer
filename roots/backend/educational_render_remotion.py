@@ -469,6 +469,341 @@ def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# Grammar Insights — payload builder + render entry point
+# ---------------------------------------------------------------------------
+def _grammar_highlight_word_index(insight: dict) -> int | None:
+    """Pull the 1-based word index from V7 evidence_trace[0].token_ref.
+
+    token_ref is "C:V:P" (chapter:verse:position, 1-based). The first
+    primary-support evidence token is the one closest to the
+    grammatical move. Falls back to first available token if there's
+    no primary_support, then to None."""
+    evidence = insight.get("evidence_trace") or []
+    if not evidence:
+        return None
+    primary = [e for e in evidence if e.get("role") == "primary_support"]
+    pool = primary or evidence
+    for ev in pool:
+        ref = (ev.get("token_ref") or "").strip()
+        # Allow either "16:1:1" (3-part) or "16:1" (2-part — verse-level
+        # evidence with no specific token, in which case we can't
+        # highlight a specific word).
+        parts = ref.split(":")
+        if len(parts) == 3:
+            try:
+                return int(parts[2])
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+# Maps V7 categories to the GrammarVerseSlide marker enum so multi-
+# highlight verses get color-coded by what kind of grammatical move
+# is being shown.
+_CATEGORY_TO_MARKER = {
+    "time_perspective": "tense",
+    "perspective_shift": "pronoun",
+    "person_mixture": "pronoun",
+    "royal_we_vs_i": "pronoun",
+    "cognate_accusative": "default",     # root-based emphasis — no canonical color
+    "oath_structure": "fronted",
+    "exception_scope": "fronted",
+    "conditional_structure": "fronted",
+    "gender_nuance": "default",
+    "sound_communication": "default",
+    "demonstrative_distance": "default",
+    "plural_type": "default",
+    "educational": "default",
+    "other_grammar": "default",
+}
+
+
+def _truncate_words(s: str, n: int) -> str:
+    """Best-effort word-bounded truncation so annotations stay short."""
+    if not s:
+        return ""
+    words = s.strip().split()
+    if len(words) <= n:
+        return s.strip()
+    return " ".join(words[:n]).rstrip(",.;:") + "…"
+
+
+def _extract_arabic_word_from_evidence(insight: dict) -> str | None:
+    """Pull the Arabic surface form of the first primary-support
+    evidence token. Used as the saidArabic on the contrast slide."""
+    for ev in insight.get("evidence_trace") or []:
+        if ev.get("role") == "primary_support":
+            sa = (ev.get("surface_ar") or "").strip()
+            if sa:
+                return sa
+    for ev in insight.get("evidence_trace") or []:
+        sa = (ev.get("surface_ar") or "").strip()
+        if sa:
+            return sa
+    return None
+
+
+def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
+    """Convert a grammar_insights educational_videos row + its script
+    into a Remotion payload.
+
+    Slide layout:
+      1. grammar-verse — verse with highlight, narration = hook
+      2. grammar-verse — same verse, annotation = paraphrase of the
+         contrast (verse_intro), narration = verse_intro
+      3. grammar-verse — same verse, annotation = the meaning payoff,
+         narration = insight
+      4. outro — narration = close (merged onto slide 3 actually, since
+         the outro splash should be silent)
+
+    We deliberately use the SAME verse three times. Repetition + a
+    rotating annotation reinforces the point: "look at this verse
+    THIS way, now THIS way, now THIS way." Each beat refocuses the
+    eye on the same Arabic with a different lens. Phase 4 may
+    introduce the contrast slide between slides 1 and 2 once the V7
+    counterfactual extraction is reliable.
+    """
+    # Re-enrich at render time. The candidate metadata stored in
+    # payload_json doesn't include the full V7 insight body — that's
+    # fetched fresh by educational_scripts.enrich_payload, same as
+    # script-generation does. Re-fetching here means the rendered
+    # video reflects the latest V7 generator output even if the
+    # underlying tables changed since the script was written.
+    import educational_scripts as _scripts
+    enriched = _scripts.enrich_payload(conn, dict(rd))
+    insight = enriched.get("insight") or {}
+    chapter = int(rd["chapter"])
+    verse = int(rd["verse"])
+
+    vd = _verse_data(conn, chapter, verse)
+    if not vd:
+        raise RemotionRenderError(f"verse data missing for {chapter}:{verse}")
+
+    # Strip the bismillah from verse 1 of every surah (except 1:1, where
+    # it IS the verse). The Uthmani text includes the basmala prefix on
+    # all "verse 1"s, but the V7 token_ref word indices count *against*
+    # the bismillah-stripped verse — without this strip, evidence_trace
+    # token "16:1:1" would highlight "بِسْمِ" instead of the actual
+    # first word of the verse content.
+    import app as _app  # for _strip_bismillah; lazy import to avoid cycles
+    arabic_full = _strip_uthmani_marks(_app._strip_bismillah(vd["arabic"], chapter, verse))
+    arabic = arabic_full
+    translation = vd["translation"] or ""
+
+    # Word index for the highlight pill. Comes from V7 evidence trace.
+    word_idx = _grammar_highlight_word_index(insight)
+    marker = _CATEGORY_TO_MARKER.get(insight.get("category", ""), "default")
+
+    # Translation substring to highlight in parallel — best-effort:
+    # use the per-word gloss if we have one, else skip.
+    en_substring: str | None = None
+    if word_idx:
+        en_substring = _word_gloss(conn, chapter, verse, word_idx)
+
+    # Build the highlight list. If we don't have a token-level
+    # evidence reference, fall back to no highlight — the verse still
+    # renders with the amber accent strip and annotation, which is
+    # enough.
+    highlights: list[dict] = []
+    if word_idx:
+        h: dict = {"wordIndex": word_idx, "marker": marker}
+        if en_substring:
+            h["translationSubstring"] = en_substring
+        highlights.append(h)
+
+    # Annotations per slide (short, plain English).
+    # - Slide 1: no annotation (the hook IS the question; visual is
+    #   just the verse with the highlight landing).
+    # - Slide 2: paraphrase of the contrast — if V7 has a clean
+    #   counterfactual, condense it; otherwise drop a short tag from
+    #   the script's verse_intro.
+    # - Slide 3: the meaning payoff, condensed.
+    cf = (insight.get("counterfactual") or {})
+    cf_text = (cf.get("text") or "").strip() if cf.get("present") else ""
+    payoff_text = ((insight.get("meaning_payoff") or {}).get("text") or "").strip()
+
+    # Annotations are the SHORT on-screen labels under the verse —
+    # they should be punchy 5–10 word phrases, not paraphrases of
+    # the full narration beat. We derive them from the V7 structured
+    # fields (clean, short, generator-controlled) rather than
+    # truncating the LLM script (which is prose and doesn't
+    # truncate cleanly).
+    #
+    # If V7 doesn't give us usable text — truncated CF or empty
+    # payoff — we fall through to None and the slide just renders
+    # the verse with the highlight, which is still informative.
+    slide2_ann: str | None = None
+    if cf_text and not cf_text.rstrip().endswith(("(e.", "(i.")):
+        # Try to find the "rather than X" clause — usually the cleanest
+        # contrast hint. Falls back to first sentence.
+        import re as _re
+        m = _re.search(r"\brather than\s+([^.]+)", cf_text, _re.IGNORECASE)
+        if m:
+            slide2_ann = _truncate_words(m.group(1).strip(), 10)
+        else:
+            slide2_ann = _truncate_words(cf_text.split(".")[0], 12)
+
+    slide3_ann: str | None = None
+    if payoff_text:
+        # Take the first sentence — V7 payoff_text is usually one or
+        # two sentences and the first is the punchline.
+        slide3_ann = _truncate_words(payoff_text.split(".")[0], 12)
+
+    # Per-slide narration. We use the script's 4 beats:
+    #   slide 1 = hook
+    #   slide 2 = verse_intro (the contrast)
+    #   slide 3 = insight (the payoff) PLUS close, since the outro
+    #            should be silent so the splash visual doesn't
+    #            interrupt the spoken close.
+    hook_text = sanitize_for_tts((script.get("hook") or "").strip())
+    intro_text = sanitize_for_tts((script.get("verse_intro") or "").strip())
+    insight_text = sanitize_for_tts((script.get("insight") or "").strip())
+    close_text = sanitize_for_tts((script.get("close") or "").strip())
+
+    final_slide_narration = insight_text
+    if close_text:
+        final_slide_narration = (insight_text + " " + close_text).strip()
+
+    def _verse_slide(narration_text: str, annotation: str | None, dur: float) -> dict:
+        s: dict = {
+            "type": "grammar-verse",
+            "durationSec": dur,
+            "surah": chapter,
+            "ayah": verse,
+            "arabicText": arabic,
+            "translation": translation,
+            "highlights": highlights,
+            "narration": {"text": narration_text or ""},
+        }
+        if annotation:
+            s["annotation"] = annotation
+        return s
+
+    slides: list[dict] = [
+        _verse_slide(hook_text, None, dur=6.5),
+        _verse_slide(intro_text, slide2_ann, dur=8.0),
+        _verse_slide(final_slide_narration, slide3_ann, dur=8.5),
+        _build_outro_slide(),
+    ]
+
+    # Stage outro audio bite — same flow as word_origins.
+    outro_audio_filename, outro_audio_duration = _stage_outro_audio(rd.get("pipeline_id"), conn)
+    if outro_audio_filename:
+        for s in slides:
+            if s.get("type") == "outro":
+                s["outroAudioFile"] = outro_audio_filename
+                if outro_audio_duration > 0:
+                    s["durationSec"] = max(s.get("durationSec", 5), outro_audio_duration + 0.5)
+                break
+
+    return {
+        "videoId": f"educational-{rd['id']}",
+        "title": (rd.get("youtube_title") or f"Grammar Insight — {chapter}:{verse}"),
+        "slides": slides,
+    }
+
+
+def render_grammar_insights_video(
+    conn,
+    video_id: int,
+    *,
+    format: str,
+    elevenlabs_api_key: str,
+    voice_id: str,
+) -> tuple[str, int]:
+    """Build the grammar payload, invoke the Remotion subprocess,
+    return (filename, file_size_bytes). Same return contract as
+    render_word_origins_video so the orchestrator's status flow is
+    unchanged.
+
+    Implementation re-uses the word_origins subprocess plumbing — the
+    only difference is which payload-builder produced the JSON. The
+    Remotion bundle handles both via the same WordDetailComposition
+    that dispatches by slide.type.
+    """
+    if format not in ("long", "short"):
+        raise RemotionRenderError(f"unknown format: {format}")
+    if not os.path.isfile(RENDER_SCRIPT):
+        raise RemotionRenderError(
+            f"Remotion renderer not found at {RENDER_SCRIPT}. "
+            f"Make sure roots/video-renderer/ is present and `npm install` "
+            f"has been run in that directory."
+        )
+
+    row = conn.execute(
+        "SELECT * FROM educational_videos WHERE id = ?", (video_id,)
+    ).fetchone()
+    if not row:
+        raise RemotionRenderError(f"video {video_id} not found")
+    rd = dict(row)
+    if not rd.get("script_json"):
+        raise RemotionRenderError("no script on this row — generate first")
+    script = json.loads(rd["script_json"])
+
+    payload = build_grammar_insights_payload(conn, rd, script)
+    if not payload["slides"]:
+        raise RemotionRenderError("payload has no renderable slides")
+
+    out_filename = f"{video_id:06d}-{format}.mp4"
+    out_path = os.path.join(OUTPUT_DIR, out_filename)
+
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".json", delete=False, encoding="utf-8"
+    ) as f:
+        json.dump(payload, f, ensure_ascii=False)
+        payload_path = f.name
+
+    env = dict(os.environ)
+    env["ELEVENLABS_API_KEY"] = elevenlabs_api_key or ""
+    env["ELEVENLABS_VOICE_ID"] = voice_id or ""
+
+    cmd = [
+        "node",
+        "--env-file-if-exists=.env",
+        "scripts/render.mjs",
+        "--payload", payload_path,
+        "--out", out_path,
+    ]
+
+    try:
+        proc = subprocess.run(
+            cmd, cwd=RENDERER_DIR, env=env,
+            capture_output=True, text=True, timeout=600,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RemotionRenderError(
+            f"Remotion render timed out after {e.timeout}s. "
+            f"stderr tail: {((e.stderr or b'')[-800:] or b'').decode('utf-8', errors='replace')}"
+        )
+    finally:
+        try:
+            os.remove(payload_path)
+        except OSError:
+            pass
+
+    if proc.returncode != 0:
+        tail = (proc.stderr or "")[-800:]
+        raise RemotionRenderError(f"Remotion render failed: {tail}")
+
+    last = (proc.stdout or "").strip().splitlines()
+    if not last:
+        raise RemotionRenderError("Remotion renderer produced no stdout")
+    try:
+        result = json.loads(last[-1])
+    except json.JSONDecodeError:
+        raise RemotionRenderError(f"Remotion stdout not JSON: {last[-1][:200]}")
+    if not result.get("ok"):
+        raise RemotionRenderError(
+            f"Remotion render failed: {result.get('error') or 'unknown'}"
+        )
+    if not os.path.isfile(out_path):
+        raise RemotionRenderError(
+            f"Remotion reported success but {out_path} doesn't exist"
+        )
+    return out_filename, os.path.getsize(out_path)
+
+
 def render_word_origins_video(
     conn,
     video_id: int,

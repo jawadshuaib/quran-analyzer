@@ -942,17 +942,25 @@ def render_video(
         raise RenderError(f"video {video_id} not found")
     rd = dict(row)
 
-    # Route word_origins to the Remotion renderer. The shape of the
-    # call is the same — same inputs, same return, same output
-    # path — so the orchestrator's UPDATE statement after this
-    # function returns is unchanged.
-    if rd["type"] == "word_origins":
+    # Route word_origins AND grammar_insights through Remotion. Same
+    # subprocess plumbing on both sides — the difference is which
+    # payload-builder generates the slide list. Both end up in
+    # OUTPUT_DIR / `<video_id>-<format>.mp4` so the orchestrator's
+    # UPDATE statement after this function returns is unchanged.
+    if rd["type"] in ("word_origins", "grammar_insights"):
         try:
             import educational_render_remotion as _rr
         except Exception as e:
             raise RenderError(f"Remotion renderer module failed to load: {e}")
         try:
-            return _rr.render_word_origins_video(
+            if rd["type"] == "word_origins":
+                return _rr.render_word_origins_video(
+                    conn, video_id,
+                    format=format,
+                    elevenlabs_api_key=elevenlabs_api_key,
+                    voice_id=voice_id,
+                )
+            return _rr.render_grammar_insights_video(
                 conn, video_id,
                 format=format,
                 elevenlabs_api_key=elevenlabs_api_key,
