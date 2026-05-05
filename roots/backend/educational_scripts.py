@@ -653,31 +653,91 @@ def _build_user_prompt(payload: dict) -> str:
         body = (
             "Series: Grammar Insights. Frame: every grammatical structure in\n"
             "the Quran is a deliberate choice. Your job is to illuminate ONE\n"
-            "such choice — not to teach the rule, not to lecture, not to use\n"
-            "jargon without immediately translating it.\n"
+            "such choice. You are not teaching grammar rules. You are showing\n"
+            "the reader a choice the author made and what that choice does.\n"
             "\n"
             "OUTPUT JSON beat keys (the structure is a contrast, not a lecture):\n"
-            "  hook        (8–12s):   pose a small tension/question. Hint at\n"
-            "                          the verse without quoting it yet.\n"
-            "  verse_intro (25–35s):  the contrast itself — 'It could have\n"
-            "                          said X — but it said Y'. THIS IS THE\n"
-            "                          BEAT WHERE THE VERSE LANDS ON SCREEN.\n"
-            "                          Quote the chosen Arabic form (1–2\n"
-            "                          words max) with English gloss.\n"
-            "  insight     (35–50s):  the payoff — what the chosen form\n"
-            "                          achieves that the alternative wouldn't\n"
-            "                          (rhetorical / theological / emotional).\n"
-            "  close       (8–10s):   one-sentence takeaway.\n"
+            "  hook        (8 to 12s):   pose a small tension or question. Hint\n"
+            "                             at the verse without quoting it yet.\n"
+            "  verse_intro (25 to 35s):  the contrast. Quote the chosen Arabic\n"
+            "                             form (1-2 words, with English gloss).\n"
+            "                             State explicitly what the alternative\n"
+            "                             would have been. Use phrasing like\n"
+            "                             'The Quran could have used X. It\n"
+            "                             chose Y instead. Why?' End the beat\n"
+            "                             with the 'Why?' question to pull the\n"
+            "                             listener into the next beat. THIS IS\n"
+            "                             THE BEAT WHERE THE VERSE LANDS ON\n"
+            "                             SCREEN.\n"
+            "  insight     (35 to 50s):  the payoff. What does the chosen form\n"
+            "                             achieve that the alternative wouldn't?\n"
+            "                             Develop ONE thread; do not pile on\n"
+            "                             multiple insights. End on the\n"
+            "                             strongest line of this beat. Once\n"
+            "                             you have landed a punchy statement,\n"
+            "                             STOP. Do not add 'and what this\n"
+            "                             shows is...' after a strong line.\n"
+            "  close       (8 to 15s):   the most distilled, quotable line in\n"
+            "                             the entire script. Find the single\n"
+            "                             sentence that crystallizes the\n"
+            "                             insight and put it here. The close\n"
+            "                             is reserved for that line; do not\n"
+            "                             bury it earlier in the script.\n"
+            "\n"
+            "VOICE: write like a thoughtful human, not an essayist.\n"
+            "  - DO NOT use em dashes (—). Anywhere. In any beat. Use\n"
+            "    periods, commas, parentheses, or semicolons. Em dashes are\n"
+            "    a well-known AI tell and they break the cadence we want.\n"
+            "  - Short sentences. When a sentence is getting long, break it.\n"
+            "    Periods are stronger than commas.\n"
+            "  - Direct verbs. Say 'It describes X', not 'It is the form that\n"
+            "    usually describes X'.\n"
+            "  - Avoid AI-essayist tics: 'That choice changes everything',\n"
+            "    'It's not just X, it's Y', 'In other words', 'What this\n"
+            "    really means is'. These are filler.\n"
+            "  - Rhetorical questions are good transitions. 'Why?' at the\n"
+            "    end of a beat is a clean handoff to the next.\n"
+            "  - Don't over-explain. If a line is doing the work, stop\n"
+            "    talking. Trust the reader to feel the impact.\n"
+            "\n"
+            "EXAMPLE — for verse 107:1 (perfective tense for a rhetorical\n"
+            "question), this is the TARGET voice:\n"
+            "  hook: \"When the Quran asks a question, does it really expect\n"
+            "    an answer or is something else going on?\"\n"
+            "  verse_intro: \"Chapter 107 opens with a question: 'Have you\n"
+            "    seen the one who denies the Judgment?' In Arabic, the verb\n"
+            "    is ra'ayta. It is in the past-tense form. It describes\n"
+            "    something already done. The Quran could have asked 'Do you\n"
+            "    see?' using the present-tense form, tara. But it chose the\n"
+            "    perfective instead. Why?\"\n"
+            "  insight: \"That choice changes the sentence from a question\n"
+            "    to a reflection. The present tense tara would frame the\n"
+            "    question as open-ended, inviting you to look around and\n"
+            "    discover. But ra'ayta, the past-tense form, treats the\n"
+            "    seeing as already settled, as if the answer is obvious and\n"
+            "    the question is rhetorical. It's not asking whether you've\n"
+            "    noticed; it's assuming you already have, and now demanding:\n"
+            "    what are you going to do about it?\"\n"
+            "  close: \"The perfective form turns a question into a\n"
+            "    challenge, framing the denial of Judgment not as a debatable\n"
+            "    position but as a visible, undeniable reality you've already\n"
+            "    witnessed.\"\n"
+            "Notice: no em dashes. Short declarative sentences. The contrast\n"
+            "is built explicitly through 'could have / chose instead'. The\n"
+            "verse_intro ends on 'Why?' as a forward handoff. The insight\n"
+            "ends on a punchy demand and STOPS. The close is the script's\n"
+            "most quotable line, reserved for the end.\n"
             "\n"
             "AUDIENCE: someone who loves the Quran but is not familiar with\n"
             "Arabic grammar terminology. So:\n"
-            "  - 'perfective tense' → 'the past-tense form, the one that\n"
-            "    usually describes something already done'\n"
-            "  - 'passive voice' → 'leaving the doer out of the picture'\n"
-            "  - 'fronting' → 'putting the object first instead of last'\n"
-            "  - 'iltifat' → 'the sudden switch from He to We'\n"
+            "  - 'perfective tense' translate to 'the past-tense form'\n"
+            "    and explain inline what it usually does\n"
+            "  - 'passive voice' translate to 'leaving the doer out of\n"
+            "    the picture'\n"
+            "  - 'fronting' translate to 'putting the object first'\n"
+            "  - 'iltifat' translate to 'the sudden switch from He to We'\n"
             "Translate AT FIRST USE. After that you can use the simple\n"
-            "phrase. Never use the technical Arabic name.\n"
+            "phrase. Never use the technical Arabic name without a gloss.\n"
             "\n"
             f"{header}"
             f"{note_block}"
@@ -687,11 +747,13 @@ def _build_user_prompt(payload: dict) -> str:
             f"\nScope: {claim.get('scope','')}, strength: {claim.get('strength','')}"
             f"{cf_block}"
             f"\nMeaning payoff (what the chosen form achieves):\n  {payoff.get('text','')}\n"
-            "\nEvidence tokens (refer to AT MOST 1–2 by Arabic form, with an\n"
-            "immediate English gloss after each Arabic word):\n"
+            "\nEvidence tokens. Refer to AT MOST 1 or 2 by Arabic form, with an\n"
+            "immediate English gloss after each Arabic word:\n"
             + ("\n".join(ev_lines) if ev_lines else "(none)")
             + "\n"
             "\nGuardrails (the validator enforces these):\n"
+            "  - NO em dashes. Anywhere. In any beat. The validator rejects\n"
+            "    them outright.\n"
             "  - Don't introduce any grammatical claim that isn't in the\n"
             "    structured insight or counterfactual.\n"
             "  - Don't teach the rule. Show the choice.\n"
@@ -878,11 +940,31 @@ def _validate(script: dict, payload: dict) -> list[str]:
             )
 
     elif payload["type"] == "grammar_insights":
+        # Em-dash check. Em dashes are a well-known AI-generated-text tell
+        # and they break the cadence we want for these scripts. The prompt
+        # forbids them; this validator enforces the rule on every beat.
+        # Catches the actual em dash (U+2014) and the en dash (U+2013) used
+        # similarly. We don't reject the regular hyphen-minus ("-") since
+        # that's a legitimate punctuation mark.
+        em_dash_fields = []
+        for fld in ("hook", "verse_intro", "insight", "close",
+                    "voiceover_long", "voiceover_short"):
+            text = script.get(fld) or ""
+            if "—" in text or "–" in text:
+                em_dash_fields.append(fld)
+        if em_dash_fields:
+            errors.append(
+                f"em or en dash detected in: {em_dash_fields}. "
+                f"Replace every '—' or '–' with a period, comma, "
+                f"parenthesis, or semicolon. Em dashes are an AI tell "
+                f"and the prompt forbids them anywhere in any beat."
+            )
+
         # No-jargon guardrail. The technical Arabic grammar terms below
         # are exactly what the script is meant to AVOID: the rubric is
         # "show the choice, don't teach the rule". If the LLM uses one,
         # it must be immediately followed by a plain-English gloss in
-        # the same sentence — we approximate that with a "translate at
+        # the same sentence; we approximate that with a "translate at
         # first use" check via the long voiceover (the short one is
         # tight enough that we don't expect jargon there).
         long_text = (script.get("voiceover_long") or "")
