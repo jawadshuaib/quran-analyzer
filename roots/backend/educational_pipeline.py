@@ -296,13 +296,45 @@ def _translation_hides_candidates(conn, limit: int, exclude_queued: bool) -> lis
     return [dict(r) for r in rows]
 
 
+# Categories whose grammatical move is "video-shaped" — the contrast or
+# rhetorical shift is concrete enough that a 90-second viewer can grok
+# it without prior grammar exposure. These get a Tier A bump.
+_GRAMMAR_TIER_A_CATEGORIES = frozenset({
+    "time_perspective",     # Past-for-Future (Tahqiq)
+    "perspective_shift",    # Iltifat
+    "person_mixture",       # He / We / I shifts
+    "royal_we_vs_i",        # Majestic plural intimacy contrast
+    "cognate_accusative",   # Reduplicated root for emphasis
+    "oath_structure",       # Wāw al-qasam framing
+})
+
+# Cooldowns — the pool excludes recently-shipped categories and surahs so
+# the channel rotates through variety. Tunable; widen if the candidate
+# pool gets sparse.
+GRAMMAR_CATEGORY_COOLDOWN_DAYS = 7
+GRAMMAR_SURAH_COOLDOWN_DAYS = 14
+
+
 def _grammar_insights_candidates(conn, limit: int, exclude_queued: bool) -> list[dict]:
     """Pool: V7 insights at primary tier with confidence ≥ MIN_INSIGHT_CONFIDENCE.
 
-    The insights are stored JSON-blobbed inside verse_grammar_insights —
-    Python unpacks them so each insight becomes its own candidate. A
-    counterfactual ("could have said X but said Y") boosts the score
-    1.4× because those make the strongest video hooks.
+    Tiering on top of the base score (overall_confidence):
+      - Tier A (× 2.0) — counterfactual present AND category is one of
+        the "video-shaped" categories above. These are the strongest
+        hooks: a concrete "could-have-said-X / said-Y" frame.
+      - Tier B (× 1.5) — counterfactual present (other categories), OR
+        the verse also carries a translation_note (corroborating signal).
+      - Tier C (× 1.0) — primary-tier insight without counterfactual or
+        note. Eligible but ranked below.
+
+    Cooldowns (only applied when exclude_queued=True; admin-side
+    sample_candidates passes the same flag, so they apply by default):
+      - Same `category` shipped to YouTube in the last 7 days → skip
+      - Same `chapter` (surah) shipped in the last 14 days → skip
+    Cooldowns measure against `educational_videos.created_at`, the
+    moment the row was queued — not when it was uploaded — so manual
+    queues count too. That keeps the operator from silently flooding
+    one surah by hand.
     """
     rows = conn.execute(
         """
@@ -313,13 +345,60 @@ def _grammar_insights_candidates(conn, limit: int, exclude_queued: bool) -> list
     ).fetchall()
 
     # Materialize already-queued anchors once for an O(1) check.
-    queued = set()
+    queued: set[tuple[int, int, str]] = set()
+    cooldown_categories: set[str] = set()
+    cooldown_chapters: set[int] = set()
     if exclude_queued:
         for r in conn.execute(
             "SELECT chapter, verse, anchor_insight_id FROM educational_videos "
             "WHERE type = 'grammar_insights'"
         ):
             queued.add((r["chapter"], r["verse"], r["anchor_insight_id"] or ""))
+
+        # Surah cooldown — 14 days. Direct from `educational_videos`.
+        for rr in conn.execute(
+            f"""
+            SELECT DISTINCT chapter FROM educational_videos
+            WHERE type = 'grammar_insights'
+              AND created_at >= datetime('now', '-{GRAMMAR_SURAH_COOLDOWN_DAYS} days')
+            """
+        ).fetchall():
+            cooldown_chapters.add(int(rr["chapter"]))
+
+        # Category cooldown — 7 days. Categories aren't stored on
+        # `educational_videos`; we resolve them by reading the V7
+        # JSON for each recent (chapter, anchor_insight_id) pair.
+        recent_anchors_7d: list[tuple[int, str]] = []
+        for rr in conn.execute(
+            f"""
+            SELECT chapter, anchor_insight_id FROM educational_videos
+            WHERE type = 'grammar_insights'
+              AND anchor_insight_id IS NOT NULL
+              AND created_at >= datetime('now', '-{GRAMMAR_CATEGORY_COOLDOWN_DAYS} days')
+            """
+        ).fetchall():
+            recent_anchors_7d.append((int(rr["chapter"]), rr["anchor_insight_id"]))
+
+        if recent_anchors_7d:
+            chapters_filter = ",".join(str(c) for c, _ in recent_anchors_7d)
+            anchor_set = set(recent_anchors_7d)
+            for vr in conn.execute(
+                f"""
+                SELECT chapter, insights_v7_json
+                FROM verse_grammar_insights
+                WHERE chapter IN ({chapters_filter})
+                """
+            ).fetchall():
+                try:
+                    arr = json.loads(vr["insights_v7_json"]) or []
+                except Exception:
+                    continue
+                for ins in arr:
+                    iid = ins.get("id") or ""
+                    if (int(vr["chapter"]), iid) in anchor_set:
+                        cat = ins.get("category")
+                        if cat:
+                            cooldown_categories.add(cat)
 
     out: list[dict] = []
     for r in rows:
@@ -340,18 +419,41 @@ def _grammar_insights_candidates(conn, limit: int, exclude_queued: bool) -> list
             insight_id = ins.get("id") or ""
             if (r["chapter"], r["verse"], insight_id) in queued:
                 continue
-            cf = (ins.get("counterfactual") or {}).get("present")
-            score = conf * (1.4 if cf else 1.0)
+
+            category = ins.get("category") or ""
+            chapter = int(r["chapter"])
+            if exclude_queued:
+                if category in cooldown_categories:
+                    continue
+                if chapter in cooldown_chapters:
+                    continue
+
+            cf_present = bool((ins.get("counterfactual") or {}).get("present"))
+            cf_text = (ins.get("counterfactual") or {}).get("text") or ""
+            cf_truncated = cf_present and not cf_text.rstrip().endswith((".", "!", "?", ".”", "."))
+
+            # Tier scoring
+            if cf_present and not cf_truncated and category in _GRAMMAR_TIER_A_CATEGORIES:
+                tier = "A"
+                multiplier = 2.0
+            elif cf_present and not cf_truncated:
+                tier = "B"
+                multiplier = 1.5
+            else:
+                tier = "C"
+                multiplier = 1.0
+
             out.append({
-                "chapter": r["chapter"],
-                "verse": r["verse"],
+                "chapter": chapter,
+                "verse": int(r["verse"]),
                 "word_pos": None,
                 "insight_id": insight_id,
-                "category": ins.get("category"),
+                "category": category,
                 "title": ins.get("title"),
                 "confidence": conf,
-                "has_counterfactual": bool(cf),
-                "score": score,
+                "has_counterfactual": cf_present,
+                "tier": tier,
+                "score": conf * multiplier,
             })
     out.sort(key=lambda x: x["score"], reverse=True)
     return out[:limit]

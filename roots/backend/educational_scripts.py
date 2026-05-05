@@ -366,21 +366,29 @@ def _fetch_cognate_chain(conn, root_buckwalter: str) -> list[dict]:
 
 
 def _fetch_v7_insight(conn, chapter: int, verse: int, insight_id: str) -> dict | None:
-    """Pull a single V7 insight from verse_grammar_insights.insights_v7_json."""
-    row = conn.execute(
+    """Pull a single V7 insight from verse_grammar_insights.insights_v7_json.
+
+    Multiple rows can exist per (chapter, verse) — one per
+    grammar_insight_configs entry. Older configs may have
+    insights_v7_json = NULL; pick the newest non-null row that contains
+    the requested insight id. (The candidate sampler upstream only
+    yields ids from non-null rows, but a queued row may be re-fetched
+    after the underlying configs change, so the search is robust.)"""
+    rows = conn.execute(
         "SELECT insights_v7_json FROM verse_grammar_insights "
-        "WHERE chapter = ? AND verse = ?",
+        "WHERE chapter = ? AND verse = ? "
+        "  AND insights_v7_json IS NOT NULL AND insights_v7_json != '' "
+        "ORDER BY id DESC",
         (chapter, verse),
-    ).fetchone()
-    if not row or not row["insights_v7_json"]:
-        return None
-    try:
-        insights = json.loads(row["insights_v7_json"])
-    except Exception:
-        return None
-    for ins in insights or []:
-        if ins.get("id") == insight_id:
-            return ins
+    ).fetchall()
+    for row in rows:
+        try:
+            insights = json.loads(row["insights_v7_json"])
+        except Exception:
+            continue
+        for ins in insights or []:
+            if ins.get("id") == insight_id:
+                return ins
     return None
 
 
@@ -485,6 +493,14 @@ def enrich_payload(conn: sqlite3.Connection, row: dict) -> dict:
                 f"V7 insight {iid} not found for {chapter}:{verse}"
             )
         base["insight"] = insight
+        # Translation note (verse-level departure note from
+        # ai_translations) is corroborating context — if it exists, the
+        # LLM gets to see "this is also why translators historically
+        # render this verse as X". Optional — most verses don't have
+        # one and the script still works.
+        note = _fetch_departure_note(conn, chapter, verse)
+        if note:
+            base["translation_note"] = note
     else:
         raise ScriptGenError(f"unknown type: {vtype}")
 
@@ -600,6 +616,8 @@ def _build_user_prompt(payload: dict) -> str:
         cf = ins.get("counterfactual", {})
         payoff = ins.get("meaning_payoff", {})
         evidence = ins.get("evidence_trace", []) or []
+        translation_note = payload.get("translation_note") or ""
+
         ev_lines = []
         for ev in evidence[:6]:
             ev_lines.append(
@@ -609,24 +627,80 @@ def _build_user_prompt(payload: dict) -> str:
             )
         cf_block = ""
         if cf.get("present") and cf.get("text"):
-            cf_block = f"\nCounterfactual ({cf.get('type','')}): {cf['text']}\n"
+            cf_block = (
+                f"\nCounterfactual present ({cf.get('type','')}):\n"
+                f"  {cf['text']}\n"
+                "  → BUILD THE SCRIPT AROUND THIS CONTRAST.\n"
+            )
+        else:
+            cf_block = (
+                "\nNo explicit counterfactual on this insight. Construct the\n"
+                "natural alternative yourself (e.g. for a passive verb, the\n"
+                "active form; for fronted phrases, the unmarked order; for\n"
+                "perfective-of-future, the present-tense alternative). Frame\n"
+                "it as 'a more typical way to say this would be ...' so the\n"
+                "viewer knows the alternative is inferred, not quoted.\n"
+            )
+
+        note_block = ""
+        if translation_note:
+            note_block = (
+                f"\nTranslation note (corroborating context only — do NOT make\n"
+                f"this the spine of the script; the grammatical move is the\n"
+                f"spine):\n  {translation_note}\n"
+            )
+
         body = (
-            f"Series: Grammar Insights. Walk the viewer through one grammatical move.\n\n"
-            f"{header}\n"
-            f"Insight title: {ins.get('title','')}\n"
-            f"Category: {ins.get('category','')}\n"
-            f"Claim: {claim.get('observation','')}\n"
-            f"Scope: {claim.get('scope','')}, strength: {claim.get('strength','')}"
+            "Series: Grammar Insights. Frame: every grammatical structure in\n"
+            "the Quran is a deliberate choice. Your job is to illuminate ONE\n"
+            "such choice — not to teach the rule, not to lecture, not to use\n"
+            "jargon without immediately translating it.\n"
+            "\n"
+            "OUTPUT JSON beat keys (the structure is a contrast, not a lecture):\n"
+            "  hook        (8–12s):   pose a small tension/question. Hint at\n"
+            "                          the verse without quoting it yet.\n"
+            "  verse_intro (25–35s):  the contrast itself — 'It could have\n"
+            "                          said X — but it said Y'. THIS IS THE\n"
+            "                          BEAT WHERE THE VERSE LANDS ON SCREEN.\n"
+            "                          Quote the chosen Arabic form (1–2\n"
+            "                          words max) with English gloss.\n"
+            "  insight     (35–50s):  the payoff — what the chosen form\n"
+            "                          achieves that the alternative wouldn't\n"
+            "                          (rhetorical / theological / emotional).\n"
+            "  close       (8–10s):   one-sentence takeaway.\n"
+            "\n"
+            "AUDIENCE: someone who loves the Quran but is not familiar with\n"
+            "Arabic grammar terminology. So:\n"
+            "  - 'perfective tense' → 'the past-tense form, the one that\n"
+            "    usually describes something already done'\n"
+            "  - 'passive voice' → 'leaving the doer out of the picture'\n"
+            "  - 'fronting' → 'putting the object first instead of last'\n"
+            "  - 'iltifat' → 'the sudden switch from He to We'\n"
+            "Translate AT FIRST USE. After that you can use the simple\n"
+            "phrase. Never use the technical Arabic name.\n"
+            "\n"
+            f"{header}"
+            f"{note_block}"
+            f"\nInsight title: {ins.get('title','')}"
+            f"\nCategory: {ins.get('category','')}"
+            f"\nClaim: {claim.get('observation','')}"
+            f"\nScope: {claim.get('scope','')}, strength: {claim.get('strength','')}"
             f"{cf_block}"
-            f"\nMeaning payoff: {payoff.get('text','')}\n\n"
-            "Evidence tokens:\n"
+            f"\nMeaning payoff (what the chosen form achieves):\n  {payoff.get('text','')}\n"
+            "\nEvidence tokens (refer to AT MOST 1–2 by Arabic form, with an\n"
+            "immediate English gloss after each Arabic word):\n"
             + ("\n".join(ev_lines) if ev_lines else "(none)")
-            + "\n\nGuidance for this script:\n"
-            "- If a counterfactual is present, build the script around it. "
-            "  'It could have said X — but it said Y. Here's what changes.'\n"
-            "- Reference at most 1-2 evidence tokens by their Arabic form.\n"
-            "- Don't introduce grammatical claims that aren't in the structured insight.\n"
-            "- languages_referenced: [] (this series doesn't cite cognates)."
+            + "\n"
+            "\nGuardrails (the validator enforces these):\n"
+            "  - Don't introduce any grammatical claim that isn't in the\n"
+            "    structured insight or counterfactual.\n"
+            "  - Don't teach the rule. Show the choice.\n"
+            "  - At most 2 Arabic words quoted by their surface form;\n"
+            "    each must be followed by a brief English gloss.\n"
+            "  - languages_referenced: [] (this series doesn't cite cognates).\n"
+            "  - If you mention 'iltifat' / 'taqdim' / 'hazf' / 'tahqiq',\n"
+            "    immediately translate it in plain English in the same\n"
+            "    sentence. Or better: don't use the term at all.\n"
         )
     else:
         raise ScriptGenError(f"unknown type: {vtype}")
@@ -801,6 +875,44 @@ def _validate(script: dict, payload: dict) -> list[str]:
             errors.append(
                 f"declared cognate languages not in payload: {unknown}. "
                 f"Allowed pool: {allowed_pool}"
+            )
+
+    elif payload["type"] == "grammar_insights":
+        # No-jargon guardrail. The technical Arabic grammar terms below
+        # are exactly what the script is meant to AVOID: the rubric is
+        # "show the choice, don't teach the rule". If the LLM uses one,
+        # it must be immediately followed by a plain-English gloss in
+        # the same sentence — we approximate that with a "translate at
+        # first use" check via the long voiceover (the short one is
+        # tight enough that we don't expect jargon there).
+        long_text = (script.get("voiceover_long") or "")
+        for jargon in ("iltifat", "taqdim", "hazf", "tahqiq", "majhul",
+                       "ma'ruf", "jumlah ismiyyah", "jumlah fi'liyyah",
+                       "wazn", "rubāʿī", "rubaai"):
+            if jargon.lower() in long_text.lower():
+                # Search for an English translator phrase nearby (within
+                # 80 chars after the jargon use). Heuristic: a hyphen, em
+                # dash, or parenthetical typically introduces a gloss.
+                import re as _re
+                idx = long_text.lower().find(jargon.lower())
+                window = long_text[idx: idx + len(jargon) + 80]
+                gloss_present = bool(_re.search(r"[—–\-(]\s*[A-Za-z]", window))
+                if not gloss_present:
+                    errors.append(
+                        f"voiceover_long uses Arabic grammar term '{jargon}' "
+                        f"without an immediate English gloss. Either translate "
+                        f"it inline (e.g. \"{jargon} — the sudden switch from\") "
+                        f"or rewrite without the term."
+                    )
+        # Counterfactual must not be reported as truncated content. If
+        # the LLM echoes a CF that ends mid-word, that's a sign it
+        # propagated the upstream V7 truncation bug into the script.
+        verse_intro_text = script.get("verse_intro") or ""
+        if verse_intro_text.rstrip().endswith(("(e.", "(i.")):
+            errors.append(
+                "verse_intro looks like it copied a truncated upstream "
+                "counterfactual ending in '(e.' or '(i.'. Rewrite the "
+                "contrast in your own words."
             )
 
     return errors
