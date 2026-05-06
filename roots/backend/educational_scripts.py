@@ -116,14 +116,25 @@ QURAN-ONLY GROUNDING (CRITICAL — applies to every script):
 - DO NOT cite hadith, sunnah, sira, tafsir, classical commentators,
   or any post-Quranic Islamic tradition. Even paraphrased.
 - DO NOT use post-Quranic religious vocabulary in the script:
-    forbidden: hadith, sunnah, sira, ummah, sharia, halal, haram,
-               ijma, fiqh, madhhab, sahaba, "the prophet said",
-               "Muslims believe", "in Islamic tradition", "scholars
-               hold", "classical commentators", "according to the
-               sunnah", "the four schools".
-  These are signals of extra-Quranic sources. Find Quran-only phrasing
-  instead — e.g. "the verse says", "elsewhere in the Quran", "in this
-  text", "the chosen Arabic form", "the speaker", "those who do X".
+    forbidden sources/concepts: hadith, sunnah, sira, ummah, sharia,
+               halal, haram, ijma, fiqh, madhhab, sahaba, "the prophet
+               said", "Muslims believe", "in Islamic tradition",
+               "scholars hold", "classical commentators", "according
+               to the sunnah", "the four schools".
+    forbidden practice vocabulary: "congregational prayer/s",
+               "ritual prayer/s", "ritual ablution", "the five
+               pillars", "pillars of Islam", "five daily prayers",
+               "the daily prayers". These are tradition-systematized
+               concepts. The Quran tells you to "establish prayer"
+               and "stand in prayer" and describes washing for prayer
+               — describe what the verse says, not the later
+               systematized practice. For 1:5's "we serve" / "we seek
+               help", say "we worship together" or "the speaker
+               stands with others before God", NOT "this verse refers
+               to congregational prayer".
+  Find Quran-only phrasing instead — e.g. "the verse says",
+  "elsewhere in the Quran", "in this text", "the chosen Arabic
+  form", "the speaker", "those who do X".
 - "Stand within the community of believers", "the community of
   followers", and similar phrases lean on the post-Quranic Ummah
   concept and are out of scope. Stick to what the verse itself
@@ -748,6 +759,48 @@ def _build_user_prompt(payload: dict) -> str:
             "  - Don't over-explain. If a line is doing the work, stop\n"
             "    talking. Trust the reader to feel the impact.\n"
             "\n"
+            "STOP-LINE DISCIPLINE (the most common failure mode):\n"
+            "  After you write a strong sentence — a vivid image, a\n"
+            "  pointed contrast, a punchy demand — the next sentence\n"
+            "  is almost always a mistake. The model trains on essay\n"
+            "  prose, so it wants to keep going. Don't.\n"
+            "\n"
+            "  Concrete bans on the LAST sentence of insight and close:\n"
+            "    - No 'And so we see that...' / 'This shows us...' /\n"
+            "      'What this really means is...' / 'In other words...'\n"
+            "    - No 'such is the beauty of the Quran' / 'this is\n"
+            "      the depth of the divine text' / 'every word is\n"
+            "      purposeful' (these are generic awe-statements; the\n"
+            "      script just demonstrated the beauty — saying it\n"
+            "      out loud weakens the demonstration).\n"
+            "    - No restating the punchline in different words\n"
+            "      ('The form is a challenge. It demands action. It\n"
+            "      forces the reader to confront something.' — that's\n"
+            "      one idea written three times.)\n"
+            "\n"
+            "  BAD insight ending (over-explaining):\n"
+            "    \"...the perfective form turns the question into a\n"
+            "    challenge. And so we see that grammar matters. The\n"
+            "    Quran's choice is profound, showing how every word\n"
+            "    is purposeful.\"\n"
+            "  GOOD insight ending (lands and stops):\n"
+            "    \"...the perfective form turns the question into a\n"
+            "    challenge.\"   ← STOP. The image is doing the work.\n"
+            "\n"
+            "  BAD close (multi-sentence summary):\n"
+            "    \"The Quran's choice of grammar is a window into its\n"
+            "    depth, inviting the reader to see how every word is\n"
+            "    intentional, and teaching us the importance of\n"
+            "    paying attention to grammar.\"\n"
+            "  GOOD close (one sentence, quotable):\n"
+            "    \"Every grammatical choice in the Quran is a\n"
+            "    deliberate move.\"\n"
+            "\n"
+            "  Validator enforces: close must be ONE sentence (max\n"
+            "  two if absolutely necessary). If the close has 3+\n"
+            "  sentences, the second and third are diluting the first\n"
+            "  — drop them.\n"
+            "\n"
             "EXAMPLE — for verse 107:1 (perfective tense for a rhetorical\n"
             "question), this is the TARGET voice:\n"
             "  hook: \"When the Quran asks a question, does it really expect\n"
@@ -1018,6 +1071,19 @@ def _validate(script: dict, payload: dict) -> list[str]:
         r"according to islam", r"classical commentators?",
         r"classical scholars?", r"the four schools",
         r"the community of (?:believers?|followers?|the faithful)",
+        # Religious-practice vocabulary framed by post-Quranic
+        # tradition. The Quran describes establishing prayer,
+        # standing in prayer, etc. — but not "congregational" or
+        # "ritual" or "the five pillars". These are systematizations
+        # from later tradition. Stick to what the verse text
+        # actually says (e.g. "we serve", "we worship", "we stand
+        # before God").
+        r"congregational prayers?",
+        r"congregational worship",
+        r"ritual prayers?",
+        r"ritual ablutions?",
+        r"the five pillars?", r"pillars? of [Ii]slam",
+        r"five daily prayers?", r"the daily prayers?",
     ]
     quran_only_re = re.compile(
         r"\b(?:" + "|".join(quran_only_terms) + r")\b",
@@ -1065,6 +1131,65 @@ def _validate(script: dict, payload: dict) -> list[str]:
             )
 
     elif payload["type"] == "grammar_insights":
+        # Stop-line discipline: the close beat must be ≤2 sentences.
+        # The prompt asks for ONE sentence, but a real period-bearing
+        # secondary clause (e.g. introductory phrase + main clause) is
+        # acceptable. Three or more sentences = diluting the punchline,
+        # which is exactly the operator-flagged failure mode.
+        close_text = (script.get("close") or "").strip()
+        if close_text:
+            # Sentence boundary: . ! ? followed by whitespace or
+            # end of string. Don't double-count "..." (ellipsis).
+            ellipsis_neutralized = re.sub(r"\.{2,}", "", close_text)
+            sentence_endings = re.findall(r"[.!?]+(?=\s|$)", ellipsis_neutralized)
+            if len(sentence_endings) > 2:
+                errors.append(
+                    f"close has {len(sentence_endings)} sentences; "
+                    f"keep it to 1 (max 2). The close is the script's "
+                    f"single most quotable line — restating the same "
+                    f"idea in different words dilutes it. Pick the "
+                    f"strongest sentence and drop the rest. Current "
+                    f"close: {close_text!r}"
+                )
+
+        # Essayist-tic detector. The prompt bans phrases like "in
+        # other words" and "what this really means is" because they're
+        # the LLM's signal that it's about to over-explain. Catch them
+        # in the insight + close beats (the two most likely to slip).
+        essayist_tics = [
+            r"in other words",
+            r"what this really means(?: is)?",
+            r"and so we see (?:that|how)",
+            r"this shows us(?: that)?",
+            r"what this shows(?: is)?",
+            r"such is the (?:beauty|depth|wisdom|profundity)",
+            r"every word is (?:purposeful|intentional|deliberate)",
+            r"the depth of the divine (?:text|word|message)",
+            r"the beauty of the Quran",
+        ]
+        tic_re = re.compile(
+            r"\b(?:" + "|".join(essayist_tics) + r")\b",
+            re.IGNORECASE,
+        )
+        tic_hits: dict[str, list[str]] = {}
+        for fld in ("insight", "close", "voiceover_long"):
+            txt = script.get(fld) or ""
+            if not isinstance(txt, str):
+                continue
+            ms = tic_re.findall(txt)
+            if ms:
+                tic_hits[fld] = sorted(set(m.lower() for m in ms))
+        if tic_hits:
+            details = "; ".join(f"{f}: {ms}" for f, ms in tic_hits.items())
+            errors.append(
+                f"essayist filler detected ({details}). Phrases like "
+                f"'in other words', 'this shows us', 'such is the "
+                f"beauty', 'the depth of the divine text' weaken the "
+                f"line they follow — the demonstration just happened, "
+                f"don't editorialize it. Trim them out and let the "
+                f"strong sentence stand on its own."
+            )
+
         # Em-dash check. Em dashes are a well-known AI-generated-text tell
         # and they break the cadence we want for these scripts. The prompt
         # forbids them; this validator enforces the rule on every beat.
