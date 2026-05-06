@@ -8,6 +8,8 @@ import {
   subscribeToReaderPrefs,
 } from '../../utils/reader-prefs';
 import ReaderVerse from './ReaderVerse';
+import { useVisibleVerses } from './useVisibleVerses';
+import ReaderAsk from './ReaderAsk';
 
 interface Props {
   surah: number;
@@ -45,8 +47,29 @@ export default function ReaderPage({ surah, initialVerse, endVerse }: Props) {
     fetchDefaultReciter().then(setReciter).catch(() => { /* play button silently disabled */ });
   }, []);
 
-  const verseRefs = useRef<Map<number, HTMLElement>>(new Map());
   const lastWrittenRef = useRef<number>(0);
+
+  // Visibility tracker — drives both the last-read marker and the
+  // floating "Ask about <verse>" launcher. The hook also computes a
+  // [first, last] window; we don't use it today (the Ask flow is
+  // single-verse-anchored) but it's cheap and handy for future
+  // surrounding-context features.
+  const {
+    anchor: visibleAnchor,
+    setRef: setVerseRef,
+  } = useVisibleVerses({ enabled: !!data });
+
+  // Debounced last-read writer — keyed off the visibility hook, no need
+  // for a separate observer. Throttles writes to once per 2s so a fast
+  // scroll doesn't hammer localStorage.
+  useEffect(() => {
+    if (visibleAnchor <= 0) return;
+    const now = Date.now();
+    if (now - lastWrittenRef.current > 2000) {
+      lastWrittenRef.current = now;
+      setLastRead(surah, visibleAnchor);
+    }
+  }, [visibleAnchor, surah]);
 
   // Pick up live changes to the word-by-word setting (e.g. user toggles
   // it from Settings in another tab) and re-render. The fetch effect
@@ -74,52 +97,18 @@ export default function ReaderPage({ surah, initialVerse, endVerse }: Props) {
   }, [surah, wordByWord]);
 
   // Scroll the deep-linked verse into view once the data + DOM are ready.
+  // The visibility hook holds the actual element refs internally, so we
+  // wait one frame after data lands to give it a chance to register.
   useEffect(() => {
     if (!data || !initialVerse) return;
-    const el = verseRefs.current.get(initialVerse);
-    if (el) {
-      setTimeout(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
-    }
+    const t = setTimeout(() => {
+      const el = document.querySelector(
+        `[data-verse="${initialVerse}"]`,
+      ) as HTMLElement | null;
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => clearTimeout(t);
   }, [data, initialVerse]);
-
-  // Track which verse is most-visible, write last-read marker (debounced).
-  useEffect(() => {
-    if (!data) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        let bestVerse = -1;
-        let bestRatio = 0;
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          if (entry.intersectionRatio > bestRatio) {
-            bestRatio = entry.intersectionRatio;
-            const v = parseInt(entry.target.getAttribute('data-verse') || '0', 10);
-            if (v) bestVerse = v;
-          }
-        }
-        if (bestVerse > 0) {
-          const now = Date.now();
-          if (now - lastWrittenRef.current > 2000) {
-            lastWrittenRef.current = now;
-            setLastRead(surah, bestVerse);
-          }
-        }
-      },
-      {
-        rootMargin: '-80px 0px -50% 0px',
-        threshold: [0, 0.25, 0.5, 0.75, 1],
-      },
-    );
-    verseRefs.current.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, [data, surah]);
-
-  function setVerseRef(verse: number, el: HTMLElement | null) {
-    if (el) verseRefs.current.set(verse, el);
-    else verseRefs.current.delete(verse);
-  }
 
   if (loading) {
     return (
@@ -200,6 +189,12 @@ export default function ReaderPage({ surah, initialVerse, endVerse }: Props) {
         </a>
         <SurahNavLink direction="next" current={data.surah} />
       </div>
+
+      {/* Floating "Ask about <verse>" launcher. Lives outside the page
+          flow (fixed positioning) so it doesn't affect layout. The
+          label tracks the most-visible verse until the user clicks;
+          the click freezes that verse and mounts the assistant. */}
+      <ReaderAsk surah={data.surah} anchor={visibleAnchor} />
     </div>
   );
 }

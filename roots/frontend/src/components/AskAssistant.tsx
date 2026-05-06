@@ -7,6 +7,12 @@ interface Props {
   pageType: PageType;
   pageKey: string;
   contextGatherer: () => Promise<string>;
+  /** Open the panel automatically on mount. Used by the reader-page
+   *  flow on /read/<surah> — the user clicks an "Ask about <verse>"
+   *  pill, the parent freezes the anchor verse into props, and we
+   *  mount AskAssistant already-open so the user doesn't have to
+   *  click a second time. */
+  defaultOpen?: boolean;
 }
 
 interface Message {
@@ -44,8 +50,13 @@ function sanitizeInput(text: string): string {
     .trim();
 }
 
-export default function AskAssistant({ pageType, pageKey, contextGatherer }: Props) {
-  const [open, setOpen] = useState(false);
+export default function AskAssistant({
+  pageType,
+  pageKey,
+  contextGatherer,
+  defaultOpen = false,
+}: Props) {
+  const [open, setOpen] = useState(defaultOpen);
   const [tab, setTab] = useState<'ask' | 'history'>('ask');
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);

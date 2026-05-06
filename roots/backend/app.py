@@ -685,6 +685,17 @@ def _ensure_assistant_conversations_table():
                 CREATE INDEX IF NOT EXISTS idx_assistant_conv_session
                 ON assistant_conversations (session_id, created_at DESC)
             """)
+            # Reader-range Q&A: when the user asks a question while
+            # reading a multi-verse window (e.g. /read/3 scrolled to
+            # 20–26), the row is anchored to the most-visible verse via
+            # (page_type='verse', page_key='3:23'), but `context_range`
+            # records the window the LLM saw (e.g. "3:20-26"). NULL on
+            # all pre-existing rows and on single-verse asks.
+            cols = [r[1] for r in conn.execute("PRAGMA table_info(assistant_conversations)")]
+            if "context_range" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN context_range TEXT"
+                )
             conn.commit()
             conn.close()
             return
@@ -2303,6 +2314,19 @@ def save_assistant_qa():
         if isinstance(val, str) and len(val) > limit:
             data[field] = val[:limit]
 
+    # context_range: optional "S:V1-V2" string from reader-range asks.
+    # Strict validation — anything that doesn't match the expected
+    # pattern is silently dropped (NULL persists), since this field
+    # only ever feeds a UI pill and never gates behavior.
+    cr_raw = data.get("context_range")
+    context_range = None
+    if isinstance(cr_raw, str) and cr_raw:
+        m = re.match(r"^(\d{1,3}):(\d{1,3})-(\d{1,3})$", cr_raw.strip())
+        if m:
+            s, v1, v2 = int(m.group(1)), int(m.group(2)), int(m.group(3))
+            if 1 <= s <= 114 and 1 <= v1 <= v2 <= 286:
+                context_range = f"{s}:{v1}-{v2}"
+
     # Moderate the current question
     moderation = _moderate_question(data["question"])
     if not moderation["approved"]:
@@ -2354,18 +2378,38 @@ def save_assistant_qa():
                 synth_mod = _moderate_question(synthesized)
                 saved_question = synth_mod["reworded"] if synth_mod["approved"] else synthesized
 
-                conn.execute(
-                    "UPDATE assistant_conversations "
-                    "SET question = ?, answer = ?, model_used = ?, response_time_ms = ? "
-                    "WHERE id = ?",
-                    (
-                        saved_question,
-                        data["answer"],
-                        data.get("model_used", ""),
-                        data.get("response_time_ms"),
-                        row_id,
-                    ),
-                )
+                # context_range: only overwrite when the new ask provided
+                # one. Empty/None on a follow-up question means "carry the
+                # original range forward" rather than blanking it.
+                if context_range is not None:
+                    conn.execute(
+                        "UPDATE assistant_conversations "
+                        "SET question = ?, answer = ?, model_used = ?, "
+                        "    response_time_ms = ?, context_range = ? "
+                        "WHERE id = ?",
+                        (
+                            saved_question,
+                            data["answer"],
+                            data.get("model_used", ""),
+                            data.get("response_time_ms"),
+                            context_range,
+                            row_id,
+                        ),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE assistant_conversations "
+                        "SET question = ?, answer = ?, model_used = ?, "
+                        "    response_time_ms = ? "
+                        "WHERE id = ?",
+                        (
+                            saved_question,
+                            data["answer"],
+                            data.get("model_used", ""),
+                            data.get("response_time_ms"),
+                            row_id,
+                        ),
+                    )
                 conn.commit()
 
                 # Trigger async insight evaluation for verse Q&A
@@ -2401,8 +2445,9 @@ def save_assistant_qa():
                 cur = conn.execute(
                     "INSERT INTO assistant_conversations "
                     "(session_id, page_type, page_key, question, answer, "
-                    " context_summary, model_used, response_time_ms) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    " context_summary, model_used, response_time_ms, "
+                    " context_range) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (
                         data["session_id"],
                         data["page_type"],
@@ -2412,6 +2457,7 @@ def save_assistant_qa():
                         data.get("context_summary", ""),
                         data.get("model_used", ""),
                         data.get("response_time_ms"),
+                        context_range,
                     ),
                 )
                 new_id = cur.lastrowid
@@ -2450,13 +2496,19 @@ def get_assistant_history():
 
     conn = get_db()
     try:
-        rows = conn.execute(
-            "SELECT id, question, answer, model_used, created_at "
-            "FROM assistant_conversations "
+        # context_range may not exist on legacy DBs that pre-date the
+        # reader-range feature; selecting it through `*` would crash.
+        # The migration runs at startup, but we degrade cleanly anyway.
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(assistant_conversations)")]
+        has_range = "context_range" in cols
+        sql = (
+            "SELECT id, question, answer, model_used, created_at"
+            + (", context_range" if has_range else "")
+            + " FROM assistant_conversations "
             "WHERE page_type = ? AND page_key = ? "
-            "ORDER BY created_at DESC LIMIT ?",
-            (page_type, page_key, limit),
-        ).fetchall()
+            "ORDER BY created_at DESC LIMIT ?"
+        )
+        rows = conn.execute(sql, (page_type, page_key, limit)).fetchall()
         return jsonify({
             "history": [
                 {
@@ -2465,6 +2517,7 @@ def get_assistant_history():
                     "answer": r["answer"],
                     "model_used": r["model_used"],
                     "created_at": r["created_at"],
+                    "context_range": (r["context_range"] if has_range else None),
                 }
                 for r in rows
             ]
