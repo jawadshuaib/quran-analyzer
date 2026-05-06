@@ -170,7 +170,7 @@ Output schema (all keys required, all strings unless noted):
   "insight":       "(non-Word Origins) 2-4 sentences delivering the payload. Empty for Word Origins.",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
   "english_emphases": "(Grammar Insights ONLY) Array of 1-4 short phrases pulled VERBATIM from the verse's English translation that you want highlighted on the verse card. Pick phrases that most clearly carry the grammatical move you're explaining — e.g. for a 'we vs I' insight on 1:5 you might pick [\"You alone we serve\", \"You alone we seek help from\"]. Each phrase MUST appear character-for-character in the translation, and the phrases MUST NOT overlap each other in the translation (no phrase's text can sit inside another phrase's span). The renderer highlights every occurrence of each disjoint phrase. Empty array [] for other types.",
-  "additional_examples": "(Grammar Insights ONLY) Array of 0-2 cross-reference verses that show the same grammatical move elsewhere in the Quran. Each entry: {\"chapter\": N, \"verse\": N, \"narration\": \"...\", \"english_emphases\": [...]}. Picks MUST come from `additional_example_candidates` in the payload — do not invent references. The narration is one short paragraph (15-25s of voiceover) introduced with phrasing like 'In another verse...' for the first pick and 'Elsewhere...' for the second; explain how the same pattern manifests in this verse. english_emphases is the same shape/rules as the top-level field — applied to THIS example's translation. Empty array [] when no candidate fits or the verse already makes the point on its own.",
+  "additional_examples": "(Grammar Insights ONLY) Array of 0-2 cross-reference verses that show the same grammatical move elsewhere in the Quran. STRONG DEFAULT IS 1 entry. Pick a second ONLY if leaving it out would noticeably weaken the argument — i.e. the second verse demonstrates something the first doesn't (different rhetorical register, different scope, surprising context). If the second example would just re-prove what the first already proved, leave it out. Each entry: {\"chapter\": N, \"verse\": N, \"narration\": \"...\", \"english_emphases\": [...]}. Picks MUST come from `additional_example_candidates` in the payload — do not invent references. Narration is SHORT (≤55 words, ≈12-15s of voiceover): open with 'In another verse,' or 'Elsewhere,'; quote ≤8 words from the example translation; one sentence on how the pattern shows up here. Do NOT re-explain the grammatical concept — the viewer already heard it on the main verse. english_emphases follows the top-level rules but matches THIS example's translation. Empty array [] when no candidate fits.",
   "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. DO NOT include Arabic recitation — the reciter's audio plays separately. For Word Origins, structure the narration as: (1) hook + tidbit_about_root narrated over the source verse on screen, (2) tidbit_about_quran_usage narrated over selected_verse_refs[0], (3) tidbit_about_semitic narrated over selected_verse_refs[1]. The video shows the verses; the narration is the connective tissue.",
   "voiceover_short": "Concatenated narration up to 200 words (target 140-180), suitable for a punchy short-form video that may run a bit over a minute. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
   "languages_referenced": ["list of language names actually mentioned in voiceover_long, copied exactly from the payload"],
@@ -884,33 +884,66 @@ def _build_user_prompt(payload: dict) -> str:
             "                             is reserved for that line; do not\n"
             "                             bury it earlier in the script.\n"
             "\n"
-            "  additional_examples (0-2 entries, each ~15-25s of narration):\n"
+            "  additional_examples (DEFAULT 1 entry, ≤55 words each):\n"
             "                             Cross-reference verses where the same\n"
             "                             grammatical move appears elsewhere.\n"
             "                             Pick from the candidate list at the\n"
             "                             bottom of this prompt; do not invent\n"
             "                             references. Slot the example slides\n"
-            "                             between verse_intro and insight in\n"
-            "                             the video — the structure becomes:\n"
+            "                             between verse_intro and insight:\n"
             "                               1. Hook on the main verse.\n"
             "                               2. Verse_intro on the main verse.\n"
             "                               3. Example #1 (\"In another verse,\n"
             "                                  ...\") — short and pointed.\n"
-            "                               4. Example #2 (\"Elsewhere, ...\")\n"
-            "                                  — only if it adds something\n"
-            "                                  the first didn't.\n"
-            "                               5. Insight + close zoom back to\n"
+            "                               4. Insight + close zoom back to\n"
             "                                  the main verse.\n"
-            "                             Each example's narration should\n"
-            "                             quickly establish the verse and\n"
-            "                             show how THE SAME pattern is at\n"
-            "                             work — don't restart the lecture.\n"
-            "                             Open with \"In another verse,\" /\n"
-            "                             \"Elsewhere,\" / \"The same move\n"
-            "                             surfaces in...\" so the listener\n"
-            "                             knows we've zoomed out.\n"
+            "                             Pick 2 examples ONLY when the second\n"
+            "                             demonstrates something the first\n"
+            "                             didn't — different rhetorical\n"
+            "                             register, different scope, surprising\n"
+            "                             context. If the second would just\n"
+            "                             re-prove the first, drop it. Two\n"
+            "                             redundant examples make the video\n"
+            "                             feel padded.\n"
+            "\n"
+            "                             KEEP EACH NARRATION TIGHT (≤55 words):\n"
+            "                             Open with \"In another verse,\" or\n"
+            "                             \"Elsewhere,\". Quote ≤8 words from\n"
+            "                             the example translation. ONE sentence\n"
+            "                             on how the pattern manifests here.\n"
+            "                             STOP. Do NOT re-explain the\n"
+            "                             grammatical concept — viewer just\n"
+            "                             heard it.\n"
+            "\n"
+            "                             BAD example narration (verbose, 79w):\n"
+            "                               \"In another verse, the same\n"
+            "                                conditional structure appears\n"
+            "                                twice in parallel. Chapter 6,\n"
+            "                                verse 160, reads: 'Whoever\n"
+            "                                comes with the good deed will\n"
+            "                                have ten like it, and whoever\n"
+            "                                comes with an evil deed will be\n"
+            "                                recompensed only with the like\n"
+            "                                of it...' Notice how each clause\n"
+            "                                opens with the same particle,\n"
+            "                                framing both the reward and the\n"
+            "                                consequence as scenarios that\n"
+            "                                respond to a person's choice.\"\n"
+            "                             GOOD example narration (tight, 35w):\n"
+            "                               \"Elsewhere, in 6:160: 'Whoever\n"
+            "                                comes with a good deed.' Same\n"
+            "                                particle, same scenario logic,\n"
+            "                                this time framing reward as a\n"
+            "                                response to a hypothetical\n"
+            "                                person's choice.\"\n"
+            "                             The good version trusts the listener\n"
+            "                             to remember what was just said about\n"
+            "                             the main verse and just shows the\n"
+            "                             parallel.\n"
+            "\n"
             "                             Set to [] when the main verse\n"
-            "                             carries the point on its own.\n"
+            "                             carries the point on its own (rare —\n"
+            "                             usually 1 example is the right call).\n"
             "\n"
             "VOICE: write like a thoughtful human, not an essayist.\n"
             "  - DO NOT use em dashes (—). Anywhere. In any beat. Use\n"
@@ -1535,6 +1568,34 @@ def _validate(script: dict, payload: dict) -> list[str]:
                             f"sentence (≥30 chars). Aim for ~15-25s of "
                             f"voiceover that opens with 'In another verse,' "
                             f"or 'Elsewhere,' and shows the parallel."
+                        )
+                    # Word-count cap — operator feedback flagged that
+                    # 70-80 word example narrations make the video feel
+                    # padded. 55 words is ~12-15s, plenty for "open
+                    # with 'Elsewhere,' + quote + one sentence" without
+                    # re-explaining the grammar.
+                    nar_wc = _word_count(narration)
+                    if nar_wc > 55:
+                        errors.append(
+                            f"additional_examples[{i}].narration is {nar_wc} "
+                            f"words; keep to ≤55 (≈12-15s). Don't re-explain "
+                            f"the grammatical concept — the viewer just "
+                            f"heard it. Format: 'In another verse,' / "
+                            f"'Elsewhere,' + ≤8-word quote from the "
+                            f"translation + one sentence on how the pattern "
+                            f"shows up here. STOP."
+                        )
+                    # Essayist-tic check on narrations too — same
+                    # filler patterns that bloat the main beats also
+                    # bloat examples.
+                    nar_tics = tic_re.findall(narration)
+                    if nar_tics:
+                        errors.append(
+                            f"additional_examples[{i}].narration contains "
+                            f"essayist filler: {sorted(set(t.lower() for t in nar_tics))}. "
+                            f"Trim them out — the example slide should "
+                            f"land the parallel cleanly without re-stating "
+                            f"the lecture."
                         )
                     # Optional english_emphases on this example. Same
                     # rules as the top-level field but matched against
