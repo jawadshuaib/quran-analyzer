@@ -642,20 +642,34 @@ def _resolve_evidence_position(
 
     if tok_pos is not None:
         if feature_type == "feature" and feature_value:
-            # The feature_value is an agreement / verb-form / case
-            # tag stored in features_raw (e.g. "1P", "PERF", "ACC").
-            # Verify the token_ref position actually carries that
-            # feature; if it doesn't, scan the verse for any word
-            # that does and prefer those.
+            # The feature_value is an agreement / verb-form / case /
+            # POS tag stored in features_raw. The corpus uses two
+            # formats interleaved with pipes:
+            #   - standalone tokens (e.g. "1P", "PERF", "ACC", "M")
+            #   - KEY:VALUE pairs (e.g. "POS:COND", "MOOD:JUS",
+            #     "PRON:3MP")
+            # A "COND" feature should match either the standalone
+            # token OR the value of a POS:COND pair. Without checking
+            # the value side, conditional/restriction/accusative
+            # particles (whose only marker is POS:X) silently miss.
+            def _has_feature(features_raw: str | None, value: str) -> bool:
+                if not features_raw:
+                    return False
+                for part in features_raw.split("|"):
+                    if part == value:
+                        return True
+                    # KEY:VALUE — match on the value side.
+                    if ":" in part and part.partition(":")[2] == value:
+                        return True
+                return False
+
             row = conn.execute(
                 "SELECT word_pos, features_raw FROM morphology "
                 "WHERE chapter=? AND verse=? AND word_pos=? "
                 "ORDER BY segment LIMIT 1",
                 (chapter, verse, tok_pos),
             ).fetchone()
-            if row and feature_value in (
-                (row["features_raw"] or "").split("|")
-            ):
+            if row and _has_feature(row["features_raw"], feature_value):
                 return tok_pos
             # Mismatch — find any word in the verse with this feature.
             scan = conn.execute(
@@ -665,7 +679,7 @@ def _resolve_evidence_position(
                 (chapter, verse),
             ).fetchall()
             for r in scan:
-                if feature_value in (r["features_raw"] or "").split("|"):
+                if _has_feature(r["features_raw"], feature_value):
                     return r["word_pos"]
             return None
         # Last-resort fallback for evidence with no usable identifier
