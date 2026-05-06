@@ -11,8 +11,15 @@ interface Props {
    *  flow on /read/<surah> — the user clicks an "Ask about <verse>"
    *  pill, the parent freezes the anchor verse into props, and we
    *  mount AskAssistant already-open so the user doesn't have to
-   *  click a second time. */
+   *  click a second time. Ignored when `isOpen` is controlled. */
   defaultOpen?: boolean;
+  /** Optional controlled-component mode for the open/close state.
+   *  When `isOpen` is provided, the parent owns the lifecycle and
+   *  must update it in response to `onOpenChange`. The reader uses
+   *  this so it can swap our floating button for its own live verse-
+   *  tracking pill whenever the panel is closed. */
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface Message {
@@ -55,8 +62,20 @@ export default function AskAssistant({
   pageKey,
   contextGatherer,
   defaultOpen = false,
+  isOpen,
+  onOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(defaultOpen);
+  // Open state is dual-mode. When the parent passes `isOpen`, that
+  // wins; otherwise we fall back to internal state seeded from
+  // `defaultOpen`. setOpen always notifies the parent (when in
+  // controlled mode) AND updates internal state (when uncontrolled),
+  // so callers can mix without surprises.
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = isOpen !== undefined ? isOpen : internalOpen;
+  const setOpen = useCallback((next: boolean) => {
+    if (isOpen === undefined) setInternalOpen(next);
+    onOpenChange?.(next);
+  }, [isOpen, onOpenChange]);
   const [tab, setTab] = useState<'ask' | 'history'>('ask');
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -424,8 +443,12 @@ export default function AskAssistant({
     </div>
   );
 
-  // Floating button
+  // Floating button. In controlled mode the parent renders its own
+  // closed-state UI (e.g. the reader's live verse-tracking pill), so
+  // we render nothing here — otherwise we'd stack two floating
+  // buttons in the same corner.
   if (!open) {
+    if (isOpen !== undefined) return null;
     return (
       <button
         onClick={() => setOpen(true)}
