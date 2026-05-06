@@ -887,6 +887,142 @@ def _extract_arabic_word_from_evidence(insight: dict) -> str | None:
     return None
 
 
+def _build_grammar_example_slide(
+    conn,
+    *,
+    chapter: int,
+    verse: int,
+    narration_text: str,
+    anchor_insight: dict,
+    base_marker: str,
+    english_emphasis_strings: list[str],
+    dur: float,
+) -> dict | None:
+    """Build a grammar-verse slide for a cross-reference example.
+
+    Same shape as the main verse slides — Arabic + translation +
+    highlights + narration — but the highlights come from looking
+    up the anchor insight's lemmas inside THIS verse's morphology.
+    The lemma is the strongest signal of "same grammatical move",
+    so we light up the same word(s) in the example as we did in
+    the anchor (e.g. for an exception_scope insight on 79:46
+    anchored on lemma `<il~aA`, an example verse on 2:286 will
+    highlight wherever `<il~aA` sits in 2:286).
+
+    Returns None when the verse is missing or no anchor lemma
+    appears in it — caller should drop the example silently.
+    """
+    vd = _verse_data(conn, chapter, verse)
+    if not vd or not vd.get("translation"):
+        return None
+    import app as _app
+    arabic = _strip_uthmani_marks(_app._strip_bismillah(vd["arabic"], chapter, verse))
+    translation = vd["translation"]
+
+    # Pull anchor lemmas. Two paths, same as the script-side
+    # candidate finder: direct lemma_bw evidence, or resolve to the
+    # anchor verse position and pull the lemma from morphology.
+    # Without the second path, V7 evidence that only carries POS
+    # tags (e.g. feature=COND for 80:5) yields no anchor lemma and
+    # the example slide renders without highlights.
+    anchor_lemmas: set[str] = set()
+    for ev in anchor_insight.get("evidence_trace") or []:
+        if ev.get("feature_type") == "lemma_bw":
+            v = (ev.get("feature_value") or "").strip()
+            if v:
+                anchor_lemmas.add(v)
+    if not anchor_lemmas:
+        # Resolve each evidence to a position in the anchor verse —
+        # but we need the anchor verse's chapter/verse, which the
+        # caller doesn't pass directly. Recover it from the
+        # evidence's token_ref (anchor verse is the first token_ref's
+        # chapter:verse).
+        anchor_ch, anchor_v = None, None
+        for ev in anchor_insight.get("evidence_trace") or []:
+            ref = (ev.get("token_ref") or "").strip().split(":")
+            if len(ref) >= 2:
+                try:
+                    anchor_ch = int(ref[0])
+                    anchor_v = int(ref[1])
+                    break
+                except (TypeError, ValueError):
+                    continue
+        if anchor_ch is not None and anchor_v is not None:
+            for ev in anchor_insight.get("evidence_trace") or []:
+                pos = _resolve_evidence_position(conn, anchor_ch, anchor_v, ev)
+                if pos is None:
+                    continue
+                row = conn.execute(
+                    "SELECT lemma_buckwalter FROM morphology "
+                    "WHERE chapter=? AND verse=? AND word_pos=? "
+                    "  AND lemma_buckwalter IS NOT NULL "
+                    "  AND lemma_buckwalter != '' "
+                    "ORDER BY segment LIMIT 1",
+                    (anchor_ch, anchor_v, pos),
+                ).fetchone()
+                if row and row["lemma_buckwalter"]:
+                    anchor_lemmas.add(row["lemma_buckwalter"])
+
+    # Find every word_pos in this verse whose any segment matches
+    # an anchor lemma. Same-feature expansion (1P / 2MS) doesn't
+    # apply here — we want a literal lemma echo, not a feature
+    # echo, since features can collide across unrelated grammatical
+    # moves.
+    positions: set[int] = set()
+    if anchor_lemmas:
+        placeholders = ",".join("?" * len(anchor_lemmas))
+        for r in conn.execute(
+            f"SELECT DISTINCT word_pos FROM morphology "
+            f"WHERE chapter=? AND verse=? AND lemma_buckwalter IN ({placeholders})",
+            (chapter, verse, *anchor_lemmas),
+        ):
+            positions.add(r["word_pos"])
+    word_positions = sorted(positions)
+
+    # If we couldn't find the anchor lemma in this verse, the
+    # example doesn't visually demonstrate the parallel — render
+    # without highlights rather than skip the slide entirely (the
+    # script writer's narration may still be valuable).
+
+    # Chunk + assign markers, same as the main verse builder.
+    chunks = _chunk_word_positions(conn, chapter, verse, word_positions)
+    pos_to_chunk: dict[int, tuple[int, str]] = {}
+    for ci, chunk in enumerate(chunks):
+        cm = _chunk_marker(ci, base_marker)
+        for p in chunk:
+            pos_to_chunk[p] = (ci, cm)
+
+    highlights: list[dict] = []
+    for pos in word_positions:
+        _, marker = pos_to_chunk[pos]
+        highlights.append({"wordIndex": pos, "marker": marker})
+
+    # English emphases — same chunk-color pairing as the main verse.
+    en_emphases: list[dict] = []
+    if english_emphasis_strings and chunks:
+        chunk_markers = [_chunk_marker(i, base_marker) for i in range(len(chunks))]
+        for i, phrase in enumerate(english_emphasis_strings):
+            marker = chunk_markers[min(i, len(chunk_markers) - 1)]
+            en_emphases.append({"phrase": phrase, "marker": marker})
+    elif english_emphasis_strings:
+        for phrase in english_emphasis_strings:
+            en_emphases.append({"phrase": phrase, "marker": base_marker})
+
+    slide: dict = {
+        "type": "grammar-verse",
+        "durationSec": dur,
+        "surah": chapter,
+        "ayah": verse,
+        "arabicText": arabic,
+        "translation": translation,
+        "highlights": highlights,
+        "narration": {"text": narration_text or ""},
+    }
+    if en_emphases:
+        slide["englishEmphases"] = en_emphases
+    return slide
+
+
 def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
     """Convert a grammar_insights educational_videos row + its script
     into a Remotion payload.
@@ -1033,9 +1169,44 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
             s["englishEmphases"] = en_emphases
         return s
 
+    # Cross-reference example slides ("In another verse, ..." /
+    # "Elsewhere, ..."). Each example gets its own grammar-verse
+    # slide so the viewer literally sees the other verse on screen
+    # while the narrator points to it. Highlights are auto-derived
+    # from the anchor insight's lemmas applied against the example
+    # verse's morphology — same lemma in the new verse → highlight.
+    example_slides: list[dict] = []
+    for ex in (script.get("additional_examples") or [])[:2]:
+        if not isinstance(ex, dict):
+            continue
+        try:
+            ex_ch = int(ex["chapter"])
+            ex_v = int(ex["verse"])
+        except (TypeError, ValueError, KeyError):
+            continue
+        ex_narration = sanitize_for_tts((ex.get("narration") or "").strip())
+        if not ex_narration:
+            continue
+        ex_em = ex.get("english_emphases") if isinstance(ex.get("english_emphases"), list) else []
+        ex_em_clean: list[str] = [
+            s.strip() for s in ex_em if isinstance(s, str) and s.strip()
+        ]
+        slide = _build_grammar_example_slide(
+            conn,
+            chapter=ex_ch, verse=ex_v,
+            narration_text=ex_narration,
+            anchor_insight=insight,
+            base_marker=base_marker,
+            english_emphasis_strings=ex_em_clean,
+            dur=8.0,
+        )
+        if slide:
+            example_slides.append(slide)
+
     slides: list[dict] = [
         _verse_slide(hook_text, dur=6.5),
         _verse_slide(intro_text, dur=8.0),
+        *example_slides,
         _verse_slide(final_slide_narration, dur=8.5),
         _build_outro_slide(),
     ]

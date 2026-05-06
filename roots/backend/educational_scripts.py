@@ -170,6 +170,7 @@ Output schema (all keys required, all strings unless noted):
   "insight":       "(non-Word Origins) 2-4 sentences delivering the payload. Empty for Word Origins.",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
   "english_emphases": "(Grammar Insights ONLY) Array of 1-4 short phrases pulled VERBATIM from the verse's English translation that you want highlighted on the verse card. Pick phrases that most clearly carry the grammatical move you're explaining — e.g. for a 'we vs I' insight on 1:5 you might pick [\"You alone we serve\", \"You alone we seek help from\"]. Each phrase MUST appear character-for-character in the translation, and the phrases MUST NOT overlap each other in the translation (no phrase's text can sit inside another phrase's span). The renderer highlights every occurrence of each disjoint phrase. Empty array [] for other types.",
+  "additional_examples": "(Grammar Insights ONLY) Array of 0-2 cross-reference verses that show the same grammatical move elsewhere in the Quran. Each entry: {\"chapter\": N, \"verse\": N, \"narration\": \"...\", \"english_emphases\": [...]}. Picks MUST come from `additional_example_candidates` in the payload — do not invent references. The narration is one short paragraph (15-25s of voiceover) introduced with phrasing like 'In another verse...' for the first pick and 'Elsewhere...' for the second; explain how the same pattern manifests in this verse. english_emphases is the same shape/rules as the top-level field — applied to THIS example's translation. Empty array [] when no candidate fits or the verse already makes the point on its own.",
   "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. DO NOT include Arabic recitation — the reciter's audio plays separately. For Word Origins, structure the narration as: (1) hook + tidbit_about_root narrated over the source verse on screen, (2) tidbit_about_quran_usage narrated over selected_verse_refs[0], (3) tidbit_about_semitic narrated over selected_verse_refs[1]. The video shows the verses; the narration is the connective tissue.",
   "voiceover_short": "Concatenated narration up to 200 words (target 140-180), suitable for a punchy short-form video that may run a bit over a minute. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
   "languages_referenced": ["list of language names actually mentioned in voiceover_long, copied exactly from the payload"],
@@ -376,6 +377,108 @@ def _fetch_word(conn, chapter: int, verse: int, word_pos: int) -> dict | None:
     return dict(row) if row else None
 
 
+def _find_grammar_example_candidates(
+    conn, insight: dict, *, exclude_chapter: int, exclude_verse: int,
+    limit: int = 8,
+) -> list[dict]:
+    """Pool of OTHER verses that contain the same grammatical lemma(s)
+    as the anchor insight — used as candidate cross-references for the
+    "In another verse... / Elsewhere..." beats in grammar_insights
+    videos. The script writer gets to pick 0-2 from this pool.
+
+    Strategy: for each evidence entry, derive a lemma. Two paths:
+      1. Direct — feature_type=lemma_bw gives us the lemma already.
+      2. Indirect — for evidence pointing at a position via
+         feature_type=feature/form_bw/root_bw or surface_ar, we
+         resolve to a word_pos in the anchor verse and pull THAT
+         word's lemma from morphology. This catches cases like
+         80:5's exception/conditional particles where V7's
+         evidence carries only the POS tag, not a lemma.
+    Then find verses (excluding the anchor) where any segment
+    carries one of those lemmas. Translation comes from
+    ai_translations (latest run) with conventional fallback.
+
+    Returns dicts with chapter, verse, word_pos (where the matching
+    lemma sits), text_uthmani, translation. Empty list when no
+    lemma is derivable.
+    """
+    lemmas: set[str] = set()
+
+    # Path 1: direct lemma_bw evidence
+    for ev in insight.get("evidence_trace") or []:
+        if ev.get("feature_type") == "lemma_bw":
+            v = (ev.get("feature_value") or "").strip()
+            if v:
+                lemmas.add(v)
+
+    # Path 2: resolve evidence to a position in the anchor verse,
+    # then pull the lemma from morphology. Needed for evidence
+    # types that only carry a POS tag or a feature like COND/PERF.
+    if not lemmas:
+        try:
+            from educational_render_remotion import _resolve_evidence_position
+            for ev in insight.get("evidence_trace") or []:
+                pos = _resolve_evidence_position(conn, exclude_chapter, exclude_verse, ev)
+                if pos is None:
+                    continue
+                row = conn.execute(
+                    "SELECT lemma_buckwalter FROM morphology "
+                    "WHERE chapter=? AND verse=? AND word_pos=? "
+                    "  AND lemma_buckwalter IS NOT NULL "
+                    "  AND lemma_buckwalter != '' "
+                    "ORDER BY segment LIMIT 1",
+                    (exclude_chapter, exclude_verse, pos),
+                ).fetchone()
+                if row and row["lemma_buckwalter"]:
+                    lemmas.add(row["lemma_buckwalter"])
+        except Exception:
+            pass
+
+    if not lemmas:
+        return []
+
+    placeholders = ",".join("?" * len(lemmas))
+    rows = conn.execute(
+        f"""
+        SELECT m.chapter, m.verse, MIN(m.word_pos) AS word_pos
+        FROM morphology m
+        WHERE m.lemma_buckwalter IN ({placeholders})
+          AND NOT (m.chapter = ? AND m.verse = ?)
+        GROUP BY m.chapter, m.verse
+        ORDER BY RANDOM()
+        LIMIT ?
+        """,
+        (*lemmas, exclude_chapter, exclude_verse, limit * 3),
+    ).fetchall()
+
+    out: list[dict] = []
+    for r in rows:
+        verse_data = _fetch_verse(conn, r["chapter"], r["verse"])
+        if not verse_data:
+            continue
+        translation = (verse_data.get("translation") or "").strip()
+        text = (verse_data.get("text_uthmani") or "").strip()
+        if not translation or not text:
+            continue
+        # Skip very long verses (>240 chars) so candidate slides
+        # don't blow the layout. Exclude bismillah (1:1) which is
+        # a fixed phrase, not a useful grammar exemplar.
+        if len(text) > 240:
+            continue
+        if r["chapter"] == 1 and r["verse"] == 1:
+            continue
+        out.append({
+            "chapter": r["chapter"],
+            "verse": r["verse"],
+            "word_pos": r["word_pos"],
+            "text_uthmani": text,
+            "translation": translation,
+        })
+        if len(out) >= limit:
+            break
+    return out
+
+
 def _fetch_other_quran_verses_with_root(
     conn, root_buckwalter: str, *, exclude_chapter: int, exclude_verse: int,
     limit: int = 8,
@@ -560,6 +663,15 @@ def enrich_payload(conn: sqlite3.Connection, row: dict) -> dict:
         note = _fetch_departure_note(conn, chapter, verse)
         if note:
             base["translation_note"] = note
+        # Cross-reference example pool — other verses where the same
+        # grammatical lemma appears, so the script writer can pick 0-2
+        # to feature as "In another verse... / Elsewhere..." beats
+        # between the verse_intro and insight slides. Drives the point
+        # home by showing the pattern is a real Quranic device, not a
+        # one-off.
+        base["additional_example_candidates"] = _find_grammar_example_candidates(
+            conn, insight, exclude_chapter=chapter, exclude_verse=verse, limit=8,
+        )
     else:
         raise ScriptGenError(f"unknown type: {vtype}")
 
@@ -684,6 +796,35 @@ def _build_user_prompt(payload: dict) -> str:
                 f"{ev.get('feature_type', '')}={ev.get('feature_value', '')} "
                 f"[{ev.get('role', '')}]"
             )
+
+        # Candidate pool for the cross-reference example slides.
+        # Pick 0-2 of these for `additional_examples`. Picking 1 is
+        # the sweet spot for short videos; pick 2 only when the
+        # second adds something the first doesn't (e.g. shows the
+        # pattern in a very different rhetorical register).
+        examples = payload.get("additional_example_candidates") or []
+        example_block = ""
+        if examples:
+            example_lines = ["\nAdditional-example candidates (pick 0-2 for `additional_examples`):"]
+            for ex in examples:
+                tr = (ex.get("translation") or "").strip().replace("\n", " ")
+                if len(tr) > 200:
+                    tr = tr[:197] + "..."
+                example_lines.append(f"  - {ex['chapter']}:{ex['verse']} — {tr}")
+            example_lines.append(
+                "  These verses share at least one grammatical lemma with the\n"
+                "  anchor insight, so they're candidates for showing the same\n"
+                "  move in another context. Pick the ones that ARE actually\n"
+                "  parallel — same grammatical move, not just same word in a\n"
+                "  different role."
+            )
+            example_block = "\n".join(example_lines) + "\n"
+        else:
+            example_block = (
+                "\nAdditional-example candidates: (none — V7 evidence had no\n"
+                "resolvable lemma to cross-reference). Set additional_examples\n"
+                "to an empty array [].\n"
+            )
         cf_block = ""
         if cf.get("present") and cf.get("text"):
             cf_block = (
@@ -742,6 +883,34 @@ def _build_user_prompt(payload: dict) -> str:
             "                             insight and put it here. The close\n"
             "                             is reserved for that line; do not\n"
             "                             bury it earlier in the script.\n"
+            "\n"
+            "  additional_examples (0-2 entries, each ~15-25s of narration):\n"
+            "                             Cross-reference verses where the same\n"
+            "                             grammatical move appears elsewhere.\n"
+            "                             Pick from the candidate list at the\n"
+            "                             bottom of this prompt; do not invent\n"
+            "                             references. Slot the example slides\n"
+            "                             between verse_intro and insight in\n"
+            "                             the video — the structure becomes:\n"
+            "                               1. Hook on the main verse.\n"
+            "                               2. Verse_intro on the main verse.\n"
+            "                               3. Example #1 (\"In another verse,\n"
+            "                                  ...\") — short and pointed.\n"
+            "                               4. Example #2 (\"Elsewhere, ...\")\n"
+            "                                  — only if it adds something\n"
+            "                                  the first didn't.\n"
+            "                               5. Insight + close zoom back to\n"
+            "                                  the main verse.\n"
+            "                             Each example's narration should\n"
+            "                             quickly establish the verse and\n"
+            "                             show how THE SAME pattern is at\n"
+            "                             work — don't restart the lecture.\n"
+            "                             Open with \"In another verse,\" /\n"
+            "                             \"Elsewhere,\" / \"The same move\n"
+            "                             surfaces in...\" so the listener\n"
+            "                             knows we've zoomed out.\n"
+            "                             Set to [] when the main verse\n"
+            "                             carries the point on its own.\n"
             "\n"
             "VOICE: write like a thoughtful human, not an essayist.\n"
             "  - DO NOT use em dashes (—). Anywhere. In any beat. Use\n"
@@ -852,6 +1021,7 @@ def _build_user_prompt(payload: dict) -> str:
             "immediate English gloss after each Arabic word:\n"
             + ("\n".join(ev_lines) if ev_lines else "(none)")
             + "\n"
+            + example_block +
             "\nenglish_emphases (1-4 short phrases for the verse-card\n"
             "highlight pills):\n"
             "  Pick the English phrases from the translation above that\n"
@@ -1314,6 +1484,83 @@ def _validate(script: dict, payload: dict) -> list[str]:
                         f"english_emphases has {len(emphases)} entries; "
                         f"keep it to 1-4 short phrases."
                     )
+
+        # additional_examples must come from the candidate pool, with
+        # narration text and (optional) english_emphases that match
+        # the example verse's translation. Hard-validate so the LLM
+        # can't invent references.
+        ax = script.get("additional_examples")
+        if ax is not None:
+            if not isinstance(ax, list):
+                errors.append(
+                    "additional_examples must be a list (got "
+                    f"{type(ax).__name__})."
+                )
+            else:
+                if len(ax) > 2:
+                    errors.append(
+                        f"additional_examples has {len(ax)} entries; "
+                        f"keep it to 0-2 cross-references."
+                    )
+                allowed = {
+                    (c["chapter"], c["verse"]): c
+                    for c in (payload.get("additional_example_candidates") or [])
+                }
+                for i, item in enumerate(ax[:2]):
+                    if not isinstance(item, dict):
+                        errors.append(
+                            f"additional_examples[{i}] must be an object."
+                        )
+                        continue
+                    try:
+                        c_ch = int(item.get("chapter"))
+                        c_v = int(item.get("verse"))
+                    except (TypeError, ValueError):
+                        errors.append(
+                            f"additional_examples[{i}] missing valid chapter/verse."
+                        )
+                        continue
+                    cand = allowed.get((c_ch, c_v))
+                    if cand is None:
+                        errors.append(
+                            f"additional_examples[{i}] {c_ch}:{c_v} is not in "
+                            f"the candidate pool. Pick from the list at the "
+                            f"bottom of the prompt; do not invent references."
+                        )
+                        continue
+                    narration = item.get("narration") or ""
+                    if not isinstance(narration, str) or len(narration.strip()) < 30:
+                        errors.append(
+                            f"additional_examples[{i}].narration must be a "
+                            f"sentence (≥30 chars). Aim for ~15-25s of "
+                            f"voiceover that opens with 'In another verse,' "
+                            f"or 'Elsewhere,' and shows the parallel."
+                        )
+                    # Optional english_emphases on this example. Same
+                    # rules as the top-level field but matched against
+                    # THIS verse's translation.
+                    e_em = item.get("english_emphases")
+                    if e_em is not None:
+                        if not isinstance(e_em, list):
+                            errors.append(
+                                f"additional_examples[{i}].english_emphases "
+                                f"must be a list."
+                            )
+                        else:
+                            cand_t = (cand.get("translation") or "").lower()
+                            for j, phrase in enumerate(e_em):
+                                if not isinstance(phrase, str):
+                                    continue
+                                p = phrase.strip()
+                                if not p:
+                                    continue
+                                if p.lower() not in cand_t:
+                                    errors.append(
+                                        f"additional_examples[{i}]."
+                                        f"english_emphases[{j}] = {p!r} is "
+                                        f"not in {c_ch}:{c_v}'s translation. "
+                                        f"Copy verbatim or drop the field."
+                                    )
 
     return errors
 
