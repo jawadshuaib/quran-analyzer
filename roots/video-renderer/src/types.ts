@@ -149,12 +149,26 @@ export const GrammarVerseSlide = z.object({
   // Optional: phrase-level English emphases the script writer
   // explicitly chose for this slide. When present, the renderer
   // highlights every occurrence of each phrase in the translation
-  // — overriding the per-highlight `translationSubstring` glosses,
-  // which are richer than single-word gloss matches and let the
-  // LLM frame the grammatical move with its surrounding context
-  // (e.g. ["You alone we serve", "You alone we seek help from"]
-  // for a person-mixture slide on 1:5).
-  englishEmphases: z.array(z.string()).optional(),
+  // — overriding the per-highlight `translationSubstring` glosses.
+  //
+  // Each emphasis is either a bare string (uses the first Arabic
+  // highlight's marker color) or an object with its own marker so
+  // parallel clauses can render in different colors. The backend
+  // groups Arabic highlights into chunks (e.g. parallel-clause
+  // pairs split on a وَ) and assigns one marker per chunk, then
+  // pairs each english emphasis with its chunk's color so the
+  // viewer immediately sees the parallel structure as distinct
+  // pieces — e.g. for 1:5: ["You alone we serve" (blue),
+  // "You alone we seek help from" (amber)].
+  englishEmphases: z.array(
+    z.union([
+      z.string(),
+      z.object({
+        phrase: z.string(),
+        marker: z.enum(['tense', 'pronoun', 'fronted', 'agent', 'default']).optional(),
+      }),
+    ]),
+  ).optional(),
   // Small annotation pinned below the verse card. Deprecated; the
   // renderer no longer draws this. Kept on the schema so legacy
   // payloads still parse.

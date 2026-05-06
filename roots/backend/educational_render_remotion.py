@@ -626,6 +626,84 @@ def _grammar_highlight_positions(conn, chapter: int, verse: int, insight: dict) 
     return sorted(expanded)
 
 
+# Per-chunk marker rotation.
+#
+# The V7 category gives us the *first* chunk's color (so a
+# person_mixture insight still leads with blue). Subsequent chunks
+# rotate through the other markers so the viewer can visually parse
+# parallel structures as distinct pieces — e.g. for 1:5's "we serve /
+# we seek help" parallelism, chunk 0 lands blue (pronoun) and chunk 1
+# lands amber (tense), instead of clumping everything under one shade
+# and hiding the parallel-clause boundary.
+_CHUNK_MARKER_ROTATION = ("pronoun", "tense", "fronted", "agent")
+
+
+def _chunk_marker(chunk_idx: int, base_marker: str) -> str:
+    """Pick a marker color for the Nth chunk. Chunk 0 = base_marker
+    (the V7-derived color); subsequent chunks rotate through the
+    remaining markers, deduped to avoid repeating the base."""
+    palette: list[str] = [base_marker]
+    for m in _CHUNK_MARKER_ROTATION:
+        if m not in palette:
+            palette.append(m)
+    return palette[chunk_idx % len(palette)]
+
+
+def _chunk_word_positions(conn, chapter: int, verse: int, positions: list[int]) -> list[list[int]]:
+    """Group highlighted word positions into visually-distinct chunks.
+
+    Two break signals, in order:
+      1. Conjunction prefix on the next word (waw/fa/etc.) — clear
+         clause boundary in Arabic. For 1:5 this splits the
+         إِيَّاكَ نَعْبُدُ / وَإِيَّاكَ نَسْتَعِينُ pair on the
+         second وَ-prefixed word.
+      2. Gap of one or more unhighlighted words between this position
+         and the previous — the highlighted span isn't continuous so
+         the eye already breaks it.
+
+    Returns a list of chunks, each chunk a list of word_positions in
+    ascending order. Empty input → empty output.
+    """
+    if not positions:
+        return []
+    sorted_pos = sorted(set(positions))
+
+    # Pull the first segment of every position so we can spot
+    # conjunction prefixes (Prefix POS with form_buckwalter starting
+    # with 'w' or 'f', the common Arabic conjunction prefixes).
+    first_segments: dict[int, dict] = {}
+    rows = conn.execute(
+        "SELECT word_pos, segment, pos, form_buckwalter "
+        "FROM morphology "
+        f"WHERE chapter=? AND verse=? AND word_pos IN ({','.join('?' * len(sorted_pos))}) "
+        "ORDER BY word_pos, segment",
+        (chapter, verse, *sorted_pos),
+    ).fetchall()
+    for r in rows:
+        wp = r["word_pos"]
+        if wp not in first_segments:
+            first_segments[wp] = dict(r)
+
+    def _starts_with_conjunction(wp: int) -> bool:
+        seg = first_segments.get(wp)
+        if not seg:
+            return False
+        if (seg["pos"] or "").lower() not in ("prefix", "conjunction"):
+            return False
+        form = (seg["form_buckwalter"] or "").lower()
+        # Buckwalter 'w' = wa (and), 'f' = fa (so/then). Both are
+        # clause-introducers in this position.
+        return form.startswith("w") or form.startswith("f")
+
+    chunks: list[list[int]] = [[sorted_pos[0]]]
+    for prev, curr in zip(sorted_pos, sorted_pos[1:]):
+        if curr - prev > 1 or _starts_with_conjunction(curr):
+            chunks.append([curr])
+        else:
+            chunks[-1].append(curr)
+    return chunks
+
+
 # Maps V7 categories to the GrammarVerseSlide marker enum so multi-
 # highlight verses get color-coded by what kind of grammatical move
 # is being shown.
@@ -713,7 +791,20 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
     # morphological siblings (same lemma OR same person/number
     # features for verbs/pronouns).
     word_positions = _grammar_highlight_positions(conn, chapter, verse, insight)
-    marker = _CATEGORY_TO_MARKER.get(insight.get("category", ""), "default")
+    base_marker = _CATEGORY_TO_MARKER.get(insight.get("category", ""), "default")
+
+    # Group positions into chunks (parallel clauses, etc.) so each
+    # gets its own color. For 1:5 this splits 1,2,3,4 into [[1,2],
+    # [3,4]] on the وَ in word 3.
+    chunks = _chunk_word_positions(conn, chapter, verse, word_positions)
+
+    # Map each word_pos to (chunk_idx, marker) so the highlight
+    # construction can read it without re-walking chunks.
+    pos_to_chunk: dict[int, tuple[int, str]] = {}
+    for ci, chunk in enumerate(chunks):
+        chunk_marker = _chunk_marker(ci, base_marker)
+        for p in chunk:
+            pos_to_chunk[p] = (ci, chunk_marker)
 
     # English-side highlights. Two sources, in priority order:
     #   1. Script's `english_emphases` — phrase-level spans the LLM
@@ -725,16 +816,30 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
     #      out from ai_word_meanings / word_glosses lookups.
     # The renderer will find ALL occurrences of each substring, so
     # repeated tokens (إيَّاكَ × 2 → "you" × 2) light up everywhere.
-    en_emphases: list[str] = []
+    en_emphasis_strings: list[str] = []
     raw_emphases = script.get("english_emphases")
     if isinstance(raw_emphases, list):
         for s in raw_emphases:
             if isinstance(s, str) and s.strip():
-                en_emphases.append(s.strip())
+                en_emphasis_strings.append(s.strip())
+
+    # Pair each emphasis with a chunk's marker, by index. Extra
+    # emphases (more than chunks) reuse the last chunk's color.
+    en_emphases: list[dict] = []
+    if en_emphasis_strings and chunks:
+        chunk_markers = [_chunk_marker(i, base_marker) for i in range(len(chunks))]
+        for i, phrase in enumerate(en_emphasis_strings):
+            marker = chunk_markers[min(i, len(chunk_markers) - 1)]
+            en_emphases.append({"phrase": phrase, "marker": marker})
+    elif en_emphasis_strings:
+        # No Arabic chunks but emphases exist — use the base marker.
+        for phrase in en_emphasis_strings:
+            en_emphases.append({"phrase": phrase, "marker": base_marker})
 
     highlights: list[dict] = []
     if word_positions:
         for pos in word_positions:
+            chunk_idx, marker = pos_to_chunk[pos]
             h: dict = {"wordIndex": pos, "marker": marker}
             # Per-word gloss — used only when the script didn't
             # provide explicit phrase emphases. When emphases ARE

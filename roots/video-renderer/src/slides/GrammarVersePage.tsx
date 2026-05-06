@@ -124,17 +124,22 @@ export function GrammarVersePage({ slide }: { slide: GrammarVerseSlideT }) {
   }
 
   if (slide.englishEmphases && slide.englishEmphases.length > 0) {
-    // Use the first Arabic highlight's marker color (same series
-    // identity), or fall back to the default amber.
-    const color = slide.highlights.length > 0
-      ? markerColor(slide.highlights[0].marker)
-      : markerColor('default');
-    // Pair sweeps with emphasis index, capped to the number of
-    // pre-computed Arabic sweeps; extra emphases reuse the last
-    // sweep so they all land within the slide.
-    slide.englishEmphases.forEach((phrase, i) => {
+    // Each emphasis can carry its own marker (parallel-clause
+    // chunks → distinct colors). Bare-string emphases inherit the
+    // first Arabic highlight's marker as a fallback.
+    const fallbackMarker = slide.highlights.length > 0
+      ? slide.highlights[0].marker
+      : 'default';
+    slide.englishEmphases.forEach((entry, i) => {
+      const phrase = typeof entry === 'string' ? entry : entry.phrase;
+      const marker = typeof entry === 'string'
+        ? fallbackMarker
+        : (entry.marker ?? fallbackMarker);
+      // Pair sweeps with emphasis index, capped to the number of
+      // pre-computed Arabic sweeps; extra emphases reuse the last
+      // sweep so they all land within the slide.
       const sweep = enSweeps[Math.min(i, enSweeps.length - 1)] ?? 1;
-      addAllOccurrences(phrase, color, sweep);
+      addAllOccurrences(phrase, markerColor(marker), sweep);
     });
   } else {
     slide.highlights.forEach((hl, i) => {
