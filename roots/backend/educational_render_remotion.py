@@ -519,16 +519,6 @@ _CATEGORY_TO_MARKER = {
 }
 
 
-def _truncate_words(s: str, n: int) -> str:
-    """Best-effort word-bounded truncation so annotations stay short."""
-    if not s:
-        return ""
-    words = s.strip().split()
-    if len(words) <= n:
-        return s.strip()
-    return " ".join(words[:n]).rstrip(",.;:") + "…"
-
-
 def _extract_arabic_word_from_evidence(insight: dict) -> str | None:
     """Pull the Arabic surface form of the first primary-support
     evidence token. Used as the saidArabic on the contrast slide."""
@@ -612,44 +602,6 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
             h["translationSubstring"] = en_substring
         highlights.append(h)
 
-    # Annotations per slide (short, plain English).
-    # - Slide 1: no annotation (the hook IS the question; visual is
-    #   just the verse with the highlight landing).
-    # - Slide 2: paraphrase of the contrast — if V7 has a clean
-    #   counterfactual, condense it; otherwise drop a short tag from
-    #   the script's verse_intro.
-    # - Slide 3: the meaning payoff, condensed.
-    cf = (insight.get("counterfactual") or {})
-    cf_text = (cf.get("text") or "").strip() if cf.get("present") else ""
-    payoff_text = ((insight.get("meaning_payoff") or {}).get("text") or "").strip()
-
-    # Annotations are the SHORT on-screen labels under the verse —
-    # they should be punchy 5–10 word phrases, not paraphrases of
-    # the full narration beat. We derive them from the V7 structured
-    # fields (clean, short, generator-controlled) rather than
-    # truncating the LLM script (which is prose and doesn't
-    # truncate cleanly).
-    #
-    # If V7 doesn't give us usable text — truncated CF or empty
-    # payoff — we fall through to None and the slide just renders
-    # the verse with the highlight, which is still informative.
-    slide2_ann: str | None = None
-    if cf_text and not cf_text.rstrip().endswith(("(e.", "(i.")):
-        # Try to find the "rather than X" clause — usually the cleanest
-        # contrast hint. Falls back to first sentence.
-        import re as _re
-        m = _re.search(r"\brather than\s+([^.]+)", cf_text, _re.IGNORECASE)
-        if m:
-            slide2_ann = _truncate_words(m.group(1).strip(), 10)
-        else:
-            slide2_ann = _truncate_words(cf_text.split(".")[0], 12)
-
-    slide3_ann: str | None = None
-    if payoff_text:
-        # Take the first sentence — V7 payoff_text is usually one or
-        # two sentences and the first is the punchline.
-        slide3_ann = _truncate_words(payoff_text.split(".")[0], 12)
-
     # Per-slide narration. We use the script's 4 beats:
     #   slide 1 = hook
     #   slide 2 = verse_intro (the contrast)
@@ -665,8 +617,12 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
     if close_text:
         final_slide_narration = (insight_text + " " + close_text).strip()
 
-    def _verse_slide(narration_text: str, annotation: str | None, dur: float) -> dict:
-        s: dict = {
+    def _verse_slide(narration_text: str, dur: float) -> dict:
+        # No on-screen annotation — the spoken narration is the
+        # whole story. An earlier version drew a small italic
+        # paraphrase below the card; it was too easy to clip and
+        # competed with the karaoke caption for attention.
+        return {
             "type": "grammar-verse",
             "durationSec": dur,
             "surah": chapter,
@@ -676,14 +632,11 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
             "highlights": highlights,
             "narration": {"text": narration_text or ""},
         }
-        if annotation:
-            s["annotation"] = annotation
-        return s
 
     slides: list[dict] = [
-        _verse_slide(hook_text, None, dur=6.5),
-        _verse_slide(intro_text, slide2_ann, dur=8.0),
-        _verse_slide(final_slide_narration, slide3_ann, dur=8.5),
+        _verse_slide(hook_text, dur=6.5),
+        _verse_slide(intro_text, dur=8.0),
+        _verse_slide(final_slide_narration, dur=8.5),
         _build_outro_slide(),
     ]
 

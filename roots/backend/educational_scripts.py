@@ -109,6 +109,31 @@ Tone & framing:
 - Plain English, second-person OK. No archaic "thee/thou".
 - Don't open with "Did you know" — show, don't tell.
 
+QURAN-ONLY GROUNDING (CRITICAL — applies to every script):
+- Every interpretive claim must be grounded in the Quran's own text or
+  in linguistic/grammatical facts about the Arabic. Nothing else is
+  in scope.
+- DO NOT cite hadith, sunnah, sira, tafsir, classical commentators,
+  or any post-Quranic Islamic tradition. Even paraphrased.
+- DO NOT use post-Quranic religious vocabulary in the script:
+    forbidden: hadith, sunnah, sira, ummah, sharia, halal, haram,
+               ijma, fiqh, madhhab, sahaba, "the prophet said",
+               "Muslims believe", "in Islamic tradition", "scholars
+               hold", "classical commentators", "according to the
+               sunnah", "the four schools".
+  These are signals of extra-Quranic sources. Find Quran-only phrasing
+  instead — e.g. "the verse says", "elsewhere in the Quran", "in this
+  text", "the chosen Arabic form", "the speaker", "those who do X".
+- "Stand within the community of believers", "the community of
+  followers", and similar phrases lean on the post-Quranic Ummah
+  concept and are out of scope. Stick to what the verse itself
+  actually says.
+- When meaning needs cross-reference, cross-reference OTHER VERSES
+  in the Quran (the payload provides them) — never external sources.
+- The Quran is presented as a self-contained text speaking on its
+  own terms. We illuminate it with Arabic linguistics and intra-
+  Quranic comparison, never with later interpretive layers.
+
 Hard rules:
 - ONLY use facts present in the structured payload provided.
 - Never invent etymological dates, cognate languages, or grammatical claims.
@@ -918,6 +943,51 @@ def _validate(script: dict, payload: dict) -> list[str]:
     # tight enough that "short" stays punchy vs the 250-340w long form.
     if short_wc > 200:
         errors.append(f"voiceover_short word count {short_wc} exceeds 200")
+
+    # Quran-only grounding. Reject scripts that lean on extra-Quranic
+    # vocabulary (hadith, sunnah, ummah, sharia, classical commentators,
+    # "Muslims believe", etc.). The prompt asks for this; the validator
+    # makes it a hard constraint so the operator doesn't have to catch
+    # leakage by eye in the preview pane. Whole-word matching (\b) so
+    # "summarize" doesn't false-positive on "sunnah", and so on.
+    quran_only_terms = [
+        # Post-Quranic religious sources
+        r"hadith", r"hadiths", r"sunnah", r"sunna", r"sira", r"seerah",
+        r"tafsir", r"tafseer",
+        # Concepts not framed in the Quran's own vocabulary
+        r"ummah", r"sharia", r"shariah", r"halal", r"haram",
+        r"ijma", r"fiqh", r"madhhab", r"madhab", r"sahaba",
+        # Phrases that signal external interpretation
+        r"the prophet said", r"prophet said",
+        r"muslims believe", r"islamic tradition", r"in islam",
+        r"according to islam", r"classical commentators?",
+        r"classical scholars?", r"the four schools",
+        r"the community of (?:believers?|followers?|the faithful)",
+    ]
+    quran_only_re = re.compile(
+        r"\b(?:" + "|".join(quran_only_terms) + r")\b",
+        re.IGNORECASE,
+    )
+    quran_only_hits: dict[str, list[str]] = {}
+    for fld in ("hook", "tidbit_about_root", "tidbit_about_quran_usage",
+                "tidbit_about_semitic", "verse_intro", "insight", "close",
+                "voiceover_long", "voiceover_short"):
+        text = script.get(fld) or ""
+        if not isinstance(text, str):
+            continue
+        matches = quran_only_re.findall(text)
+        if matches:
+            quran_only_hits[fld] = sorted(set(m.lower() for m in matches))
+    if quran_only_hits:
+        details = "; ".join(f"{f}: {ms}" for f, ms in quran_only_hits.items())
+        errors.append(
+            f"extra-Quranic vocabulary detected ({details}). This series "
+            f"grounds every claim in the Quran's own text — no hadith, no "
+            f"sunnah, no tafsir, no classical commentators, no Ummah/sharia/"
+            f"halal vocabulary. Rewrite using Quran-only phrasing: 'the "
+            f"verse says', 'elsewhere in the Quran', 'in this text', 'the "
+            f"speaker'."
+        )
 
     # Type-specific grounding checks.
     if payload["type"] == "word_origins":

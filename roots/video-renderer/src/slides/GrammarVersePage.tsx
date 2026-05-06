@@ -14,14 +14,18 @@ import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
 //     visually identifies the series — viewers learn "amber edge =
 //     grammar series" the same way they learn "yellow card = word
 //     origins".
-//   - Optional ANNOTATION line below the card, e.g. "the past-tense
-//     form, used here for a future event". Plain English; the
-//     narration carries the depth, the annotation just labels what
-//     the highlight is doing.
 //   - English highlights mirror the Arabic ones — when a highlight
 //     has translationSubstring, the renderer finds the substring in
 //     the translation and applies the same pill color so the
 //     viewer can see the Arabic→English correspondence.
+//
+// Note: an earlier version rendered a small italic annotation line
+// below the card (a truncated paraphrase of the V7 payoff). It read
+// poorly — too small, too easy to clip, and competed with the
+// karaoke caption for attention. Removed; the spoken narration now
+// carries the entire payoff. The `annotation` field on the slide
+// type is kept for backward compatibility with older payloads but
+// is no longer rendered.
 //
 // Sweep timing: each Arabic highlight enters with a 24-frame
 // scaleX-0-to-1 sweep (RTL: from right edge), staggered by 12
@@ -102,13 +106,6 @@ export function GrammarVersePage({ slide }: { slide: GrammarVerseSlideT }) {
   // string into [pre, match, mid, match, mid, ..., tail] segments
   // for rendering.
   enMatches.sort((a, b) => a.start - b.start);
-
-  // Annotation entrance — fades in after the highlights have landed.
-  const annotationStart = baseHighlightStart + slide.highlights.length * stagger + sweepDur;
-  const annotationOpacity = interpolate(
-    frame, [annotationStart, annotationStart + 18], [0, 1],
-    { extrapolateRight: 'clamp' },
-  );
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.appBg }}>
@@ -195,20 +192,6 @@ export function GrammarVersePage({ slide }: { slide: GrammarVerseSlideT }) {
           </div>
         </div>
 
-        {/* Optional annotation — sits below the card, mid-card width,
-            small caps style. Plain language, e.g. "the past-tense form,
-            used here for a future event". */}
-        {slide.annotation && (
-          <div
-            style={{
-              marginTop: 28, opacity: annotationOpacity,
-              fontSize: 22, color: COLORS.grammarAccentDeep,
-              fontStyle: 'italic', textAlign: 'center', maxWidth: 800,
-            }}
-          >
-            {slide.annotation}
-          </div>
-        )}
       </div>
     </AbsoluteFill>
   );
