@@ -107,20 +107,49 @@ def _word_gloss(conn, c: int, v: int, p: int) -> str | None:
 
 def _verse_data(conn, c: int, v: int) -> dict | None:
     """Pull Arabic + English for a verse. Returns None if missing —
-    caller decides whether to skip the slide or fail."""
+    caller decides whether to skip the slide or fail.
+
+    Translation source priority:
+      1. ai_translations (Quran-only AI revision) — matches what the
+         app shows on /verse/<s>:<a> and /read/<surah>. Multiple rows
+         can exist per verse from different generation runs; we pick
+         the highest id (most recent) and prefer revised_text over
+         translation_text.
+      2. translations (conventional source like Sahih International)
+         — fallback when no AI translation exists.
+
+    Earlier code went straight to `translations`, which produced
+    rendered videos with a different translation than the website
+    (e.g. "It is You we worship" on the video vs "You alone we serve"
+    in the app for 1:5). Operators noticed; this aligns the two.
+    """
     arow = conn.execute(
         "SELECT text_uthmani FROM verses WHERE chapter=? AND verse=?",
         (c, v),
     ).fetchone()
-    erow = conn.execute(
-        "SELECT text_en FROM translations WHERE chapter=? AND verse=?",
-        (c, v),
-    ).fetchone()
     if not arow:
         return None
+
+    translation = ""
+    ai_row = conn.execute(
+        "SELECT revised_text, translation_text FROM ai_translations "
+        "WHERE chapter=? AND verse=? "
+        "ORDER BY id DESC LIMIT 1",
+        (c, v),
+    ).fetchone()
+    if ai_row:
+        translation = (ai_row["revised_text"] or ai_row["translation_text"] or "").strip()
+    if not translation:
+        erow = conn.execute(
+            "SELECT text_en FROM translations WHERE chapter=? AND verse=? LIMIT 1",
+            (c, v),
+        ).fetchone()
+        if erow:
+            translation = (erow["text_en"] or "").strip()
+
     return {
         "arabic": arow["text_uthmani"],
-        "translation": erow["text_en"] if erow else "",
+        "translation": translation,
     }
 
 
@@ -473,12 +502,11 @@ def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
 # Grammar Insights — payload builder + render entry point
 # ---------------------------------------------------------------------------
 def _grammar_highlight_word_index(insight: dict) -> int | None:
-    """Pull the 1-based word index from V7 evidence_trace[0].token_ref.
+    """Pull the first 1-based word index from V7 evidence_trace.
 
-    token_ref is "C:V:P" (chapter:verse:position, 1-based). The first
-    primary-support evidence token is the one closest to the
-    grammatical move. Falls back to first available token if there's
-    no primary_support, then to None."""
+    Kept for callers that need a single anchor (e.g. picking a
+    representative gloss). For the verse-card highlights themselves,
+    use _grammar_highlight_positions which returns the full set."""
     evidence = insight.get("evidence_trace") or []
     if not evidence:
         return None
@@ -486,9 +514,6 @@ def _grammar_highlight_word_index(insight: dict) -> int | None:
     pool = primary or evidence
     for ev in pool:
         ref = (ev.get("token_ref") or "").strip()
-        # Allow either "16:1:1" (3-part) or "16:1" (2-part — verse-level
-        # evidence with no specific token, in which case we can't
-        # highlight a specific word).
         parts = ref.split(":")
         if len(parts) == 3:
             try:
@@ -496,6 +521,109 @@ def _grammar_highlight_word_index(insight: dict) -> int | None:
             except (TypeError, ValueError):
                 continue
     return None
+
+
+# Agreement codes inside morphology.features_raw: 1S, 1P, 2MS, 2FS,
+# 2MP, 2FP, 2MD, 2FD, 3MS, 3FS, 3MP, 3FP, 3MD, 3FD. Person + (M/F/C
+# optional) + Number (S/P/D for singular / plural / dual). The
+# corpus stores these as a pipe-delimited token in features_raw,
+# usually at the end of the row (e.g. "POS:V|IMPF|LEM:Eabada|ROOT:Ebd|1P").
+import re as _re_morph
+_AGREEMENT_RE = _re_morph.compile(r"(?:^|\|)([123][MFC]?[SPD])(?:\||$)")
+
+
+def _agreement_code(features_raw: str | None) -> str | None:
+    """Extract the agreement code (e.g. '1P', '2MS') from a
+    pipe-delimited features_raw string. Returns None if absent."""
+    if not features_raw:
+        return None
+    m = _AGREEMENT_RE.search(features_raw)
+    return m.group(1) if m else None
+
+
+def _grammar_highlight_positions(conn, chapter: int, verse: int, insight: dict) -> list[int]:
+    """Return ALL word positions that should be highlighted for this
+    grammar insight, not just the first one V7 flagged.
+
+    Two layers of inclusion:
+      1. Every token_ref in evidence_trace (primary AND secondary
+         support). V7 already records the words it identified; we
+         just stop dropping all but the first.
+      2. Morphological expansion. For each seed word, also pull in
+         other words in the same verse that share the same lemma OR
+         the same (POS + agreement code from features_raw). Picks up
+         cases V7 didn't explicitly enumerate but that obviously
+         belong to the same pattern — e.g. for 1:5's "person mixture"
+         insight, V7 flagged ‎نَعْبُدُ‎ (we serve) but not
+         ‎نَسْتَعِينُ‎ (we seek help), even though both verbs share
+         1st-person-plural (1P) and carry the same grammatical move.
+         Same for ‎إِيَّاكَ‎ which repeats verbatim and should both
+         light up.
+
+    Expansion is deliberately conservative — only verbs and pronouns
+    expand by agreement (sharing 1P/2MS doesn't tell you anything
+    interesting about content nouns). Lemma matches expand for any
+    POS since identical lemmas in the same verse usually carry the
+    same grammatical role.
+
+    The agreement code lives in `features_raw` because the dedicated
+    `person`/`number` columns are empty for most rows in this corpus.
+    """
+    seeds: set[int] = set()
+    for ev in insight.get("evidence_trace") or []:
+        ref = (ev.get("token_ref") or "").strip()
+        parts = ref.split(":")
+        if len(parts) == 3:
+            try:
+                seeds.add(int(parts[2]))
+            except (TypeError, ValueError):
+                continue
+    if not seeds:
+        return []
+
+    expanded = set(seeds)
+    for seed in seeds:
+        # Pick the first content segment of the seed word. Skipping
+        # prefixes (Prefix/Particle/Conjunction) keeps "wa-" from
+        # masquerading as the lemma we want to expand on.
+        seed_row = conn.execute(
+            "SELECT lemma_buckwalter, pos, features_raw "
+            "FROM morphology "
+            "WHERE chapter=? AND verse=? AND word_pos=? "
+            "  AND pos IS NOT NULL "
+            "  AND pos NOT IN ('Prefix', 'Particle', 'Conjunction') "
+            "ORDER BY segment LIMIT 1",
+            (chapter, verse, seed),
+        ).fetchone()
+        if not seed_row:
+            continue
+        lemma = seed_row["lemma_buckwalter"]
+        pos = seed_row["pos"]
+        agreement = _agreement_code(seed_row["features_raw"])
+
+        # Same-lemma expansion (e.g. ‎إِيَّاكَ‎ repeated).
+        if lemma:
+            for r in conn.execute(
+                "SELECT DISTINCT word_pos FROM morphology "
+                "WHERE chapter=? AND verse=? AND lemma_buckwalter=?",
+                (chapter, verse, lemma),
+            ):
+                expanded.add(r["word_pos"])
+
+        # Same-agreement expansion for verbs/pronouns. Walk the verse
+        # and grab any word_pos whose first content segment matches
+        # the same POS + agreement code.
+        if pos in ("Verb", "Pronoun") and agreement:
+            for r in conn.execute(
+                "SELECT word_pos, features_raw FROM morphology "
+                "WHERE chapter=? AND verse=? AND pos=? "
+                "ORDER BY word_pos, segment",
+                (chapter, verse, pos),
+            ):
+                if _agreement_code(r["features_raw"]) == agreement:
+                    expanded.add(r["word_pos"])
+
+    return sorted(expanded)
 
 
 # Maps V7 categories to the GrammarVerseSlide marker enum so multi-
@@ -581,26 +709,43 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
     arabic = arabic_full
     translation = vd["translation"] or ""
 
-    # Word index for the highlight pill. Comes from V7 evidence trace.
-    word_idx = _grammar_highlight_word_index(insight)
+    # All word positions to highlight — V7 evidence tokens plus any
+    # morphological siblings (same lemma OR same person/number
+    # features for verbs/pronouns).
+    word_positions = _grammar_highlight_positions(conn, chapter, verse, insight)
     marker = _CATEGORY_TO_MARKER.get(insight.get("category", ""), "default")
 
-    # Translation substring to highlight in parallel — best-effort:
-    # use the per-word gloss if we have one, else skip.
-    en_substring: str | None = None
-    if word_idx:
-        en_substring = _word_gloss(conn, chapter, verse, word_idx)
+    # English-side highlights. Two sources, in priority order:
+    #   1. Script's `english_emphases` — phrase-level spans the LLM
+    #      picked while writing the script (e.g. ["You alone we
+    #      serve", "You alone we seek help from"]). Richer than
+    #      per-word gloss because they capture the contextual
+    #      framing of the grammatical move.
+    #   2. Per-word glosses for each highlighted word_pos. Falls
+    #      out from ai_word_meanings / word_glosses lookups.
+    # The renderer will find ALL occurrences of each substring, so
+    # repeated tokens (إيَّاكَ × 2 → "you" × 2) light up everywhere.
+    en_emphases: list[str] = []
+    raw_emphases = script.get("english_emphases")
+    if isinstance(raw_emphases, list):
+        for s in raw_emphases:
+            if isinstance(s, str) and s.strip():
+                en_emphases.append(s.strip())
 
-    # Build the highlight list. If we don't have a token-level
-    # evidence reference, fall back to no highlight — the verse still
-    # renders with the amber accent strip and annotation, which is
-    # enough.
     highlights: list[dict] = []
-    if word_idx:
-        h: dict = {"wordIndex": word_idx, "marker": marker}
-        if en_substring:
-            h["translationSubstring"] = en_substring
-        highlights.append(h)
+    if word_positions:
+        for pos in word_positions:
+            h: dict = {"wordIndex": pos, "marker": marker}
+            # Per-word gloss — used only when the script didn't
+            # provide explicit phrase emphases. When emphases ARE
+            # present, the slide-level `englishEmphases` field
+            # carries the English highlights and these per-highlight
+            # `translationSubstring`s are skipped entirely.
+            if not en_emphases:
+                gloss = _word_gloss(conn, chapter, verse, pos)
+                if gloss:
+                    h["translationSubstring"] = gloss
+            highlights.append(h)
 
     # Per-slide narration. We use the script's 4 beats:
     #   slide 1 = hook
@@ -622,7 +767,7 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
         # whole story. An earlier version drew a small italic
         # paraphrase below the card; it was too easy to clip and
         # competed with the karaoke caption for attention.
-        return {
+        s: dict = {
             "type": "grammar-verse",
             "durationSec": dur,
             "surah": chapter,
@@ -632,6 +777,9 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
             "highlights": highlights,
             "narration": {"text": narration_text or ""},
         }
+        if en_emphases:
+            s["englishEmphases"] = en_emphases
+        return s
 
     slides: list[dict] = [
         _verse_slide(hook_text, dur=6.5),

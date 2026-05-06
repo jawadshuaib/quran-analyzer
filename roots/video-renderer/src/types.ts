@@ -146,9 +146,18 @@ export const GrammarVerseSlide = z.object({
   arabicText: z.string(),
   translation: z.string(),
   highlights: z.array(GrammarHighlight).default([]),
-  // Small annotation pinned below the verse card. Plain English; not
-  // technical. Kept short (~6-10 words). Optional — when omitted the
-  // slide is a plain verse render with highlights only.
+  // Optional: phrase-level English emphases the script writer
+  // explicitly chose for this slide. When present, the renderer
+  // highlights every occurrence of each phrase in the translation
+  // — overriding the per-highlight `translationSubstring` glosses,
+  // which are richer than single-word gloss matches and let the
+  // LLM frame the grammatical move with its surrounding context
+  // (e.g. ["You alone we serve", "You alone we seek help from"]
+  // for a person-mixture slide on 1:5).
+  englishEmphases: z.array(z.string()).optional(),
+  // Small annotation pinned below the verse card. Deprecated; the
+  // renderer no longer draws this. Kept on the schema so legacy
+  // payloads still parse.
   annotation: z.string().optional(),
   narration: Narration.optional(),
 });

@@ -158,6 +158,7 @@ Output schema (all keys required, all strings unless noted):
   "verse_intro":   "(non-Word Origins) 1 sentence introducing the verse reference and what it says. Empty for Word Origins.",
   "insight":       "(non-Word Origins) 2-4 sentences delivering the payload. Empty for Word Origins.",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
+  "english_emphases": "(Grammar Insights ONLY) Array of 1-4 short phrases pulled VERBATIM from the verse's English translation that you want highlighted on the verse card. Pick phrases that most clearly carry the grammatical move you're explaining — e.g. for a 'we vs I' insight on 1:5 you might pick [\"You alone we serve\", \"You alone we seek help from\"]. The renderer highlights every occurrence. Each phrase MUST appear character-for-character in the translation. Empty array [] for other types.",
   "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. DO NOT include Arabic recitation — the reciter's audio plays separately. For Word Origins, structure the narration as: (1) hook + tidbit_about_root narrated over the source verse on screen, (2) tidbit_about_quran_usage narrated over selected_verse_refs[0], (3) tidbit_about_semitic narrated over selected_verse_refs[1]. The video shows the verses; the narration is the connective tissue.",
   "voiceover_short": "Concatenated narration up to 200 words (target 140-180), suitable for a punchy short-form video that may run a bit over a minute. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
   "languages_referenced": ["list of language names actually mentioned in voiceover_long, copied exactly from the payload"],
@@ -309,6 +310,15 @@ def _bw_to_sr(bw: str) -> str:
 
 
 def _fetch_verse(conn, chapter: int, verse: int) -> dict:
+    """Pull Arabic + English for a verse, prioritising the same source
+    the renderer uses (ai_translations, most recent run, prefer
+    revised_text). Falls back to the conventional `translations` row
+    when no AI translation is available.
+
+    Critical for grammar_insights: the LLM picks `english_emphases`
+    phrases from this string and the renderer matches them in the
+    rendered translation. Sourcing them from the same place guarantees
+    every emphasis is a real substring on the slide."""
     out = {"chapter": chapter, "verse": verse}
     v = conn.execute(
         "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
@@ -316,12 +326,25 @@ def _fetch_verse(conn, chapter: int, verse: int) -> dict:
     ).fetchone()
     if v:
         out["text_uthmani"] = v["text_uthmani"]
-    t = conn.execute(
-        "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
+
+    translation = ""
+    ai_row = conn.execute(
+        "SELECT revised_text, translation_text FROM ai_translations "
+        "WHERE chapter = ? AND verse = ? "
+        "ORDER BY id DESC LIMIT 1",
         (chapter, verse),
     ).fetchone()
-    if t:
-        out["translation"] = t["text_en"]
+    if ai_row:
+        translation = (ai_row["revised_text"] or ai_row["translation_text"] or "").strip()
+    if not translation:
+        t = conn.execute(
+            "SELECT text_en FROM translations WHERE chapter = ? AND verse = ? LIMIT 1",
+            (chapter, verse),
+        ).fetchone()
+        if t and t["text_en"]:
+            translation = t["text_en"].strip()
+    if translation:
+        out["translation"] = translation
     return out
 
 
@@ -776,6 +799,28 @@ def _build_user_prompt(payload: dict) -> str:
             "immediate English gloss after each Arabic word:\n"
             + ("\n".join(ev_lines) if ev_lines else "(none)")
             + "\n"
+            "\nenglish_emphases (1-4 short phrases for the verse-card\n"
+            "highlight pills):\n"
+            "  Pick the English phrases from the translation above that\n"
+            "  most clearly carry the grammatical move you're explaining.\n"
+            "  These are highlighted on the verse card and every\n"
+            "  occurrence is found, so a phrase that appears twice\n"
+            "  (parallel structure, repeated pronoun) will light up\n"
+            "  twice. Each phrase MUST be a CHARACTER-FOR-CHARACTER\n"
+            "  substring of the translation — copy it from there\n"
+            "  exactly, including capitalization and punctuation. The\n"
+            "  validator rejects any phrase not present verbatim.\n"
+            "\n"
+            "  Examples of good choices:\n"
+            "    - Person mixture (1:5): [\"You alone we serve\",\n"
+            "      \"You alone we seek help from\"]\n"
+            "    - Iltifat from third to first person: pick the two\n"
+            "      pronouns or pronoun-bearing phrases that show the\n"
+            "      shift, e.g. [\"He created you\", \"We taught you\"]\n"
+            "    - Cognate accusative emphasis: pick the verb+object\n"
+            "      pair where the doubling lives.\n"
+            "  Empty array [] is allowed when the verse is so short\n"
+            "  that emphases would just span the whole translation.\n"
             "\nGuardrails (the validator enforces these):\n"
             "  - NO em dashes. Anywhere. In any beat. The validator rejects\n"
             "    them outright.\n"
@@ -788,6 +833,9 @@ def _build_user_prompt(payload: dict) -> str:
             "  - If you mention 'iltifat' / 'taqdim' / 'hazf' / 'tahqiq',\n"
             "    immediately translate it in plain English in the same\n"
             "    sentence. Or better: don't use the term at all.\n"
+            "  - english_emphases: each phrase must appear verbatim\n"
+            "    in the translation above. Copy from there; don't\n"
+            "    paraphrase. Validator rejects non-matches.\n"
         )
     else:
         raise ScriptGenError(f"unknown type: {vtype}")
@@ -1066,6 +1114,45 @@ def _validate(script: dict, payload: dict) -> list[str]:
                 "counterfactual ending in '(e.' or '(i.'. Rewrite the "
                 "contrast in your own words."
             )
+
+        # english_emphases must be substrings of the verse translation.
+        # The renderer searches the translation for these phrases and
+        # highlights every occurrence; if a phrase doesn't actually
+        # appear in the translation, the renderer silently drops it
+        # and the slide ships with no English highlights — bad UX.
+        # Make this a hard check so the LLM is forced to either copy
+        # exact substrings or drop the field.
+        emphases = script.get("english_emphases")
+        if emphases is not None:
+            if not isinstance(emphases, list):
+                errors.append(
+                    "english_emphases must be a list of strings (got "
+                    f"{type(emphases).__name__})."
+                )
+            else:
+                translation = (payload.get("verse") or {}).get("translation") or ""
+                t_lower = translation.lower()
+                for i, phrase in enumerate(emphases):
+                    if not isinstance(phrase, str):
+                        errors.append(
+                            f"english_emphases[{i}] must be a string."
+                        )
+                        continue
+                    p = phrase.strip()
+                    if not p:
+                        continue
+                    if p.lower() not in t_lower:
+                        errors.append(
+                            f"english_emphases[{i}] = {p!r} is not a "
+                            f"verbatim substring of the verse translation. "
+                            f"Copy phrases EXACTLY from the translation; "
+                            f"don't paraphrase. Translation: {translation!r}"
+                        )
+                if len(emphases) > 4:
+                    errors.append(
+                        f"english_emphases has {len(emphases)} entries; "
+                        f"keep it to 1-4 short phrases."
+                    )
 
     return errors
 

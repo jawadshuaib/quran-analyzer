@@ -87,20 +87,61 @@ export function GrammarVersePage({ slide }: { slide: GrammarVerseSlideT }) {
     highlightByIdx.set(hl.wordIndex - 1, { hl, sweep: arabicSweeps[i] });
   });
 
-  // Pre-find each English highlight's match position in the translation.
-  // Sequential search; ok for ≤4 highlights.
-  const enMatches = slide.highlights.map((hl, i) => {
-    if (!hl.translationSubstring) return null;
-    const lower = slide.translation.toLowerCase();
-    const idx = lower.indexOf(hl.translationSubstring.toLowerCase());
-    if (idx < 0) return null;
-    return {
-      start: idx,
-      end: idx + hl.translationSubstring.length,
-      color: markerColor(hl.marker),
-      sweep: enSweeps[i],
-    };
-  }).filter((m): m is NonNullable<typeof m> => m !== null);
+  // English-side highlights. Two sources, in priority order:
+  //   1. slide.englishEmphases — phrase-level spans the script
+  //      writer chose explicitly (e.g. "You alone we serve",
+  //      "You alone we seek help from"). Use the marker of the
+  //      first Arabic highlight as the color.
+  //   2. Per-highlight `translationSubstring` glosses (legacy /
+  //      fallback) — one entry per Arabic word.
+  //
+  // Whichever source is in play, we find ALL occurrences (not just
+  // the first) so a repeated token like "you" or "we" lights up
+  // every time it appears.
+  const lower = slide.translation.toLowerCase();
+  const seenStarts = new Set<number>();
+  const enMatches: { start: number; end: number; color: string; sweep: number }[] = [];
+
+  function addAllOccurrences(needle: string, color: string, sweep: number) {
+    if (!needle) return;
+    const lo = needle.toLowerCase();
+    let from = 0;
+    while (from < lower.length) {
+      const idx = lower.indexOf(lo, from);
+      if (idx < 0) break;
+      // De-dupe overlapping matches across sources / highlights.
+      if (!seenStarts.has(idx)) {
+        seenStarts.add(idx);
+        enMatches.push({
+          start: idx,
+          end: idx + needle.length,
+          color,
+          sweep,
+        });
+      }
+      from = idx + needle.length;
+    }
+  }
+
+  if (slide.englishEmphases && slide.englishEmphases.length > 0) {
+    // Use the first Arabic highlight's marker color (same series
+    // identity), or fall back to the default amber.
+    const color = slide.highlights.length > 0
+      ? markerColor(slide.highlights[0].marker)
+      : markerColor('default');
+    // Pair sweeps with emphasis index, capped to the number of
+    // pre-computed Arabic sweeps; extra emphases reuse the last
+    // sweep so they all land within the slide.
+    slide.englishEmphases.forEach((phrase, i) => {
+      const sweep = enSweeps[Math.min(i, enSweeps.length - 1)] ?? 1;
+      addAllOccurrences(phrase, color, sweep);
+    });
+  } else {
+    slide.highlights.forEach((hl, i) => {
+      if (!hl.translationSubstring) return;
+      addAllOccurrences(hl.translationSubstring, markerColor(hl.marker), enSweeps[i]);
+    });
+  }
 
   // Sort matches by position so we can splice the translation
   // string into [pre, match, mid, match, mid, ..., tail] segments
