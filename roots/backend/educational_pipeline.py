@@ -400,7 +400,19 @@ def _grammar_insights_candidates(conn, limit: int, exclude_queued: bool) -> list
                         if cat:
                             cooldown_categories.add(cat)
 
-    out: list[dict] = []
+    # Two-pass scoring. Pass 1 builds the FULL eligible set (queued
+    # exclusion only), so we can fall back to it if cooldowns would
+    # over-exclude. Pass 2 applies cooldowns as a SOFT filter: if the
+    # cooldown-restricted result is non-empty, return it; otherwise
+    # return the unrestricted set with a clear log line.
+    #
+    # This matters at low V7 coverage. If only a few chapters have V7
+    # insights generated (e.g. early in rollout) and you queue one
+    # video from each, the 14-day surah cooldown can dry the pool to
+    # 0 even though there are still un-queued insights in those same
+    # chapters. Better to surface candidates with a "cooldown waived"
+    # signal than to return nothing and look broken.
+    candidate_rows: list[dict] = []
     for r in rows:
         try:
             insights = json.loads(r["insights_v7_json"])
@@ -422,11 +434,6 @@ def _grammar_insights_candidates(conn, limit: int, exclude_queued: bool) -> list
 
             category = ins.get("category") or ""
             chapter = int(r["chapter"])
-            if exclude_queued:
-                if category in cooldown_categories:
-                    continue
-                if chapter in cooldown_chapters:
-                    continue
 
             cf_present = bool((ins.get("counterfactual") or {}).get("present"))
             cf_text = (ins.get("counterfactual") or {}).get("text") or ""
@@ -443,7 +450,11 @@ def _grammar_insights_candidates(conn, limit: int, exclude_queued: bool) -> list
                 tier = "C"
                 multiplier = 1.0
 
-            out.append({
+            in_cooldown = (
+                category in cooldown_categories or chapter in cooldown_chapters
+            )
+
+            candidate_rows.append({
                 "chapter": chapter,
                 "verse": int(r["verse"]),
                 "word_pos": None,
@@ -454,7 +465,34 @@ def _grammar_insights_candidates(conn, limit: int, exclude_queued: bool) -> list
                 "has_counterfactual": cf_present,
                 "tier": tier,
                 "score": conf * multiplier,
+                "_in_cooldown": in_cooldown,
             })
+
+    # Apply cooldown filter as a SOFT preference.
+    if exclude_queued:
+        cooldown_filtered = [c for c in candidate_rows if not c["_in_cooldown"]]
+        if cooldown_filtered:
+            out = cooldown_filtered
+        else:
+            # Cooldowns would empty the pool; fall back to no-cooldown.
+            # Signals that V7 coverage is too sparse for cooldowns to
+            # be useful. Operator should run grammar_insights_ai.py on
+            # more chapters; until then the cooldown is best-effort.
+            print(
+                "[grammar_insights_candidates] cooldown waived: "
+                f"all {len(candidate_rows)} eligible candidates fell within "
+                f"surah cooldown ({sorted(cooldown_chapters)}) or category "
+                f"cooldown ({sorted(cooldown_categories)}). Returning "
+                "unrestricted pool. Run grammar_insights_ai.py on more "
+                "chapters to grow V7 coverage."
+            )
+            out = candidate_rows
+    else:
+        out = candidate_rows
+
+    # Strip the internal flag before returning.
+    for c in out:
+        c.pop("_in_cooldown", None)
     out.sort(key=lambda x: x["score"], reverse=True)
     return out[:limit]
 
