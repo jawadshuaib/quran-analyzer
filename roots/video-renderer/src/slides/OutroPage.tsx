@@ -24,12 +24,9 @@ export function OutroPage({ slide }: { slide: OutroSlideT }) {
           into public/ before invoking the renderer; we just play
           it here. Layers cleanly with any narration audio (from
           the slide's narration block) — Remotion mixes Audio
-          components by default.
-          Volume is dialed below ElevenLabs' default loudness so
-          the splash CTA ("for more details, see the description")
-          reads as a quiet sign-off, not a competing climax. */}
+          components by default. */}
       {slide.outroAudioFile && (
-        <Audio src={staticFile(slide.outroAudioFile)} volume={0.6} />
+        <Audio src={staticFile(slide.outroAudioFile)} />
       )}
       <div
         style={{
