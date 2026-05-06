@@ -281,8 +281,52 @@ Now translate verse {surah}:{ayah} following the methodology described in your i
     return prompt
 
 
+def _resolve_ollama_endpoint() -> tuple[str, dict]:
+    """Read Ollama base URL + API key from admin_preferences.
+
+    Falls back to the legacy hardcoded localhost:11434 if no preferences
+    are configured. This lets the same call_ollama() function reach a
+    local daemon (no auth) OR Ollama Cloud (Bearer token) without any
+    code changes at the call site.
+
+    Returns (chat_url, headers).
+    """
+    base_url = None
+    api_key = None
+    try:
+        from app import get_db
+        conn = get_db()
+        try:
+            for r in conn.execute(
+                "SELECT key, value FROM admin_preferences "
+                "WHERE key IN ('ollama_base_url', 'ollama_api_key')"
+            ):
+                if r["key"] == "ollama_base_url":
+                    base_url = (r["value"] or "").strip()
+                elif r["key"] == "ollama_api_key":
+                    api_key = (r["value"] or "").strip()
+        finally:
+            conn.close()
+    except Exception:
+        pass  # Fall through to legacy hardcoded URL
+
+    if not base_url:
+        return OLLAMA_URL, {}
+    chat_url = base_url.rstrip("/") + "/api/chat"
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+    return chat_url, headers
+
+
 def call_ollama(model: str, system_prompt: str, user_prompt: str, temperature: float = 0.3) -> tuple[str, int]:
-    """Call Ollama API using streaming to avoid timeout, with progress dots."""
+    """Call Ollama API using streaming to avoid timeout, with progress dots.
+
+    Endpoint + auth are resolved from admin_preferences:
+      - ollama_base_url:  e.g. https://ollama.com (Ollama Cloud) or
+                          http://localhost:11434 (local daemon).
+      - ollama_api_key:   Bearer token for cloud; empty for local.
+    Falls back to localhost:11434 with no auth if either pref is unset,
+    matching the historical behavior.
+    """
     payload = {
         "model": model,
         "messages": [
@@ -296,8 +340,9 @@ def call_ollama(model: str, system_prompt: str, user_prompt: str, temperature: f
         },
     }
 
+    chat_url, headers = _resolve_ollama_endpoint()
     start = time.time()
-    resp = requests.post(OLLAMA_URL, json=payload, stream=True, timeout=1800)
+    resp = requests.post(chat_url, headers=headers, json=payload, stream=True, timeout=1800)
     resp.raise_for_status()
 
     content_parts = []
