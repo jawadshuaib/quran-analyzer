@@ -8927,6 +8927,13 @@ def admin_educational_generate_script(video_id: int):
                     "tidbit_about_quran_usage": script.get("tidbit_about_quran_usage", ""),
                     "tidbit_about_semitic": script.get("tidbit_about_semitic", ""),
                     "selected_verse_refs": script.get("selected_verse_refs", []),
+                    # Grammar Insights template fields (empty for others). The
+                    # renderer reads these at compose time to drive English
+                    # phrase highlights and cross-reference example slides;
+                    # leaving them out of this whitelist silently strips them
+                    # before persistence even when Claude returns them.
+                    "english_emphases": script.get("english_emphases", []),
+                    "additional_examples": script.get("additional_examples", []),
                     "voiceover_short": script.get("voiceover_short"),
                     "voiceover_short_raw": script.get("voiceover_short_raw"),
                     "voiceover_long_raw": script.get("voiceover_long_raw"),
@@ -9076,6 +9083,9 @@ def admin_educational_edit_script(video_id: int):
                     "tidbit_about_quran_usage": merged.get("tidbit_about_quran_usage", ""),
                     "tidbit_about_semitic": merged.get("tidbit_about_semitic", ""),
                     "selected_verse_refs": merged.get("selected_verse_refs", []),
+                    # Grammar Insights template fields — same reason.
+                    "english_emphases": merged.get("english_emphases", []),
+                    "additional_examples": merged.get("additional_examples", []),
                     "voiceover_short": merged.get("voiceover_short"),
                     "voiceover_short_raw": merged.get("voiceover_short_raw"),
                     "voiceover_long_raw": merged.get("voiceover_long_raw"),
@@ -9804,6 +9814,10 @@ def _educational_pipeline_run_thread(
                             "hook", "verse_intro", "insight", "close",
                             "tidbit_about_root", "tidbit_about_quran_usage",
                             "tidbit_about_semitic", "selected_verse_refs",
+                            # Grammar Insights template fields — read by the
+                            # renderer at compose time for English phrase
+                            # highlights and cross-reference example slides.
+                            "english_emphases", "additional_examples",
                             "voiceover_short", "voiceover_short_raw",
                             "voiceover_long_raw",
                             "languages_referenced", "notes", "model",
