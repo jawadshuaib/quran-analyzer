@@ -148,10 +148,30 @@ export function GrammarVersePage({ slide }: { slide: GrammarVerseSlideT }) {
     });
   }
 
-  // Sort matches by position so we can splice the translation
-  // string into [pre, match, mid, match, mid, ..., tail] segments
-  // for rendering.
-  enMatches.sort((a, b) => a.start - b.start);
+  // Sort matches and de-overlap. Two passes:
+  //   1. Sort by start ascending; ties broken by end descending so a
+  //      longer span at the same start wins over a shorter prefix.
+  //   2. Walk the list and drop any match whose start lies before the
+  //      previous accepted match's end. Without this, an overlapping
+  //      pair like ("You alone we serve, and You alone", "You alone
+  //      we seek help from") would slice the translation twice and
+  //      render text duplicated as "...and You alone You alone...".
+  // Validator-side guard catches overlap at script-write time; this
+  // is the defense-in-depth so legacy/manual payloads don't mangle.
+  enMatches.sort((a, b) => {
+    if (a.start !== b.start) return a.start - b.start;
+    return b.end - a.end;
+  });
+  const deoverlapped: typeof enMatches = [];
+  let lastAcceptedEnd = -1;
+  for (const m of enMatches) {
+    if (m.start >= lastAcceptedEnd) {
+      deoverlapped.push(m);
+      lastAcceptedEnd = m.end;
+    }
+  }
+  enMatches.length = 0;
+  enMatches.push(...deoverlapped);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.appBg }}>

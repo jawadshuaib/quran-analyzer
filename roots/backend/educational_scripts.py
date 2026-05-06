@@ -158,7 +158,7 @@ Output schema (all keys required, all strings unless noted):
   "verse_intro":   "(non-Word Origins) 1 sentence introducing the verse reference and what it says. Empty for Word Origins.",
   "insight":       "(non-Word Origins) 2-4 sentences delivering the payload. Empty for Word Origins.",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
-  "english_emphases": "(Grammar Insights ONLY) Array of 1-4 short phrases pulled VERBATIM from the verse's English translation that you want highlighted on the verse card. Pick phrases that most clearly carry the grammatical move you're explaining — e.g. for a 'we vs I' insight on 1:5 you might pick [\"You alone we serve\", \"You alone we seek help from\"]. The renderer highlights every occurrence. Each phrase MUST appear character-for-character in the translation. Empty array [] for other types.",
+  "english_emphases": "(Grammar Insights ONLY) Array of 1-4 short phrases pulled VERBATIM from the verse's English translation that you want highlighted on the verse card. Pick phrases that most clearly carry the grammatical move you're explaining — e.g. for a 'we vs I' insight on 1:5 you might pick [\"You alone we serve\", \"You alone we seek help from\"]. Each phrase MUST appear character-for-character in the translation, and the phrases MUST NOT overlap each other in the translation (no phrase's text can sit inside another phrase's span). The renderer highlights every occurrence of each disjoint phrase. Empty array [] for other types.",
   "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. DO NOT include Arabic recitation — the reciter's audio plays separately. For Word Origins, structure the narration as: (1) hook + tidbit_about_root narrated over the source verse on screen, (2) tidbit_about_quran_usage narrated over selected_verse_refs[0], (3) tidbit_about_semitic narrated over selected_verse_refs[1]. The video shows the verses; the narration is the connective tissue.",
   "voiceover_short": "Concatenated narration up to 200 words (target 140-180), suitable for a punchy short-form video that may run a bit over a minute. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
   "languages_referenced": ["list of language names actually mentioned in voiceover_long, copied exactly from the payload"],
@@ -836,6 +836,13 @@ def _build_user_prompt(payload: dict) -> str:
             "  - english_emphases: each phrase must appear verbatim\n"
             "    in the translation above. Copy from there; don't\n"
             "    paraphrase. Validator rejects non-matches.\n"
+            "  - english_emphases: phrases must NOT overlap each\n"
+            "    other in the translation. If you pick \"You alone\n"
+            "    we serve\", the next emphasis cannot start with\n"
+            "    \"You alone\" again (the second \"You alone\" must\n"
+            "    be paired with the words after it, e.g. \"You alone\n"
+            "    we seek help from\"). Validator rejects overlapping\n"
+            "    spans because they render as duplicated text.\n"
         )
     else:
         raise ScriptGenError(f"unknown type: {vtype}")
@@ -1132,6 +1139,9 @@ def _validate(script: dict, payload: dict) -> list[str]:
             else:
                 translation = (payload.get("verse") or {}).get("translation") or ""
                 t_lower = translation.lower()
+                # Track first-occurrence span of each valid phrase so
+                # we can detect overlaps below.
+                spans: list[tuple[int, int, str]] = []
                 for i, phrase in enumerate(emphases):
                     if not isinstance(phrase, str):
                         errors.append(
@@ -1141,13 +1151,39 @@ def _validate(script: dict, payload: dict) -> list[str]:
                     p = phrase.strip()
                     if not p:
                         continue
-                    if p.lower() not in t_lower:
+                    idx = t_lower.find(p.lower())
+                    if idx < 0:
                         errors.append(
                             f"english_emphases[{i}] = {p!r} is not a "
                             f"verbatim substring of the verse translation. "
                             f"Copy phrases EXACTLY from the translation; "
                             f"don't paraphrase. Translation: {translation!r}"
                         )
+                        continue
+                    spans.append((idx, idx + len(p), p))
+
+                # Overlap check. The renderer slices the translation
+                # by match span; overlapping spans cause the
+                # overlapping segment to render twice, producing
+                # duplicated text on screen ("...and You alone You
+                # alone we seek..."). Force the LLM to pick disjoint
+                # spans.
+                spans.sort()
+                for i in range(len(spans) - 1):
+                    a_start, a_end, a_phrase = spans[i]
+                    b_start, b_end, b_phrase = spans[i + 1]
+                    if b_start < a_end:
+                        errors.append(
+                            f"english_emphases overlap: {a_phrase!r} "
+                            f"(positions {a_start}-{a_end}) and "
+                            f"{b_phrase!r} (positions {b_start}-{b_end}) "
+                            f"share text. Pick non-overlapping spans — "
+                            f"e.g. for 1:5 use [\"You alone we serve\", "
+                            f"\"You alone we seek help from\"], NOT "
+                            f"[\"You alone we serve, and You alone\", "
+                            f"\"You alone we seek help from\"]."
+                        )
+
                 if len(emphases) > 4:
                     errors.append(
                         f"english_emphases has {len(emphases)} entries; "
