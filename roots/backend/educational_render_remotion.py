@@ -541,14 +541,156 @@ def _agreement_code(features_raw: str | None) -> str | None:
     return m.group(1) if m else None
 
 
+def _resolve_evidence_position(
+    conn, chapter: int, verse: int, ev: dict,
+) -> int | None:
+    """Find the word position an evidence entry actually refers to.
+
+    V7's token_ref is unreliable — the model regularly emits a
+    position that doesn't match the lemma/surface it claims to be
+    pointing at (e.g. for 79:46 it claimed token_ref=79:46:1 with
+    lemma=<il~aA, but position 1 is كَأَنَّ; the actual <il~aA word
+    is position 6). Trust the linguistic identifier over the
+    position number. Resolution order:
+
+      1. surface_ar exact match against morphology.form_arabic
+         (most specific — matches the exact word V7 saw).
+      2. feature_type=lemma_bw → find word with that lemma.
+      3. feature_type=root_bw → find word with that root.
+      4. Fall back to token_ref position, BUT only if it lies in
+         range AND morphology has a row at that position. Use the
+         position if the linguistic-identifier checks above had
+         nothing usable.
+
+    Returns the word_pos (1-based), or None if nothing resolves.
+    """
+    surface = (ev.get("surface_ar") or "").strip()
+    feature_type = (ev.get("feature_type") or "").strip()
+    feature_value = (ev.get("feature_value") or "").strip()
+    ref = (ev.get("token_ref") or "").strip()
+
+    def _find_first(sql: str, params: tuple) -> int | None:
+        row = conn.execute(sql, params).fetchone()
+        return row["word_pos"] if row else None
+
+    # 1. surface form match
+    if surface:
+        # Strip Uthmani diacritics and tatweel for a fuzzier
+        # Arabic-script comparison — V7 sometimes reports a
+        # normalized surface that differs by diacritics.
+        stripped = _strip_uthmani_marks(surface)
+        pos = _find_first(
+            "SELECT word_pos FROM morphology "
+            "WHERE chapter=? AND verse=? AND form_arabic=? "
+            "ORDER BY word_pos LIMIT 1",
+            (chapter, verse, surface),
+        )
+        if pos is not None:
+            return pos
+        if stripped != surface:
+            pos = _find_first(
+                "SELECT word_pos FROM morphology "
+                "WHERE chapter=? AND verse=? AND form_arabic=? "
+                "ORDER BY word_pos LIMIT 1",
+                (chapter, verse, stripped),
+            )
+            if pos is not None:
+                return pos
+
+    # 2/3. feature lookup by lemma_bw / root_bw / form_bw
+    if feature_value:
+        if feature_type == "lemma_bw":
+            pos = _find_first(
+                "SELECT word_pos FROM morphology "
+                "WHERE chapter=? AND verse=? AND lemma_buckwalter=? "
+                "ORDER BY word_pos LIMIT 1",
+                (chapter, verse, feature_value),
+            )
+            if pos is not None:
+                return pos
+        elif feature_type == "root_bw":
+            pos = _find_first(
+                "SELECT word_pos FROM morphology "
+                "WHERE chapter=? AND verse=? AND root_buckwalter=? "
+                "ORDER BY word_pos LIMIT 1",
+                (chapter, verse, feature_value),
+            )
+            if pos is not None:
+                return pos
+        elif feature_type == "form_bw":
+            pos = _find_first(
+                "SELECT word_pos FROM morphology "
+                "WHERE chapter=? AND verse=? AND form_buckwalter=? "
+                "ORDER BY word_pos LIMIT 1",
+                (chapter, verse, feature_value),
+            )
+            if pos is not None:
+                return pos
+
+    # 4. Token_ref position — but ONLY trust it when we can verify
+    #    against an additional signal at that position. Without
+    #    verification, V7 routinely points to the wrong word
+    #    (79:46 case: claimed 79:46:1 had lemma <il~aA but the
+    #    actual <il~aA word is at position 6).
+    parts = ref.split(":")
+    tok_pos: int | None = None
+    if len(parts) == 3:
+        try:
+            tok_pos = int(parts[2])
+        except (TypeError, ValueError):
+            tok_pos = None
+
+    if tok_pos is not None:
+        if feature_type == "feature" and feature_value:
+            # The feature_value is an agreement / verb-form / case
+            # tag stored in features_raw (e.g. "1P", "PERF", "ACC").
+            # Verify the token_ref position actually carries that
+            # feature; if it doesn't, scan the verse for any word
+            # that does and prefer those.
+            row = conn.execute(
+                "SELECT word_pos, features_raw FROM morphology "
+                "WHERE chapter=? AND verse=? AND word_pos=? "
+                "ORDER BY segment LIMIT 1",
+                (chapter, verse, tok_pos),
+            ).fetchone()
+            if row and feature_value in (
+                (row["features_raw"] or "").split("|")
+            ):
+                return tok_pos
+            # Mismatch — find any word in the verse with this feature.
+            scan = conn.execute(
+                "SELECT word_pos, features_raw FROM morphology "
+                "WHERE chapter=? AND verse=? "
+                "ORDER BY word_pos, segment",
+                (chapter, verse),
+            ).fetchall()
+            for r in scan:
+                if feature_value in (r["features_raw"] or "").split("|"):
+                    return r["word_pos"]
+            return None
+        # Last-resort fallback for evidence with no usable identifier
+        # at all — just trust the token_ref position if morphology
+        # has a row there.
+        row = conn.execute(
+            "SELECT word_pos FROM morphology "
+            "WHERE chapter=? AND verse=? AND word_pos=? LIMIT 1",
+            (chapter, verse, tok_pos),
+        ).fetchone()
+        if row:
+            return tok_pos
+
+    return None
+
+
 def _grammar_highlight_positions(conn, chapter: int, verse: int, insight: dict) -> list[int]:
     """Return ALL word positions that should be highlighted for this
     grammar insight, not just the first one V7 flagged.
 
     Two layers of inclusion:
-      1. Every token_ref in evidence_trace (primary AND secondary
-         support). V7 already records the words it identified; we
-         just stop dropping all but the first.
+      1. Every evidence_trace entry (primary AND secondary support),
+         resolved via _resolve_evidence_position so we don't trust
+         V7's frequently-wrong token_ref position. Lemma/surface/root
+         matching wins over position.
       2. Morphological expansion. For each seed word, also pull in
          other words in the same verse that share the same lemma OR
          the same (POS + agreement code from features_raw). Picks up
@@ -557,27 +699,18 @@ def _grammar_highlight_positions(conn, chapter: int, verse: int, insight: dict) 
          insight, V7 flagged ‎نَعْبُدُ‎ (we serve) but not
          ‎نَسْتَعِينُ‎ (we seek help), even though both verbs share
          1st-person-plural (1P) and carry the same grammatical move.
-         Same for ‎إِيَّاكَ‎ which repeats verbatim and should both
-         light up.
 
     Expansion is deliberately conservative — only verbs and pronouns
     expand by agreement (sharing 1P/2MS doesn't tell you anything
     interesting about content nouns). Lemma matches expand for any
     POS since identical lemmas in the same verse usually carry the
     same grammatical role.
-
-    The agreement code lives in `features_raw` because the dedicated
-    `person`/`number` columns are empty for most rows in this corpus.
     """
     seeds: set[int] = set()
     for ev in insight.get("evidence_trace") or []:
-        ref = (ev.get("token_ref") or "").strip()
-        parts = ref.split(":")
-        if len(parts) == 3:
-            try:
-                seeds.add(int(parts[2]))
-            except (TypeError, ValueError):
-                continue
+        pos = _resolve_evidence_position(conn, chapter, verse, ev)
+        if pos is not None:
+            seeds.add(pos)
     if not seeds:
         return []
 
