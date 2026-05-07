@@ -13786,8 +13786,143 @@ def _ollama_complete(prompt: str, system_prompt: str = "") -> dict:
         raise RuntimeError(f"Invalid JSON from Ollama: {e}")
 
 
+def _generate_grammar_insights_metadata(
+    conn, row: dict, payload: dict, script: dict,
+) -> tuple[str, str, list[str]]:
+    """Title/description/tags for a grammar_insights video.
+
+    The original word-origins metadata generator was being applied to
+    grammar_insights rows too, which produced wrong titles ("Why the
+    Quran Uses Rahman Not Merciful" on a 84:8 grammar video) because
+    the Ollama prompt's lemma examples leaked through when the actual
+    lemma/root fields were empty. Same path also pulled a word-context
+    blurb for word_pos=1, which for 84:8 was سَوْفَ — completely
+    unrelated to the grammatical move the script discussed.
+
+    Grammar-specific approach:
+      - Title is generated from the SCRIPT's hook + insight + close
+        plus the V7 category. No lemma fallbacks; Ollama is told the
+        title must reference the grammatical move and the verse, not
+        invent a "word".
+      - Description is programmatic: hook → close → verse link →
+        cross-reference example links → brand line. No "word context"
+        blurb; that field is irrelevant when there's no anchor word.
+    """
+    chapter = int(row["chapter"])
+    verse = int(row["verse"])
+    insight = payload.get("insight") or {}
+    category = (insight.get("category") or "").strip() or "other_grammar"
+    title_text = (insight.get("title") or "").strip()
+
+    # ---- Title via Ollama ----
+    sys_p = (
+        "You name short videos about ONE grammatical choice the Quran "
+        "makes in a specific verse. Titles are catchy, verse-anchored, "
+        "and avoid 'powerful', 'profound', 'beautiful', 'fascinating'."
+    )
+    user_p = (
+        f"## Verse\nQuran {chapter}:{verse}\n\n"
+        f"## Grammatical category\n{category}\n"
+        f"## Insight title (from analyser)\n{title_text}\n\n"
+        "## Script\n"
+        f"Hook: {(script.get('hook') or '').strip()}\n"
+        f"Insight: {(script.get('insight') or '').strip()}\n"
+        f"Close: {(script.get('close') or '').strip()}\n\n"
+        "## Output\n"
+        'Return ONLY JSON: {"title": "...", "tags": ["tag1", ...]}\n\n'
+        "Title rules:\n"
+        f"- MUST reference Quran {chapter}:{verse} in the title (e.g. "
+        f"'Quran {chapter}:{verse}', 'in {chapter}:{verse}', "
+        f"'Surah ... {chapter}:{verse}').\n"
+        "- Capture the GRAMMATICAL move (tense / pronoun / fronting / "
+        "  exception / conditional / cognate-accusative / etc.), NOT "
+        "  the topic of the verse.\n"
+        '- Patterns that work: "When the Quran ___ in [X:Y]", '
+        '"Why ___ in Quran [X:Y]", "The ___ Move in Quran [X:Y]", '
+        '"[Grammatical thing] in Quran [X:Y]".\n'
+        "- Under 80 characters. No emojis. No quotation marks.\n"
+        "- DO NOT invent a single 'word' the video is about — this is "
+        "  a video about a grammatical choice in a verse, not a "
+        "  word-of-the-day video. Names of words ('Rahman', 'Salam', "
+        "  etc.) DO NOT belong in this title unless the script "
+        "  explicitly centres on that word.\n"
+        "\nTags rules:\n"
+        "- 8-12 short tags, lowercase except proper nouns.\n"
+        "- Mix: generic ('quran', 'quran arabic', 'quran grammar'), "
+        "  category-specific ('quranic style', 'arabic grammar', "
+        "  'quran linguistics'), verse-specific (the surah name).\n"
+        "- Always include 'Quran' and 'Quran Shorts'."
+    )
+    try:
+        meta = _ollama_complete(user_p, system_prompt=sys_p)
+    except Exception as e:
+        print(f"[grammar metadata] Ollama failed: {e}")
+        meta = {}
+
+    title = (meta.get("title") or "").strip()[:100]
+    if not title:
+        title = f"Grammar in Quran {chapter}:{verse}"[:100]
+
+    raw_tags = meta.get("tags") if isinstance(meta.get("tags"), list) else []
+    tags: list[str] = []
+    for t in raw_tags:
+        if not isinstance(t, str):
+            continue
+        cleaned = t.strip().lstrip("#")[:100]
+        if cleaned and cleaned not in tags:
+            tags.append(cleaned)
+        if len(tags) >= 12:
+            break
+    if not tags:
+        tags = list(_DEFAULT_YT_TAGS)
+
+    # ---- Description (programmatic) ----
+    parts: list[str] = []
+
+    hook = (script.get("hook") or "").strip()
+    if hook:
+        parts.append(hook)
+        parts.append("")
+
+    close = (script.get("close") or "").strip()
+    if close:
+        parts.append(close)
+        parts.append("")
+
+    parts.append(f"Read this verse: https://al-nuqta.com/verse/{chapter}:{verse}")
+    parts.append("")
+
+    # Cross-reference examples — link to /verse/X:Y for each.
+    ax = script.get("additional_examples") or []
+    if isinstance(ax, list) and ax:
+        parts.append("Same pattern elsewhere in the Quran:")
+        for ex in ax[:2]:
+            if not isinstance(ex, dict):
+                continue
+            try:
+                c = int(ex.get("chapter"))
+                v = int(ex.get("verse"))
+            except (TypeError, ValueError):
+                continue
+            parts.append(f"- Quran {c}:{v} — https://al-nuqta.com/verse/{c}:{v}")
+        parts.append("")
+
+    parts.append("Brought to you by al-nuqta.com — A Root Based Translation of the Quran.")
+    parts.append("")
+    parts.append("#Quran #QuranArabic #QuranGrammar")
+
+    description = "\n".join(parts)[:5000]
+    return title, description, tags
+
+
 def _generate_educational_metadata(conn, row: dict, payload: dict, script: dict) -> tuple[str, str, list[str]]:
     """Build YouTube title/description/tags for an educational video.
+
+    Branches on row['type']:
+      - grammar_insights → script-driven title (no lemma fallback)
+        + programmatic description that links the verse + examples.
+      - everything else (word_origins, translation_hides) → original
+        word-anchored generator below.
 
     - Title + tags: Ollama call (catchy title from the script + word
       context). The title is constrained to ≤80 chars, no emojis.
@@ -13797,6 +13932,14 @@ def _generate_educational_metadata(conn, row: dict, payload: dict, script: dict)
       of word-page links for the source verse + the LLM-selected
       verses.
     """
+    # Grammar Insights videos use a different metadata path — the
+    # word-anchored Ollama prompt below produces wrong titles when
+    # the row has no lemma/root (the Ollama lemma examples leak in,
+    # producing artefacts like "Why the Quran Uses Rahman Not
+    # Merciful" on a 84:8 grammar video about cognate-accusative).
+    if (row.get("type") or "").lower() == "grammar_insights":
+        return _generate_grammar_insights_metadata(conn, row, payload, script)
+
     word = payload.get("word") or {}
     root = payload.get("root") or {}
     root_bw = root.get("buckwalter") or ""
