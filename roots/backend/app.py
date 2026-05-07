@@ -17386,6 +17386,41 @@ def _build_noscript_content(path: str) -> str:
     return f'<noscript><div style="max-width:800px;margin:0 auto;padding:20px">{content}</div></noscript>'
 
 
+# --------------- External redirects (m4th.com sibling) ---------------
+# m4th.com is hosted on the same server; Google indexed several of its
+# /report/<TICKER> URLs against al-nuqta.com (probably from a stale
+# vhost mapping or a misconfigured canonical at some point). Permanent-
+# redirect those paths to m4th.com so:
+#   1. SEO consolidates on the right domain.
+#   2. Visitors who landed via Google search land on the actual page.
+#   3. al-nuqta's crawl budget isn't wasted on 404s for content that
+#      lives elsewhere.
+#
+# Strategy:
+#   - Always 301 (permanent), so search engines update their index.
+#   - Strip everything after the first path segment after /report/.
+#     Operator's examples explicitly say /report/LULU/- → /report/LULU.
+#     Trailing junk like /-/growth observed in the Search Console
+#     drilldown is treated the same way — collapse to the ticker.
+#   - Bare /report and /report/ redirect to m4th.com root.
+@app.route("/report")
+@app.route("/report/")
+def redirect_report_root():
+    return redirect("https://m4th.com/", code=301)
+
+
+@app.route("/report/<path:rest>")
+def redirect_report_to_m4th(rest):
+    # rest comes in path-decoded by Flask; split on the first slash to
+    # isolate the ticker. Defensive: when a request comes in as just
+    # "/report//something", rest may start with empty segments.
+    parts = [p for p in rest.split("/") if p]
+    if not parts:
+        return redirect("https://m4th.com/", code=301)
+    ticker = parts[0]
+    return redirect(f"https://m4th.com/report/{ticker}", code=301)
+
+
 # --------------- SPA catch-all (production only) ---------------
 
 _index_html_cache: str | None = None
