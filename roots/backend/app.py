@@ -8645,20 +8645,59 @@ _DEFAULT_YT_DESCRIPTION = (
     "Brought to you by al-nuqta.com — A Root Based Translation of the Quran. "
     "Explore the morphology, etymology, and Semitic cognates behind every "
     "word of the Qur'an at https://al-nuqta.com.\n\n"
-    "#Quran #IslamicVideos #QuranTranslation"
+    "#Quran #QuranTranslation #QuranArabic"
 )
 # Kept under YouTube's 500-char total tag limit by design.
+# Note: "Islamic" (the post-Quranic adjective) is deliberately
+# excluded from every default + filtered out via _strip_islamic_terms
+# below. The Quran refers to "Islam" (the noun) but never to
+# anything as "Islamic" — the channel keeps that distinction.
 _DEFAULT_YT_TAGS: tuple[str, ...] = (
     "Quran", "Quran recitation", "Quran translation",
-    "Islam", "Islamic videos", "Quran in English",
+    "Islam", "Quran in English",
     "Holy Quran", "Quranic verses", "al-nuqta",
 )
 # TikTok caption — same idea, single string with hashtags inline.
 _DEFAULT_TIKTOK_CAPTION = (
     "A passage from the Quran with English translation. "
     "Explore root-by-root analysis at al-nuqta.com "
-    "#Quran #IslamicVideos #QuranTranslation"
+    "#Quran #QuranTranslation #QuranArabic"
 )
+
+
+# --- Quran-only-vocabulary guard for video metadata ---
+# The Quran uses "Islam" (the submission/peace concept) but never the
+# adjective "Islamic" (a much later linguistic construction). Operator
+# wants the channel's metadata to mirror that — any hashtag, tag, or
+# description sentence containing "Islamic" gets stripped before
+# upload regardless of where it came from (default, Ollama, manual
+# edit). Whole-substring match is enough since "Islam" alone never
+# contains the "ic" suffix.
+_ISLAMIC_RE = re.compile(r"islamic", re.IGNORECASE)
+
+
+def _strip_islamic_terms(text: str) -> str:
+    """Remove any hashtag containing 'Islamic' from a description, and
+    soften standalone 'Islamic' phrases. Conservative: only touches
+    hashtags + bare-word adjective uses, never the noun 'Islam'."""
+    if not text or not isinstance(text, str):
+        return text
+    # Drop full hashtag tokens (e.g. "#IslamicVideos", "#islamicQuran")
+    text = re.sub(r"#\S*[Ii]slamic\S*", "", text)
+    # Drop standalone "Islamic" word in prose (rare in defaults but
+    # could leak from Ollama). Replace with empty so the surrounding
+    # punctuation/space cleanup below handles the gap.
+    text = re.sub(r"\b[Ii]slamic\b", "", text)
+    # Tidy up double spaces and orphaned hashtag separators left
+    # behind by the strips.
+    text = re.sub(r"  +", " ", text)
+    text = re.sub(r"(?:\n\s*){3,}", "\n\n", text)
+    return text.strip()
+
+
+def _filter_islamic_tags(tags: list[str]) -> list[str]:
+    """Drop any tag whose text contains 'Islamic' (any casing)."""
+    return [t for t in tags if isinstance(t, str) and not _ISLAMIC_RE.search(t)]
 
 _FFMPEG = "ffmpeg"
 _FFPROBE = "ffprobe"
@@ -9373,6 +9412,14 @@ def _perform_educational_youtube_upload(
                 break
         while final_tags and len(",".join(final_tags)) > 500:
             final_tags.pop()
+
+        # Quran-only vocabulary guard — final pass right before
+        # upload so even pre-existing rows that have "Islamic" stored
+        # in their columns get cleaned. Channel uses "Islam" but
+        # never "Islamic" as an adjective.
+        final_title = _ISLAMIC_RE.sub("", final_title).strip() or _DEFAULT_YT_TITLE
+        final_description = _strip_islamic_terms(final_description) or _DEFAULT_YT_DESCRIPTION
+        final_tags = _filter_islamic_tags(final_tags) or list(_DEFAULT_YT_TAGS)
 
         final_privacy = (privacy or "public").lower()
         if final_privacy not in ("public", "unlisted", "private"):
@@ -13846,12 +13893,17 @@ def _generate_grammar_insights_metadata(
         "  word-of-the-day video. Names of words ('Rahman', 'Salam', "
         "  etc.) DO NOT belong in this title unless the script "
         "  explicitly centres on that word.\n"
+        "- DO NOT use the word 'Islamic' anywhere in the title. The "
+        "  Quran uses 'Islam' (the noun) but never 'Islamic' as an "
+        "  adjective. Say 'Quran' or 'Quranic' instead.\n"
         "\nTags rules:\n"
         "- 8-12 short tags, lowercase except proper nouns.\n"
         "- Mix: generic ('quran', 'quran arabic', 'quran grammar'), "
         "  category-specific ('quranic style', 'arabic grammar', "
         "  'quran linguistics'), verse-specific (the surah name).\n"
-        "- Always include 'Quran' and 'Quran Shorts'."
+        "- Always include 'Quran' and 'Quran Shorts'.\n"
+        "- DO NOT include any tag containing the word 'Islamic' "
+        "  (e.g. 'islamic videos'). Use 'quran' variants instead."
     )
     try:
         meta = _ollama_complete(user_p, system_prompt=sys_p)
@@ -13912,6 +13964,11 @@ def _generate_grammar_insights_metadata(
     parts.append("#Quran #QuranArabic #QuranGrammar")
 
     description = "\n".join(parts)[:5000]
+    # Quran-only vocabulary guard — strip any "Islamic" leakage that
+    # might come back from Ollama in title/tags.
+    title = _ISLAMIC_RE.sub("", title).strip() or f"Grammar in Quran {chapter}:{verse}"
+    description = _strip_islamic_terms(description)
+    tags = _filter_islamic_tags(tags) or list(_DEFAULT_YT_TAGS)
     return title, description, tags
 
 
@@ -13976,13 +14033,19 @@ def _generate_educational_metadata(conn, row: dict, payload: dict, script: dict)
         "- Under 80 characters. No emojis. No quotation marks. No colons in "
         "  the title unless they're part of the framing.\n"
         "- Use a clean English transliteration of the lemma — 'Rahman', "
-        "  'Rahim', 'Salam', 'Yawm', 'Ayn'. NOT IPA marks or hyphens.\n\n"
+        "  'Rahim', 'Salam', 'Yawm', 'Ayn'. NOT IPA marks or hyphens.\n"
+        "- DO NOT use the word 'Islamic' anywhere in the title. The "
+        "  Quran uses 'Islam' (the noun) but never 'Islamic' as an "
+        "  adjective. Say 'Quran' or 'Quranic' instead.\n\n"
         "Tags rules:\n"
         "- 8-12 short tags. Lowercase except proper nouns.\n"
         "- Mix: generic ('quran', 'islam', 'quran arabic'), word-specific "
         "  ('rahman', 'mercy in the quran'), and topical ('semitic languages', "
         "  'cognates', 'arabic etymology').\n"
         "- Always include 'Quran' and 'Quran Shorts'.\n"
+        "- DO NOT include any tag containing the word 'Islamic' "
+        "  (e.g. 'islamic videos', 'islamic content'). Use 'quran' "
+        "  variants instead.\n"
     )
     try:
         meta = _ollama_complete(user_p, system_prompt=sys_p)
@@ -14068,9 +14131,15 @@ def _generate_educational_metadata(conn, row: dict, payload: dict, script: dict)
     parts.append("")
     parts.append("Brought to you by al-nuqta.com — A Root Based Translation of the Quran.")
     parts.append("")
-    parts.append("#Quran #QuranTranslation #IslamicVideos")
+    parts.append("#Quran #QuranTranslation #QuranArabic")
 
     description = "\n".join(parts)[:5000]
+    # Final guard: drop any "Islamic" leakage from Ollama-generated
+    # title/tags or anywhere else upstream (the Quran uses "Islam",
+    # never "Islamic" as an adjective).
+    title = _ISLAMIC_RE.sub("", title).strip() or _DEFAULT_YT_TITLE
+    description = _strip_islamic_terms(description)
+    tags = _filter_islamic_tags(tags) or list(_DEFAULT_YT_TAGS)
     return title, description, tags
 
 
@@ -16458,6 +16527,13 @@ def _perform_youtube_upload(
                 break
         while final_tags and len(",".join(final_tags)) > 500:
             final_tags.pop()
+
+        # Quran-only vocabulary guard — strip "Islamic" anywhere it
+        # might have leaked through, regardless of source. The Quran
+        # uses "Islam" but never the post-Quranic adjective.
+        final_title = _ISLAMIC_RE.sub("", final_title).strip() or _DEFAULT_YT_TITLE
+        final_description = _strip_islamic_terms(final_description) or _DEFAULT_YT_DESCRIPTION
+        final_tags = _filter_islamic_tags(final_tags) or list(_DEFAULT_YT_TAGS)
 
         final_privacy = (privacy or "public").lower()
         if final_privacy not in ("public", "unlisted", "private"):
