@@ -13430,6 +13430,74 @@ def _gather_verse_root_insights(conn, verse_data):
     return "\n".join(insights)
 
 
+def _normalize_recitation_title(
+    title: str, ref_string: str, ref_with_name: str,
+) -> str:
+    """Coerce the LLM-generated title into the operator-specified
+    "<hook> (<surah verse:range>)" format.
+
+    Catches three failure modes the prompt can't fully prevent:
+
+      1. Old filing-label format → "Surah Al-Layl 92:12-19"
+         Rebuild as "<hook>" + "(Al-Layl 92:12-19)" using the
+         remainder after stripping the leading reference.
+
+      2. Pipe-separator legacy format → "92:12-19 | The two paths…"
+         Strip the "<ref> | " prefix, append "(<ref_with_name>)".
+
+      3. Hook-only output (no parenthetical) → append the
+         "(<ref_with_name>)" tail. Only when the title doesn't
+         already contain a closing-paren-bracketed reference.
+
+    Idempotent: if the title is already in the target shape it
+    passes through unchanged. The check is permissive — anything
+    ending with "(...verse:range)" or "(... <numeric ref>)" is
+    treated as already-canonical.
+    """
+    t = title.strip()
+    target_tail = f"({ref_with_name})"
+
+    # Already canonical? Look for the parenthesised numeric ref at
+    # the end. Use a permissive pattern — accept any "( ... 92:12-19 )"
+    # tail even if the surah name varies.
+    tail_pat = re.compile(
+        r"\(\s*[^()]*?\d+:\d+(?:-\d+)?\s*\)\s*$"
+    )
+    if tail_pat.search(t):
+        return t
+
+    # 2. Pipe-separator legacy: strip "<ref> | " prefix.
+    pipe_pat = re.compile(
+        r"^\s*\d+:\d+(?:-\d+)?\s*[|—–-]\s*",
+    )
+    pipe_match = pipe_pat.match(t)
+    if pipe_match:
+        hook = t[pipe_match.end():].strip().rstrip(".")
+        return f"{hook} {target_tail}".strip()
+
+    # 1. Filing-label format: starts with "Surah ..." or just the
+    # surah name + numeric ref, possibly followed by a colon /
+    # dash and a hook.
+    label_pat = re.compile(
+        r"^\s*(?:Surah\s+)?[A-Za-z'\-' ]+\s+\d+:\d+(?:-\d+)?",
+        re.IGNORECASE,
+    )
+    label_match = label_pat.match(t)
+    if label_match:
+        rest = t[label_match.end():].lstrip(" :|—–-").strip().rstrip(".")
+        if rest:
+            return f"{rest} {target_tail}".strip()
+        # No hook content beyond the label — best we can do is
+        # reformat as "<surah name> <ref> (<ref_with_name>)" which
+        # is still better than the bare label, but really the LLM
+        # didn't follow the prompt; let the next render retry.
+        return f"{ref_with_name} {target_tail}".strip()
+
+    # 3. Hook-only output without any reference. Append the tail.
+    # Strip any trailing punctuation so we don't get "Hook. (ref)".
+    return f"{t.rstrip('.')} {target_tail}".strip()
+
+
 def _generate_youtube_metadata(verse_data):
     """Generate YouTube title, description, and tags via Ollama, enriched with
     root-word insights. Returns (title, description, tags_list).
@@ -13465,6 +13533,7 @@ def _generate_youtube_metadata(verse_data):
     # Build verse refs string — prefer compact range format for consecutive passages
     if not verse_data:
         ref_string = ""
+        ref_with_name = ""
     else:
         chapters = {v["chapter"] for v in verse_data}
         verses_sorted = sorted(v["verse"] for v in verse_data)
@@ -13481,6 +13550,16 @@ def _generate_youtube_metadata(verse_data):
         else:
             ref_string = ", ".join(f"{v['chapter']}:{v['verse']}" for v in verse_data)
 
+    # Surah-name reference for the title's parenthetical (e.g.
+    # "Al-Layl 92:12-19"). For non-contiguous picks across multiple
+    # chapters we fall back to the bare numeric ref_string in
+    # parentheses — uncommon enough that we don't need the surah
+    # name there.
+    if verse_data and len(chapters) == 1:
+        ref_with_name = f"{_surah_name(verse_data[0]['chapter'])} {ref_string}"
+    else:
+        ref_with_name = ref_string
+
     # Build verse block for prompt — show each verse individually so the LLM sees the full text
     verse_lines = []
     for v in verse_data:
@@ -13488,15 +13567,22 @@ def _generate_youtube_metadata(verse_data):
     verse_block = "\n".join(verse_lines)
 
     system_prompt = (
-        "You are writing YouTube Shorts metadata for Qur'anic passages. Your job is to "
-        "produce titles and descriptions that are specific, insightful, and human — the "
-        "opposite of the generic spiritual AI slop that floods this genre.\n\n"
-        "Your reader is an educated, curious viewer scrolling past religious content. "
-        "The description is the ONE thing that might make them stop and actually watch."
+        "You write YouTube Shorts titles and descriptions for Qur'anic recitation "
+        "passages. Your job is to lead with MEANING, not metadata.\n\n"
+        "The default auto-generated title for these videos used to be a bare verse "
+        "reference (\"Surah Al-Layl 92:12-19\"). A YouTube marketing review found that "
+        "format was the single biggest reason the channel got views but no subscribers: "
+        "a reference number is a filing label, not a hook. Scrolling viewers process "
+        "the first three or four words of a title and decide whether to stop. \"Surah "
+        "Al-Layl\" is a name. \"The two paths Allah lays before every soul\" is an idea. "
+        "Ideas stop the scroll; names don't.\n\n"
+        "The voice is reverent and curious, not sensational. No clickbait, no all caps, "
+        "no emoji, no exclamation marks. Faithfulness to the passage matters more than "
+        "cleverness."
     )
 
     prompt = (
-        f"## Passage ({ref_string})\n\n"
+        f"## Passage ({ref_with_name})\n\n"
         f"{verse_block}\n\n"
     )
 
@@ -13507,11 +13593,48 @@ def _generate_youtube_metadata(verse_data):
         "## Output format\n\n"
         "Return ONLY valid JSON, nothing else:\n"
         f'{{"title": "...", "description": "...", "tags": ["tag1", "tag2", ...]}}\n\n'
-        "## Title rules\n"
-        f'- Must start with: "{ref_string} | "\n'
-        "- After the pipe, a 4-8 word phrase that names a specific tension, paradox,\n"
-        "  image, or turn in the passage. Not a summary of its theme.\n"
-        "- Under 80 characters total. No emojis.\n\n"
+        "## Title rules — HOOK-FIRST FORMAT\n\n"
+        f'Required template: "<plain-English hook> ({ref_with_name})"\n\n'
+        "The hook comes first; the verse reference is a parenthetical at the END. \n"
+        "DO NOT lead with \"Surah ...\". DO NOT lead with the numeric reference. \n"
+        "DO NOT use \"X | Y\" pipe-separator format.\n\n"
+        "Hook rules:\n"
+        "- 4-9 words.\n"
+        "- Plain English. Conveys the THEME, IMAGE, or EMOTIONAL CORE of the verses,\n"
+        "  not a literal translation. If a translation phrase IS the most striking\n"
+        "  line, you can use it directly (e.g. \"Allah has not abandoned you\" for\n"
+        "  Ad-Duha 93:1-9).\n"
+        "- No clickbait, no hyperbole, no all caps, no emoji, no exclamation marks.\n"
+        "- No invented content. If the verses are an oath sequence (\"By the sky...\"),\n"
+        "  the hook can be the oath. If they're a warning, the hook reflects that.\n"
+        "- BANNED filler words in the hook: powerful, profound, beautiful, majestic,\n"
+        "  timeless, transformative, divine promises, deep reflection.\n\n"
+        f'Reference rules: the parenthetical must be exactly "({ref_with_name})". \n'
+        "Use the short surah name without the \"Surah\" prefix (e.g. \"Al-Layl\", not\n"
+        "\"Surah Al-Layl\") to keep it compact.\n\n"
+        "Total title length: under 100 characters.\n\n"
+        "## Title examples (study these — they show the target voice)\n\n"
+        "BAD (filing-label format the channel is moving away from):\n"
+        '  "Surah Al-Layl 92:12-19"\n'
+        '  "Surah Al-Balad 90:10-16"\n'
+        '  "Surah Ad-Duha 93:1-9"\n'
+        "  → All three describe what the video IS without giving anyone a reason to\n"
+        "    stop. They serve only viewers who already know the passage.\n\n"
+        "GOOD (hook-first, reference parenthesised):\n"
+        '  "The two paths Allah lays before every soul (Al-Layl 92:12-19)"\n'
+        '  "The steep climb most people never take (Al-Balad 90:10-16)"\n'
+        '  "Allah has not abandoned you (Ad-Duha 93:1-9)"\n'
+        '  "The night worth more than a thousand months (Al-Qadr 97:1-5)"\n'
+        '  "When the trumpet sounds, wealth won\'t help (Al-Muddaththir 74:8-13)"\n'
+        '  "By time — humanity is at a loss (Al-Asr 103:1-3)"\n'
+        '  "Did We not expand your chest for you? (Ash-Sharh 94:1-8)"\n'
+        '  "The day a man flees from his own brother (\'Abasa 80:33-37)"\n'
+        '  "When the sun is wrapped up in darkness (At-Takwir 81:1-9)"\n'
+        '  "The day the earth will tell its story (Az-Zalzalah 99:1-8)"\n'
+        '  "I swear by the Day of Resurrection (Al-Qiyamah 75:1-9)"\n'
+        '  "By the night-visitor — the piercing star (At-Tariq 86:1-7)"\n'
+        "  → Each leads with an image or theme that earns a beat of attention before\n"
+        "    the viewer reads the reference. Reverent, specific, not sensational.\n\n"
         "## Description rules\n"
         "- 2-3 short sentences. Roughly 200-400 characters total.\n"
         "- Must deliver a SPECIFIC OBSERVATION the reader wouldn't get just from\n"
@@ -13529,7 +13652,7 @@ def _generate_youtube_metadata(verse_data):
         "- BANNED filler words: powerful, profound, beautiful, majestic, timeless,\n"
         "  deep reflection, divine promises, transformative.\n"
         "- No hashtags. No calls to action. No 'watch this video'.\n\n"
-        "## Contrast — BAD vs GOOD for 89:1-5 (Al-Fajr opening oaths)\n\n"
+        "## Description — BAD vs GOOD for 89:1-5 (Al-Fajr opening oaths)\n\n"
         'BAD: "Surah Al-Fajr opens with powerful oaths—by the dawn, ten nights,\n'
         'and the night as it passes—connecting to the Arabic root ل ي ل meaning\n'
         '\'night\' to emphasize that these Divine promises deserve deep reflection."\n'
@@ -13597,6 +13720,18 @@ def _generate_youtube_metadata(verse_data):
 
     title = (meta.get("title") or "").strip()
     description = (meta.get("description") or "").strip()
+
+    # Title normalisation — defence-in-depth against the LLM
+    # falling back to old habits despite the prompt. Three failure
+    # modes seen in practice:
+    #   1. Leads with "Surah X 92:12-19" instead of a hook.
+    #   2. Uses old "92:12-19 | hook" pipe format.
+    #   3. Drops the parenthesised reference entirely and just
+    #      writes a hook.
+    # We rebuild the canonical "<hook> (<ref_with_name>)" shape
+    # whenever any of these are detected.
+    if title and ref_with_name:
+        title = _normalize_recitation_title(title, ref_string, ref_with_name)
 
     # Append the standard al-nuqta.com links block — homepage + one
     # link per unique verse in the passage. Mirrors the educational
