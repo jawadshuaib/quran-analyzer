@@ -217,12 +217,14 @@ function ServerClockPanel() {
             style={{ fontSize: 56, fontVariantNumeric: 'tabular-nums' }}
           >
             {String(serverNow.getHours()).padStart(2, '0')}
+            {/* Blinking colon is the only "I'm alive" signal now that
+                seconds are hidden — operator wanted HH:MM, not HH:MM:SS,
+                because the second-level churn distracted from the rest
+                of the dashboard. The colon still pulses each second
+                (tick state still updates 1Hz so the Up Next countdowns
+                stay smooth). */}
             <span className={tick % 2 === 0 ? 'opacity-100' : 'opacity-30'}>:</span>
             {String(serverNow.getMinutes()).padStart(2, '0')}
-            <span className="text-stone-400">:</span>
-            <span className="text-stone-500">
-              {String(serverNow.getSeconds()).padStart(2, '0')}
-            </span>
           </div>
           <div className="text-xs text-stone-500 mt-1">
             {serverNow.toLocaleDateString(undefined, {
