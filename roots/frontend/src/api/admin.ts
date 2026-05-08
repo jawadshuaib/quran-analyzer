@@ -1316,6 +1316,9 @@ export interface PipelineScheduleRun {
   scheduled_time: string;
   fired_at: string;
   video_id: number | null;
+  /** YouTube title of the produced video, when the run created one.
+   *  NULL for skipped/errored runs that never created a video. */
+  video_title: string | null;
   status: 'fired' | 'skipped_cap' | 'skipped_active' | 'skipped_grace' | 'error' | string;
   note: string | null;
 }
@@ -1376,6 +1379,9 @@ export interface YoutubeUploadRun {
   fired_at: string;
   video_id: number | null;
   youtube_video_id: string | null;
+  /** Title of the published video. NULL when the run skipped/errored
+   *  and didn't produce a YouTube video. */
+  video_title: string | null;
   status: 'uploaded' | 'skipped_no_videos' | 'skipped_sanity'
         | 'skipped_grace' | 'error' | string;
   note: string | null;
@@ -1949,6 +1955,8 @@ export interface EducationalScheduleRunGlobal {
   scheduled_time: string;
   fired_at: string;
   video_id: number | null;
+  /** Title of the produced educational video. NULL for skipped runs. */
+  video_title: string | null;
   status: string;
   note: string | null;
 }
@@ -1967,6 +1975,26 @@ export async function getAllEducationalScheduleRuns(
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Failed to fetch educational schedule runs');
   return data as EducationalScheduleRunGlobal[];
+}
+
+// --------------- Server time ---------------
+
+/** Snapshot of the server's local clock + timezone. The Scheduler
+ *  page anchors its countdown on this so the operator's timer
+ *  matches what the scheduler is actually using to decide when
+ *  to fire — independent of browser timezone. */
+export interface ServerTime {
+  now_iso: string;        // ISO-8601 with offset
+  now_epoch_ms: number;   // server's epoch in ms
+  tz_offset_minutes: number;
+  tz_name: string;
+}
+
+export async function getServerTime(): Promise<ServerTime> {
+  const res = await authFetch(`${BASE}/server-time`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch server time');
+  return data as ServerTime;
 }
 
 /* =================================================================== */

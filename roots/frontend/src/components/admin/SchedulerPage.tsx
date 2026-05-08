@@ -1,17 +1,38 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getPipelineSchedules, savePipelineSchedule, getPipelineScheduleRuns,
   getYoutubeUploadSchedule, saveYoutubeUploadSchedule, getYoutubeUploadRuns,
   getPreferences,
   getAllEducationalSchedules, getAllEducationalScheduleRuns,
   upsertEducationalSchedule,
+  getServerTime,
 } from '../../api/admin';
 import type {
   PipelineSchedule, PipelineScheduleRun,
   YoutubeUploadSchedule, YoutubeUploadRun,
   EducationalScheduleListItem, EducationalScheduleRunGlobal,
+  ServerTime,
 } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
+
+type TabKey = 'overview' | 'youtube' | 'recitation' | 'educational';
+
+// URL-hash sync. Use hash so the tab persists across reloads and
+// deep-links work (e.g. /admin/scheduler#youtube). Backward compat:
+// the page used to use #youtube-upload, so we accept the old form
+// and map it to the new tab key.
+const HASH_TO_TAB: Record<string, TabKey> = {
+  '#overview': 'overview',
+  '#youtube': 'youtube',
+  '#youtube-upload': 'youtube',  // old anchor name
+  '#recitation': 'recitation',
+  '#educational': 'educational',
+};
+
+function readHashTab(): TabKey {
+  if (typeof window === 'undefined') return 'overview';
+  return HASH_TO_TAB[window.location.hash] ?? 'overview';
+}
 
 /**
  * Scheduler page — manages automated pipeline runs.
@@ -26,15 +47,435 @@ import { useConfirm } from './shared/useConfirm';
  * Audit log at the bottom shows what fired (or why it was skipped).
  */
 export default function SchedulerPage() {
+  const [tab, setTab] = useState<TabKey>(readHashTab);
+
+  // Sync URL hash with tab state. Bidirectional: hashchange (e.g.
+  // user clicks a #youtube link) updates state; tab clicks push to
+  // history.replaceState (no scroll jump from the browser auto-
+  // anchoring to the now-removed section ids).
+  useEffect(() => {
+    function onHashChange() { setTab(readHashTab()); }
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  function changeTab(next: TabKey) {
+    setTab(next);
+    const hash = `#${next}`;
+    if (window.location.hash !== hash) {
+      // replaceState avoids polluting history with every tab click.
+      window.history.replaceState(null, '', hash);
+    }
+  }
+
+  // Refresh key bumped after any save anywhere on the page so the
+  // Overview's status panel + countdown re-fetch with fresh data.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  return (
+    <div>
+      <div className="mb-4">
+        <h1 className="text-xl font-semibold text-stone-800 mb-1">Scheduler</h1>
+        <p className="text-sm text-stone-500">
+          Automate pipeline video generation and YouTube upload on daily
+          schedules. All times are in server local time.
+        </p>
+      </div>
+
+      <TabBar current={tab} onChange={changeTab} />
+
+      <div className="mt-6">
+        {tab === 'overview' && (
+          <OverviewTab refreshKey={refreshKey} onTabChange={changeTab} />
+        )}
+        {tab === 'youtube' && (
+          <YoutubeUploadSection refreshTrigger={refreshKey} onSaved={bumpRefresh} />
+        )}
+        {tab === 'recitation' && (
+          <RecitationSection onSaved={bumpRefresh} />
+        )}
+        {tab === 'educational' && (
+          <EducationalScheduleSection onSaved={bumpRefresh} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ */
+
+function TabBar({
+  current, onChange,
+}: { current: TabKey; onChange: (t: TabKey) => void }) {
+  const tabs: { key: TabKey; label: string; sub: string }[] = [
+    { key: 'overview',    label: 'Overview',     sub: 'status & next-up' },
+    { key: 'youtube',     label: 'YouTube',      sub: 'upload schedule' },
+    { key: 'recitation',  label: 'Recitation',   sub: 'English / Arabic' },
+    { key: 'educational', label: 'Educational',  sub: 'grammar / word origins' },
+  ];
+  return (
+    <div className="border-b border-stone-200">
+      <nav className="-mb-px flex flex-wrap gap-1" aria-label="Scheduler sections">
+        {tabs.map((t) => {
+          const active = current === t.key;
+          return (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => onChange(t.key)}
+              aria-current={active ? 'page' : undefined}
+              className={`group relative px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors cursor-pointer ${
+                active
+                  ? 'border-stone-800 text-stone-900'
+                  : 'border-transparent text-stone-500 hover:text-stone-800 hover:border-stone-300'
+              }`}
+            >
+              <span>{t.label}</span>
+              <span className={`block text-[10px] mt-0.5 ${active ? 'text-stone-500' : 'text-stone-400'}`}>
+                {t.sub}
+              </span>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+/* ============================================================ */
+/*  Overview tab                                                 */
+/* ============================================================ */
+/* Single-screen "is everything healthy and what's next" view.
+ * Combines the AutoPublishStatusPanel that used to sit at the top
+ * of the page with a large server-clock + countdown to the next
+ * scheduled fire across ALL schedules, plus a list of the next 5
+ * things to fire. Clicking any item jumps to the relevant tab.
+ */
+
+function OverviewTab({
+  refreshKey, onTabChange,
+}: { refreshKey: number; onTabChange: (t: TabKey) => void }) {
+  return (
+    <div className="space-y-6">
+      <ServerClockPanel />
+      <AutoPublishStatusPanel refreshKey={refreshKey} />
+      <UpNextPanel onTabChange={onTabChange} />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ */
+
+function ServerClockPanel() {
+  // Anchor on a server-time fetch then tick locally. Re-sync every
+  // 5 minutes (clock drift is tiny, but a long-open tab will drift
+  // a few seconds an hour from the server's wall clock). Operator
+  // sees the SERVER's time of day, which is what the scheduler
+  // uses to decide when to fire — not the browser's.
+  const [serverTime, setServerTime] = useState<ServerTime | null>(null);
+  // Difference between server and browser epochs (server - browser),
+  // captured at fetch time. We extrapolate by adding it to Date.now().
+  const offsetRef = useRef<number>(0);
+  const [tick, setTick] = useState(0);
+
+  const sync = useCallback(async () => {
+    try {
+      const t = await getServerTime();
+      offsetRef.current = t.now_epoch_ms - Date.now();
+      setServerTime(t);
+    } catch {
+      // Silently fall back to browser time. Operator sees a slight
+      // mismatch but the page still works.
+    }
+  }, []);
+
+  useEffect(() => {
+    sync();
+    const resync = setInterval(sync, 5 * 60_000);
+    const ticker = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => {
+      clearInterval(resync);
+      clearInterval(ticker);
+    };
+  }, [sync]);
+
+  // Recompute "now on server" each tick.
+  void tick;
+  const serverNow = new Date(Date.now() + offsetRef.current);
+  const tzLabel = serverTime?.tz_name || 'server';
+
+  return (
+    <section className="rounded-xl border border-stone-200 bg-white p-5">
+      <div className="flex items-baseline justify-between flex-wrap gap-3">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-stone-400">
+            Server time · {tzLabel}
+          </div>
+          <div
+            className="font-mono font-semibold text-stone-900 leading-none mt-1"
+            style={{ fontSize: 56, fontVariantNumeric: 'tabular-nums' }}
+          >
+            {String(serverNow.getHours()).padStart(2, '0')}
+            <span className={tick % 2 === 0 ? 'opacity-100' : 'opacity-30'}>:</span>
+            {String(serverNow.getMinutes()).padStart(2, '0')}
+            <span className="text-stone-400">:</span>
+            <span className="text-stone-500">
+              {String(serverNow.getSeconds()).padStart(2, '0')}
+            </span>
+          </div>
+          <div className="text-xs text-stone-500 mt-1">
+            {serverNow.toLocaleDateString(undefined, {
+              weekday: 'long', month: 'short', day: 'numeric', year: 'numeric',
+            })}
+          </div>
+        </div>
+        <NextFireCountdown />
+      </div>
+      {!serverTime && (
+        <p className="mt-3 text-[11px] text-amber-600">
+          Couldn't reach the server-time endpoint — clock is showing browser time.
+        </p>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------ */
+
+interface UpcomingFire {
+  source: 'youtube' | 'recitation' | 'educational';
+  pipelineName: string;     // human label for "what" will fire
+  pipelineId?: number;
+  /** Computed next-fire moment, in the server's clock. */
+  nextDate: Date;
+  /** ms until fire, computed against server-now. */
+  msUntil: number;
+}
+
+function NextFireCountdown() {
+  // Aggregates next-fire across the three schedule families and
+  // shows a live countdown to the very soonest one.
+  const [next, setNext] = useState<UpcomingFire | null>(null);
+  const [, setTick] = useState(0);
+
+  const load = useCallback(async () => {
+    try {
+      const [yt, rec, edu] = await Promise.all([
+        getYoutubeUploadSchedule().catch(() => null),
+        getPipelineSchedules().catch(() => []),
+        getAllEducationalSchedules().catch(() => []),
+      ]);
+      const all = collectUpcoming(yt, rec, edu);
+      setNext(all[0] || null);
+    } catch {
+      setNext(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const reload = setInterval(load, 60_000);
+    const ticker = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => {
+      clearInterval(reload);
+      clearInterval(ticker);
+    };
+  }, [load]);
+
+  if (!next) {
+    return (
+      <div className="text-right">
+        <div className="text-[10px] uppercase tracking-wider text-stone-400">Next fire</div>
+        <div className="text-sm text-stone-500 mt-1">No active schedules</div>
+      </div>
+    );
+  }
+
+  const ms = next.nextDate.getTime() - Date.now();
+  return (
+    <div className="text-right">
+      <div className="text-[10px] uppercase tracking-wider text-stone-400">Next fire</div>
+      <div
+        className="font-mono font-semibold text-stone-800 leading-none mt-1"
+        style={{ fontSize: 32, fontVariantNumeric: 'tabular-nums' }}
+      >
+        {humanizeCountdown(ms)}
+      </div>
+      <div className="text-xs text-stone-500 mt-1">
+        {sourceLabel(next.source)} · {next.pipelineName}
+      </div>
+      <div className="text-[11px] text-stone-400">
+        at {formatTimeOfDay(next.nextDate)} server time
+      </div>
+    </div>
+  );
+}
+
+function humanizeCountdown(ms: number): string {
+  if (ms <= 0) return '00:00:00';
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function sourceLabel(s: UpcomingFire['source']): string {
+  return s === 'youtube' ? 'YouTube upload'
+    : s === 'recitation' ? 'Recitation'
+    : 'Educational';
+}
+
+function collectUpcoming(
+  yt: YoutubeUploadSchedule | null,
+  rec: PipelineSchedule[],
+  edu: EducationalScheduleListItem[],
+  now: Date = new Date(),
+): UpcomingFire[] {
+  const out: UpcomingFire[] = [];
+  if (yt && yt.enabled && yt.times.length > 0) {
+    const n = nextFireFromTimes(yt.times, now);
+    if (n) {
+      out.push({
+        source: 'youtube',
+        pipelineName: 'Drains queue → YouTube',
+        nextDate: n.date,
+        msUntil: n.date.getTime() - now.getTime(),
+      });
+    }
+  }
+  for (const s of rec) {
+    if (!s.enabled || s.times.length === 0) continue;
+    const n = nextFireFromTimes(s.times, now);
+    if (n) {
+      out.push({
+        source: 'recitation',
+        pipelineName: `${s.pipeline_name} (${s.pipeline_language === 'arabic' ? 'AR' : 'EN'})`,
+        pipelineId: s.pipeline_id,
+        nextDate: n.date,
+        msUntil: n.date.getTime() - now.getTime(),
+      });
+    }
+  }
+  for (const s of edu) {
+    if (!s.enabled || !s.pipeline_enabled || s.times.length === 0) continue;
+    const n = nextFireFromTimes(s.times, now);
+    if (n) {
+      out.push({
+        source: 'educational',
+        pipelineName: `${s.pipeline_name} · ${s.pipeline_type}`,
+        pipelineId: s.pipeline_id,
+        nextDate: n.date,
+        msUntil: n.date.getTime() - now.getTime(),
+      });
+    }
+  }
+  out.sort((a, b) => a.msUntil - b.msUntil);
+  return out;
+}
+
+function UpNextPanel({ onTabChange }: { onTabChange: (t: TabKey) => void }) {
+  const [items, setItems] = useState<UpcomingFire[] | null>(null);
+  const [, setTick] = useState(0);
+
+  const load = useCallback(async () => {
+    try {
+      const [yt, rec, edu] = await Promise.all([
+        getYoutubeUploadSchedule().catch(() => null),
+        getPipelineSchedules().catch(() => []),
+        getAllEducationalSchedules().catch(() => []),
+      ]);
+      setItems(collectUpcoming(yt, rec, edu).slice(0, 8));
+    } catch {
+      setItems([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const reload = setInterval(load, 60_000);
+    const ticker = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => { clearInterval(reload); clearInterval(ticker); };
+  }, [load]);
+
+  if (items === null) {
+    return (
+      <div className="rounded-xl border border-stone-200 bg-white p-5 text-sm text-stone-400">
+        Loading upcoming…
+      </div>
+    );
+  }
+  if (items.length === 0) {
+    return (
+      <div className="rounded-xl border border-stone-200 bg-white p-5">
+        <div className="text-base font-semibold text-stone-800 mb-1">Up next</div>
+        <p className="text-sm text-stone-500">
+          Nothing scheduled. Enable a pipeline or the YouTube upload to start firing.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="rounded-xl border border-stone-200 bg-white p-5">
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-base font-semibold text-stone-800">Up next</h2>
+        <span className="text-[11px] text-stone-400">
+          Across all schedules. Click a row to jump to its tab.
+        </span>
+      </div>
+      <ul className="divide-y divide-stone-100">
+        {items.map((it, i) => {
+          const ms = it.nextDate.getTime() - Date.now();
+          return (
+            <li
+              key={`${it.source}-${it.pipelineId ?? 'yt'}-${i}`}
+              onClick={() => onTabChange(it.source === 'youtube' ? 'youtube'
+                : it.source === 'recitation' ? 'recitation' : 'educational')}
+              className="py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-stone-50 -mx-2 px-2 rounded-md"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                    it.source === 'youtube' ? 'bg-red-100 text-red-700'
+                    : it.source === 'recitation' ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-violet-100 text-violet-700'
+                  }`}>
+                    {sourceLabel(it.source)}
+                  </span>
+                  <span className="text-sm text-stone-700 truncate">
+                    {it.pipelineName}
+                  </span>
+                </div>
+                <div className="text-[11px] text-stone-400 mt-0.5 font-mono">
+                  {formatTimeOfDay(it.nextDate)}
+                  {it.nextDate.toDateString() !== new Date().toDateString() && ' · tomorrow'}
+                </div>
+              </div>
+              <div
+                className="text-right font-mono text-sm text-stone-700 shrink-0"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
+                {humanizeCountdown(ms)}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/* ============================================================ */
+/*  Recitation tab section (extracted from old top-level body)   */
+/* ============================================================ */
+
+function RecitationSection({ onSaved }: { onSaved: () => void }) {
   const [schedules, setSchedules] = useState<PipelineSchedule[]>([]);
   const [runs, setRuns] = useState<PipelineScheduleRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
-  // Bumped by every save anywhere on the page so the
-  // AutoPublishStatusPanel re-fetches its health summary. Without
-  // this the panel shows stale data after the user edits the
-  // upload schedule or one of the pipeline schedules.
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const load = useCallback(async () => {
     setErr('');
@@ -45,17 +486,16 @@ export default function SchedulerPage() {
       ]);
       setSchedules(s);
       setRuns(r);
-      setRefreshKey((k) => k + 1);
+      onSaved();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load schedules');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onSaved]);
 
   useEffect(() => {
     load();
-    // Refresh audit log every 60s so new fires appear without reload
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
   }, [load]);
@@ -69,139 +509,90 @@ export default function SchedulerPage() {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-stone-800 mb-1">Scheduler</h1>
-        <p className="text-sm text-stone-500">
-          Automate pipeline video generation and YouTube upload on daily
-          schedules. All times are in server local time.
-        </p>
-      </div>
-
+    <section>
       {err && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {err}
         </div>
       )}
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-base font-semibold text-stone-800">Recitation pipelines (English / Arabic)</h2>
+        <span className="text-xs text-stone-400">
+          Only scheduler-triggered runs count against the daily cap — manual runs don't consume budget.
+        </span>
+      </div>
+      <div className="space-y-4">
+        {schedules.length === 0 && (
+          <p className="text-sm text-stone-400 italic">
+            No recitation pipelines configured.{' '}
+            <a href="/admin/pipelines/recitation" className="underline hover:text-stone-600">
+              Create one →
+            </a>
+          </p>
+        )}
+        {schedules.map((s) => (
+          <ScheduleCard key={s.pipeline_id} schedule={s} onSaved={load} />
+        ))}
+      </div>
 
-      {/* Health check at the top — answers "is auto-publishing working?"
-          across the three pieces (credentials, generation schedules,
-          upload schedule) so an operator doesn't have to scroll
-          through three sections to figure out why nothing's flowing.
-          The refreshKey is bumped by the parent's load() so the panel
-          re-fetches whenever any child card saves. */}
-      <section id="status">
-        <AutoPublishStatusPanel refreshKey={refreshKey} />
-      </section>
-
-      {/* Quick-nav. The page has four logical sections; without this
-          row a user landing here from /admin/pipelines/educational
-          has no signal that the YouTube upload card or the
-          educational schedules even exist below the fold. */}
-      <nav className="mt-4 mb-8 flex flex-wrap gap-2 text-xs">
-        <span className="text-stone-400">Jump to:</span>
-        <a href="#youtube-upload" className="text-stone-600 hover:text-stone-900 underline decoration-dotted underline-offset-2">YouTube upload</a>
-        <span className="text-stone-300">·</span>
-        <a href="#recitation" className="text-stone-600 hover:text-stone-900 underline decoration-dotted underline-offset-2">Recitation generation</a>
-        <span className="text-stone-300">·</span>
-        <a href="#educational" className="text-stone-600 hover:text-stone-900 underline decoration-dotted underline-offset-2">Educational generation</a>
-      </nav>
-
-      {/* ==================== YouTube upload schedule ====================
-          Promoted to right-under-status because it's THE thing
-          operators come here to manage. The status panel above
-          tells you whether it's running; the card below lets you
-          fix it. Used to be buried at the bottom of the page below
-          two unrelated sections. */}
-      <section id="youtube-upload" className="scroll-mt-4">
-        <YoutubeUploadSection refreshTrigger={refreshKey} onSaved={load} />
-      </section>
-
-      <div className="my-10 border-t border-stone-200" />
-
-      {/* ==================== Recitation pipelines (English/Arabic) ==================== */}
-      <section id="recitation" className="scroll-mt-4">
-        <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-base font-semibold text-stone-800">Recitation pipelines (English / Arabic)</h2>
-          <span className="text-xs text-stone-400">
-            Only scheduler-triggered runs count against the daily cap — manual runs don't consume budget.
-          </span>
-        </div>
-        <div className="space-y-4">
-          {schedules.length === 0 && (
-            <p className="text-sm text-stone-400 italic">
-              No recitation pipelines configured.{' '}
-              <a href="/admin/pipelines/recitation" className="underline hover:text-stone-600">
-                Create one →
-              </a>
-            </p>
-          )}
-          {schedules.map((s) => (
-            <ScheduleCard key={s.pipeline_id} schedule={s} onSaved={load} />
-          ))}
-        </div>
-
-        <div className="mt-6">
-          <h3 className="text-sm font-semibold text-stone-600 mb-3">
-            Recent scheduler activity
-          </h3>
-          {runs.length === 0 ? (
-            <p className="text-sm text-stone-400">No scheduler activity yet.</p>
-          ) : (
-            <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-stone-50 text-xs text-stone-500">
-                  <tr>
-                    <th className="text-left px-3 py-2 font-medium">Pipeline</th>
-                    <th className="text-left px-3 py-2 font-medium">Scheduled</th>
-                    <th className="text-left px-3 py-2 font-medium">Fired</th>
-                    <th className="text-left px-3 py-2 font-medium">Status</th>
-                    <th className="text-left px-3 py-2 font-medium">Note</th>
+      <div className="mt-6">
+        <h3 className="text-sm font-semibold text-stone-600 mb-3">
+          Recent scheduler activity
+        </h3>
+        {runs.length === 0 ? (
+          <p className="text-sm text-stone-400">No scheduler activity yet.</p>
+        ) : (
+          <div className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 text-xs text-stone-500">
+                <tr>
+                  <th className="text-left px-3 py-2 font-medium">Pipeline</th>
+                  <th className="text-left px-3 py-2 font-medium">Title</th>
+                  <th className="text-left px-3 py-2 font-medium">Scheduled</th>
+                  <th className="text-left px-3 py-2 font-medium">Fired</th>
+                  <th className="text-left px-3 py-2 font-medium">Status</th>
+                  <th className="text-left px-3 py-2 font-medium">Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                {runs.map((r) => (
+                  <tr key={r.id} className="border-t border-stone-100">
+                    <td className="px-3 py-2 text-stone-700">
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                        r.pipeline_language === 'arabic'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        #{r.pipeline_id}
+                      </span>
+                      <span className="ml-2">{r.pipeline_name}</span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-stone-600 max-w-[260px] truncate" title={r.video_title || ''}>
+                      {r.video_title || <span className="text-stone-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-stone-600 font-mono text-xs">
+                      {r.scheduled_time}
+                    </td>
+                    <td className="px-3 py-2 text-stone-500 text-xs">
+                      {new Date(r.fired_at).toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      <StatusBadge status={r.status} />
+                      {r.video_id && (
+                        <span className="ml-2 text-xs text-stone-400">→ video #{r.video_id}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-stone-500">
+                      {r.note || ''}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {runs.map((r) => (
-                    <tr key={r.id} className="border-t border-stone-100">
-                      <td className="px-3 py-2 text-stone-700">
-                        <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                          r.pipeline_language === 'arabic'
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          #{r.pipeline_id}
-                        </span>
-                        <span className="ml-2">{r.pipeline_name}</span>
-                      </td>
-                      <td className="px-3 py-2 text-stone-600 font-mono text-xs">
-                        {r.scheduled_time}
-                      </td>
-                      <td className="px-3 py-2 text-stone-500 text-xs">
-                        {new Date(r.fired_at).toLocaleString()}
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusBadge status={r.status} />
-                        {r.video_id && (
-                          <span className="ml-2 text-xs text-stone-400">→ video #{r.video_id}</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-stone-500">
-                        {r.note || ''}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* ==================== Educational pipelines (word origins / etc.) ==================== */}
-      <div className="my-10 border-t border-stone-200" />
-      <section id="educational" className="scroll-mt-4">
-        <EducationalScheduleSection />
-      </section>
-    </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -488,7 +879,9 @@ function ScheduleCard({
  * the scheduler has been doing across all educational series.
  */
 
-function EducationalScheduleSection() {
+function EducationalScheduleSection({
+  onSaved,
+}: { onSaved?: () => void } = {}) {
   const [schedules, setSchedules] = useState<EducationalScheduleListItem[]>([]);
   const [runs, setRuns] = useState<EducationalScheduleRunGlobal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -503,12 +896,13 @@ function EducationalScheduleSection() {
       ]);
       setSchedules(s);
       setRuns(r);
+      if (onSaved) onSaved();
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'Failed to load educational schedules');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onSaved]);
 
   useEffect(() => {
     load();
@@ -562,6 +956,7 @@ function EducationalScheduleSection() {
               <thead className="bg-stone-50 text-xs text-stone-500">
                 <tr>
                   <th className="text-left px-3 py-2 font-medium">Pipeline</th>
+                  <th className="text-left px-3 py-2 font-medium">Title</th>
                   <th className="text-left px-3 py-2 font-medium">Scheduled</th>
                   <th className="text-left px-3 py-2 font-medium">Fired</th>
                   <th className="text-left px-3 py-2 font-medium">Status</th>
@@ -581,6 +976,9 @@ function EducationalScheduleSection() {
                           {r.pipeline_type}
                         </span>
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-stone-600 max-w-[260px] truncate" title={r.video_title || ''}>
+                      {r.video_title || <span className="text-stone-300">—</span>}
                     </td>
                     <td className="px-3 py-2 text-stone-600 font-mono text-xs">
                       {r.scheduled_time}
@@ -948,6 +1346,7 @@ function YoutubeUploadSection({
             <table className="w-full text-sm">
               <thead className="bg-stone-50 text-xs text-stone-500">
                 <tr>
+                  <th className="text-left px-3 py-2 font-medium">Title</th>
                   <th className="text-left px-3 py-2 font-medium">Scheduled</th>
                   <th className="text-left px-3 py-2 font-medium">Fired</th>
                   <th className="text-left px-3 py-2 font-medium">Status</th>
@@ -958,6 +1357,9 @@ function YoutubeUploadSection({
               <tbody>
                 {runs.map((r) => (
                   <tr key={r.id} className="border-t border-stone-100">
+                    <td className="px-3 py-2 text-xs text-stone-700 max-w-[280px] truncate" title={r.video_title || ''}>
+                      {r.video_title || <span className="text-stone-300">—</span>}
+                    </td>
                     <td className="px-3 py-2 text-stone-600 font-mono text-xs">
                       {r.scheduled_time}
                     </td>

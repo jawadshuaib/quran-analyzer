@@ -10027,9 +10027,11 @@ def admin_educational_schedule_runs_all():
         rows = conn.execute(
             """
             SELECT r.id, r.pipeline_id, p.name AS pipeline_name, p.type AS pipeline_type,
-                   r.scheduled_time, r.fired_at, r.video_id, r.status, r.note
+                   r.scheduled_time, r.fired_at, r.video_id, r.status, r.note,
+                   ev.youtube_title AS video_title
             FROM educational_pipeline_schedule_runs r
             LEFT JOIN educational_pipelines p ON p.id = r.pipeline_id
+            LEFT JOIN educational_videos ev ON ev.id = r.video_id
             ORDER BY r.fired_at DESC
             LIMIT ?
             """,
@@ -16207,19 +16209,27 @@ def admin_list_schedule_runs():
     pipeline_id = request.args.get("pipeline_id", type=int)
     conn = get_db()
     try:
+        # Include the produced video's youtube_title so the audit log
+        # can show "what got generated" instead of just "video #47".
+        # admin_pipeline_videos is the recitation pipeline's output
+        # table — pipeline_schedule_runs only references this one.
         if pipeline_id:
             rows = conn.execute(
-                "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language "
+                "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language, "
+                "       av.youtube_title AS video_title "
                 "FROM pipeline_schedule_runs r "
                 "JOIN admin_pipelines p ON p.id = r.pipeline_id "
+                "LEFT JOIN admin_pipeline_videos av ON av.id = r.video_id "
                 "WHERE r.pipeline_id = ? ORDER BY r.fired_at DESC LIMIT ?",
                 (pipeline_id, limit),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language "
+                "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language, "
+                "       av.youtube_title AS video_title "
                 "FROM pipeline_schedule_runs r "
                 "JOIN admin_pipelines p ON p.id = r.pipeline_id "
+                "LEFT JOIN admin_pipeline_videos av ON av.id = r.video_id "
                 "ORDER BY r.fired_at DESC LIMIT ?",
                 (limit,),
             ).fetchall()
@@ -16328,17 +16338,50 @@ def admin_save_youtube_upload_schedule():
 @app.route("/api/admin/youtube-upload-runs", methods=["GET"])
 @admin_required
 def admin_list_youtube_upload_runs():
-    """Recent YouTube upload fires. Newest first."""
+    """Recent YouTube upload fires. Newest first.
+
+    Also returns the published video's title (when the run successfully
+    uploaded) by joining on youtube_video_id against both the
+    recitation and educational video tables. youtube_video_id is the
+    YouTube-side identifier and is unique across both tables, so the
+    COALESCE picks whichever side actually owns the row. Skipped /
+    errored runs have a NULL youtube_video_id and therefore no title
+    — UI shows the note in that case."""
     limit = min(max(request.args.get("limit", 50, type=int), 1), 500)
     conn = get_db()
     try:
         rows = conn.execute(
-            "SELECT * FROM youtube_upload_runs ORDER BY fired_at DESC LIMIT ?",
+            "SELECT r.*, "
+            "       COALESCE(av.youtube_title, ev.youtube_title) AS video_title "
+            "FROM youtube_upload_runs r "
+            "LEFT JOIN admin_pipeline_videos av ON av.youtube_video_id = r.youtube_video_id "
+            "LEFT JOIN educational_videos ev ON ev.youtube_video_id = r.youtube_video_id "
+            "ORDER BY r.fired_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
         return jsonify([dict(r) for r in rows])
     finally:
         conn.close()
+
+
+@app.route("/api/admin/server-time", methods=["GET"])
+@admin_required
+def admin_server_time():
+    """Current server local time, ISO-8601 with offset.
+
+    Used by the Scheduler page so the operator's countdown clock
+    reflects what the scheduler is actually using to decide when to
+    fire — server local, not browser local. Browser-side ticking
+    extrapolates from this anchor, with the offset between server
+    epoch and browser epoch captured at fetch time."""
+    from datetime import datetime, timezone
+    now = datetime.now().astimezone()
+    return jsonify({
+        "now_iso": now.isoformat(timespec="seconds"),
+        "now_epoch_ms": int(now.timestamp() * 1000),
+        "tz_offset_minutes": int(now.utcoffset().total_seconds() / 60) if now.utcoffset() else 0,
+        "tz_name": now.tzinfo.tzname(now) if now.tzinfo else "UTC",
+    })
 
 
 @app.route("/api/admin/pipeline-videos/<int:video_id>/clear-upload-skip", methods=["POST"])
