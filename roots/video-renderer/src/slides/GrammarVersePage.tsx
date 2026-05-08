@@ -97,14 +97,26 @@ export function GrammarVersePage({ slide }: { slide: GrammarVerseSlideT }) {
   //
   // Whichever source is in play, we find ALL occurrences (not just
   // the first) so a repeated token like "you" or "we" lights up
-  // every time it appears.
-  const lower = slide.translation.toLowerCase();
+  // every time it appears. We do the search on a quote-normalised
+  // pair (curly → straight, em-dash → hyphen) because
+  // ai_translations text uses typographic quotes (Qur’an with U+2019)
+  // while Claude tends to emit straight ASCII quotes; without the
+  // fold the substring search on "Qur'an" against "Qur’an" misses
+  // and the pill silently doesn't render. Spans are computed against
+  // the normalised string, but we slice the *original* translation
+  // for display so the pill shows the verse's exact typography.
+  const normalize = (s: string) => s
+    .replace(/’/g, "'").replace(/‘/g, "'")
+    .replace(/ʼ/g, "'").replace(/ʹ/g, "'")
+    .replace(/“/g, '"').replace(/”/g, '"')
+    .replace(/–/g, '-').replace(/—/g, '-');
+  const lower = normalize(slide.translation.toLowerCase());
   const seenStarts = new Set<number>();
   const enMatches: { start: number; end: number; color: string; sweep: number }[] = [];
 
   function addAllOccurrences(needle: string, color: string, sweep: number) {
     if (!needle) return;
-    const lo = needle.toLowerCase();
+    const lo = normalize(needle.toLowerCase());
     let from = 0;
     while (from < lower.length) {
       const idx = lower.indexOf(lo, from);

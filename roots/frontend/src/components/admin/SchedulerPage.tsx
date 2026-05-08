@@ -570,7 +570,7 @@ function RecitationSection({ onSaved }: { onSaved: () => void }) {
                       <span className="ml-2">{r.pipeline_name}</span>
                     </td>
                     <td className="px-3 py-2 text-xs text-stone-600 max-w-[260px] truncate" title={r.video_title || ''}>
-                      {r.video_title || <span className="text-stone-300">—</span>}
+                      <TitleOrStatus title={r.video_title} videoStatus={r.video_status} videoError={null} />
                     </td>
                     <td className="px-3 py-2 text-stone-600 font-mono text-xs">
                       {r.scheduled_time}
@@ -599,6 +599,41 @@ function RecitationSection({ onSaved }: { onSaved: () => void }) {
 }
 
 /* ------------------------------------------------------------ */
+
+/** Title cell helper: prefer the video's youtube_title; when that's
+ *  not yet populated (downstream still in progress, or the video
+ *  failed before metadata-gen), fall back to a small status chip
+ *  showing the video's lifecycle state. The error_message tooltip
+ *  on a "failed" chip surfaces the actual cause without making the
+ *  operator click into the video detail page. */
+function TitleOrStatus({
+  title, videoStatus, videoError,
+}: {
+  title: string | null;
+  videoStatus: string | null;
+  videoError: string | null;
+}) {
+  if (title) return <>{title}</>;
+  if (!videoStatus) return <span className="text-stone-300">—</span>;
+  const cls =
+    videoStatus === 'failed' ? 'bg-red-50 text-red-700 border-red-100'
+    : videoStatus === 'uploaded' ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+    : 'bg-stone-50 text-stone-600 border-stone-200';
+  // Truncate the error to a tooltip-friendly size; full text is in
+  // the `title` attr for hover.
+  const tooltip = videoStatus === 'failed' && videoError
+    ? videoError
+    : `Video state: ${videoStatus}`;
+  return (
+    <span
+      className={`inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium ${cls}`}
+      title={tooltip}
+    >
+      {videoStatus === 'failed' ? 'Video failed' : `Video ${videoStatus}`}
+    </span>
+  );
+}
+
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -980,7 +1015,7 @@ function EducationalScheduleSection({
                       )}
                     </td>
                     <td className="px-3 py-2 text-xs text-stone-600 max-w-[260px] truncate" title={r.video_title || ''}>
-                      {r.video_title || <span className="text-stone-300">—</span>}
+                      <TitleOrStatus title={r.video_title} videoStatus={r.video_status} videoError={r.video_error} />
                     </td>
                     <td className="px-3 py-2 text-stone-600 font-mono text-xs">
                       {r.scheduled_time}

@@ -1319,6 +1319,9 @@ export interface PipelineScheduleRun {
   /** YouTube title of the produced video, when the run created one.
    *  NULL for skipped/errored runs that never created a video. */
   video_title: string | null;
+  /** Downstream lifecycle status of the produced video (NULL when
+   *  the run was skipped). e.g. 'rendered', 'uploaded', 'failed'. */
+  video_status: string | null;
   status: 'fired' | 'skipped_cap' | 'skipped_active' | 'skipped_grace' | 'error' | string;
   note: string | null;
 }
@@ -1957,6 +1960,13 @@ export interface EducationalScheduleRunGlobal {
   video_id: number | null;
   /** Title of the produced educational video. NULL for skipped runs. */
   video_title: string | null;
+  /** Downstream video state ('script_ready', 'rendered', 'uploaded',
+   *  'failed', etc.) so the audit log can show why a "fired" run has
+   *  no title. NULL when there is no video row. */
+  video_status: string | null;
+  /** Last error message from the failed pipeline step, when status
+   *  is 'failed'. Used to render a tooltip on the failure chip. */
+  video_error: string | null;
   status: string;
   note: string | null;
 }

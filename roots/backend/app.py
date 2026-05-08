@@ -10024,11 +10024,20 @@ def admin_educational_schedule_runs_all():
     limit = max(1, min(int(request.args.get("limit", 50)), 200))
     conn = get_db()
     try:
+        # Surface the downstream video's state alongside the title.
+        # Without this, an operator looking at the audit log sees
+        # "fired" with a NULL title and assumes the title pipeline
+        # is broken. In reality the schedule run fired but the video
+        # itself failed (or is still mid-pipeline). video_status +
+        # video_error give the UI enough to render a clear failure
+        # chip with the actual error in a tooltip.
         rows = conn.execute(
             """
             SELECT r.id, r.pipeline_id, p.name AS pipeline_name, p.type AS pipeline_type,
                    r.scheduled_time, r.fired_at, r.video_id, r.status, r.note,
-                   ev.youtube_title AS video_title
+                   ev.youtube_title AS video_title,
+                   ev.status AS video_status,
+                   ev.error_message AS video_error
             FROM educational_pipeline_schedule_runs r
             LEFT JOIN educational_pipelines p ON p.id = r.pipeline_id
             LEFT JOIN educational_videos ev ON ev.id = r.video_id
@@ -16216,7 +16225,8 @@ def admin_list_schedule_runs():
         if pipeline_id:
             rows = conn.execute(
                 "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language, "
-                "       av.youtube_title AS video_title "
+                "       av.youtube_title AS video_title, "
+                "       av.status AS video_status "
                 "FROM pipeline_schedule_runs r "
                 "JOIN admin_pipelines p ON p.id = r.pipeline_id "
                 "LEFT JOIN admin_pipeline_videos av ON av.id = r.video_id "
@@ -16226,7 +16236,8 @@ def admin_list_schedule_runs():
         else:
             rows = conn.execute(
                 "SELECT r.*, p.name AS pipeline_name, p.language AS pipeline_language, "
-                "       av.youtube_title AS video_title "
+                "       av.youtube_title AS video_title, "
+                "       av.status AS video_status "
                 "FROM pipeline_schedule_runs r "
                 "JOIN admin_pipelines p ON p.id = r.pipeline_id "
                 "LEFT JOIN admin_pipeline_videos av ON av.id = r.video_id "

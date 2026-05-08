@@ -1457,6 +1457,26 @@ def _validate(script: dict, payload: dict) -> list[str]:
         # and the slide ships with no English highlights — bad UX.
         # Make this a hard check so the LLM is forced to either copy
         # exact substrings or drop the field.
+        #
+        # Quote/apostrophe normalization: ai_translations text often
+        # uses curly quotes (’ U+2019, ‘ U+2018, “ U+201C, ” U+201D)
+        # while Claude's JSON output uses straight ASCII (' " '). The
+        # eye-level "Qur'an" in both is the same word, but a literal
+        # substring match fails. Folding both sides to ASCII before
+        # the check fixes the false-positive. Also fold the curly
+        # apostrophe used in some Arabic transliterations.
+        def _normalize_quotes(s: str) -> str:
+            return (s
+                .replace("’", "'")  # right single quotation
+                .replace("‘", "'")  # left single quotation
+                .replace("ʼ", "'")  # modifier letter apostrophe
+                .replace("ʹ", "'")  # modifier letter prime
+                .replace("“", '"')  # left double quotation
+                .replace("”", '"')  # right double quotation
+                .replace("–", "-")  # en dash (commonly substituted)
+                .replace("—", "-")  # em dash
+            )
+
         emphases = script.get("english_emphases")
         if emphases is not None:
             if not isinstance(emphases, list):
@@ -1466,7 +1486,7 @@ def _validate(script: dict, payload: dict) -> list[str]:
                 )
             else:
                 translation = (payload.get("verse") or {}).get("translation") or ""
-                t_lower = translation.lower()
+                t_lower = _normalize_quotes(translation.lower())
                 # Track first-occurrence span of each valid phrase so
                 # we can detect overlaps below.
                 spans: list[tuple[int, int, str]] = []
@@ -1479,7 +1499,7 @@ def _validate(script: dict, payload: dict) -> list[str]:
                     p = phrase.strip()
                     if not p:
                         continue
-                    idx = t_lower.find(p.lower())
+                    idx = t_lower.find(_normalize_quotes(p.lower()))
                     if idx < 0:
                         errors.append(
                             f"english_emphases[{i}] = {p!r} is not a "
@@ -1599,7 +1619,10 @@ def _validate(script: dict, payload: dict) -> list[str]:
                         )
                     # Optional english_emphases on this example. Same
                     # rules as the top-level field but matched against
-                    # THIS verse's translation.
+                    # THIS verse's translation. Apply the same quote
+                    # normalisation so curly-quoted "Qur'an" in the
+                    # translation matches the LLM's straight-quote
+                    # version (the actual cause of the 87:18 failure).
                     e_em = item.get("english_emphases")
                     if e_em is not None:
                         if not isinstance(e_em, list):
@@ -1608,14 +1631,14 @@ def _validate(script: dict, payload: dict) -> list[str]:
                                 f"must be a list."
                             )
                         else:
-                            cand_t = (cand.get("translation") or "").lower()
+                            cand_t = _normalize_quotes((cand.get("translation") or "").lower())
                             for j, phrase in enumerate(e_em):
                                 if not isinstance(phrase, str):
                                     continue
                                 p = phrase.strip()
                                 if not p:
                                     continue
-                                if p.lower() not in cand_t:
+                                if _normalize_quotes(p.lower()) not in cand_t:
                                     errors.append(
                                         f"additional_examples[{i}]."
                                         f"english_emphases[{j}] = {p!r} is "
