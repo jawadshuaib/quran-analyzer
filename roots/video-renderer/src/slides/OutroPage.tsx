@@ -161,7 +161,7 @@ export function OutroPage({ slide }: { slide: OutroSlideT }) {
             maxWidth: 880,
           }}
         >
-          Learn Qur'an
+          Learn Qur'an,
           <br />
           every day.
         </div>
