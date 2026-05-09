@@ -11,18 +11,19 @@ import type { OutroSlideT } from '../types';
  * a serif headline ("Learn Qur'an every day."), and a yellow
  * SUBSCRIBE pill with a bell glyph as the CTA.
  *
- * Animation choreography (5s @ 30fps = 150 frames):
+ * Animation choreography (3s @ 30fps = 90 frames; the slide
+ * stretches past 90 frames when an outro audio bite is staged
+ * so the audio plays in full + a 0.5s tail before cut):
  *   0–8     Background fades in from black.
- *   8–60    Subtle Ken Burns: bg scales 1.04 → 1.00 over the
- *           full slide, drifting the eye into stillness.
+ *   8–60    Subtle Ken Burns: bg scales 1.04 → 1.00 then holds.
  *   12–32   Headline fades in with a 12px translate-y, opacity
  *           and y eased out.
  *   40–58   Subscribe pill fades in with a tiny scale bounce
  *           (0.96 → 1.00) so it lands as the call-to-action,
  *           not part of the headline.
- *   45–end  Bell glyph in the pill jingles every ~30 frames
- *           — small rotation, never beyond ±10°, to draw the
- *           eye one last time before the slide ends.
+ *   45–end  Bell glyph in the pill jingles — small rotation
+ *           damped via Math.exp so it settles cleanly even on
+ *           extended (audio-driven) durations.
  *
  * The original outro audio bite ("for more details, see the
  * description") still mounts when present. siteName + tagline on

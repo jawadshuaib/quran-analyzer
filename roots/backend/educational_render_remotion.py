@@ -263,7 +263,12 @@ def _build_outro_slide() -> dict:
     """
     return {
         "type": "outro",
-        "durationSec": 5,
+        # 3 seconds is enough for the full animation choreography
+        # (bg fade → Ken Burns → headline → CTA pill → bell jingle)
+        # and keeps the outro from feeling like dead air. When the
+        # pipeline has an outro audio bite staged, the caller bumps
+        # this up to match the audio length below.
+        "durationSec": 3,
         # Legacy fields — ignored by the current OutroPage but kept
         # so the slide schema continues to validate older payloads.
         "siteName": "al-nuqta.com",
@@ -500,7 +505,12 @@ def build_word_origins_payload(conn, rd: dict, script: dict) -> dict:
             if s.get("type") == "outro":
                 s["outroAudioFile"] = outro_audio_filename
                 if outro_audio_duration > 0:
-                    s["durationSec"] = max(s.get("durationSec", 5), outro_audio_duration + 0.5)
+                    # Floor at the outro slide's default (3s) so a
+                    # very short audio bite doesn't shrink the splash
+                    # below the time the animation needs to land.
+                    # +0.5s tail prevents the audio from being cut
+                    # mid-syllable at the slide boundary.
+                    s["durationSec"] = max(s.get("durationSec", 3), outro_audio_duration + 0.5)
                 break
 
     return {
@@ -1230,7 +1240,12 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
             if s.get("type") == "outro":
                 s["outroAudioFile"] = outro_audio_filename
                 if outro_audio_duration > 0:
-                    s["durationSec"] = max(s.get("durationSec", 5), outro_audio_duration + 0.5)
+                    # Floor at the outro slide's default (3s) so a
+                    # very short audio bite doesn't shrink the splash
+                    # below the time the animation needs to land.
+                    # +0.5s tail prevents the audio from being cut
+                    # mid-syllable at the slide boundary.
+                    s["durationSec"] = max(s.get("durationSec", 3), outro_audio_duration + 0.5)
                 break
 
     return {
