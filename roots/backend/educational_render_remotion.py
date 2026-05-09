@@ -240,20 +240,32 @@ def _build_verse_flow_slide(
 
 
 def _build_outro_slide() -> dict:
-    """Slide N — al-nuqta brand splash. INTENTIONALLY has no
-    narration: the optional outro audio bite is the only sound
-    that should play here, and any close-beat narration goes on
-    the final verse slide instead so it finishes BEFORE the
-    splash appears (otherwise the splash visual is up while the
-    close text is still being spoken — visually wrong).
+    """Slide N — Mushaf-style "Learn Qur'an, every day." splash with
+    the SUBSCRIBE pill CTA. Used by every Remotion-rendered
+    educational video (word_origins / grammar_insights / word_detail).
+    The renderer's OutroPage component holds the actual visual
+    (background photograph, headline, CTA, animation choreography);
+    this builder just emits the slide marker.
+
+    INTENTIONALLY has no narration: the optional outro audio bite
+    is the only sound that should play here, and any close-beat
+    narration goes on the final verse slide instead so it finishes
+    BEFORE the splash appears (otherwise the splash visual is up
+    while the close text is still being spoken — visually wrong).
 
     The outro audio bite is wired in by the caller (which knows
     the pipeline_id and can look up outro_audio_filename); we
     leave that field empty here so this builder has no DB
-    dependency."""
+    dependency. siteName + tagline used to drive a text splash but
+    the renderer now ignores them — they stay on the slide for
+    backward compatibility with any older payloads still in the
+    queue.
+    """
     return {
         "type": "outro",
         "durationSec": 5,
+        # Legacy fields — ignored by the current OutroPage but kept
+        # so the slide schema continues to validate older payloads.
         "siteName": "al-nuqta.com",
         "tagline": "A Root Based Translation of the Quran",
     }
