@@ -2,6 +2,9 @@ node_modules/
 out/
 public/*
 !public/.gitkeep
+# Permanent assets shipped with the renderer (vs transient files
+# the Python orchestrator stages in per-render).
+!public/mushaf-outro-bg.png
 audio-cache/
 .env
 .DS_Store

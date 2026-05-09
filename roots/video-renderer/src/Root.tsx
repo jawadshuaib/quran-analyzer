@@ -1,5 +1,6 @@
 import { Composition, registerRoot } from 'remotion';
 import { loadFont as loadAmiri } from '@remotion/google-fonts/Amiri';
+import { loadFont as loadFraunces } from '@remotion/google-fonts/Fraunces';
 import { WordDetailComposition, totalFrames } from './compositions/WordDetail';
 import { Payload } from './types';
 import { VIDEO_WIDTH, VIDEO_HEIGHT, FPS } from './slides/shared';
@@ -14,6 +15,12 @@ import sampleGrammarPayload from '../sample-grammar-payload.json';
 // render Arabic well; Amiri is slightly more traditional, which is
 // fine for Quranic text.
 loadAmiri();
+// Fraunces is the serif used in the Mushaf-style outro splash —
+// loaded here for the same headless-rendering reliability reasons.
+// The outro headline ("Learn Qur'an every day.") needs an editorial
+// serif to match the design source; system fonts on the rendering
+// container don't ship one consistent enough across platforms.
+loadFraunces();
 
 // Default props for the studio preview — pulled from the canonical
 // sample-payload.json so any tweaks to the sample appear in the
