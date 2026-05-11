@@ -247,7 +247,7 @@ export default function GrammarGlossaryPage() {
                     >
                       <dt className="flex items-baseline flex-wrap gap-x-3 gap-y-1">
                         <span className="font-serif text-base font-semibold text-ink">
-                          {t.term_english}
+                          {wrapArabicRuns(t.term_english)}
                         </span>
                         {t.term_arabic && (
                           <span className="font-arabic text-lg text-stone-700" dir="rtl" lang="ar">

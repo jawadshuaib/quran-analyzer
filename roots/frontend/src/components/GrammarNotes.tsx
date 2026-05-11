@@ -240,7 +240,7 @@ function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: st
       className="fixed z-[1000] rounded-xl border border-stone-200 bg-white shadow-xl p-4 text-left pointer-events-auto"
     >
       <div className="text-xs font-semibold tracking-wide uppercase text-amber-700">
-        {term.term_english}
+        {wrapArabicRuns(term.term_english)}
       </div>
       {term.term_arabic && (
         <div className="mt-1 text-lg font-arabic text-stone-700" dir="rtl" lang="ar">
@@ -291,7 +291,7 @@ function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: st
         tabIndex={0}
         className="cursor-help underline decoration-amber-500 decoration-wavy underline-offset-[3px] decoration-1 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-sm"
       >
-        {displayText}
+        {wrapArabicRuns(displayText)}
       </span>
       {tooltip && createPortal(tooltip, document.body)}
     </>
