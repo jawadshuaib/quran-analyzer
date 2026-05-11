@@ -234,6 +234,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             className="mb-3 flex flex-wrap justify-start gap-x-4 gap-y-3"
             lang="ar"
             dir="rtl"
+            data-allow-no-font-arabic
           >
             {verse.words.map((w) => {
               const display = uthmaniWords[w.position - 1] ?? joinSegmentArabic(w.segments);

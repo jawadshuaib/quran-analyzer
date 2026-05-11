@@ -76,7 +76,7 @@ export default function LearningPromo() {
           href="/learning"
           className="absolute inset-0 bg-gradient-to-t from-emerald-900/90 via-emerald-900/60 to-emerald-900/40 flex items-center justify-center p-4 sm:p-6 cursor-pointer hover:from-emerald-900/85 hover:via-emerald-900/50 hover:to-emerald-900/30 transition-all"
         >
-          <div className="grid grid-cols-5 sm:grid-cols-5 gap-x-4 gap-y-3 max-w-md" dir="rtl">
+          <div className="grid grid-cols-5 sm:grid-cols-5 gap-x-4 gap-y-3 max-w-md" dir="rtl" data-allow-no-font-arabic>
             {wordCloudItems.map((root, i) => (
               <div key={i} className="text-center">
                 <span

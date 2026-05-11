@@ -39,7 +39,7 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
 
           {fillInBlanks ? (
             /* Fill-in-the-blanks mode: word-by-word with target words as blanks */
-            <div className="flex flex-wrap gap-x-4 gap-y-3 justify-center" dir="rtl">
+            <div className="flex flex-wrap gap-x-4 gap-y-3 justify-center" dir="rtl" data-allow-no-font-arabic>
               {verse.words.map((w, i) => (
                 <div key={i} className="text-center flex flex-col items-center">
                   <p className={`font-arabic text-xl sm:text-2xl ${
@@ -105,7 +105,7 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
             <p className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-3">
               Word by Word
             </p>
-            <div className="flex flex-wrap gap-x-5 gap-y-2" dir="rtl">
+            <div className="flex flex-wrap gap-x-5 gap-y-2" dir="rtl" data-allow-no-font-arabic>
               {verse.words.map((w) => (
                 <div key={w.pos} className="text-center">
                   <p className={`font-arabic text-base ${w.is_target ? 'text-emerald-700 font-bold' : 'text-stone-700'}`}>
