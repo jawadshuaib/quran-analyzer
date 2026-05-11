@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { askClaudeDirect, askClaudeProxy, FREE_MODEL_TAG, type PageType } from '../api/claude';
 import { saveQA, fetchHistory, fetchUsage, type QAEntry } from '../api/assistant';
 import { getApiKey, getModel, getSessionId } from '../utils/assistant-storage';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   pageType: PageType;
@@ -357,7 +358,11 @@ export default function AskAssistant({
     inflightSaveRef.current = null;
   };
 
-  // Auto-link verse references (only valid Quran ranges)
+  // Auto-link verse references (only valid Quran ranges). Non-verse
+  // segments may carry inline Arabic glyphs (Claude quotes the
+  // verse/word being asked about in Arabic), so we wrap those runs
+  // in font-arabic — otherwise they'd inherit the surrounding
+  // sans-serif and the Uthmani diacritics render poorly.
   function renderText(text: string) {
     const parts = text.split(/(\b\d{1,3}:\d{1,3}\b)/g);
     return parts.map((part, i) => {
@@ -374,7 +379,7 @@ export default function AskAssistant({
           );
         }
       }
-      return <span key={i}>{part}</span>;
+      return <span key={i}>{wrapArabicRuns(part)}</span>;
     });
   }
 
