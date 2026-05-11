@@ -6,6 +6,7 @@ import { verseUrl, ejtaalUrl } from '../utils/urls';
 import WordTooltip from './WordTooltip';
 import AskAssistant from './AskAssistant';
 import { buildRootContext } from '../utils/context-builders';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
 
@@ -144,7 +145,7 @@ export default function RootPage({ rootBw }: Props) {
         <section className="mb-8">
           <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
             <h2 className="text-lg font-semibold text-violet-900 mb-3">
-              {data.primary_meaning}
+              {wrapArabicRuns(data.primary_meaning)}
             </h2>
             {data.detailed_meaning && (
               <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">
@@ -161,7 +162,11 @@ export default function RootPage({ rootBw }: Props) {
                       </a>
                     );
                   }
-                  return <span key={i}>{part}</span>;
+                  // The non-verse-reference prose can contain inline
+                  // Arabic glyphs (root, lemma, example word). Wrap
+                  // those runs in font-arabic so the diacritics
+                  // render with Amiri.
+                  return <span key={i}>{wrapArabicRuns(part)}</span>;
                 })}
               </div>
             )}

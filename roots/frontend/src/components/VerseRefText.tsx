@@ -3,6 +3,7 @@ import type { RootDetailData } from '../types';
 import { fetchVerse, fetchRoot } from '../api/quran';
 import { arabicRootToBuckwalter } from '../utils/buckwalter';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   text: string;
@@ -412,9 +413,11 @@ export default function VerseRefText({ text, className, disableVerseNavigation =
   // Sort by position
   matches.sort((a, b) => a.index - b.index);
 
-  // If no matches found, just return plain text
+  // If no matches found, just return plain text (with inline Arabic
+  // glyph runs wrapped in font-arabic — otherwise body sans-serif
+  // bleeds onto Uthmani diacritics).
   if (matches.length === 0) {
-    return <span className={className}>{text}</span>;
+    return <span className={className}>{wrapArabicRuns(text)}</span>;
   }
 
   // Build segments
@@ -441,9 +444,16 @@ export default function VerseRefText({ text, className, disableVerseNavigation =
         ) : part.type === 'root' ? (
           <RootRefLink key={i} rootText={part.value} />
         ) : part.type === 'quoted' ? (
-          <span key={i} className="italic">{part.value}</span>
+          // Quoted strings can themselves contain inline Arabic (the
+          // AI sometimes embeds Arabic words inside a quoted English
+          // phrase). Wrap the Arabic runs so diacritics render with
+          // Amiri.
+          <span key={i} className="italic">{wrapArabicRuns(part.value)}</span>
         ) : (
-          <span key={i}>{part.value}</span>
+          // Plain prose between matches. Same treatment — any Arabic
+          // glyph runs (e.g. "the form is رَبِّكَ here") get the
+          // font-arabic span so the kasra-under-shadda renders.
+          <span key={i}>{wrapArabicRuns(part.value)}</span>
         ),
       )}
     </span>

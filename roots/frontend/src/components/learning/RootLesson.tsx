@@ -3,6 +3,7 @@ import type { LearningRootDetail } from '../../types/learning';
 import { fetchLearningRoot } from '../../api/learning';
 import { loadProgress, saveProgress, markRootLearned } from '../../utils/learning-storage';
 import { selfAssessmentToQuality } from '../../utils/spaced-repetition';
+import { wrapArabicRuns } from '../../utils/arabic-runs';
 import VerseCard from './VerseCard';
 import DerivativeMap from './DerivativeMap';
 import AskPanel from './AskPanel';
@@ -262,8 +263,8 @@ export default function RootLesson({ rootBw, onBack }: Props) {
                     <span className="text-sm font-semibold text-indigo-600 min-w-[80px]">
                       {d.language}
                     </span>
-                    <span className="text-stone-700">{d.displayed_text || d.word}</span>
-                    <span className="text-stone-400">= {d.meaning || d.concept}</span>
+                    <span className="text-stone-700">{wrapArabicRuns(d.displayed_text || d.word || '')}</span>
+                    <span className="text-stone-400">= {wrapArabicRuns(d.meaning || d.concept || '')}</span>
                   </div>
                 ))}
               </div>

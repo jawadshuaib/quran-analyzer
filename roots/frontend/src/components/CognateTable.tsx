@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CognateDerivative } from '../types';
 import CognateFlowModal from './CognateFlowModal';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 /** Format a year as "2500 BCE" or "600 CE". */
 function formatYear(y: number): string {
@@ -80,11 +81,16 @@ export default function CognateTable({ derivatives, rootTransliteration, concept
                     key={di}
                     className={di % 2 === 0 ? 'bg-white' : 'bg-indigo-50/20'}
                   >
+                    {/* Cognate cells: displayed_text + meaning often
+                        contain Arabic glyphs (esp. the Arabic and
+                        Aramaic rows). Wrap any Arabic runs so the
+                        diacritics render with Amiri instead of the
+                        body sans-serif. */}
                     <td className="px-2 sm:px-4 py-1.5 text-stone-800 font-medium w-1/3">
-                      {d.displayed_text}
+                      {wrapArabicRuns(d.displayed_text || '')}
                     </td>
                     <td className="px-2 sm:px-4 py-1.5 text-stone-600">
-                      {d.meaning || d.concept}
+                      {wrapArabicRuns(d.meaning || d.concept || '')}
                     </td>
                   </tr>
                 ))}

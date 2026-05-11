@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Word, CognateData } from '../types';
 import { ejtaalUrl } from '../utils/urls';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   word: Word;
@@ -137,7 +138,9 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
               {(expanded ? cognate.derivatives : cognate.derivatives.slice(0, 4)).map((d, i) => (
                 <div key={i} className="text-xs text-stone-500 flex justify-between gap-2">
                   <span className="text-stone-400 shrink-0">{d.language}</span>
-                  <span className="text-stone-700 truncate text-right">{d.meaning || d.concept}</span>
+                  <span className="text-stone-700 truncate text-right">
+                    {wrapArabicRuns((d.meaning || d.concept) || '')}
+                  </span>
                 </div>
               ))}
               {cognate.derivatives.length > 4 && (

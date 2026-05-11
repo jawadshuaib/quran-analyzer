@@ -7,6 +7,7 @@ import VerseRefText from './VerseRefText';
 import AskAssistant from './AskAssistant';
 import { buildWordContext } from '../utils/context-builders';
 import { TranslationWithChips } from './TermChip';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   surah: number;
@@ -209,7 +210,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
           <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-5 space-y-3">
             <div className="flex items-center gap-2">
               <span className="text-xl font-semibold text-violet-900">
-                {data.ai_meaning.preferred_translation || data.ai_meaning.meaning_short}
+                {wrapArabicRuns(data.ai_meaning.preferred_translation || data.ai_meaning.meaning_short || '')}
               </span>
             </div>
 
