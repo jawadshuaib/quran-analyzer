@@ -591,7 +591,7 @@ def _fetch_translation_hides_word_lens(conn, chapter: int, verse: int) -> list[d
                awm.meaning_detailed,
                awm.preferred_translation,
                awm.preferred_source,
-               wg.gloss AS conv_gloss
+               wg.translation_en AS conv_gloss
         FROM ai_word_meanings awm
         LEFT JOIN word_glosses wg
           ON wg.chapter = awm.chapter AND wg.verse = awm.verse
@@ -612,7 +612,7 @@ def _fetch_translation_hides_word_lens(conn, chapter: int, verse: int) -> list[d
         seg_rows = conn.execute(
             "SELECT form_arabic FROM morphology "
             "WHERE chapter = ? AND verse = ? AND word_pos = ? "
-            "ORDER BY segment_pos",
+            "ORDER BY segment",
             (chapter, verse, r["word_pos"]),
         ).fetchall()
         arabic = "".join((s["form_arabic"] or "") for s in seg_rows)

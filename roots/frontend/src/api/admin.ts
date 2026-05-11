@@ -1465,6 +1465,17 @@ export interface EducationalCandidate {
   // SQL scorer (ai_word_meanings + verse_grammar_insights joins).
   ai_word_count?: number;  // count of words with preferred_source IN ('ai', 'judge')
   has_v7?: number;         // 1 if the verse carries an eligible V7 insight
+  // AI judge fields (translation_hides_signals table). Present when
+  // translation_hides_ai.py has scored this verse. When present, the
+  // candidate UI shows the judged headline as the primary scan-line
+  // and the departure_notes excerpt drops to a secondary drawer.
+  judge_score?: number | null;          // 0-10 video-worthiness
+  judge_headline?: string | null;       // ≤80 chars, "<conv> / <actual>"
+  judge_evidence_kind?: 'morphology' | 'lexical' | 'grammar' | 'context' | 'cognate' | null;
+  judge_primary_word_pos?: number | null;
+  judge_primary_arabic?: string | null;
+  judge_conventional_gloss?: string | null;
+  judge_hidden_gloss?: string | null;
   // Grammar Insights
   category?: string;
   title?: string;

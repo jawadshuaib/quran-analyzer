@@ -278,31 +278,36 @@ def _translation_hides_candidates(conn, limit: int, exclude_queued: bool) -> lis
     """Pool: ai_translations rows with a substantive departure note,
     composite-scored by signals from across the AI pipeline.
 
-    Raw note length alone is a weak proxy — long ≠ video-worthy. The
-    composite score weights three signals:
+    Two ranking sources, blended into a single score:
 
-      1. Departure-note length (40%) — the verse-level prose explaining
-         WHY the AI translation departs from conventional. Floor of
-         ≥80 chars to filter out one-line notes; the LENGTH itself
-         caps at 1000 so a sprawling 5000-char note doesn't drown
-         out the other signals.
-      2. AI-preferred word count (×1.5 each) — count of words on the
-         verse where the AI judge picked the AI gloss over the
-         conventional one (preferred_source in ('ai', 'judge')). Each
-         such word is a candidate 'lens' that gives the video a
-         concrete focus. Verses with zero AI-preferred words can
-         still rank, but they'd produce a phrase-only video (no
-         word-lens slide) — useful but less visually distinctive.
-      3. Has eligible V7 grammar insight (+8) — when the verse also
-         carries a high-confidence grammar insight, the script writer
-         can pair lexical and grammatical evidence in the reveal,
-         which makes for a sharper video.
+      1. AI-judged score (translation_hides_signals.score, 0-10) when
+         the verse has been evaluated by translation_hides_ai.py. The
+         judged score directly answers "is this video-worthy?" with a
+         calibrated rubric — far sharper than any SQL proxy.
+      2. SQL composite (the fallback) for unjudged verses:
+            MIN(LENGTH(departure_notes), 1000) * 0.4
+          + ai_preferred_word_count * 1.5
+          + (has eligible V7 insight ? 8 : 0)
+
+    Blending rule: when present, the judge score is scaled by ×60 to
+    sit on the same scale as the composite (composites max ~440;
+    judge × 60 maxes at 600). Calibration targets:
+      - Judged 10 → 600 (always top)
+      - Judged 8  → 480 (beats every unjudged composite)
+      - Judged 6  → 360 (mid-high; beats most composites)
+      - Judged 4  → 240 (mid-low; beats only weak composites)
+      - Judged 2  → 120 (below most composites — judge ruled it out)
+    This respects the judge's "is this video-worthy?" verdict instead
+    of blindly promoting every judged row. Unjudged verses fall
+    through to their composite as before; once the judge backfill is
+    complete, the candidate page is sorted purely by judged quality.
+
+    The judge's headline + evidence_kind + primary word also flow
+    through onto the candidate dict so the admin UI can show
+    one-line summaries instead of 220-char prose excerpts.
 
     All signals are computed in SQL so the candidate page stays
-    instant — no LLM calls during browsing. The optional AI judge
-    pipeline (translation_hides_ai.py, Phase 2) can later write a
-    judged score into a separate table that overrides this composite
-    when present; until then, the composite IS the ranking.
+    instant — no LLM calls during browsing.
     """
     excl_sql, excl_params = _excluded_clause("translation_hides")
     where_excl = f"AND {excl_sql}" if exclude_queued else ""
@@ -311,12 +316,79 @@ def _translation_hides_candidates(conn, limit: int, exclude_queued: bool) -> lis
         SELECT t.chapter AS c, t.verse AS v, NULL AS awp, NULL AS aid,
                t.chapter, t.verse,
                t.departure_notes,
+               -- Final score: judged × 60 when present (calibrated so
+               -- judged scale 0-10 maps to 0-600, overlapping the
+               -- composite's ~0-440 range — judged-high ranks above
+               -- composites, judged-low falls below them); otherwise
+               -- the SQL composite.
+               CASE
+                 WHEN ths.score IS NOT NULL THEN ths.score * 60.0
+                 ELSE MIN(LENGTH(t.departure_notes), 1000) * 0.4
+                      + COALESCE(awm_counts.ai_word_count, 0) * 1.5
+                      + CASE WHEN gi_eligible.has_eligible IS NOT NULL THEN 8.0 ELSE 0.0 END
+               END AS score,
+               COALESCE(awm_counts.ai_word_count, 0) AS ai_word_count,
+               CASE WHEN gi_eligible.has_eligible IS NOT NULL THEN 1 ELSE 0 END AS has_v7,
+               -- Judge-derived fields. NULL when the verse hasn't been
+               -- judged yet; the API forwards them to the frontend
+               -- candidate card so judged verses show the headline.
+               ths.score AS judge_score,
+               ths.headline AS judge_headline,
+               ths.evidence_kind AS judge_evidence_kind,
+               ths.primary_word_pos AS judge_primary_word_pos,
+               ths.primary_arabic AS judge_primary_arabic,
+               ths.conventional_gloss AS judge_conventional_gloss,
+               ths.hidden_gloss AS judge_hidden_gloss
+        FROM ai_translations t
+        LEFT JOIN (
+            SELECT chapter, verse, COUNT(*) AS ai_word_count
+            FROM ai_word_meanings
+            WHERE preferred_source IN ('ai', 'judge')
+              AND TRIM(COALESCE(meaning_short, '')) != ''
+            GROUP BY chapter, verse
+        ) awm_counts ON awm_counts.chapter = t.chapter AND awm_counts.verse = t.verse
+        LEFT JOIN (
+            SELECT DISTINCT gi.chapter, gi.verse, 1 AS has_eligible
+            FROM verse_grammar_insights gi
+            JOIN grammar_insight_configs c ON gi.config_id = c.id
+            WHERE c.config_name = 'grammar-insights-quran-only-v7-unified'
+              AND gi.insights_v7_json IS NOT NULL
+              AND gi.insights_v7_json != ''
+              AND gi.signal_score >= 0.5
+        ) gi_eligible ON gi_eligible.chapter = t.chapter AND gi_eligible.verse = t.verse
+        -- LEFT JOIN against the judge table. Wrapped in a guard so
+        -- this query doesn't blow up when the table doesn't exist
+        -- yet (pre-Phase-2 deployment). The guard table-exists check
+        -- is enforced in Python below; the SQL itself assumes the
+        -- table is present, and we conditionally inline a stub when
+        -- it isn't.
+        LEFT JOIN translation_hides_signals ths
+          ON ths.chapter = t.chapter AND ths.verse = t.verse
+        WHERE t.departure_notes IS NOT NULL
+          AND LENGTH(TRIM(t.departure_notes)) >= :min_chars
+          {where_excl}
+        ORDER BY score DESC, RANDOM()
+        LIMIT :limit
+        """ if _has_translation_hides_signals_table(conn) else f"""
+        -- Fallback shape when translation_hides_signals doesn't exist
+        -- yet. Same result columns, all judge_* fields NULL so the
+        -- Python dict keys stay stable across both code paths.
+        SELECT t.chapter AS c, t.verse AS v, NULL AS awp, NULL AS aid,
+               t.chapter, t.verse,
+               t.departure_notes,
                MIN(LENGTH(t.departure_notes), 1000) * 0.4
                  + COALESCE(awm_counts.ai_word_count, 0) * 1.5
                  + CASE WHEN gi_eligible.has_eligible IS NOT NULL THEN 8.0 ELSE 0.0 END
                  AS score,
                COALESCE(awm_counts.ai_word_count, 0) AS ai_word_count,
-               CASE WHEN gi_eligible.has_eligible IS NOT NULL THEN 1 ELSE 0 END AS has_v7
+               CASE WHEN gi_eligible.has_eligible IS NOT NULL THEN 1 ELSE 0 END AS has_v7,
+               NULL AS judge_score,
+               NULL AS judge_headline,
+               NULL AS judge_evidence_kind,
+               NULL AS judge_primary_word_pos,
+               NULL AS judge_primary_arabic,
+               NULL AS judge_conventional_gloss,
+               NULL AS judge_hidden_gloss
         FROM ai_translations t
         LEFT JOIN (
             SELECT chapter, verse, COUNT(*) AS ai_word_count
@@ -343,6 +415,19 @@ def _translation_hides_candidates(conn, limit: int, exclude_queued: bool) -> lis
         {"min_chars": MIN_DEPARTURE_NOTE_CHARS, "limit": limit, **excl_params},
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def _has_translation_hides_signals_table(conn) -> bool:
+    """The judge table is created on-demand by translation_hides_ai.py
+    the first time the script runs. Before that, the candidate query
+    must work without referencing the table. This guard is cheap
+    (one sqlite_master read) and stable for the lifetime of a
+    connection, so we don't bother caching it."""
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' "
+        "AND name='translation_hides_signals' LIMIT 1"
+    ).fetchone()
+    return bool(row)
 
 
 # Categories whose grammatical move is "video-shaped" — the contrast or

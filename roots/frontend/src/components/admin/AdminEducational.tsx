@@ -259,17 +259,62 @@ function CandidateRow({
         )}
         {type === 'translation_hides' && c.departure_notes && (
           <>
+            {/* Judged headline — shown as the primary scan-line when
+                translation_hides_ai.py has evaluated this verse.
+                Format: "<conv> / <actual> — reason". The operator
+                gets a glance-readable take instead of a 220-char
+                prose excerpt. The full departure note moves into the
+                details drawer below. */}
+            {c.judge_headline && (
+              <div className="text-sm font-medium text-rose-900 mb-1.5 flex items-baseline gap-2 flex-wrap">
+                {typeof c.judge_score === 'number' && (
+                  <span
+                    className={
+                      'inline-block px-1.5 py-0.5 rounded-sm text-[10px] font-bold tracking-wider ' +
+                      (c.judge_score >= 8 ? 'bg-rose-200 text-rose-900'
+                       : c.judge_score >= 6 ? 'bg-rose-100 text-rose-800'
+                       : c.judge_score >= 4 ? 'bg-amber-50 text-amber-700'
+                       : 'bg-stone-100 text-stone-500')
+                    }
+                    title={
+                      c.judge_score >= 8 ? 'Foundational reveal (8-10): the conventional reading hides something central.'
+                      : c.judge_score >= 6 ? 'Substantial reveal (6-7): meaningful shift in interpretation.'
+                      : c.judge_score >= 4 ? 'Minor (4-5): real nuance, viewer would shrug.'
+                      : 'Trivial (0-3): the AI translation is barely different from conventional.'
+                    }
+                  >
+                    {c.judge_score.toFixed(1)}
+                  </span>
+                )}
+                <span>{c.judge_headline}</span>
+              </div>
+            )}
             {/* Signal badges — surface the composite-score signals so
                 the operator can see at a glance WHY a candidate ranks
-                where it does. AI-word count = how many words have an
-                AI-preferred meaning (each is a candidate 'lens' for
-                the video). V7 = the verse also carries an eligible
-                grammar insight, which lets the script pair lexical
-                and grammatical evidence. */}
+                where it does. Word-pos chip (from the judge), evidence
+                kind chip, AI-preferred word count, V7 corroboration. */}
             <div className="text-xs text-stone-500 flex items-center flex-wrap gap-1.5 mb-1">
+              {c.judge_evidence_kind && (
+                <span
+                  className="px-1.5 py-0.5 rounded-sm bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-medium uppercase tracking-wider"
+                  title="The kind of evidence the AI judge identified as the lens: morphology (form/voice/aspect), lexical (word sense), grammar (sentence structure), context (cross-references), or cognate (Semitic-language depth)."
+                >
+                  {c.judge_evidence_kind}
+                </span>
+              )}
+              {c.judge_primary_arabic && (
+                <span
+                  dir="rtl"
+                  lang="ar"
+                  className="font-arabic text-sm text-rose-800"
+                  title={`Primary 'lens' word at position ${c.judge_primary_word_pos ?? '?'}`}
+                >
+                  {c.judge_primary_arabic}
+                </span>
+              )}
               {(c.ai_word_count ?? 0) > 0 && (
                 <span
-                  className="px-1.5 py-0.5 rounded-sm bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-medium"
+                  className="px-1.5 py-0.5 rounded-sm bg-stone-100 text-stone-600 text-[10px] font-medium"
                   title="Number of words on this verse where the AI judge picked the AI gloss over the conventional one. Each is a candidate 'lens' word for the video."
                 >
                   {c.ai_word_count} AI-preferred word{(c.ai_word_count ?? 0) === 1 ? '' : 's'}
@@ -284,16 +329,32 @@ function CandidateRow({
                 </span>
               ) : null}
               {c.departure_notes && (
-                <span className="font-mono">
+                <span className="font-mono text-stone-400">
                   {c.departure_notes.length} chars
                 </span>
               )}
             </div>
-            <p className="text-sm text-stone-700 mb-1 line-clamp-3">
-              {c.departure_notes.length > 220
-                ? c.departure_notes.slice(0, 220) + '…'
-                : c.departure_notes}
-            </p>
+            {/* Departure-note preview — collapsed when a judged
+                headline is present (operator can drill in for the
+                evidence) so the row stays clean and scannable. */}
+            {c.judge_headline ? (
+              <details className="mt-1 mb-1">
+                <summary className="cursor-pointer text-xs text-stone-500 hover:text-stone-800 select-none">
+                  Departure note
+                </summary>
+                <p className="text-sm text-stone-700 mt-1 leading-relaxed">
+                  {c.departure_notes.length > 600
+                    ? c.departure_notes.slice(0, 600) + '…'
+                    : c.departure_notes}
+                </p>
+              </details>
+            ) : (
+              <p className="text-sm text-stone-700 mb-1 line-clamp-3">
+                {c.departure_notes.length > 220
+                  ? c.departure_notes.slice(0, 220) + '…'
+                  : c.departure_notes}
+              </p>
+            )}
           </>
         )}
         {type === 'grammar_insights' && (

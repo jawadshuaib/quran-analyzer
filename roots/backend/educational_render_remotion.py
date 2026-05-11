@@ -1414,7 +1414,7 @@ def _word_arabic_at_pos(conn, c: int, v: int, p: int) -> str:
     rows = conn.execute(
         "SELECT form_arabic FROM morphology "
         "WHERE chapter = ? AND verse = ? AND word_pos = ? "
-        "ORDER BY segment_pos",
+        "ORDER BY segment",
         (c, v, p),
     ).fetchall()
     return "".join((r["form_arabic"] or "") for r in rows)
@@ -1450,7 +1450,7 @@ def _word_lens_data_for(conn, c: int, v: int, p: int) -> dict | None:
     # Conventional gloss — prefer word_glosses.gloss because it's the
     # plain conventional English used by the rest of the site.
     conv_row = conn.execute(
-        "SELECT gloss FROM word_glosses "
+        "SELECT translation_en AS gloss FROM word_glosses "
         "WHERE chapter = ? AND verse = ? AND word_pos = ? "
         "LIMIT 1",
         (c, v, p),
@@ -1467,7 +1467,7 @@ def _word_lens_data_for(conn, c: int, v: int, p: int) -> dict | None:
         FROM morphology
         WHERE chapter = ? AND verse = ? AND word_pos = ?
           AND pos NOT IN ('Prefix', 'Suffix')
-        ORDER BY segment_pos
+        ORDER BY segment
         LIMIT 1
         """,
         (c, v, p),
