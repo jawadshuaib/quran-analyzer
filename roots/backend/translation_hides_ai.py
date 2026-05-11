@@ -555,6 +555,15 @@ def run(args: argparse.Namespace) -> int:
         n_done = 0
         n_skip = 0
         n_err = 0
+        # Track CONSECUTIVE errors (reset on each success). When the cloud
+        # session expires / quota is hit, every call starts failing — we
+        # don't want to burn through the whole remaining pool spamming
+        # failed requests. Instead, back off exponentially and eventually
+        # bail with a non-zero exit code so the outer resume wrapper can
+        # wait longer (minutes-to-hours) before retrying.
+        consecutive_err = 0
+        max_consecutive = int(getattr(args, "max_consecutive_errors", 20))
+        backoff_cap_s = 300  # never sleep more than 5 min inside the script
 
         for i, (s, a) in enumerate(pool, start=1):
             if not args.force:
@@ -605,6 +614,7 @@ def run(args: argparse.Namespace) -> int:
 
                 _upsert(conn, s, a, cfg_id, j, raw, elapsed)
                 n_done += 1
+                consecutive_err = 0  # reset on each successful save
 
                 # Operator-visible save line — single line, structured so a
                 # tail -f | grep can extract score + headline.
@@ -629,11 +639,36 @@ def run(args: argparse.Namespace) -> int:
                 break
             except Exception as e:
                 n_err += 1
+                consecutive_err += 1
                 msg = str(e)[:200]
-                print(f"[{i}/{len(pool)}] {s}:{a} ERROR: {msg}", flush=True)
-                # Soft sleep on consecutive errors to ride out rate limits.
-                if n_err % 5 == 0:
-                    time.sleep(2)
+                # Exponential backoff inside the script: 2s, 4s, 8s, ...
+                # capped at backoff_cap_s. Cheap calls (under a minute)
+                # don't accumulate much; sustained outages reach the cap
+                # within ~10 consecutive errors. This gives quick errors
+                # a quick retry while not hammering on a dead endpoint.
+                sleep_s = min(backoff_cap_s, 2 ** min(consecutive_err, 8))
+                print(
+                    f"[{i}/{len(pool)}] {s}:{a} ERROR: {msg} "
+                    f"(consecutive={consecutive_err}/{max_consecutive}, "
+                    f"sleeping {sleep_s}s)",
+                    flush=True,
+                )
+                # Hard bail when consecutive errors hit the cap. The
+                # outer resume wrapper sees the non-zero exit and can
+                # wait minutes-to-hours before relaunching — at which
+                # point the cloud session may be restored. The script
+                # is fully idempotent (already-judged verses skip), so
+                # the relaunch picks up exactly where we left off.
+                if consecutive_err >= max_consecutive:
+                    print(
+                        f"\nBAILING: {consecutive_err} consecutive errors. "
+                        f"The cloud endpoint appears to be persistently failing. "
+                        f"Run state: judged={n_done}, skipped={n_skip}, errors={n_err}. "
+                        f"Restart this script to resume — it skips already-judged verses.",
+                        flush=True,
+                    )
+                    return 2  # distinct exit code for the wrapper
+                time.sleep(sleep_s)
 
         print(f"\nDone. judged={n_done}, skipped={n_skip}, errors={n_err}", flush=True)
         return 0
@@ -654,6 +689,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--force", action="store_true",
                    help="Re-judge verses that already have a row for this config.")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--max-consecutive-errors", type=int, default=20,
+                   help="Bail with exit code 2 after this many consecutive errors. "
+                        "The outer wrapper (scripts/resume-judge.sh) catches the "
+                        "non-zero exit and retries after a longer wait. Default 20.")
     return p
 
 
