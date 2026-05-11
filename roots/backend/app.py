@@ -8816,6 +8816,26 @@ def admin_educational_candidates():
             ).fetchone()
             if t:
                 c["translation"] = t["text_en"]
+            # Attach cached safety status (no Ollama call here — that
+            # would slow the list endpoint to seconds-per-row). When
+            # the cache has an entry, the frontend renders a badge.
+            # When the verse hasn't been screened yet, safety_status
+            # is null and the frontend can omit the badge or render a
+            # neutral "unscreened" indicator. The Ollama screen runs
+            # at queue-time (see admin_educational_queue) or when the
+            # automated pipeline picks the verse.
+            if _safety is not None:
+                try:
+                    st = _safety.safety_status(conn, c["chapter"], c["verse"])
+                    if st:
+                        c["safety_status"] = {
+                            "status": st.get("status"),
+                            "reason": st.get("reason"),
+                            "model": st.get("model"),
+                            "checked_at": st.get("checked_at"),
+                        }
+                except Exception:
+                    pass
         # Grammar Insights — also hydrate the preview fields the
         # candidate-row drawer renders (claim observation, the full
         # counterfactual text, the meaning payoff). The candidate dict
@@ -8858,7 +8878,17 @@ def admin_educational_candidates():
 @admin_required
 def admin_educational_queue():
     """Move a candidate from the live pool into educational_videos for
-    Phase 2 to pick up. Returns 409 if it's already queued."""
+    Phase 2 to pick up. Returns 409 if it's already queued.
+
+    Safety gate: by default, refuses to queue any verse flagged
+    controversial by educational_safety. The operator can override
+    with `force: true` in the body when they've reviewed the flagged
+    reason and want to proceed anyway. The override is captured in
+    the row's payload so the audit trail records who deliberately
+    bypassed the screen. The automated pipeline path
+    (educational_pipeline.pick_and_queue_for_pipeline) also calls
+    is_verse_safe, so this gate matches that behaviour at the
+    manual-queue layer."""
     if not _EDU_OK:
         return _edu_unavailable()
     body = request.get_json(silent=True) or {}
@@ -8874,8 +8904,46 @@ def admin_educational_queue():
     insight_id = body.get("insight_id")
     payload = body.get("payload")
     score = body.get("score")
+    force = bool(body.get("force", False))
     conn = get_db()
     try:
+        # Content-safety gate. is_verse_safe() uses the
+        # verse_safety_cache when fresh and otherwise calls Ollama
+        # (with permissive defaults if Ollama is unreachable). A
+        # cache miss can therefore take 5-30s on the first manual
+        # queue of an unscreened verse — that's intentional, we'd
+        # rather block briefly than ship a controversial verse.
+        # `force: true` skips the check and stamps a marker on the
+        # payload so the audit trail records the deliberate override.
+        if _safety is not None and not force:
+            try:
+                if not _safety.is_verse_safe(conn, chapter, verse):
+                    status = _safety.safety_status(conn, chapter, verse) or {}
+                    return jsonify({
+                        "error": "verse flagged as controversial",
+                        "safety_status": {
+                            "status": status.get("status") or "controversial",
+                            "reason": status.get("reason") or "",
+                            "model": status.get("model"),
+                            "checked_at": status.get("checked_at"),
+                        },
+                        "hint": "pass force=true to override after reviewing the flag",
+                    }), 409
+            except Exception as e:
+                # Safety module hard-failed (e.g. DB schema mismatch
+                # mid-deploy). Log and fall through permissively —
+                # the automated path uses the same fallback.
+                print(f"[educational/queue] safety check error for {chapter}:{verse}: {e}")
+        if force:
+            # Stamp the override on the payload for the audit trail.
+            try:
+                pl = payload if isinstance(payload, dict) else (
+                    json.loads(payload) if isinstance(payload, str) else {}
+                )
+            except Exception:
+                pl = {}
+            pl["safety_override"] = True
+            payload = pl
         try:
             row_id = _edu.queue_candidate(
                 conn, vtype,
@@ -8887,7 +8955,7 @@ def admin_educational_queue():
             )
         except sqlite3.IntegrityError:
             return jsonify({"error": "already queued"}), 409
-        return jsonify({"id": row_id, "status": "candidate"}), 201
+        return jsonify({"id": row_id, "status": "candidate", "safety_override": force}), 201
     finally:
         conn.close()
 

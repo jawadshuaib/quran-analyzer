@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  EducationalSafetyBlockedError,
   getEducationalPool,
   getEducationalCandidates,
   queueEducationalCandidate,
@@ -151,6 +152,29 @@ function CandidatesPanel({ type }: { type: EducationalType }) {
       // Refresh — queued anchor is excluded from the pool.
       setBumpKey((k) => k + 1);
     } catch (e) {
+      // Content-safety gate refused. Show the reason and let the
+      // operator decide whether to override. The window.confirm
+      // dialog is intentional — it's an explicit deliberate action
+      // we want recorded as such (the override stamps the row's
+      // payload so the audit trail captures it).
+      if (e instanceof EducationalSafetyBlockedError) {
+        const reason = e.reason || '(no specific reason in cache)';
+        const ok = window.confirm(
+          `This verse was flagged as ${e.status} by the content-safety screen.\n\n` +
+          `Reason: ${reason}\n\n` +
+          `The safety screen errs on the side of caution. Click OK to queue ` +
+          `anyway (the override will be recorded in the row's payload), ` +
+          `or Cancel to pick a different candidate.`,
+        );
+        if (!ok) return;
+        try {
+          await queueEducationalCandidate(type, c, { force: true });
+          setBumpKey((k) => k + 1);
+        } catch (e2) {
+          setErr(e2 instanceof Error ? e2.message : String(e2));
+        }
+        return;
+      }
       setErr(e instanceof Error ? e.message : String(e));
     }
   }
@@ -235,8 +259,14 @@ function CandidateRow({
   candidate: EducationalCandidate;
   onQueue: () => void;
 }) {
+  const flagged = c.safety_status?.status === 'controversial';
   return (
-    <div className="border border-stone-200 rounded-lg p-3 bg-white flex items-start gap-3">
+    <div className={
+      'rounded-lg p-3 flex items-start gap-3 ' +
+      (flagged
+        ? 'border border-rose-300 bg-rose-50/40'
+        : 'border border-stone-200 bg-white')
+    }>
       <div className="flex-shrink-0 text-xs font-mono text-stone-500 w-16 pt-0.5">
         {c.chapter}:{c.verse}
         {c.word_pos != null && (
@@ -245,6 +275,40 @@ function CandidateRow({
       </div>
 
       <div className="flex-1 min-w-0">
+        {/* Content-safety badge — only when the cached screen returned
+            'controversial'. Operators can still queue the verse (the
+            backend will return 409, the handleQueue prompt will
+            confirm-to-override), but the visual cue lets them choose
+            another candidate without the round-trip. */}
+        {flagged && (
+          <div className="mb-1.5 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+            <svg
+              className="h-3 w-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+              />
+            </svg>
+            Content-safety flag
+            {c.safety_status?.reason && (
+              <span
+                className="font-normal normal-case tracking-normal text-rose-700"
+                title={c.safety_status.reason}
+              >
+                — {c.safety_status.reason.length > 60
+                  ? c.safety_status.reason.slice(0, 60) + '…'
+                  : c.safety_status.reason}
+              </span>
+            )}
+          </div>
+        )}
         {/* Type-specific bullet points first */}
         {type === 'word_origins' && (
           <div className="text-sm text-stone-700 mb-1">
@@ -446,11 +510,26 @@ function CandidateRow({
         <span className="text-[10px] text-stone-400 font-mono">
           score {c.score.toFixed(1)}
         </span>
+        {/* When the verse is flagged controversial, the button styles
+            shift to rose so the operator can't miss the warning, but
+            the action still works — clicking triggers the confirm
+            dialog (handled in handleQueue) and routes through the
+            backend's force-override path on confirmation. */}
         <button
           onClick={onQueue}
-          className="px-2.5 py-1 rounded-md bg-stone-800 text-white text-xs font-medium hover:bg-stone-700 cursor-pointer"
+          className={
+            'px-2.5 py-1 rounded-md text-xs font-medium cursor-pointer ' +
+            (flagged
+              ? 'bg-rose-700 text-white hover:bg-rose-800 border border-rose-800'
+              : 'bg-stone-800 text-white hover:bg-stone-700')
+          }
+          title={
+            flagged
+              ? 'This verse was flagged by content-safety screen. Clicking will prompt for override.'
+              : 'Queue this candidate for the next render pass.'
+          }
         >
-          Queue
+          {flagged ? 'Queue (flagged)' : 'Queue'}
         </button>
       </div>
     </div>

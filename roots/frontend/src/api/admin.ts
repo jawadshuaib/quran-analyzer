@@ -1493,6 +1493,31 @@ export interface EducationalCandidate {
   score: number;
   text_uthmani?: string;
   translation?: string;
+  /** Cached content-safety screen result for this verse. Present
+   * only when the verse has been screened (either by the automated
+   * pipeline path, or at queue-time by a prior manual queue). When
+   * status === 'controversial', the candidate row should render a
+   * warning badge and the Queue action should prompt to override. */
+  safety_status?: {
+    status: 'safe' | 'controversial' | 'unknown';
+    reason?: string;
+    model?: string | null;
+    checked_at?: string;
+  };
+}
+
+/** Error type thrown by queueEducationalCandidate when the backend
+ * blocks the queue because the verse is flagged controversial. The
+ * caller can prompt the operator and retry with `force: true`. */
+export class EducationalSafetyBlockedError extends Error {
+  status: 'controversial' | 'unknown';
+  reason: string;
+  constructor(safety: { status: string; reason: string }) {
+    super(`verse flagged: ${safety.reason || safety.status}`);
+    this.name = 'EducationalSafetyBlockedError';
+    this.status = (safety.status as 'controversial' | 'unknown') || 'controversial';
+    this.reason = safety.reason || '';
+  }
 }
 
 export interface EducationalVideo {
@@ -1543,6 +1568,7 @@ export async function getEducationalCandidates(
 export async function queueEducationalCandidate(
   type: EducationalType,
   c: EducationalCandidate,
+  opts?: { force?: boolean },
 ): Promise<void> {
   const res = await authFetch(`${BASE}/educational/queue`, {
     method: 'POST',
@@ -1553,6 +1579,12 @@ export async function queueEducationalCandidate(
       word_pos: c.word_pos ?? null,
       insight_id: c.insight_id ?? null,
       score: c.score,
+      // When `force` is set, the backend skips the content-safety
+      // gate and stamps `safety_override: true` on the payload so
+      // the audit trail records the deliberate bypass. The caller
+      // (admin UI) only sets `force` after the operator confirms a
+      // controversial-flag warning.
+      force: !!opts?.force,
       // Pass the structured payload so Phase 2 has what it needs to
       // ground the script. Type-specific fields are bundled together;
       // generators consume only the keys relevant to their type.
@@ -1571,7 +1603,18 @@ export async function queueEducationalCandidate(
     }),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'Failed to queue candidate');
+  if (!res.ok) {
+    // 409 with a safety_status block means the content-safety gate
+    // refused. Raise a typed error so the UI can prompt the operator
+    // to review the reason and choose whether to retry with force.
+    if (res.status === 409 && data?.safety_status) {
+      throw new EducationalSafetyBlockedError({
+        status: data.safety_status.status,
+        reason: data.safety_status.reason || '',
+      });
+    }
+    throw new Error(data.error || 'Failed to queue candidate');
+  }
 }
 
 export interface EducationalScript {
