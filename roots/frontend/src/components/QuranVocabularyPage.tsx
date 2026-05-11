@@ -92,7 +92,7 @@ export default function QuranVocabularyPage() {
                 href={`#${slug}`}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-stone-200 bg-white text-stone-700 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors"
               >
-                <span className="font-serif text-sm" lang="ar">{t.root_arabic}</span>
+                <span className="font-arabic text-sm" lang="ar">{t.root_arabic}</span>
                 <span className="text-stone-400">→</span>
                 <span className="font-medium">{t.canonical_english}</span>
               </a>
@@ -163,7 +163,7 @@ export default function QuranVocabularyPage() {
                           >
                             {hc.ref}
                           </a>
-                          <span className="font-serif text-base text-stone-700" lang="ar">
+                          <span className="font-arabic text-base text-stone-700" lang="ar">
                             {hc.arabic_word}
                           </span>
                           <span className="text-stone-400 text-xs">→</span>

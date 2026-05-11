@@ -136,7 +136,7 @@ export default function ReaderPage({ surah, initialVerse, endVerse }: Props) {
         <p className="text-[11px] tracking-[0.08em] uppercase text-ink-muted mb-2">
           Surah {data.surah} of 114
         </p>
-        <h1 className="font-serif text-4xl sm:text-5xl text-ink mb-2" lang="ar">
+        <h1 className="font-arabic text-4xl sm:text-5xl text-ink mb-2" lang="ar">
           {data.name_arabic}
         </h1>
         <p className="font-serif text-lg text-ink-secondary">

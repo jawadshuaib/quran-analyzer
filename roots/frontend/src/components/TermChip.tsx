@@ -198,7 +198,7 @@ function TermChip({
 
       {/* Secondary: small root-info strip */}
       <div className="mt-3 pt-3 border-t border-stone-100 text-[11px] text-ink-muted">
-        Root <span className="font-serif text-sm text-stone-700 mx-0.5" lang="ar">{term.root_arabic}</span>
+        Root <span className="font-arabic text-sm text-stone-700 mx-0.5" lang="ar">{term.root_arabic}</span>
         <span className="mx-1">→</span>
         <span className="font-medium text-stone-700">{term.canonical_english}</span>
         {' '}· transliterated <em className="not-italic text-stone-700">{transliteration}</em>

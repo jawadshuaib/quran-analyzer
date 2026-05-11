@@ -249,7 +249,7 @@ export default function GrammarGlossaryPage() {
                           {t.term_english}
                         </span>
                         {t.term_arabic && (
-                          <span className="font-serif text-lg text-stone-700" dir="rtl" lang="ar">
+                          <span className="font-arabic text-lg text-stone-700" dir="rtl" lang="ar">
                             {t.term_arabic}
                           </span>
                         )}
@@ -278,7 +278,7 @@ export default function GrammarGlossaryPage() {
                       {(t.example_sentence || t.example_translation) && (
                         <dd className="mt-3 pt-3 border-t border-stone-100">
                           {t.example_sentence && (
-                            <div className="font-serif text-base text-stone-700" dir="rtl" lang="ar">
+                            <div className="font-arabic text-base text-stone-700" dir="rtl" lang="ar">
                               {t.example_sentence}
                             </div>
                           )}

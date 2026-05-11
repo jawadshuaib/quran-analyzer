@@ -253,7 +253,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
                   onBlur={() => setHoveredWord((p) => (p === w.position ? -1 : p))}
                   tabIndex={0}
                 >
-                  <span className="font-serif text-2xl sm:text-3xl leading-tight text-ink">
+                  <span className="font-arabic text-2xl sm:text-3xl leading-tight text-ink">
                     {display}
                   </span>
                   {w.translation && (
@@ -289,7 +289,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             })}
           </div>
         ) : (
-          <div className="font-serif text-2xl sm:text-3xl leading-[2.2] text-ink mb-3 text-right" lang="ar" dir="rtl">
+          <div className="font-arabic text-2xl sm:text-3xl leading-[2.2] text-ink mb-3 text-right" lang="ar" dir="rtl">
             {verse.text_uthmani}
           </div>
         )}

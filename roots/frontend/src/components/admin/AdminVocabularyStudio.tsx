@@ -544,7 +544,7 @@ export default function AdminVocabularyStudio() {
         </a>
       </div>
       <div className="flex items-baseline gap-4 mb-2">
-        <h1 className="font-serif text-3xl text-stone-800" lang="ar">
+        <h1 className="font-arabic text-3xl text-stone-800" lang="ar">
           {state.root_arabic}
         </h1>
         <code className="text-stone-500">{state.root_buckwalter}</code>
@@ -759,7 +759,7 @@ export default function AdminVocabularyStudio() {
                       >
                         {hc.ref}
                       </a>
-                      <span className="font-serif text-base text-stone-700" lang="ar">
+                      <span className="font-arabic text-base text-stone-700" lang="ar">
                         {hc.arabic_word}
                       </span>
                       <span className="text-stone-400 text-xs">→</span>
@@ -1078,7 +1078,7 @@ export default function AdminVocabularyStudio() {
                 >
                   {o.chapter}:{o.verse}
                 </a>
-                <span className="font-serif text-sm text-stone-700 min-w-[5rem]" lang="ar">
+                <span className="font-arabic text-sm text-stone-700 min-w-[5rem]" lang="ar">
                   {o.arabic_word}
                 </span>
                 <span className="text-stone-500 truncate">{o.translation}</span>

@@ -242,7 +242,7 @@ function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: st
         {term.term_english}
       </div>
       {term.term_arabic && (
-        <div className="mt-1 text-lg font-serif text-stone-700" dir="rtl" lang="ar">
+        <div className="mt-1 text-lg font-arabic text-stone-700" dir="rtl" lang="ar">
           {term.term_arabic}
         </div>
       )}
@@ -252,7 +252,7 @@ function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: st
       {(term.example_sentence || term.example_translation) && (
         <div className="mt-3 pt-3 border-t border-stone-100">
           {term.example_sentence && (
-            <div className="text-base font-serif text-stone-800" dir="rtl" lang="ar">
+            <div className="text-base font-arabic text-stone-800" dir="rtl" lang="ar">
               {term.example_sentence}
             </div>
           )}

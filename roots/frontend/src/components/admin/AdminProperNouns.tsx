@@ -610,7 +610,7 @@ function CandidateRow({
         >
           {ref}
         </a>
-        <span className="font-serif text-base text-stone-800 min-w-[5rem]" lang="ar">
+        <span className="font-arabic text-base text-stone-800 min-w-[5rem]" lang="ar">
           {c.arabic_word}
         </span>
         <span className="font-mono text-[11px] text-stone-500 min-w-[3rem]">

@@ -113,7 +113,7 @@ export default function AdminVocabulary() {
                 onClick={() => go(r.root_buckwalter)}
                 className="w-full px-4 py-3 text-left hover:bg-amber-50 cursor-pointer flex items-center gap-3"
               >
-                <span className="font-serif text-lg text-stone-800 min-w-[5rem]" lang="ar">
+                <span className="font-arabic text-lg text-stone-800 min-w-[5rem]" lang="ar">
                   {r.root_arabic}
                 </span>
                 <span className="font-mono text-xs text-stone-500 min-w-[3rem]">
@@ -155,7 +155,7 @@ export default function AdminVocabulary() {
                 onClick={() => go(s.root_buckwalter)}
                 className="w-full px-4 py-3 text-left hover:bg-amber-50 cursor-pointer flex items-center gap-3"
               >
-                <span className="font-serif text-lg text-stone-800 min-w-[5rem]" lang="ar">
+                <span className="font-arabic text-lg text-stone-800 min-w-[5rem]" lang="ar">
                   {s.root_arabic}
                 </span>
                 <span className="font-mono text-xs text-stone-500 min-w-[3rem]">

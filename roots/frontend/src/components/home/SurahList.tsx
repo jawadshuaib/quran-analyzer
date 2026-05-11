@@ -68,7 +68,7 @@ export default function SurahList() {
               <span className="font-mono text-[11px] text-ink-muted min-w-[1.5rem]">
                 {s.number}
               </span>
-              <span className="font-serif text-base text-ink truncate" lang="ar">
+              <span className="font-arabic text-base text-ink truncate" lang="ar">
                 {s.name_arabic || s.name}
               </span>
             </div>

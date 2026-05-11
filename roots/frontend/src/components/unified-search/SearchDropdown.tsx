@@ -94,7 +94,7 @@ export default function SearchDropdown({
                 {surah.number}
               </span>
               {surah.name_arabic && (
-                <span className="font-serif text-base text-stone-800 min-w-[5.5rem]" lang="ar" dir="rtl">
+                <span className="font-arabic text-base text-stone-800 min-w-[5.5rem]" lang="ar" dir="rtl">
                   {surah.name_arabic}
                 </span>
               )}
