@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { GrammarNotesData, GrammarTerm } from '../types';
 import { fetchGrammarNotes, grammarTermSlug } from '../api/quran';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   surah: number;
@@ -145,7 +146,7 @@ function renderWithMarkers(text: string, terms: Record<string, GrammarTerm>) {
 
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIdx) {
-      nodes.push(text.slice(lastIdx, match.index));
+      nodes.push(<span key={key++}>{wrapArabicRuns(text.slice(lastIdx, match.index))}</span>);
     }
     const raw = match[1].trim();
     const lookup = raw.toLowerCase();
@@ -154,12 +155,12 @@ function renderWithMarkers(text: string, terms: Record<string, GrammarTerm>) {
       nodes.push(<GrammarChip key={key++} term={term} displayText={raw} />);
     } else {
       // Missing definition — render bare text so the note still reads
-      nodes.push(<span key={key++}>{raw}</span>);
+      nodes.push(<span key={key++}>{wrapArabicRuns(raw)}</span>);
     }
     lastIdx = regex.lastIndex;
   }
   if (lastIdx < text.length) {
-    nodes.push(text.slice(lastIdx));
+    nodes.push(<span key={key++}>{wrapArabicRuns(text.slice(lastIdx))}</span>);
   }
   return nodes;
 }
@@ -247,7 +248,7 @@ function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: st
         </div>
       )}
       <div className="mt-2 text-xs text-stone-600 leading-relaxed">
-        {term.plain_explanation}
+        {wrapArabicRuns(term.plain_explanation)}
       </div>
       {(term.example_sentence || term.example_translation) && (
         <div className="mt-3 pt-3 border-t border-stone-100">
@@ -258,7 +259,7 @@ function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: st
           )}
           {term.example_translation && (
             <div className="mt-1 text-xs italic text-stone-500 leading-relaxed">
-              “{term.example_translation}”
+              “{wrapArabicRuns(term.example_translation)}”
             </div>
           )}
         </div>

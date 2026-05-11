@@ -327,7 +327,7 @@ export default function RootPage({ rootBw }: Props) {
                       );
                     })}
                   </div>
-                  <p className="text-sm text-stone-500 italic">{v.translation}</p>
+                  <p className="text-sm text-stone-500 italic">{wrapArabicRuns(v.translation)}</p>
                 </div>
               );
             })}

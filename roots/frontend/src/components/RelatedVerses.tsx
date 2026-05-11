@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { RelatedVerse } from '../types';
 import { fetchRelatedVerses } from '../api/quran';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   surah: number;
@@ -109,7 +110,7 @@ export default function RelatedVerses({ surah, ayah, onNavigate, forceCollapse }
                   </p>
 
                   <p className="text-sm text-stone-500 italic line-clamp-2 mb-2">
-                    {v.translation}
+                    {wrapArabicRuns(v.translation)}
                   </p>
 
                   {v.shared_roots.length > 0 && (

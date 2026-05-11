@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { VerseData } from '../../types';
 import { fetchVerse, getDailyVerse } from '../../api/quran';
+import { wrapArabicRuns } from '../../utils/arabic-runs';
 
 // Fallback used only when /api/verse-of-the-day is unreachable
 // (e.g. backend is down on a NotFound or BadGateway page). The
@@ -79,7 +80,7 @@ export default function VerseOfTheDay({ onNavigate }: Props) {
 
       {/* Translation */}
       <p className="font-serif text-base leading-relaxed text-ink-secondary italic mb-4">
-        {data.translation}
+        {wrapArabicRuns(data.translation)}
       </p>
 
       {/* Root pills — matching verse page style */}
@@ -99,7 +100,7 @@ export default function VerseOfTheDay({ onNavigate }: Props) {
               </span>
               {r.cognate && (
                 <span className="hidden sm:inline text-xs italic text-emerald-500">
-                  &middot; {r.cognate.concept}
+                  &middot; {wrapArabicRuns(r.cognate.concept)}
                 </span>
               )}
             </span>

@@ -1,4 +1,5 @@
 import type { WordSearchResponse, WordSearchResult, ResolvedTerm } from '../types';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   data: WordSearchResponse;
@@ -101,7 +102,7 @@ export default function WordSearchResults({ data, onNavigate, onClose }: Props) 
               <HighlightedArabicText verse={v} />
 
               <p className="text-sm text-stone-500 italic line-clamp-2 mb-2">
-                {v.translation}
+                {wrapArabicRuns(v.translation)}
               </p>
 
               {v.matched_terms.length > 0 && (

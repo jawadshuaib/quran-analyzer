@@ -43,10 +43,10 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
               className="inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
               onClick={(e) => e.stopPropagation()}
             >
-              <span className="font-semibold text-stone-900">{preferredTranslation}</span>
+              <span className="font-semibold text-stone-900">{wrapArabicRuns(preferredTranslation)}</span>
             </a>
           ) : (
-            <span className="font-semibold text-stone-900">{preferredTranslation}</span>
+            <span className="font-semibold text-stone-900">{wrapArabicRuns(preferredTranslation)}</span>
           )}
         </div>
       ) : (
@@ -54,7 +54,7 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
         <>
           {word.translation && (
             <div className="font-semibold text-stone-900 mb-1.5 text-center">
-              {word.translation}
+              {wrapArabicRuns(word.translation)}
             </div>
           )}
 
@@ -71,7 +71,7 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
                       AI
                     </span>
                   )}
-                  <span className="text-xs font-medium">{aiMeaning}</span>
+                  <span className="text-xs font-medium">{wrapArabicRuns(aiMeaning)}</span>
                 </a>
               ) : (
                 <div className="inline-flex items-center gap-1">
@@ -80,7 +80,7 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
                       AI
                     </span>
                   )}
-                  <span className="text-xs font-medium text-violet-700">{aiMeaning}</span>
+                  <span className="text-xs font-medium text-violet-700">{wrapArabicRuns(aiMeaning)}</span>
                 </div>
               )}
             </div>
@@ -131,7 +131,7 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
       {cognate && (
         <div className="mt-2 pt-2 border-t border-stone-100">
           <div className="text-xs text-indigo-600 font-medium mb-0.5">
-            Semitic Root: {cognate.concept}
+            Semitic Root: {wrapArabicRuns(cognate.concept)}
           </div>
           {cognate.derivatives.length > 0 && (
             <div className="space-y-0.5">

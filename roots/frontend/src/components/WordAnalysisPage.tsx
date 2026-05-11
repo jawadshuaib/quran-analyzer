@@ -258,7 +258,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
             Conventional Gloss
           </h2>
           <div className="rounded-xl border border-stone-200 bg-white p-5">
-            <span className="text-lg text-stone-800">{data.conventional_gloss}</span>
+            <span className="text-lg text-stone-800">{wrapArabicRuns(data.conventional_gloss)}</span>
             <span className="text-xs text-stone-400 ml-2">(Quran.com)</span>
           </div>
         </section>
@@ -276,7 +276,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                 {data.cognate.transliteration}
               </span>
               <span className="text-indigo-600 text-sm">
-                Core concept: <span className="font-semibold">{data.cognate.concept}</span>
+                Core concept: <span className="font-semibold">{wrapArabicRuns(data.cognate.concept)}</span>
               </span>
             </div>
 
@@ -317,7 +317,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                     <div className="flex items-center gap-3 text-xs">
                       {occ.conventional_gloss && (
                         <span className="text-stone-500">
-                          Gloss: <span className="font-medium text-stone-700">{occ.conventional_gloss}</span>
+                          Gloss: <span className="font-medium text-stone-700">{wrapArabicRuns(occ.conventional_gloss)}</span>
                         </span>
                       )}
                       {occ.ai_meaning && (
@@ -325,7 +325,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                           href={`/word/${occ.surah}:${occ.ayah}/${occ.word_positions[0]}`}
                           className="inline-flex items-center text-violet-600 hover:text-violet-800"
                         >
-                          <span className="font-medium">{occ.ai_meaning}</span>
+                          <span className="font-medium">{wrapArabicRuns(occ.ai_meaning)}</span>
                         </a>
                       )}
                     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { askAboutRoot } from '../../api/learning';
+import { wrapArabicRuns } from '../../utils/arabic-runs';
 
 interface Props {
   rootBw: string;
@@ -98,7 +99,7 @@ export default function AskPanel({ rootBw, rootArabic }: Props) {
 
       {answer && (
         <div className="rounded-xl bg-white border border-violet-200 p-5 text-base text-stone-700 leading-relaxed whitespace-pre-line">
-          {answer}
+          {wrapArabicRuns(answer)}
         </div>
       )}
     </div>

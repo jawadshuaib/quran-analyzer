@@ -1,5 +1,6 @@
 import type { CognateData } from '../types';
 import CognateTable from './CognateTable';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   rootArabic: string;
@@ -55,7 +56,7 @@ export default function CognatePanel({ rootArabic, rootBuckwalter, cognate, onCl
       </div>
 
       <div className="text-sm text-indigo-700 mb-3">
-        Core concept: <span className="font-semibold">{cognate.concept}</span>
+        Core concept: <span className="font-semibold">{wrapArabicRuns(cognate.concept)}</span>
       </div>
 
       <CognateTable

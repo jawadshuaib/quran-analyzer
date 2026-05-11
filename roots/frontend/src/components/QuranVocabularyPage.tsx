@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSEO } from '../hooks/useSEO';
 import { fetchQuranVocabulary, vocabTermSlug } from '../api/quran';
 import type { QuranVocabularyTerm } from '../api/quran';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 /**
  * /quran-vocabulary — abstract semantic core of 13 Qur'anic roots whose
@@ -143,7 +144,7 @@ export default function QuranVocabularyPage() {
               {/* Translation note */}
               {t.translation_note && (
                 <p className="text-[14.5px] text-ink-secondary leading-relaxed mb-4">
-                  {t.translation_note}
+                  {wrapArabicRuns(t.translation_note)}
                 </p>
               )}
 
@@ -172,7 +173,7 @@ export default function QuranVocabularyPage() {
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-stone-600 leading-relaxed">
-                          {hc.reason}
+                          {wrapArabicRuns(hc.reason)}
                         </p>
                       </li>
                     ))}

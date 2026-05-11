@@ -3,6 +3,7 @@ import type { VerseGrammarInsights, V7GrammarInsight } from '../types';
 import { fetchGrammarInsights } from '../api/quran';
 import VerseRefText from './VerseRefText';
 import { buckwalterRootToArabicSpaced, buckwalterToArabic } from '../utils/buckwalter';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 interface Props {
   surah: number;
@@ -250,7 +251,7 @@ export default function GrammarInsights({ surah, ayah }: Props) {
                         const showPayoff = obs.length > 0 && payoff.length > 0 && obs.toLowerCase() !== payoff.toLowerCase();
                         return (
                           <>
-                      <p className="text-sm font-semibold text-stone-800">{item.title}</p>
+                      <p className="text-sm font-semibold text-stone-800">{wrapArabicRuns(item.title)}</p>
                       <p className="text-xs font-semibold text-violet-700 mt-2">Observation</p>
                       <VerseRefText
                         text={formatBuckwalterForDisplay(item.claim?.observation || '')}
@@ -270,7 +271,7 @@ export default function GrammarInsights({ surah, ayah }: Props) {
                       {!!item.educational_note?.text && (
                         <div className="mt-2 rounded-md bg-amber-50 border border-amber-100 p-2">
                           <p className="text-[11px] font-semibold text-amber-700 mb-1">Simple Note</p>
-                          <p className="text-xs text-amber-900">{item.educational_note.text}</p>
+                          <p className="text-xs text-amber-900">{wrapArabicRuns(item.educational_note.text)}</p>
                         </div>
                       )}
                       {!!item.evidence_trace?.length && (
@@ -304,7 +305,7 @@ export default function GrammarInsights({ surah, ayah }: Props) {
                 <div className="space-y-3">
                   {displayedInsights.map((item, i) => (
                     <div key={`${i}-${item.title}`} className="rounded-lg border border-violet-100 bg-white p-4">
-                      <p className="text-sm font-semibold text-stone-800">{item.title}</p>
+                      <p className="text-sm font-semibold text-stone-800">{wrapArabicRuns(item.title)}</p>
                       <VerseRefText
                         text={formatBuckwalterForDisplay(item.insight)}
                         className="text-sm text-stone-700 mt-1 block"
@@ -313,7 +314,7 @@ export default function GrammarInsights({ surah, ayah }: Props) {
                       {item.educational_note && (
                         <div className="mt-2 rounded-md bg-amber-50 border border-amber-100 p-2">
                           <p className="text-[11px] font-semibold text-amber-700 mb-1">For Non-Experts</p>
-                          <p className="text-xs text-amber-900">{item.educational_note}</p>
+                          <p className="text-xs text-amber-900">{wrapArabicRuns(item.educational_note)}</p>
                         </div>
                       )}
                       {detectTermNotes(item.insight).length > 0 && (

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSEO } from '../hooks/useSEO';
 import { fetchAllGrammarTerms, grammarTermSlug } from '../api/quran';
 import type { GrammarTerm } from '../types';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 /**
  * /grammar-glossary — every grammatical term used across al-nuqta's
@@ -273,7 +274,7 @@ export default function GrammarGlossaryPage() {
                         </a>
                       </dt>
                       <dd className="mt-2 text-[14.5px] text-ink-secondary leading-relaxed">
-                        {t.plain_explanation}
+                        {wrapArabicRuns(t.plain_explanation)}
                       </dd>
                       {(t.example_sentence || t.example_translation) && (
                         <dd className="mt-3 pt-3 border-t border-stone-100">
@@ -284,7 +285,7 @@ export default function GrammarGlossaryPage() {
                           )}
                           {t.example_translation && (
                             <div className="mt-1 text-xs italic text-stone-500 leading-relaxed">
-                              "{t.example_translation}"
+                              "{wrapArabicRuns(t.example_translation)}"
                             </div>
                           )}
                         </dd>

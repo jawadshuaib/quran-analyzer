@@ -187,7 +187,7 @@ export default function RootLesson({ rootBw, onBack }: Props) {
                 />
                 {anchorFlipped && data.mnemonic_caption ? (
                   <p className="text-sm text-stone-600 italic text-center max-w-sm leading-relaxed animate-in fade-in duration-500">
-                    {data.mnemonic_caption}
+                    {wrapArabicRuns(data.mnemonic_caption)}
                   </p>
                 ) : !anchorFlipped ? (
                   <p className="text-xs text-stone-400 italic">
@@ -245,7 +245,7 @@ export default function RootLesson({ rootBw, onBack }: Props) {
               <span className="text-xs text-violet-400 bg-violet-100 px-2 py-0.5 rounded-full">AI-generated</span>
             </div>
             <div className="text-base text-stone-700 leading-relaxed whitespace-pre-line">
-              {data.root_story}
+              {wrapArabicRuns(data.root_story)}
             </div>
           </div>
 

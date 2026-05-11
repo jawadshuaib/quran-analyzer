@@ -12,6 +12,7 @@ import NoteButton from './NoteButton';
 import VersePlayButton from './VersePlayButton';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
 import { splitDepartureNotes } from '../utils/departure-notes';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -445,7 +446,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                   lang="en"
                   className="mt-0.5 max-w-24 text-[10px] leading-tight font-sans text-stone-500 text-center normal-case"
                 >
-                  {getWordToWordLabel(pos, wordData)}
+                  {wrapArabicRuns(getWordToWordLabel(pos, wordData))}
                 </span>
               )}
               {isActive && wordData && (

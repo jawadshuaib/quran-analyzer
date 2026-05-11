@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { LearningUnit } from '../../types/learning';
 import { fetchCurriculum } from '../../api/learning';
 import { loadDismissed, saveDismissed, clearDismissed } from '../../utils/mnemonic-dismissed';
+import { wrapArabicRuns } from '../../utils/arabic-runs';
 
 interface Props {
   onBack: () => void;
@@ -161,7 +162,7 @@ export default function MnemonicSheet({ onBack }: Props) {
                   </span>
                 </div>
                 <p className="text-xs text-stone-600 leading-snug print:text-[10px] print:leading-tight">
-                  {root.mnemonic_caption}
+                  {wrapArabicRuns(root.mnemonic_caption || '')}
                 </p>
                 {root.top_derivatives && root.top_derivatives.length > 0 && (
                   <div className="pt-1 border-t border-stone-100 space-y-0.5">
@@ -171,7 +172,7 @@ export default function MnemonicSheet({ onBack }: Props) {
                       <p key={i} className="text-[11px] text-stone-500 leading-snug print:text-[9px]">
                         <span className="font-arabic text-stone-700 font-medium" dir="rtl">{d.lemma_arabic}</span>
                         {' '}
-                        <span className="text-stone-400">— {d.meaning_gloss}</span>
+                        <span className="text-stone-400">— {wrapArabicRuns(d.meaning_gloss || '')}</span>
                       </p>
                     ))}
                   </div>

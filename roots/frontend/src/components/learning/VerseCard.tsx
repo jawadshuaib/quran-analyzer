@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { LearningVerseData } from '../../types/learning';
+import { wrapArabicRuns } from '../../utils/arabic-runs';
 
 interface Props {
   verse: LearningVerseData;
@@ -56,10 +57,12 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
                       </span>
                     ) : (
                       <span className="text-stone-400">
-                        {w.ai_meaning?.preferred_translation
-                          || w.ai_meaning?.meaning_short
-                          || w.gloss
-                          || ''}
+                        {wrapArabicRuns(
+                          w.ai_meaning?.preferred_translation
+                            || w.ai_meaning?.meaning_short
+                            || w.gloss
+                            || ''
+                        )}
                       </span>
                     )}
                   </p>
@@ -112,10 +115,12 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
                     {w.arabic}
                   </p>
                   <p className="text-xs text-stone-400 mt-0.5" dir="ltr">
-                    {w.ai_meaning?.preferred_translation
-                      || w.ai_meaning?.meaning_short
-                      || w.gloss
-                      || ''}
+                    {wrapArabicRuns(
+                      w.ai_meaning?.preferred_translation
+                        || w.ai_meaning?.meaning_short
+                        || w.gloss
+                        || ''
+                    )}
                   </p>
                 </div>
               ))}
@@ -128,7 +133,7 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
               Translation
             </p>
             <p className="text-stone-700 text-base leading-relaxed">
-              {verse.translation}
+              {wrapArabicRuns(verse.translation)}
             </p>
           </div>
 
@@ -145,10 +150,12 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
                   </span>
                   <span className="text-stone-400">—</span>
                   <span className="text-stone-700 text-base font-medium">
-                    {tw.ai_meaning?.preferred_translation
-                      || tw.ai_meaning?.meaning_short
-                      || tw.gloss
-                      || '(no translation)'}
+                    {wrapArabicRuns(
+                      tw.ai_meaning?.preferred_translation
+                        || tw.ai_meaning?.meaning_short
+                        || tw.gloss
+                        || '(no translation)'
+                    )}
                   </span>
                   {tw.part_of_speech && (
                     <span className="text-xs text-stone-400 bg-white/60 px-2 py-0.5 rounded-full">
@@ -162,7 +169,7 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
 
           {teachingNote && (
             <p className="text-sm text-emerald-600 italic mt-4 border-t border-emerald-200 pt-3">
-              {teachingNote}
+              {wrapArabicRuns(teachingNote)}
             </p>
           )}
 

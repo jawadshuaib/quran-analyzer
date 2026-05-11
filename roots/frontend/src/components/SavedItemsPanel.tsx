@@ -14,6 +14,7 @@ import {
 } from '../utils/user-notes';
 import { getSurahName } from '../utils/surah-names';
 import NoteEditor from './NoteEditor';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 const TYPE_LABELS: Record<SavedItemType, string> = {
   verse: 'Verses',
@@ -449,11 +450,11 @@ function SavedItemRow({
           onClick={() => onNavigate(item.href)}
         >
           <span className="text-sm font-medium text-stone-700 group-hover:text-stone-900 transition-colors line-clamp-1">
-            {item.label}
+            {wrapArabicRuns(item.label)}
           </span>
           {item.subtitle && (
             <span className="block text-xs text-stone-400 mt-0.5 line-clamp-2 leading-relaxed">
-              {item.subtitle}
+              {wrapArabicRuns(item.subtitle)}
             </span>
           )}
         </button>
@@ -604,7 +605,7 @@ function NoteRow({
           </span>
         </div>
         <p className="text-xs text-stone-700 leading-relaxed line-clamp-3 whitespace-pre-line">
-          {text}
+          {wrapArabicRuns(text)}
         </p>
       </div>
       <div className="flex flex-col items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">

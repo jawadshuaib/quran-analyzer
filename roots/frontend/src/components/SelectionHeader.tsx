@@ -1,4 +1,5 @@
 import type { Word } from '../types';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 export interface SelectedRootItem {
   root_buckwalter: string;
@@ -42,7 +43,7 @@ export default function SelectionHeader({
               </span>
               {word.translation && (
                 <span className="text-xs text-emerald-600 max-w-[80px] truncate">
-                  {word.translation}
+                  {wrapArabicRuns(word.translation)}
                 </span>
               )}
               <button

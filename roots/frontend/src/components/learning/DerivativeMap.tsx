@@ -1,4 +1,5 @@
 import type { LearningDerivative } from '../../types/learning';
+import { wrapArabicRuns } from '../../utils/arabic-runs';
 
 interface Props {
   rootArabic: string;
@@ -46,7 +47,7 @@ export default function DerivativeMap({ rootArabic, rootBw, derivatives }: Props
               </div>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-base text-stone-700">{d.meaning_gloss}</p>
+              <p className="text-base text-stone-700">{wrapArabicRuns(d.meaning_gloss || '')}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {d.verb_form && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 font-medium">
@@ -60,7 +61,7 @@ export default function DerivativeMap({ rootArabic, rootBw, derivatives }: Props
                 )}
               </div>
               {d.semantic_shift && (
-                <p className="text-sm text-stone-400 mt-2 italic">{d.semantic_shift}</p>
+                <p className="text-sm text-stone-400 mt-2 italic">{wrapArabicRuns(d.semantic_shift)}</p>
               )}
             </div>
           </div>

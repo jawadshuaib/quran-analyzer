@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchQuranVocabulary, vocabTermSlug } from '../api/quran';
 import type { QuranVocabularyTerm } from '../api/quran';
+import { wrapArabicRuns } from '../utils/arabic-runs';
 
 /**
  * Parses translation text containing markdown italic markers (*term*)
@@ -176,18 +177,18 @@ function TermChip({
             In this verse
           </div>
           <div className="font-serif text-base text-stone-800 leading-snug">
-            {wordContext!.meaning_short}
+            {wrapArabicRuns(wordContext!.meaning_short || '')}
           </div>
           {wordContext!.meaning_excerpt && (
             <div className="mt-2 text-xs text-stone-600 leading-relaxed line-clamp-5">
-              {wordContext!.meaning_excerpt}
+              {wrapArabicRuns(wordContext!.meaning_excerpt)}
             </div>
           )}
         </>
       ) : (
         term.translation_note ? (
           <div className="text-xs text-stone-700 leading-relaxed line-clamp-6">
-            {term.translation_note}
+            {wrapArabicRuns(term.translation_note)}
           </div>
         ) : (
           <div className="text-xs text-stone-500 italic">
@@ -409,10 +410,10 @@ export function TranslationWithChips({
 
     for (const m of filtered) {
       if (m.start > last) {
-        out.push(text.slice(last, m.start));
+        out.push(<span key={key++}>{wrapArabicRuns(text.slice(last, m.start))}</span>);
       }
       if (m.kind === 'italic' && !m.term) {
-        out.push(<em key={key++}>{m.matchedText}</em>);
+        out.push(<em key={key++}>{wrapArabicRuns(m.matchedText)}</em>);
       } else {
         const root = m.term.root_buckwalter;
         const idx = perRootCounter.get(root) ?? 0;
@@ -430,7 +431,7 @@ export function TranslationWithChips({
       last = m.end;
     }
     if (last < text.length) {
-      out.push(text.slice(last));
+      out.push(<span key={key++}>{wrapArabicRuns(text.slice(last))}</span>);
     }
     return out;
   }, [text, lookup, surveyedRootsInVerse, contextByRoot]);
@@ -451,7 +452,7 @@ export function TranslationWithItalicChips({ text }: { text: string }) {
     let key = 0;
     while ((m = regex.exec(text)) !== null) {
       if (m.index > last) {
-        out.push(text.slice(last, m.index));
+        out.push(<span key={key++}>{wrapArabicRuns(text.slice(last, m.index))}</span>);
       }
       const inner = m[1];
       const norm = normalize(inner);
@@ -461,12 +462,12 @@ export function TranslationWithItalicChips({ text }: { text: string }) {
           <TermChip key={key++} transliteration={inner} term={entry.term} />
         );
       } else {
-        out.push(<em key={key++}>{inner}</em>);
+        out.push(<em key={key++}>{wrapArabicRuns(inner)}</em>);
       }
       last = regex.lastIndex;
     }
     if (last < text.length) {
-      out.push(text.slice(last));
+      out.push(<span key={key++}>{wrapArabicRuns(text.slice(last))}</span>);
     }
     return out;
   }, [text, lookup]);

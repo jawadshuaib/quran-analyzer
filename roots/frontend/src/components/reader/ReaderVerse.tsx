@@ -14,6 +14,7 @@ import { splitDepartureNotes } from '../../utils/departure-notes';
 import { TranslationWithChips } from '../TermChip';
 import NoteEditor from '../NoteEditor';
 import WordTooltip from '../WordTooltip';
+import { wrapArabicRuns } from '../../utils/arabic-runs';
 import type { Word, Segment } from '../../types';
 import type { DefaultReciter } from '../../api/quran';
 import { reciterAudioUrl } from '../../api/quran';
@@ -272,9 +273,11 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
                           : undefined
                       }
                     >
-                      {w.translation_source === 'root'
-                        ? `(${w.translation.toLowerCase()})`
-                        : w.translation}
+                      {wrapArabicRuns(
+                        w.translation_source === 'root'
+                          ? `(${w.translation.toLowerCase()})`
+                          : w.translation
+                      )}
                     </span>
                   )}
                   {isActive && (
