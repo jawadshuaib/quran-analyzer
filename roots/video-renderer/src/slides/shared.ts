@@ -68,5 +68,10 @@ export const SYSTEM_FONT =
 
 // Loaded via @remotion/google-fonts in Root.tsx for reliable
 // headless-Chromium rendering (CSS @import isn't reliable per the
-// Remotion docs).
-export const ARABIC_FONT = '"Scheherazade New", Amiri, "Traditional Arabic", serif';
+// Remotion docs). Amiri is primary because the Google-Fonts release
+// of Scheherazade New drops the kasra glyph when combined with
+// shadda — verse 68:2's رَبِّكَ rendered as رَبَّكَ on prod. Amiri
+// renders shadda+kasra correctly; Scheherazade stays as a secondary
+// fallback only. (Amiri is the only Arabic font we actually
+// loadFont() in Root.tsx, so the fallback is mostly defensive.)
+export const ARABIC_FONT = 'Amiri, "Scheherazade New", "Traditional Arabic", serif';

@@ -1,7 +1,19 @@
 @import "tailwindcss";
 
 @theme {
-  --font-arabic: "Scheherazade New", "Amiri", "Traditional Arabic", serif;
+  /*
+   * Amiri is primary because Scheherazade New (Google Fonts release)
+   * drops the kasra glyph when combined with shadda — it renders only
+   * the shadda. The verse 68:2 word رَبِّكَ ("rabbi-ka") came out
+   * looking like رَبَّكَ ("rabba-ka"). Verified on prod by injecting
+   * test divs side-by-side: Amiri shows the kasra cleanly below the
+   * letter; Scheherazade New shows only the shadda. Both orderings
+   * (shadda-before-kasra and kasra-before-shadda) fail in
+   * Scheherazade. We keep Scheherazade New as a secondary fallback
+   * for unusual codepoints Amiri might not cover, but for the
+   * Uthmani corpus we use Amiri.
+   */
+  --font-arabic: "Amiri", "Scheherazade New", "Traditional Arabic", serif;
 
   /* al-nuqta design tokens */
   --color-cream: #FAF8F3;

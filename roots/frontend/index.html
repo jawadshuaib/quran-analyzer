@@ -52,17 +52,16 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!--
-      Two Arabic fonts loaded independently so the --font-arabic
-      fallback chain has a real backup. Scheherazade New is the
-      primary choice (traditional Naskh, well-suited to Uthmani
-      diacritics). Amiri is loaded as a backup — if Scheherazade
-      fails to load for any reason (network glitch, Google Fonts
-      blocked, etc.), Amiri is also a proper Uthmani-grade font
-      and avoids the system-serif fallback that has the
-      kasra-under-shadda bug.
+      Two Arabic fonts loaded independently. Amiri is PRIMARY —
+      Scheherazade New (Google Fonts release) drops the kasra glyph
+      when combined with shadda, rendering رَبِّكَ ("rabbi-ka") as
+      رَبَّكَ ("rabba-ka"). Verified on prod by side-by-side test
+      injections. Amiri renders shadda+kasra correctly. Scheherazade
+      New stays as a secondary fallback for unusual codepoints
+      Amiri might not cover.
     -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Amiri:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&display=swap"
       rel="stylesheet"
     />
   </head>
