@@ -198,12 +198,81 @@ export const GrammarContrastSlide = z.object({
   narration: Narration.optional(),
 });
 
+// ---------------------------------------------------------------------------
+// What Translation Hides series slides
+//
+// The series reveals nuance that the conventional English translation
+// flattens. Two bespoke slides + reuse of verse-flow + outro give the
+// series its visual identity (rose accent) and keep engineering small.
+// ---------------------------------------------------------------------------
+
+// Opening hook. Two stacked rows: top "Most translations say X" in
+// muted stone, bottom "The Arabic actually says Y" in saturated rose.
+// Mirrors GrammarContrastSlide's geometry but English-first because
+// the audience reads English; the contrast IS the hook.
+//
+// Either `arabic` is set (preferred — shows the Arabic form next to
+// the AI gloss for legitimacy) or it's omitted (when the nuance is
+// verse-level rather than tied to a specific word). The "Translation
+// vs Quran" framing is universal regardless.
+export const TranslationRevealSlide = z.object({
+  type: z.literal('translation-reveal'),
+  durationSec: z.number().positive().default(7),
+  // Top row — what most viewers think the verse says.
+  conventionalLabel: z.string().default('Most translations say'),
+  conventionalText: z.string(),
+  // Bottom row — what the Arabic actually conveys. When `arabic` is
+  // present, it renders alongside the gloss (smaller, RTL).
+  hiddenLabel: z.string().default('The Arabic actually says'),
+  hiddenText: z.string(),
+  arabic: z.string().optional(),
+  // Optional one-line tagline below both rows (e.g. "and that changes
+  // everything"). Kept short — narration carries depth.
+  tagline: z.string().optional(),
+  narration: Narration.optional(),
+});
+
+// Word Lens slide — the payoff frame. Large Arabic word centered,
+// conventional gloss above (muted, with strikethrough), AI gloss
+// below (saturated rose), optional one-line evidence chip naming the
+// lens kind ("morphology: passive, agent omitted", "lexical: root
+// means X across Semitic", "context: same word used differently in
+// Y:Z"). When no single word is the focus, the renderer can elide
+// the strikethrough and instead use this slide for a phrase-lens.
+export const WordLensSlide = z.object({
+  type: z.literal('word-lens'),
+  durationSec: z.number().positive().default(10),
+  // Large Arabic surface form in the center. Required.
+  arabic: z.string(),
+  // 1-based word position on the source verse (for the operator's
+  // reference; the renderer doesn't strictly need it but keeping it
+  // on the schema makes the payload self-documenting).
+  wordPos: z.number().int().positive().optional(),
+  // Optional transliteration shown beneath the Arabic (small, italic).
+  transliteration: z.string().optional(),
+  // Conventional gloss row (top, muted, strikethrough by default).
+  conventionalGloss: z.string(),
+  // AI / "hidden" gloss row (bottom, saturated rose).
+  hiddenGloss: z.string(),
+  // Optional evidence chip — one short phrase naming WHY the AI gloss
+  // is preferred. E.g. "morphology: passive voice", "lexical: root
+  // sense across Semitic", "context: contrasts 2:155 usage".
+  evidenceChip: z.string().optional(),
+  // Strike the conventional gloss visually. Default true; false when
+  // both renderings are valid and the AI version is a refinement,
+  // not a correction.
+  strikeConventional: z.boolean().default(true),
+  narration: Narration.optional(),
+});
+
 export const Slide = z.discriminatedUnion('type', [
   RootSlide,
   VerseFlowSlide,
   WordToWordSlide,
   GrammarVerseSlide,
   GrammarContrastSlide,
+  TranslationRevealSlide,
+  WordLensSlide,
   OutroSlide,
 ]);
 
@@ -226,6 +295,8 @@ export type OutroSlideT = z.infer<typeof OutroSlide>;
 export type GrammarVerseSlideT = z.infer<typeof GrammarVerseSlide>;
 export type GrammarContrastSlideT = z.infer<typeof GrammarContrastSlide>;
 export type GrammarHighlightT = z.infer<typeof GrammarHighlight>;
+export type TranslationRevealSlideT = z.infer<typeof TranslationRevealSlide>;
+export type WordLensSlideT = z.infer<typeof WordLensSlide>;
 export type SlideT = z.infer<typeof Slide>;
 export type PayloadT = z.infer<typeof Payload>;
 export type NarrationT = z.infer<typeof Narration>;

@@ -7,6 +7,8 @@ import { WordToWordPage } from '../slides/WordToWordPage';
 import { OutroPage } from '../slides/OutroPage';
 import { GrammarVersePage } from '../slides/GrammarVersePage';
 import { GrammarContrastPage } from '../slides/GrammarContrastPage';
+import { TranslationRevealPage } from '../slides/TranslationRevealPage';
+import { WordLensPage } from '../slides/WordLensPage';
 import { KaraokeOverlay } from '../slides/KaraokeOverlay';
 
 // Top-level composition for word-detail videos.
@@ -82,6 +84,10 @@ function SlideRenderer({ slide }: { slide: SlideT }) {
       return <GrammarVersePage slide={slide} />;
     case 'grammar-contrast':
       return <GrammarContrastPage slide={slide} />;
+    case 'translation-reveal':
+      return <TranslationRevealPage slide={slide} />;
+    case 'word-lens':
+      return <WordLensPage slide={slide} />;
     case 'outro':
       return <OutroPage slide={slide} />;
     default: {

@@ -275,18 +275,67 @@ def _excluded_clause(vtype: str) -> tuple[str, dict]:
 
 
 def _translation_hides_candidates(conn, limit: int, exclude_queued: bool) -> list[dict]:
-    """Pool: ai_translations rows with a substantive departure note."""
+    """Pool: ai_translations rows with a substantive departure note,
+    composite-scored by signals from across the AI pipeline.
+
+    Raw note length alone is a weak proxy — long ≠ video-worthy. The
+    composite score weights three signals:
+
+      1. Departure-note length (40%) — the verse-level prose explaining
+         WHY the AI translation departs from conventional. Floor of
+         ≥80 chars to filter out one-line notes; the LENGTH itself
+         caps at 1000 so a sprawling 5000-char note doesn't drown
+         out the other signals.
+      2. AI-preferred word count (×1.5 each) — count of words on the
+         verse where the AI judge picked the AI gloss over the
+         conventional one (preferred_source in ('ai', 'judge')). Each
+         such word is a candidate 'lens' that gives the video a
+         concrete focus. Verses with zero AI-preferred words can
+         still rank, but they'd produce a phrase-only video (no
+         word-lens slide) — useful but less visually distinctive.
+      3. Has eligible V7 grammar insight (+8) — when the verse also
+         carries a high-confidence grammar insight, the script writer
+         can pair lexical and grammatical evidence in the reveal,
+         which makes for a sharper video.
+
+    All signals are computed in SQL so the candidate page stays
+    instant — no LLM calls during browsing. The optional AI judge
+    pipeline (translation_hides_ai.py, Phase 2) can later write a
+    judged score into a separate table that overrides this composite
+    when present; until then, the composite IS the ranking.
+    """
     excl_sql, excl_params = _excluded_clause("translation_hides")
     where_excl = f"AND {excl_sql}" if exclude_queued else ""
     rows = conn.execute(
         f"""
-        SELECT chapter AS c, verse AS v, NULL AS awp, NULL AS aid,
-               chapter, verse,
-               departure_notes,
-               LENGTH(departure_notes) AS score
-        FROM ai_translations
-        WHERE departure_notes IS NOT NULL
-          AND LENGTH(TRIM(departure_notes)) >= :min_chars
+        SELECT t.chapter AS c, t.verse AS v, NULL AS awp, NULL AS aid,
+               t.chapter, t.verse,
+               t.departure_notes,
+               MIN(LENGTH(t.departure_notes), 1000) * 0.4
+                 + COALESCE(awm_counts.ai_word_count, 0) * 1.5
+                 + CASE WHEN gi_eligible.has_eligible IS NOT NULL THEN 8.0 ELSE 0.0 END
+                 AS score,
+               COALESCE(awm_counts.ai_word_count, 0) AS ai_word_count,
+               CASE WHEN gi_eligible.has_eligible IS NOT NULL THEN 1 ELSE 0 END AS has_v7
+        FROM ai_translations t
+        LEFT JOIN (
+            SELECT chapter, verse, COUNT(*) AS ai_word_count
+            FROM ai_word_meanings
+            WHERE preferred_source IN ('ai', 'judge')
+              AND TRIM(COALESCE(meaning_short, '')) != ''
+            GROUP BY chapter, verse
+        ) awm_counts ON awm_counts.chapter = t.chapter AND awm_counts.verse = t.verse
+        LEFT JOIN (
+            SELECT DISTINCT gi.chapter, gi.verse, 1 AS has_eligible
+            FROM verse_grammar_insights gi
+            JOIN grammar_insight_configs c ON gi.config_id = c.id
+            WHERE c.config_name = 'grammar-insights-quran-only-v7-unified'
+              AND gi.insights_v7_json IS NOT NULL
+              AND gi.insights_v7_json != ''
+              AND gi.signal_score >= 0.5
+        ) gi_eligible ON gi_eligible.chapter = t.chapter AND gi_eligible.verse = t.verse
+        WHERE t.departure_notes IS NOT NULL
+          AND LENGTH(TRIM(t.departure_notes)) >= :min_chars
           {where_excl}
         ORDER BY score DESC, RANDOM()
         LIMIT :limit

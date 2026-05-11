@@ -40,7 +40,7 @@ import { useConfirm } from './shared/useConfirm';
 
 const TYPE_LABEL: Record<EducationalType, string> = {
   word_origins: 'Word Origins',
-  translation_hides: 'What Translators Hide',
+  translation_hides: 'What Translation Hides',
   grammar_insights: 'Grammar Insights',
 };
 
@@ -815,7 +815,7 @@ function PipelineEditor({
           className="w-full px-3 py-2 rounded-lg border border-stone-300 text-sm bg-white disabled:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-400"
         >
           <option value="word_origins">Word Origins</option>
-          <option value="translation_hides">What Translators Hide</option>
+          <option value="translation_hides">What Translation Hides</option>
           <option value="grammar_insights">Grammar Insights</option>
         </select>
       </Field>

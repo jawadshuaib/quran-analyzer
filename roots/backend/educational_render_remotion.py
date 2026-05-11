@@ -1355,6 +1355,422 @@ def render_grammar_insights_video(
     return out_filename, os.path.getsize(out_path)
 
 
+# ============================================================================
+# What Translation Hides series
+# ============================================================================
+#
+# Series identity: reveal the nuance the conventional English translation
+# flattens. Visual signature: rose accent (#BE123C), distinct from yellow
+# (Word Origins) and amber (Grammar Insights) so viewers learn the series
+# from a thumbnail.
+#
+# Slide composition (45-65s vertical):
+#   1. translation-reveal   ~7s  — "Most translations say X / The Arabic
+#                                   actually says Y". Hook narration plays.
+#   2. verse-flow           ~10s — Source verse with the target word (and/or
+#                                  english_emphases) highlighted in rose.
+#                                  verse_intro narration plays.
+#   3. word-lens            ~12s — When a single word is the focus: large
+#                                  Arabic word, conventional gloss (struck
+#                                  through), AI gloss in rose, evidence chip.
+#                                  When phrase-level: SKIPPED — verse-flow
+#                                  carries the insight directly.
+#   4. outro                ~3s  — al-nuqta brand splash. Close narration is
+#                                  merged onto the final pre-outro slide so
+#                                  the splash is silent.
+#
+# All slides reuse the same KaraokeOverlay for synchronized captions.
+# ============================================================================
+
+
+# Reuse the existing rose marker for the verse-flow highlight pill so
+# the highlight color matches the rest of the series. The verse-flow
+# slide already supports marker colors via the (deprecated for word-
+# origins, alive for grammar) `grammarMarkerFronted` token which IS
+# rose. We don't use a grammar-highlight pill here though — the
+# verse-flow slide's standard yellow `highlight` is reused but
+# overridden via the slide's payload-level color hooks. Simpler path
+# for now: rely on the existing yellow highlight; the rose identity is
+# carried by the reveal + word-lens slides, which sandwich the verse.
+def _maybe_rose_highlight_word_index(script: dict) -> int | None:
+    """Pull selected_word_pos off the script, normalized to a positive
+    int or None. Treats 0/None/missing all as None."""
+    raw = script.get("selected_word_pos")
+    if raw is None:
+        return None
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return n if n >= 1 else None
+
+
+def _word_arabic_at_pos(conn, c: int, v: int, p: int) -> str:
+    """Reconstruct the visible Arabic surface form for word `p` by
+    concatenating its morphology segments. Returns '' if no rows.
+    Mirrors AdminEducational / WordAnalysisPage's display approach so
+    the Arabic shown on the word-lens slide matches what the operator
+    sees in the admin candidate list."""
+    rows = conn.execute(
+        "SELECT form_arabic FROM morphology "
+        "WHERE chapter = ? AND verse = ? AND word_pos = ? "
+        "ORDER BY segment_pos",
+        (c, v, p),
+    ).fetchall()
+    return "".join((r["form_arabic"] or "") for r in rows)
+
+
+def _word_lens_data_for(conn, c: int, v: int, p: int) -> dict | None:
+    """Resolve the word-lens display data for word position `p`:
+    conventional gloss + AI meaning + transliteration. Returns None
+    if the word doesn't have a usable AI meaning (no point rendering
+    the lens slide if there's no "hidden" gloss to reveal).
+
+    Conventional gloss falls back through:
+      1. ai_word_meanings's recorded conventional_gloss (judge column)
+      2. word_glosses.gloss
+      3. the morphology row's primary translation, when available
+    """
+    awm = conn.execute(
+        """
+        SELECT meaning_short, meaning_detailed, preferred_translation,
+               preferred_source
+        FROM ai_word_meanings
+        WHERE chapter = ? AND verse = ? AND word_pos = ?
+        ORDER BY id DESC LIMIT 1
+        """,
+        (c, v, p),
+    ).fetchone()
+    if not awm:
+        return None
+    ai_short = (awm["meaning_short"] or "").strip()
+    if not ai_short:
+        return None
+
+    # Conventional gloss — prefer word_glosses.gloss because it's the
+    # plain conventional English used by the rest of the site.
+    conv_row = conn.execute(
+        "SELECT gloss FROM word_glosses "
+        "WHERE chapter = ? AND verse = ? AND word_pos = ? "
+        "LIMIT 1",
+        (c, v, p),
+    ).fetchone()
+    conv = (conv_row["gloss"] if conv_row else "") or ""
+    conv = conv.strip()
+
+    # Transliteration — the morphology table holds an English-friendly
+    # form per segment. Take the stem's transliteration when present;
+    # skip prefixes/suffixes that aren't the focus.
+    tlit_row = conn.execute(
+        """
+        SELECT form_buckwalter
+        FROM morphology
+        WHERE chapter = ? AND verse = ? AND word_pos = ?
+          AND pos NOT IN ('Prefix', 'Suffix')
+        ORDER BY segment_pos
+        LIMIT 1
+        """,
+        (c, v, p),
+    ).fetchone()
+    transliteration = ""
+    if tlit_row and tlit_row["form_buckwalter"]:
+        # Buckwalter is operator-facing; the renderer will gracefully
+        # accept missing transliteration so we just leave this empty
+        # rather than ship a Buckwalter string the viewer can't read.
+        # If a phonetic transliteration column gets added later, swap
+        # it in here.
+        transliteration = ""
+
+    return {
+        "conventional_gloss": conv,
+        "ai_meaning_short": ai_short,
+        "transliteration": transliteration,
+    }
+
+
+def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
+    """Convert a translation_hides educational_videos row + its script
+    into a Remotion payload.
+
+    Slide list assembled from the script's structured beats:
+      1. translation-reveal — hook narration; reveal_conventional /
+         reveal_hidden drive the two contrasting rows.
+      2. verse-flow         — verse_intro narration; the target word
+         (script.selected_word_pos) is highlighted, and english_emphases
+         drives the English-side highlight pills.
+      3. word-lens          — insight narration; conventional gloss
+         struck through, AI gloss in rose, evidence_chip below. Only
+         emitted when a target word is set AND the word has a usable
+         AI-preferred meaning. Phrase-level / grammar-driven verses
+         skip this slide entirely; insight narration is concatenated
+         onto the verse-flow slide instead.
+      4. outro              — silent splash. Close narration is merged
+         onto the previous slide so the splash visual doesn't overlap
+         spoken text.
+    """
+    chapter = int(rd["chapter"])
+    verse = int(rd["verse"])
+
+    vd = _verse_data(conn, chapter, verse)
+    if not vd:
+        raise RemotionRenderError(f"verse data missing for {chapter}:{verse}")
+
+    # Strip the bismillah from verse 1 of every surah except 1:1, same
+    # reason as in build_grammar_insights_payload: word indices on
+    # ai_word_meanings count against the bismillah-stripped verse.
+    import app as _app
+    arabic = _strip_uthmani_marks(_app._strip_bismillah(vd["arabic"], chapter, verse))
+    translation = vd["translation"] or ""
+
+    target_pos = _maybe_rose_highlight_word_index(script)
+
+    # Per-slide narration sourced from the script's structured beats.
+    hook_text = sanitize_for_tts((script.get("hook") or "").strip())
+    intro_text = sanitize_for_tts((script.get("verse_intro") or "").strip())
+    insight_text = sanitize_for_tts((script.get("insight") or "").strip())
+    close_text = sanitize_for_tts((script.get("close") or "").strip())
+
+    # English emphases — phrase-level spans on the verse translation.
+    # Same shape as the grammar series uses. All emphases share the
+    # rose marker (no per-chunk color variation for this series; the
+    # whole video IS the contrast).
+    en_emphases: list[dict] = []
+    raw_em = script.get("english_emphases")
+    if isinstance(raw_em, list):
+        for s in raw_em:
+            if isinstance(s, str) and s.strip():
+                en_emphases.append({"phrase": s.strip(), "marker": "fronted"})  # rose pill
+
+    # 1. translation-reveal slide. Hook beat narration plays over it.
+    reveal_slide: dict = {
+        "type": "translation-reveal",
+        "durationSec": 7,
+        "conventionalLabel": "Most translations say",
+        "conventionalText": (script.get("reveal_conventional") or "").strip(),
+        "hiddenLabel": "The Arabic actually says",
+        "hiddenText": (script.get("reveal_hidden") or "").strip(),
+    }
+    # Show the target word's Arabic on the reveal slide too — only when
+    # a single word is the focus. For phrase-level reveals we omit it
+    # so the slide doesn't imply false specificity.
+    if target_pos:
+        arabic_at_target = _word_arabic_at_pos(conn, chapter, verse, target_pos)
+        if arabic_at_target:
+            reveal_slide["arabic"] = _strip_uthmani_marks(arabic_at_target)
+    if hook_text:
+        reveal_slide["narration"] = {"text": hook_text}
+
+    # 2. verse-flow slide. verse_intro narration plays. Highlight the
+    # target word in the Arabic and the english_emphases in the
+    # translation so the viewer connects "this Arabic word" ↔ "this
+    # English span" before the lens reveal explains what's behind it.
+    verse_slide: dict = {
+        "type": "verse-flow",
+        "durationSec": 10,
+        "surah": chapter,
+        "ayah": verse,
+        "arabicText": arabic,
+        "translation": translation,
+    }
+    if target_pos:
+        verse_slide["highlightWordIndex"] = target_pos
+    # The existing verse-flow slide supports a single highlight word +
+    # a single highlight phrase via highlightTranslationText. Use the
+    # first emphasis as the translation highlight; the rest are
+    # implicit (this series favors one focus per video).
+    if en_emphases:
+        verse_slide["highlightTranslationText"] = en_emphases[0]["phrase"]
+    if intro_text:
+        verse_slide["narration"] = {"text": intro_text}
+
+    slides: list[dict] = [reveal_slide, verse_slide]
+
+    # 3. word-lens slide (conditional). Only emitted when a target word
+    # is set and we can resolve a usable AI gloss for it. Otherwise the
+    # insight narration is concatenated onto the verse-flow slide so the
+    # spoken reveal still plays — just over the verse instead of a
+    # dedicated lens.
+    lens_emitted = False
+    if target_pos:
+        lens_data = _word_lens_data_for(conn, chapter, verse, target_pos)
+        target_arabic = _word_arabic_at_pos(conn, chapter, verse, target_pos)
+        if lens_data and target_arabic and lens_data["ai_meaning_short"]:
+            # We need BOTH a conventional gloss (for the strikethrough
+            # row) and an AI gloss. Without the conventional, the
+            # strikethrough has nothing to strike — fall back to a
+            # neutral label so the slide still renders meaningfully.
+            conv = lens_data["conventional_gloss"]
+            if not conv:
+                # Use the script's reveal_conventional as the upper row's
+                # fallback. Slightly redundant with the reveal slide but
+                # the viewer's seen enough variation by now that the
+                # repetition reinforces rather than bores.
+                conv = (script.get("reveal_conventional") or "").strip() or "the usual reading"
+            lens_slide: dict = {
+                "type": "word-lens",
+                "durationSec": 12,
+                "arabic": _strip_uthmani_marks(target_arabic),
+                "wordPos": target_pos,
+                "conventionalGloss": conv,
+                "hiddenGloss": lens_data["ai_meaning_short"],
+                "strikeConventional": True,
+            }
+            if lens_data["transliteration"]:
+                lens_slide["transliteration"] = lens_data["transliteration"]
+            chip = (script.get("evidence_chip") or "").strip()
+            if chip:
+                lens_slide["evidenceChip"] = chip
+            if insight_text:
+                lens_slide["narration"] = {"text": insight_text}
+            slides.append(lens_slide)
+            lens_emitted = True
+
+    if not lens_emitted and insight_text:
+        # No lens slide — concat insight onto verse-flow so the reveal
+        # still gets spoken aloud. Bump the verse-flow's dwell time too
+        # so the audio fits.
+        existing = ((verse_slide.get("narration") or {}).get("text") or "").strip()
+        combined = (existing + " " + insight_text).strip() if existing else insight_text
+        verse_slide["narration"] = {"text": sanitize_for_tts(combined).strip()}
+        # Insight beats are ~25s; verse-flow's default 10s is too short.
+        verse_slide["durationSec"] = 18
+
+    # 4. close beat merges onto the final pre-outro slide so the outro
+    # splash plays silently. Mirrors grammar-insights' approach.
+    if close_text:
+        _merge_close_into_last_verse_or_lens(slides, close_text)
+
+    # 5. Outro.
+    outro = _build_outro_slide()
+    pipeline_id = rd.get("pipeline_id")
+    if pipeline_id:
+        outro_fname, outro_dur = _stage_outro_audio(int(pipeline_id), conn)
+        if outro_fname:
+            outro["outroAudioFile"] = outro_fname
+            # Match the audio length plus a small tail so the splash
+            # doesn't cut off the bite.
+            outro["durationSec"] = max(outro["durationSec"], outro_dur + 0.4)
+    slides.append(outro)
+
+    payload: dict = {
+        "slides": slides,
+        "videoId": str(rd.get("id", "")),
+        "title": f"Translation Hides — {chapter}:{verse}",
+    }
+    return payload
+
+
+def _merge_close_into_last_verse_or_lens(slides: list[dict], close_text: str) -> None:
+    """Like _merge_close_into_last_verse, but accepts a word-lens slide
+    as a target too. Walks backwards through the slide list and merges
+    the close beat onto the first slide that supports narration (i.e.
+    not the outro). Mutates `slides` in place."""
+    close = (close_text or "").strip()
+    if not close:
+        return
+    for s in reversed(slides):
+        if s.get("type") in ("word-lens", "verse-flow", "translation-reveal"):
+            existing = ((s.get("narration") or {}).get("text") or "").strip()
+            combined = f"{existing} {close}".strip() if existing else close
+            s["narration"] = {"text": sanitize_for_tts(combined).strip()}
+            return
+
+
+def render_translation_hides_video(
+    conn,
+    video_id: int,
+    *,
+    format: str,
+    elevenlabs_api_key: str,
+    voice_id: str,
+) -> tuple[str, int]:
+    """Build the translation-hides payload, invoke the Remotion
+    subprocess, return (filename, file_size_bytes). Same contract as
+    render_grammar_insights_video and render_word_origins_video so the
+    orchestrator's status flow is unchanged.
+    """
+    if format not in ("long", "short"):
+        raise RemotionRenderError(f"unknown format: {format}")
+    if not os.path.isfile(RENDER_SCRIPT):
+        raise RemotionRenderError(
+            f"Remotion renderer not found at {RENDER_SCRIPT}. "
+            f"Make sure roots/video-renderer/ is present and `npm install` "
+            f"has been run in that directory."
+        )
+
+    row = conn.execute(
+        "SELECT * FROM educational_videos WHERE id = ?", (video_id,)
+    ).fetchone()
+    if not row:
+        raise RemotionRenderError(f"video {video_id} not found")
+    rd = dict(row)
+    if not rd.get("script_json"):
+        raise RemotionRenderError("no script on this row — generate first")
+    script = json.loads(rd["script_json"])
+
+    payload = build_translation_hides_payload(conn, rd, script)
+    if not payload["slides"]:
+        raise RemotionRenderError("payload has no renderable slides")
+
+    out_filename = f"{video_id:06d}-{format}.mp4"
+    out_path = os.path.join(OUTPUT_DIR, out_filename)
+
+    with tempfile.NamedTemporaryFile(
+        "w", suffix=".json", delete=False, encoding="utf-8"
+    ) as f:
+        json.dump(payload, f, ensure_ascii=False)
+        payload_path = f.name
+
+    env = dict(os.environ)
+    env["ELEVENLABS_API_KEY"] = elevenlabs_api_key or ""
+    env["ELEVENLABS_VOICE_ID"] = voice_id or ""
+
+    cmd = [
+        "node",
+        "--env-file-if-exists=.env",
+        "scripts/render.mjs",
+        "--payload", payload_path,
+        "--out", out_path,
+    ]
+
+    try:
+        proc = subprocess.run(
+            cmd, cwd=RENDERER_DIR, env=env,
+            capture_output=True, text=True, timeout=600,
+        )
+    except subprocess.TimeoutExpired as e:
+        raise RemotionRenderError(
+            f"Remotion render timed out after {e.timeout}s. "
+            f"stderr tail: {((e.stderr or b'')[-800:] or b'').decode('utf-8', errors='replace')}"
+        )
+    finally:
+        try:
+            os.remove(payload_path)
+        except OSError:
+            pass
+
+    if proc.returncode != 0:
+        tail = (proc.stderr or "")[-800:]
+        raise RemotionRenderError(f"Remotion render failed: {tail}")
+
+    last = (proc.stdout or "").strip().splitlines()
+    if not last:
+        raise RemotionRenderError("Remotion renderer produced no stdout")
+    try:
+        result = json.loads(last[-1])
+    except json.JSONDecodeError:
+        raise RemotionRenderError(f"Remotion stdout not JSON: {last[-1][:200]}")
+    if not result.get("ok"):
+        raise RemotionRenderError(
+            f"Remotion render failed: {result.get('error') or 'unknown'}"
+        )
+    if not os.path.isfile(out_path):
+        raise RemotionRenderError(
+            f"Remotion reported success but {out_path} doesn't exist"
+        )
+    return out_filename, os.path.getsize(out_path)
+
+
 def render_word_origins_video(
     conn,
     video_id: int,

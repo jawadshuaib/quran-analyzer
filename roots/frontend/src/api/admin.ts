@@ -1460,6 +1460,11 @@ export interface EducationalCandidate {
   deriv_count?: number;
   // Translation Hides
   departure_notes?: string;
+  // Composite-score signals surfaced on the candidate row so the
+  // operator can scan ranking at a glance. Both come from the backend's
+  // SQL scorer (ai_word_meanings + verse_grammar_insights joins).
+  ai_word_count?: number;  // count of words with preferred_source IN ('ai', 'judge')
+  has_v7?: number;         // 1 if the verse carries an eligible V7 insight
   // Grammar Insights
   category?: string;
   title?: string;

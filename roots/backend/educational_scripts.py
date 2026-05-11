@@ -169,7 +169,11 @@ Output schema (all keys required, all strings unless noted):
   "verse_intro":   "(non-Word Origins) 1 sentence introducing the verse reference and what it says. Empty for Word Origins.",
   "insight":       "(non-Word Origins) 2-4 sentences delivering the payload. Empty for Word Origins.",
   "close":         "1 sentence reflective close. End on the meaning, not on a doctrinal claim.",
-  "english_emphases": "(Grammar Insights ONLY) Array of 1-4 short phrases pulled VERBATIM from the verse's English translation that you want highlighted on the verse card. Pick phrases that most clearly carry the grammatical move you're explaining — e.g. for a 'we vs I' insight on 1:5 you might pick [\"You alone we serve\", \"You alone we seek help from\"]. Each phrase MUST appear character-for-character in the translation, and the phrases MUST NOT overlap each other in the translation (no phrase's text can sit inside another phrase's span). The renderer highlights every occurrence of each disjoint phrase. Empty array [] for other types.",
+  "english_emphases": "(Grammar Insights AND Translation Hides) Array of 1-4 short phrases pulled VERBATIM from the verse's English translation that you want highlighted on the verse card. For Grammar Insights, pick phrases that carry the grammatical move you're explaining. For Translation Hides, pick the phrases the viewer should LOOK AT while you reveal the hidden nuance (typically the conventionally-translated phrase whose meaning you're refining). Each phrase MUST appear character-for-character in the translation, and the phrases MUST NOT overlap each other in the translation (no phrase's text can sit inside another phrase's span). The renderer highlights every occurrence of each disjoint phrase. Empty array [] for Word Origins.",
+  "selected_word_pos": "(Translation Hides ONLY) Integer 1-based position of the primary 'lens' word in the verse's Arabic text (split on whitespace), if a single word carries the hidden nuance. The renderer uses this to drive the Word Lens slide (conventional gloss vs AI gloss side-by-side) and to highlight the matching Arabic word on the verse-flow slide. Set to null or 0 if the nuance is phrase-level or purely grammatical and no single word is the focus. For all other types, set to null.",
+  "reveal_conventional": "(Translation Hides ONLY) ≤80 chars. The conventional rendering as a SHORT noun phrase or quotation — what most viewers think the verse says. Renders as the top muted row of the opening reveal slide. Examples: \"a beautiful patience\" / \"those who believe and do good deeds\" / \"His Lord, in mercy\". Keep it tight; this is a glance-read, not a sentence. Empty string '' for other types.",
+  "reveal_hidden": "(Translation Hides ONLY) ≤80 chars. The actual nuance the conventional rendering flattens, as a SHORT contrasting phrase. Renders as the bottom saturated rose row. Examples: \"patience that is beautiful by being\" / \"those who believed and built\" / \"His Lord, whose mercy IS Him\". Must contrast meaningfully with reveal_conventional — same topic, different angle. Keep it tight; one phrase, not a sentence. Empty string '' for other types.",
+  "evidence_chip": "(Translation Hides ONLY, optional) ≤60 chars. One-line provenance label rendered as a small pill below the AI gloss on the Word Lens slide. Names WHY the AI gloss is preferred. Use one of these forms: \"morphology: <thing>\" / \"lexical: <thing>\" / \"context: <thing>\" / \"cognate: <thing>\". Examples: \"morphology: passive voice, agent omitted\" / \"lexical: root sense across Semitic\" / \"context: contrasts 2:155 usage\". Empty string '' if you can't name a specific evidence kind, or for other types.",
   "additional_examples": "(Grammar Insights ONLY) Array of 0-2 cross-reference verses that show the same grammatical move elsewhere in the Quran. STRONG DEFAULT IS 1 entry. Pick a second ONLY if leaving it out would noticeably weaken the argument — i.e. the second verse demonstrates something the first doesn't (different rhetorical register, different scope, surprising context). If the second example would just re-prove what the first already proved, leave it out. Each entry: {\"chapter\": N, \"verse\": N, \"narration\": \"...\", \"english_emphases\": [...]}. Picks MUST come from `additional_example_candidates` in the payload — do not invent references. Narration is SHORT (≤55 words, ≈12-15s of voiceover): open with 'In another verse,' or 'Elsewhere,'; quote ≤8 words from the example translation; one sentence on how the pattern shows up here. Do NOT re-explain the grammatical concept — the viewer already heard it on the main verse. english_emphases follows the top-level rules but matches THIS example's translation. Empty array [] when no candidate fits.",
   "voiceover_long":  "Concatenated narration 220-340 words (target ~280; absolute minimum 180), smooth flow, suitable for ElevenLabs TTS. DO NOT include Arabic recitation — the reciter's audio plays separately. For Word Origins, structure the narration as: (1) hook + tidbit_about_root narrated over the source verse on screen, (2) tidbit_about_quran_usage narrated over selected_verse_refs[0], (3) tidbit_about_semitic narrated over selected_verse_refs[1]. The video shows the verses; the narration is the connective tissue.",
   "voiceover_short": "Concatenated narration up to 200 words (target 140-180), suitable for a punchy short-form video that may run a bit over a minute. Same Word Origins structure compressed; one short tidbit per verse on screen. Same exclusion: no Arabic recitation in the narration.",
@@ -564,6 +568,115 @@ def _fetch_departure_note(conn, chapter: int, verse: int) -> str | None:
     return row["departure_notes"] if row else None
 
 
+def _fetch_translation_hides_word_lens(conn, chapter: int, verse: int) -> list[dict]:
+    """Per-word AI-preferred meanings for the 'translation hides' lens.
+
+    Returns the words on this verse where the AI judge picked the AI's
+    meaning over the conventional gloss (preferred_source = 'ai' or 'judge'),
+    sorted by word position. Each entry carries enough context for the
+    script writer to decide which word(s) to spotlight in the video:
+      - conventional gloss (from word_glosses or morphology surface)
+      - AI short meaning
+      - AI detailed explanation (the prose paragraph)
+      - the Arabic form
+
+    Returns [] when no per-word AI meanings exist for the verse, or when
+    every word's preferred translation matches the conventional one
+    (i.e. nothing is being hidden at the word level).
+    """
+    rows = conn.execute(
+        """
+        SELECT awm.word_pos,
+               awm.meaning_short,
+               awm.meaning_detailed,
+               awm.preferred_translation,
+               awm.preferred_source,
+               wg.gloss AS conv_gloss
+        FROM ai_word_meanings awm
+        LEFT JOIN word_glosses wg
+          ON wg.chapter = awm.chapter AND wg.verse = awm.verse
+         AND wg.word_pos = awm.word_pos
+        WHERE awm.chapter = ? AND awm.verse = ?
+          AND awm.preferred_source IN ('ai', 'judge')
+          AND TRIM(COALESCE(awm.meaning_short, '')) != ''
+        ORDER BY awm.word_pos
+        """,
+        (chapter, verse),
+    ).fetchall()
+
+    out: list[dict] = []
+    for r in rows:
+        # Fetch the Arabic surface form for this word position. The
+        # morphology table has one row per (chapter, verse, word_pos,
+        # segment) — concatenate segments to get the visible word.
+        seg_rows = conn.execute(
+            "SELECT form_arabic FROM morphology "
+            "WHERE chapter = ? AND verse = ? AND word_pos = ? "
+            "ORDER BY segment_pos",
+            (chapter, verse, r["word_pos"]),
+        ).fetchall()
+        arabic = "".join((s["form_arabic"] or "") for s in seg_rows)
+
+        conv = (r["conv_gloss"] or "").strip()
+        ai_short = (r["meaning_short"] or "").strip()
+        # Skip words where the AI gloss is essentially identical to the
+        # conventional one — nothing is hidden there, just confirmed.
+        if conv and ai_short and conv.lower() == ai_short.lower():
+            continue
+        out.append({
+            "word_pos": int(r["word_pos"]),
+            "arabic": arabic,
+            "conventional_gloss": conv,
+            "ai_meaning_short": ai_short,
+            "ai_meaning_detailed": (r["meaning_detailed"] or "").strip(),
+            "preferred_source": r["preferred_source"],
+        })
+    return out
+
+
+def _fetch_translation_hides_grammar_insight(conn, chapter: int, verse: int) -> dict | None:
+    """Best V7 grammar insight on this verse, if one exists and is
+    high-quality enough to corroborate the translation-hides reveal.
+
+    Looks for an eligible insight from the most recent v7-unified
+    config; returns None if no such row, no V7 JSON, or no eligible
+    insights with confidence ≥ 0.7. Optional context — the script
+    works without it; presence just sharpens the prompt.
+    """
+    row = conn.execute(
+        """
+        SELECT gi.insights_v7_json
+        FROM verse_grammar_insights gi
+        JOIN grammar_insight_configs c ON gi.config_id = c.id
+        WHERE gi.chapter = ? AND gi.verse = ?
+          AND c.config_name = 'grammar-insights-quran-only-v7-unified'
+          AND gi.insights_v7_json IS NOT NULL
+          AND gi.insights_v7_json != ''
+        ORDER BY gi.created_at DESC
+        LIMIT 1
+        """,
+        (chapter, verse),
+    ).fetchone()
+    if not row:
+        return None
+    try:
+        insights = json.loads(row["insights_v7_json"]) or []
+    except Exception:
+        return None
+    # Pick the highest-confidence eligible insight.
+    best = None
+    best_conf = -1.0
+    for ins in insights:
+        if not isinstance(ins, dict):
+            continue
+        if not (ins.get("display") or {}).get("eligible"):
+            continue
+        conf = float((ins.get("quality") or {}).get("overall_confidence") or 0.0)
+        if conf >= 0.7 and conf > best_conf:
+            best, best_conf = ins, conf
+    return best
+
+
 def enrich_payload(conn: sqlite3.Connection, row: dict) -> dict:
     """Build the LLM grounding payload for a candidate row.
 
@@ -644,6 +757,17 @@ def enrich_payload(conn: sqlite3.Connection, row: dict) -> dict:
                 f"no departure note for {chapter}:{verse} in ai_translations"
             )
         base["departure_notes"] = note
+        # Optional corroborating signals — per-word AI-preferred meanings
+        # (which word actually carries the hidden nuance?) and the V7
+        # grammar insight on the verse (if any). Both are non-fatal:
+        # the script still generates without them, the prompt is just
+        # less sharp.
+        word_lens = _fetch_translation_hides_word_lens(conn, chapter, verse)
+        if word_lens:
+            base["word_lens"] = word_lens
+        gi = _fetch_translation_hides_grammar_insight(conn, chapter, verse)
+        if gi:
+            base["grammar_insight"] = gi
 
     elif vtype == "grammar_insights":
         iid = row.get("anchor_insight_id")
@@ -769,16 +893,69 @@ def _build_user_prompt(payload: dict) -> str:
         )
 
     elif vtype == "translation_hides":
+        # Optional rich context: the per-word AI meanings flag which
+        # specific word(s) carry the hidden nuance, and the V7 grammar
+        # insight (if any) names the grammatical move that creates it.
+        # When either is present, the LLM gets a much sharper picture
+        # of WHAT the translation actually hides, instead of having to
+        # infer it from prose alone.
+        word_lens_block = ""
+        wl = payload.get("word_lens") or []
+        if wl:
+            lines = []
+            for w in wl[:6]:
+                pos = w.get("word_pos")
+                ar = w.get("arabic") or ""
+                conv = (w.get("conventional_gloss") or "").strip()
+                ai = (w.get("ai_meaning_short") or "").strip()
+                detail = (w.get("ai_meaning_detailed") or "").strip()
+                lines.append(
+                    f"- word {pos} ({ar}): conventional='{conv}' → AI='{ai}'"
+                    + (f"\n    detail: {detail[:240]}" if detail else "")
+                )
+            word_lens_block = (
+                "\nPer-word AI-preferred meanings (the most likely 'lens' words for this video):\n"
+                + "\n".join(lines)
+                + "\n"
+            )
+
+        grammar_block = ""
+        gi = payload.get("grammar_insight") or {}
+        if gi:
+            claim = (gi.get("claim", {}) or {}).get("observation") or gi.get("insight") or ""
+            payoff = (gi.get("meaning_payoff", {}) or {}).get("text") or ""
+            if claim or payoff:
+                grammar_block = (
+                    "\nGrammar move at play (V7 insight on this verse):\n"
+                    f"- observation: {(claim or '').strip()[:400]}\n"
+                    f"- payoff: {(payoff or '').strip()[:400]}\n"
+                )
+
         body = (
-            "Series: What Translators Hide. Show the nuance the conventional rendering flattens.\n\n"
+            "Series: What Translation Hides. Reveal a meaningful nuance that the conventional English translation flattens — what only the underlying Arabic, word usage, or grammar makes visible.\n\n"
             f"{header}\n"
             "Departure note (the nuance our AI translator flagged):\n"
-            f"\"\"\"\n{payload['departure_notes']}\n\"\"\"\n\n"
-            "Guidance for this script:\n"
-            "- Hook on the gap between conventional and nuanced.\n"
-            "- Insight section: paraphrase the departure note as your own argument; do not quote it verbatim.\n"
-            "- Close on what the nuance unlocks, not on a doctrinal claim.\n"
-            "- languages_referenced: [] (this series doesn't cite languages)."
+            f"\"\"\"\n{payload['departure_notes']}\n\"\"\"\n"
+            f"{word_lens_block}{grammar_block}\n"
+            "VIDEO STRUCTURE you are writing for (4 narration beats, ~55s total):\n"
+            "  hook        (~8s, ≤22 words): Name the contrast plainly — 'Most translations say X. The Arabic actually says Y.' Or a question framing the same gap. End with a sense of 'here's what's hidden.'\n"
+            "  verse_intro (~12s, 2-3 sentences): Read in the verse reference + a tight version of the conventional reading. Sets the baseline the viewer thinks they know.\n"
+            "  insight     (~25s, 3-4 sentences): The reveal. Paraphrase the departure note (NEVER quote it verbatim) as if you're explaining it to a smart non-specialist. If a single word is the lens, name it, give its conventional vs AI gloss, then explain what that swap unlocks. If grammar is the lens, name the move and what it does. Be concrete — point at the Arabic, the morphology, or the cross-reference, not at vague 'depth.'\n"
+            "  close       (~5s, 1 sentence): What the verse actually conveys when you read it this way. End on the meaning, NOT a doctrinal claim.\n\n"
+            "Required output fields:\n"
+            "- reveal_conventional: ≤80 chars. The conventional rendering as a short noun phrase / glance-read quotation. Top row of the opening slide.\n"
+            "- reveal_hidden: ≤80 chars. The actual nuance as a short contrasting phrase. Bottom row of the opening slide. MUST contrast meaningfully with reveal_conventional — same topic, different angle. Don't repeat reveal_conventional.\n"
+            "- selected_word_pos: integer 1-based position of the primary 'lens' word in the verse's Arabic (split on whitespace), if a single word carries the nuance. If the nuance is phrase-level or purely grammatical, set to null/0.\n"
+            "- evidence_chip (optional, ≤60 chars): ONE phrase naming WHY the AI gloss is preferred. Format: \"morphology: …\", \"lexical: …\", \"context: …\", or \"cognate: …\". Empty string '' if you can't name a clear evidence kind.\n"
+            "- english_emphases: 1-3 short phrases from the conventional translation that you want highlighted on the verse slide (the words the viewer should look at while you talk). Each MUST appear verbatim. Non-overlapping.\n\n"
+            "Guidance:\n"
+            "- Be confident, not academic. The viewer is curious, not a scholar.\n"
+            "- No tafsir, no hadith, no schools-of-thought references — only what's grounded in the verse's morphology, lexical evidence, or cross-references in the Quran itself.\n"
+            "- voiceover_long is the concatenated narration (hook + verse_intro + insight + close), 220-340 words.\n"
+            "- voiceover_short is the same compressed to ≤200 words for the 55-65s short.\n"
+            "- languages_referenced: [] (this series doesn't cite languages).\n"
+            "- selected_verse_refs: [] (this series doesn't cross-reference other verses on screen).\n"
+            "- additional_examples: [] (Grammar Insights only)."
         )
 
     elif vtype == "grammar_insights":
@@ -1333,7 +1510,12 @@ def _validate(script: dict, payload: dict) -> list[str]:
                 f"Allowed pool: {allowed_pool}"
             )
 
-    elif payload["type"] == "grammar_insights":
+    elif payload["type"] in ("grammar_insights", "translation_hides"):
+        # Most of the structural / style guardrails are shared between
+        # the two non-Word-Origins series — they both use the same
+        # 4-beat structure (hook / verse_intro / insight / close), both
+        # use english_emphases to highlight phrases on the verse card,
+        # and both should resist the same essayist tics.
         # Stop-line discipline: the close beat must be ≤2 sentences.
         # The prompt asks for ONE sentence, but a real period-bearing
         # secondary clause (e.g. introductory phrase + main clause) is
@@ -1538,12 +1720,98 @@ def _validate(script: dict, payload: dict) -> list[str]:
                         f"keep it to 1-4 short phrases."
                     )
 
+        # additional_examples is grammar_insights-only. translation_hides
+        # videos focus on a single verse — no on-screen cross-references.
+        # Skip the cross-ref candidate-pool check entirely for the new
+        # series; just enforce that the field is empty/absent.
+        if payload["type"] == "translation_hides":
+            ax = script.get("additional_examples")
+            if ax is not None and isinstance(ax, list) and len(ax) > 0:
+                errors.append(
+                    "additional_examples must be [] for translation_hides "
+                    "(this series doesn't cross-reference other verses on "
+                    "screen). Got "
+                    f"{len(ax)} entries."
+                )
+
+            # Reveal slide fields — both required, both short, must differ.
+            # These drive the opening "Most translations say X / The Arabic
+            # actually says Y" contrast slide.
+            for fld, limit in (("reveal_conventional", 80), ("reveal_hidden", 80)):
+                val = script.get(fld)
+                if not isinstance(val, str) or not val.strip():
+                    errors.append(
+                        f"{fld} is required for translation_hides and must "
+                        f"be a non-empty string."
+                    )
+                elif len(val.strip()) > limit:
+                    errors.append(
+                        f"{fld} is {len(val.strip())} chars; limit is "
+                        f"{limit}. Tighten to a glance-readable phrase."
+                    )
+            rc = (script.get("reveal_conventional") or "").strip().lower()
+            rh = (script.get("reveal_hidden") or "").strip().lower()
+            if rc and rh and rc == rh:
+                errors.append(
+                    "reveal_conventional and reveal_hidden are identical — "
+                    "the slide's whole purpose is to show a contrast. Make "
+                    "them say different things."
+                )
+
+            # evidence_chip — optional, but if present must be short and
+            # follow one of the named evidence-kind prefixes so the chip
+            # reads as deliberate, not freeform.
+            chip = script.get("evidence_chip")
+            if chip is not None and isinstance(chip, str) and chip.strip():
+                chip_s = chip.strip()
+                if len(chip_s) > 60:
+                    errors.append(
+                        f"evidence_chip is {len(chip_s)} chars; limit is 60."
+                    )
+                # Soft check — the prompt asks for one of these prefixes;
+                # the validator nudges the LLM but doesn't hard-fail other
+                # phrasings (some legitimate chips might not fit any prefix).
+                allowed_prefixes = ("morphology:", "lexical:", "context:", "cognate:", "grammar:")
+                if not any(chip_s.lower().startswith(p) for p in allowed_prefixes):
+                    # Demote to a warning by NOT appending to errors — the
+                    # field is optional and the chip still renders. Print
+                    # to stderr-equivalent so the operator sees it but the
+                    # script still validates.
+                    print(
+                        f"[script-validate] evidence_chip {chip_s!r} doesn't start with "
+                        f"one of {allowed_prefixes} — chip will render but may read "
+                        f"as ad-hoc."
+                    )
+
+            # selected_word_pos — optional integer 1-based position of
+            # the primary 'lens' word on the verse. The renderer uses it
+            # to highlight that word in the verse-flow slide and to drive
+            # the word-lens slide that shows conventional vs AI gloss.
+            # Accept 0/null to mean "phrase-level or grammar-driven; no
+            # single word is the focus." When set, must be a valid
+            # 1-based index into the verse's whitespace-split Arabic.
+            swp = script.get("selected_word_pos")
+            if swp is not None and swp != 0:
+                if not isinstance(swp, int) or swp < 1:
+                    errors.append(
+                        f"selected_word_pos must be a positive integer or "
+                        f"null/0 (got {swp!r})."
+                    )
+                else:
+                    arabic = (payload.get("verse") or {}).get("text_uthmani") or ""
+                    word_count = len([w for w in arabic.split() if w.strip()])
+                    if word_count and swp > word_count:
+                        errors.append(
+                            f"selected_word_pos={swp} exceeds the verse's "
+                            f"word count {word_count}."
+                        )
+
         # additional_examples must come from the candidate pool, with
         # narration text and (optional) english_emphases that match
         # the example verse's translation. Hard-validate so the LLM
-        # can't invent references.
+        # can't invent references. Grammar-insights only.
         ax = script.get("additional_examples")
-        if ax is not None:
+        if payload["type"] == "grammar_insights" and ax is not None:
             if not isinstance(ax, list):
                 errors.append(
                     "additional_examples must be a list (got "

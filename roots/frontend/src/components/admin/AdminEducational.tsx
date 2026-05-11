@@ -28,7 +28,7 @@ import {
  * Tabs:
  *   Word Origins        — verses with content words whose root has
  *                         cognates in ≥2 distinct Semitic languages
- *   What Translators Hide — verses with substantial departure_notes
+ *   What Translation Hides — verses with substantial departure_notes
  *                         on their AI translation
  *   Grammar Insights    — verses with V7 insights at primary tier &
  *                         confidence ≥ 0.7 (counterfactuals weighted
@@ -44,7 +44,7 @@ const TABS: { id: EducationalType; label: string; blurb: string }[] = [
   },
   {
     id: 'translation_hides',
-    label: 'What Translators Hide',
+    label: 'What Translation Hides',
     blurb:
       'Verses where standard renderings flatten a real nuance — the departure note is the payload.',
   },
@@ -258,11 +258,43 @@ function CandidateRow({
           </div>
         )}
         {type === 'translation_hides' && c.departure_notes && (
-          <p className="text-sm text-stone-700 mb-1 line-clamp-3">
-            {c.departure_notes.length > 220
-              ? c.departure_notes.slice(0, 220) + '…'
-              : c.departure_notes}
-          </p>
+          <>
+            {/* Signal badges — surface the composite-score signals so
+                the operator can see at a glance WHY a candidate ranks
+                where it does. AI-word count = how many words have an
+                AI-preferred meaning (each is a candidate 'lens' for
+                the video). V7 = the verse also carries an eligible
+                grammar insight, which lets the script pair lexical
+                and grammatical evidence. */}
+            <div className="text-xs text-stone-500 flex items-center flex-wrap gap-1.5 mb-1">
+              {(c.ai_word_count ?? 0) > 0 && (
+                <span
+                  className="px-1.5 py-0.5 rounded-sm bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-medium"
+                  title="Number of words on this verse where the AI judge picked the AI gloss over the conventional one. Each is a candidate 'lens' word for the video."
+                >
+                  {c.ai_word_count} AI-preferred word{(c.ai_word_count ?? 0) === 1 ? '' : 's'}
+                </span>
+              )}
+              {c.has_v7 ? (
+                <span
+                  className="px-1.5 py-0.5 rounded-sm bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-medium"
+                  title="This verse also has an eligible V7 grammar insight — the script can pair lexical and grammatical evidence."
+                >
+                  + grammar insight
+                </span>
+              ) : null}
+              {c.departure_notes && (
+                <span className="font-mono">
+                  {c.departure_notes.length} chars
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-stone-700 mb-1 line-clamp-3">
+              {c.departure_notes.length > 220
+                ? c.departure_notes.slice(0, 220) + '…'
+                : c.departure_notes}
+            </p>
+          </>
         )}
         {type === 'grammar_insights' && (
           <>

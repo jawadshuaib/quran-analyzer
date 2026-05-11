@@ -46,6 +46,18 @@ export const COLORS = {
   contrastSaidBg: '#CCFBF1',         // teal-100 — pill background
   contrastAlt: '#78716C',            // stone-500 — alternative (muted)
   contrastAltBg: '#F5F5F4',          // stone-100 — pill background
+  // What Translation Hides series — rose accent. Distinct from
+  // yellow (Word Origins) and amber (Grammar Insights) so viewers
+  // learn "rose edge = translation-hides series" the same way they
+  // learn the other two series at a glance on the channel page.
+  // Reads as "something hidden / lifted veil" rather than "warning".
+  translationAccent: '#BE123C',          // rose-700 — primary accent (lines, labels)
+  translationAccentSoft: '#FFE4E6',      // rose-100 — highlight pill background
+  translationAccentDeep: '#9F1239',      // rose-800 — body emphasis text
+  // "Conventional" row on the reveal slide — muted stone so the
+  // viewer's eye is drawn to the rose "hidden" row by contrast.
+  translationConvText: '#78716C',        // stone-500 — muted body
+  translationConvBg: '#F5F5F4',          // stone-100 — pill background
 } as const;
 
 // Vertical 1080x1920 to match the existing educational pipeline
