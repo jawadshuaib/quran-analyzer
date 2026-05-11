@@ -1,6 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { VerseFlowSlideT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
+import { wrapArabicRuns } from './arabic-runs';
 
 // Slide B — full verse with the target word highlighted in soft yellow.
 //
@@ -171,14 +172,14 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
           >
             {enMatchStart >= 0 ? (
               <>
-                {slide.translation.slice(0, enMatchStart)}
+                {wrapArabicRuns(slide.translation.slice(0, enMatchStart))}
                 <SweepHighlight progress={enSweep} originSide="left">
-                  {slide.translation.slice(enMatchStart, enMatchEnd)}
+                  {wrapArabicRuns(slide.translation.slice(enMatchStart, enMatchEnd))}
                 </SweepHighlight>
-                {slide.translation.slice(enMatchEnd)}
+                {wrapArabicRuns(slide.translation.slice(enMatchEnd))}
               </>
             ) : (
-              slide.translation
+              wrapArabicRuns(slide.translation)
             )}
           </p>
         </div>

@@ -1,6 +1,7 @@
 import { useCurrentFrame, useVideoConfig, interpolate } from 'remotion';
 import type { NarrationT } from '../types';
 import { COLORS, SYSTEM_FONT } from './shared';
+import { wrapArabicRuns } from './arabic-runs';
 
 // Karaoke overlay — bottom-anchored caption that highlights words
 // as the narrator speaks them.
@@ -345,7 +346,7 @@ export function KaraokeOverlay({
                     fontWeight: 600,
                   }}
                 >
-                  {w.display}
+                  {wrapArabicRuns(w.display)}
                 </span>
               );
             })}

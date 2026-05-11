@@ -1,6 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, spring, useVideoConfig } from 'remotion';
 import type { RootSlideT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
+import { wrapArabicRuns } from './arabic-runs';
 
 // Slide A — root word reveal.
 // Layout (1080x1920 vertical):
@@ -104,7 +105,7 @@ export function RootPage({ slide }: { slide: RootSlideT }) {
               marginBottom: 20,
             }}
           >
-            {slide.meaningTitle || 'Meaning'}
+            {wrapArabicRuns(slide.meaningTitle || 'Meaning')}
           </div>
           <div
             style={{
@@ -117,7 +118,7 @@ export function RootPage({ slide }: { slide: RootSlideT }) {
               lineHeight: 1.3,
             }}
           >
-            {slide.meaning}
+            {wrapArabicRuns(slide.meaning)}
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { GrammarContrastSlideT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
+import { wrapArabicRuns } from './arabic-runs';
 
 // Grammar Insights — counterfactual contrast slide.
 //
@@ -115,7 +116,7 @@ export function GrammarContrastPage({ slide }: { slide: GrammarContrastSlideT })
               fontWeight: 500,
             }}
           >
-            {slide.tagline}
+            {wrapArabicRuns(slide.tagline)}
           </div>
         )}
       </div>
@@ -160,7 +161,7 @@ function ContrastRow({
           letterSpacing: 0.4, textTransform: 'uppercase',
         }}
       >
-        {label}
+        {wrapArabicRuns(label)}
       </div>
       <div
         dir="rtl"
@@ -178,7 +179,7 @@ function ContrastRow({
           maxWidth: 760,
         }}
       >
-        {gloss}
+        {wrapArabicRuns(gloss)}
       </div>
     </div>
   );

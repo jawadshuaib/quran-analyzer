@@ -1,6 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { WordToWordSlideT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
+import { wrapArabicRuns } from './arabic-runs';
 
 // Cells per row — vertical 1080-wide canvas can't fit 6 cells per
 // row like the desktop mockup (C.html) without making the Arabic
@@ -164,7 +165,7 @@ export function WordToWordPage({ slide }: { slide: WordToWordSlideT }) {
               marginTop: 8,
             }}
           >
-            {slide.translation}
+            {wrapArabicRuns(slide.translation)}
           </p>
         </div>
       </div>
@@ -219,7 +220,7 @@ function Cell({ ar, en, highlight, pulseScale }: { ar: string; en: string; highl
           whiteSpace: 'nowrap',
         }}
       >
-        {en}
+        {wrapArabicRuns(en)}
       </div>
     </div>
   );

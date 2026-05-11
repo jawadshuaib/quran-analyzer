@@ -1,6 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { GrammarVerseSlideT, GrammarHighlightT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
+import { wrapArabicRuns } from './arabic-runs';
 
 // Grammar Insights — verse slide.
 //
@@ -284,14 +285,14 @@ function renderTranslationWithPills(
   translation: string,
   matches: { start: number; end: number; color: string; sweep: number }[],
 ) {
-  if (matches.length === 0) return translation;
+  if (matches.length === 0) return wrapArabicRuns(translation);
 
   const parts: React.ReactNode[] = [];
   let cursor = 0;
   for (let i = 0; i < matches.length; i++) {
     const m = matches[i];
     if (cursor < m.start) {
-      parts.push(<span key={`pre-${i}`}>{translation.slice(cursor, m.start)}</span>);
+      parts.push(<span key={`pre-${i}`}>{wrapArabicRuns(translation.slice(cursor, m.start))}</span>);
     }
     parts.push(
       <span
@@ -308,13 +309,13 @@ function renderTranslationWithPills(
             transform: `scaleX(${m.sweep})`, transformOrigin: 'left center',
           }}
         />
-        <span style={{ position: 'relative' }}>{translation.slice(m.start, m.end)}</span>
+        <span style={{ position: 'relative' }}>{wrapArabicRuns(translation.slice(m.start, m.end))}</span>
       </span>,
     );
     cursor = m.end;
   }
   if (cursor < translation.length) {
-    parts.push(<span key="tail">{translation.slice(cursor)}</span>);
+    parts.push(<span key="tail">{wrapArabicRuns(translation.slice(cursor))}</span>);
   }
   return parts;
 }
