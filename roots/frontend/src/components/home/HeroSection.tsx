@@ -72,22 +72,31 @@ export default function HeroSection({ onNavigateVerse, onFullSemanticSearch, loa
         >
           Try
         </span>
-        {TRY_CHIPS.map((chip, i) => (
-          <button
-            key={chip.value}
-            onClick={() => handleChipClick(chip.value)}
-            className={`text-xs text-ink-secondary bg-white border border-card-border px-3 py-1.5 rounded-full
-                       hover:border-gold hover:text-gold-hover transition-colors
-                       ${chip.hideOnMobile ? 'hidden sm:inline-flex' : ''}
-                       ${i < visibleCount ? 'animate-chip-pop' : 'opacity-0 scale-75'}`}
-            style={{
-              transitionProperty: 'opacity, transform',
-              transitionDuration: '300ms',
-            }}
-          >
-            {chip.label}
-          </button>
-        ))}
+        {TRY_CHIPS.map((chip, i) => {
+          // Detect whether the chip is showing an Arabic example — apply
+          // font-arabic + lang="ar" only to those chips so the Uthmani
+          // diacritics render correctly. English chips keep the default
+          // sans font so the row reads consistently.
+          const hasArabic = /[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]/.test(chip.label);
+          return (
+            <button
+              key={chip.value}
+              onClick={() => handleChipClick(chip.value)}
+              lang={hasArabic ? 'ar' : undefined}
+              className={`text-xs text-ink-secondary bg-white border border-card-border px-3 py-1.5 rounded-full
+                         hover:border-gold hover:text-gold-hover transition-colors
+                         ${hasArabic ? 'font-arabic' : ''}
+                         ${chip.hideOnMobile ? 'hidden sm:inline-flex' : ''}
+                         ${i < visibleCount ? 'animate-chip-pop' : 'opacity-0 scale-75'}`}
+              style={{
+                transitionProperty: 'opacity, transform',
+                transitionDuration: '300ms',
+              }}
+            >
+              {chip.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

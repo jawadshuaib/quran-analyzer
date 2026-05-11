@@ -117,7 +117,7 @@ export default function QuranVocabularyPage() {
               {/* Header */}
               <header className="flex items-baseline flex-wrap gap-x-4 gap-y-1 mb-4 pb-3 border-b border-stone-100">
                 <h2 className="font-serif text-2xl text-ink">
-                  <span className="text-stone-700" lang="ar">{t.root_arabic}</span>
+                  <span className="font-arabic text-stone-700" lang="ar">{t.root_arabic}</span>
                 </h2>
                 <span className="text-stone-300">→</span>
                 <span className="font-serif text-xl font-medium text-amber-700">

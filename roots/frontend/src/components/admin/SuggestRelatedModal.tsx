@@ -87,7 +87,9 @@ export default function SuggestRelatedModal({ seedChapter, seedAyah, onSelect, o
                       {v.shared_roots.map((r) => (
                         <span
                           key={r.root_buckwalter}
-                          className="inline-block text-xs bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded"
+                          dir="rtl"
+                          lang="ar"
+                          className="inline-block font-arabic text-xs bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded"
                         >
                           {r.root_arabic}
                         </span>

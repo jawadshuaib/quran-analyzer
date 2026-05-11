@@ -128,7 +128,7 @@ export default function MethodologyPage() {
               ٱقْرَأْ بِٱسْمِ رَبِّكَ ٱلَّذِى خَلَقَ
             </a>
             <p className="text-sm text-ink-secondary">
-              The word <a href="/word/96:1/1" className="font-medium text-ink hover:text-gold-hover transition-colors">ٱقْرَأْ</a> (from
+              The word <a href="/word/96:1/1" className="font-arabic font-medium text-ink hover:text-gold-hover transition-colors" lang="ar">ٱقْرَأْ</a> (from
               the root <a href="/root/qrA" className="text-emerald-700 hover:underline font-medium">q-r-ʾ</a>)
               is conventionally rendered as "read." But cross-referencing its
               other Quranic occurrences — particularly in verses like{' '}

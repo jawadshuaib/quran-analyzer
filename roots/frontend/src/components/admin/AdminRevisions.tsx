@@ -75,9 +75,11 @@ export default function AdminRevisions() {
           </div>
           <p className="text-xs text-stone-500 leading-relaxed mb-3">
             Find translations that treat descriptive Arabic phrases as
-            proper names (e.g. &quot;Abu Lahab&quot; for أَبِي لَهَبٍ — &quot;father
-            of [burning] flame&quot;). Two-stage detection via Ollama cloud
-            then adjudication by Claude Sonnet, with operator review queue.
+            proper names (e.g. &quot;Abu Lahab&quot; for{' '}
+            <span className="font-arabic" lang="ar">أَبِي لَهَبٍ</span>
+            {' '}— &quot;father of [burning] flame&quot;). Two-stage
+            detection via Ollama cloud then adjudication by Claude
+            Sonnet, with operator review queue.
           </p>
           <div className="flex flex-wrap gap-1.5">
             <span className="text-[10px] text-stone-500 px-2 py-0.5 rounded-full bg-stone-100">

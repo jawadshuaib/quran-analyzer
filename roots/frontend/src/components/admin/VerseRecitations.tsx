@@ -515,7 +515,7 @@ export default function VerseRecitations() {
                 <p
                   dir="rtl"
                   lang="ar"
-                  className={`text-2xl leading-loose font-serif text-stone-800 mb-3 transition-opacity duration-300 ${
+                  className={`text-2xl leading-loose font-arabic text-stone-800 mb-3 transition-opacity duration-300 ${
                     isActive && currentPhase === 'recitation' ? 'opacity-100' : 'opacity-80'
                   }`}
                 >

@@ -72,7 +72,7 @@ export default function VerseOfTheDay({ onNavigate }: Props) {
       <p
         dir="rtl"
         lang="ar"
-        className="font-serif text-[28px] leading-[1.9] text-ink text-right mb-3.5 tracking-wide font-arabic"
+        className="font-arabic text-[28px] leading-[1.9] text-ink text-right mb-3.5 tracking-wide"
       >
         {data.text_uthmani}
       </p>

@@ -51,8 +51,18 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      Two Arabic fonts loaded independently so the --font-arabic
+      fallback chain has a real backup. Scheherazade New is the
+      primary choice (traditional Naskh, well-suited to Uthmani
+      diacritics). Amiri is loaded as a backup — if Scheherazade
+      fails to load for any reason (network glitch, Google Fonts
+      blocked, etc.), Amiri is also a proper Uthmani-grade font
+      and avoids the system-serif fallback that has the
+      kasra-under-shadda bug.
+    -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Scheherazade+New:wght@400;700&family=Amiri:wght@400;700&display=swap"
       rel="stylesheet"
     />
   </head>

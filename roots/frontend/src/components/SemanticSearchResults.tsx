@@ -59,8 +59,9 @@ export default function SemanticSearchResults({ data, onNavigate, onClose }: Pro
                     {r.surah_name} {r.surah}:{r.ayah}
                   </span>
                   <p
-                    className="mt-1.5 text-right text-lg leading-loose text-stone-800 font-['Scheherazade_New',serif]"
+                    className="mt-1.5 text-right text-lg leading-loose text-stone-800 font-arabic"
                     dir="rtl"
+                    lang="ar"
                   >
                     {r.text_uthmani}
                   </p>
