@@ -1506,6 +1506,84 @@ def _arabic_indices_for_english_phrase(
     return matches
 
 
+# Patterns the AI hook tends to follow: a "conventional" half and a
+# "hidden" half joined by a contrast cue. We try several variants to
+# survive minor narration style drift.
+_TH_HOOK_PATTERNS = [
+    # "Most translations say X. The Arabic [verb] Y"
+    __import__("re").compile(
+        r"(?:most translations|translators|conventional translations|conventionally|in english|they)"
+        r"\s+(?:usually\s+)?(?:say|read|render|translate|put)\s+"
+        r"(?:it\s+as|this\s+as|them\s+as|as)?\s*"
+        r"(.+?)[\.\?\!]\s+(?:but\s+|yet\s+|however[, ]+)?"
+        r"(?:the\s+)?arabic\s+"
+        r"(?:actually|literally|really)?\s*"
+        r"(?:says|reveals|shows|means|tells|carries|conveys|reads|points to)\s+"
+        r"(.+?)[\.\?\!]?$",
+        flags=__import__("re").IGNORECASE | __import__("re").DOTALL,
+    ),
+    # "X. But the Arabic [verb] Y"
+    __import__("re").compile(
+        r"^(.+?)[\.\?\!]\s+but\s+(?:the\s+)?arabic\s+"
+        r"(?:actually|literally|really)?\s*"
+        r"(?:says|reveals|shows|means|tells|carries|conveys|reads|points to)\s+"
+        r"(.+?)[\.\?\!]?$",
+        flags=__import__("re").IGNORECASE | __import__("re").DOTALL,
+    ),
+]
+
+
+def _extract_reveal_from_hook(hook: str) -> tuple[str, str]:
+    """When `reveal_conventional` / `reveal_hidden` are missing from the
+    script (older rows from before the schema was fully enforced, or
+    AI generations that slipped past validation), salvage them from
+    the hook narration.
+
+    The hook is almost always written in the form "Most translations
+    say X. The Arabic reveals Y." — the same pattern the reveal slide
+    is designed to display. Pulling X / Y out of that sentence keeps
+    the slide from rendering with bare labels and empty bodies (as
+    happened on 35:41, video #51 — the operator noticed the blank
+    bodies even after the slide was visually rescaled).
+
+    Returns ('', '') when no pattern matches; caller falls back further.
+    The 80-char cap matches the schema validator so the rescued text
+    behaves identically to native data downstream.
+    """
+    if not hook or not isinstance(hook, str):
+        return ("", "")
+    s = hook.strip()
+    for pat in _TH_HOOK_PATTERNS:
+        m = pat.search(s)
+        if not m:
+            continue
+        conv = m.group(1).strip().rstrip(",;:")
+        hidden = m.group(2).strip().rstrip(",;:")
+        # Strip wrapping quotes — the AI hook often single-quotes the
+        # conventional phrase ("God 'holds' the heavens") which looks
+        # awkward on the pill row.
+        for ch_open, ch_close in (
+            ("'", "'"),
+            ('"', '"'),
+            ("‘", "’"),  # smart single
+            ("“", "”"),  # smart double
+        ):
+            if conv.startswith(ch_open) and conv.endswith(ch_close) and len(conv) > 2:
+                conv = conv[1:-1].strip()
+            if hidden.startswith(ch_open) and hidden.endswith(ch_close) and len(hidden) > 2:
+                hidden = hidden[1:-1].strip()
+        # Cap to the same 80-char limit the schema enforces. If we
+        # have to truncate, end on a word boundary so the slide
+        # doesn't show "...something more urge..." mid-word.
+        def _cap(t: str, n: int = 80) -> str:
+            if len(t) <= n:
+                return t
+            cut = t[: n - 1].rsplit(" ", 1)[0]
+            return (cut or t[: n - 1]).rstrip(",;:.") + "…"
+        return (_cap(conv), _cap(hidden))
+    return ("", "")
+
+
 def _word_arabic_at_pos(conn, c: int, v: int, p: int) -> str:
     """Reconstruct the visible Arabic surface form for word `p` by
     concatenating its morphology segments. Returns '' if no rows.
@@ -1643,13 +1721,27 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
                 en_emphases.append({"phrase": s.strip(), "marker": "fronted"})  # rose pill
 
     # 1. translation-reveal slide. Hook beat narration plays over it.
+    # Older script rows (e.g. video #51, 35:41) sometimes have
+    # reveal_conventional/reveal_hidden set to null — the slide
+    # would render with bare label pills and empty bodies. When
+    # either field is missing, salvage the contrast out of the hook
+    # narration via _extract_reveal_from_hook so the bodies never
+    # show up blank.
+    conv_text = (script.get("reveal_conventional") or "").strip()
+    hidden_text = (script.get("reveal_hidden") or "").strip()
+    if not conv_text or not hidden_text:
+        parsed_conv, parsed_hidden = _extract_reveal_from_hook(hook_text)
+        if not conv_text and parsed_conv:
+            conv_text = parsed_conv
+        if not hidden_text and parsed_hidden:
+            hidden_text = parsed_hidden
     reveal_slide: dict = {
         "type": "translation-reveal",
         "durationSec": 7,
         "conventionalLabel": "Most translations say",
-        "conventionalText": (script.get("reveal_conventional") or "").strip(),
+        "conventionalText": conv_text,
         "hiddenLabel": "The Arabic actually says",
-        "hiddenText": (script.get("reveal_hidden") or "").strip(),
+        "hiddenText": hidden_text,
     }
     # Show the target word's Arabic on the reveal slide too — only when
     # a single word is the focus. For phrase-level reveals we omit it
