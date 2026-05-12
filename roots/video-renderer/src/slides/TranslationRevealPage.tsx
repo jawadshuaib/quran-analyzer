@@ -13,6 +13,13 @@ import { wrapArabicRuns } from './arabic-runs';
 // muted "conventional" row reads as washed-out / cliché; the
 // saturated "actual" row pops and feels like the reveal.
 //
+// Sizing: every font / pill / gap is sized for the 1080×1920 vertical
+// mobile composition. Earlier sizes were tuned for a 16:9 desktop
+// render and disappeared on phone screens — operator pointed out that
+// the slide looked nearly blank with a small label at the top. This
+// version centers vertically and roughly doubles every font so the
+// reveal fills the screen and reads at a glance on mobile.
+//
 // Animation timing (~7s slide):
 //   - Conventional row fades in first (0-18f), establishing the baseline.
 //   - The "but" connector lands at ~22-36f.
@@ -43,37 +50,59 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
   // Auto-scale gloss font by length. Long conventional translations
   // shrink so they don't dominate the screen; punchy "Y" reveals
   // stay bigger to feel like the payoff.
+  //
+  // Sizes are for 1080×1920 mobile. The smallest tier (>=110 chars)
+  // still lands at 56px — large enough to read at a glance on a phone.
   const fontFor = (text: string, big: number, mid: number, small: number) => {
     const n = (text || '').length;
     if (n <= 60) return big;
     if (n <= 110) return mid;
     return small;
   };
-  const convFontSize = fontFor(slide.conventionalText, 38, 32, 28);
-  const hiddenFontSize = fontFor(slide.hiddenText, 42, 36, 30);
+  const convFontSize = fontFor(slide.conventionalText, 72, 60, 52);
+  const hiddenFontSize = fontFor(slide.hiddenText, 80, 66, 56);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.appBg, fontFamily: SYSTEM_FONT }}>
+      {/* Series mark — pinned near the top so it doesn't shift as the
+          centered content scales. Was previously stacked with the rows
+          which made the layout drift toward the top of the screen on
+          mobile and left the bottom half empty. */}
       <div
         style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          padding: '160px 60px 100px 60px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          gap: 24,
+          position: 'absolute',
+          top: 80,
+          left: 0,
+          right: 0,
+          color: COLORS.translationAccent,
+          fontSize: 44,
+          fontWeight: 700,
+          letterSpacing: 3,
+          textTransform: 'uppercase',
+          textAlign: 'center',
         }}
       >
-        {/* Series mark — keeps continuity with the verse slides. The
-            rose color identifies the series at a glance. */}
-        <div
-          style={{
-            color: COLORS.translationAccent, fontSize: 22, fontWeight: 600,
-            letterSpacing: 1.5, textTransform: 'uppercase',
-            marginBottom: 12,
-          }}
-        >
-          What Translation Hides
-        </div>
+        What Translation Hides
+      </div>
 
+      {/* Centered reveal stack — vertically centered so the contrast
+          sits in the optical middle of the phone screen. Previously
+          was flex-start which left the bottom half blank. */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          padding: '200px 60px 120px 60px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 44,
+        }}
+      >
         {/* Conventional row — muted */}
         <RevealRow
           label={slide.conventionalLabel}
@@ -87,13 +116,14 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           scale={1}
         />
 
-        {/* Connector — small "but" pill in stone */}
+        {/* Connector — italic "but", a beat between the two rows */}
         <div
           style={{
             opacity: connectorOpacity,
             color: COLORS.translationConvText,
-            fontSize: 28, fontStyle: 'italic',
-            margin: '8px 0',
+            fontSize: 52,
+            fontStyle: 'italic',
+            margin: '12px 0',
           }}
         >
           but
@@ -117,10 +147,15 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
         {slide.tagline && (
           <div
             style={{
-              marginTop: 36, opacity: taglineOpacity,
-              fontSize: 24, color: COLORS.translationAccentDeep,
-              fontStyle: 'italic', textAlign: 'center', maxWidth: 800,
+              marginTop: 36,
+              opacity: taglineOpacity,
+              fontSize: 40,
+              color: COLORS.translationAccentDeep,
+              fontStyle: 'italic',
+              textAlign: 'center',
+              maxWidth: 940,
               fontWeight: 500,
+              lineHeight: 1.35,
             }}
           >
             {wrapArabicRuns(slide.tagline)}
@@ -158,24 +193,31 @@ function RevealRow({
         opacity,
         transform: `translateY(${translateY}px) scale(${scale})`,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 14, width: '100%', maxWidth: 920,
+        gap: 28, width: '100%', maxWidth: 980,
       }}
     >
       <div
         style={{
           background: bgColor,
-          padding: '6px 18px', borderRadius: 999,
-          color: labelColor, fontSize: 18, fontWeight: 600,
-          letterSpacing: 0.4, textTransform: 'uppercase',
+          padding: '14px 36px',
+          borderRadius: 999,
+          color: labelColor,
+          fontSize: 32,
+          fontWeight: 700,
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
         }}
       >
         {label}
       </div>
       <div
         style={{
-          fontSize: textSize, lineHeight: 1.35,
-          color: textColor, textAlign: 'center',
-          maxWidth: 880,
+          fontSize: textSize,
+          lineHeight: 1.3,
+          color: textColor,
+          textAlign: 'center',
+          maxWidth: 960,
+          fontWeight: 500,
           // "Hidden" rows often quote a short phrase — italic gives the
           // reveal a quotation-y feel that signals "this is the real
           // reading," vs the conventional row's plain stone.
@@ -190,11 +232,11 @@ function RevealRow({
           lang="ar"
           style={{
             fontFamily: ARABIC_FONT,
-            fontSize: 44,
+            fontSize: 88,
             lineHeight: 1.4,
             color: textColor,
             textAlign: 'center',
-            marginTop: 4,
+            marginTop: 10,
           }}
         >
           {arabic}

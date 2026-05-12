@@ -48,8 +48,24 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
   );
 
   // Build the verse with the highlight applied in-place.
+  //
+  // Highlighting model: `highlightWordIndices` (an array of 1-indexed
+  // positions) is the source of truth. The legacy `highlightWordIndex`
+  // (singular) folds in as a single-element array so older payloads
+  // still render correctly. The set is what the rendering loop checks
+  // against per word — works for one word OR a contiguous phrase
+  // ("what struck them will be striking her" spans words 21-23 on
+  // verse 11:81, and all three need to light up together).
   const words = slide.arabicText.split(/\s+/);
-  const targetIdx = (slide.highlightWordIndex ?? 0) - 1;
+  const highlightSet = new Set<number>();
+  if (Array.isArray(slide.highlightWordIndices)) {
+    for (const i of slide.highlightWordIndices) {
+      if (Number.isInteger(i) && i > 0) highlightSet.add(i - 1);
+    }
+  }
+  if (Number.isInteger(slide.highlightWordIndex) && (slide.highlightWordIndex ?? 0) > 0) {
+    highlightSet.add((slide.highlightWordIndex as number) - 1);
+  }
 
   // Find the highlighted English phrase (case-insensitive).
   const englishHighlight = slide.highlightTranslationText?.trim() ?? '';
@@ -140,7 +156,7 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
             }}
           >
             {words.map((w, i) => {
-              const isTarget = i === targetIdx;
+              const isTarget = highlightSet.has(i);
               return (
                 <span key={i}>
                   {isTarget ? (

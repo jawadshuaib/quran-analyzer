@@ -1405,6 +1405,107 @@ def _maybe_rose_highlight_word_index(script: dict) -> int | None:
     return n if n >= 1 else None
 
 
+# English glosses on word_glosses are short per-word fragments
+# ("will strike her", "what", "will strike them"). The Translation
+# Hides reveal phrases come from the verse's flowing translation
+# ("what struck them will be striking her") — so direct substring
+# match fails (the per-word glosses use slightly different wording
+# than the final translation). Token overlap with a simple stemmer
+# is good enough to recover the contiguous run of Arabic words a
+# phrase covers — the common case is 2-4 adjacent words, and the
+# 50% threshold below keeps unrelated "will" / "they" matches out.
+_TH_TOKEN_SPLIT = __import__("re").compile(r"[^\w]+")
+_TH_PAREN_STRIP = __import__("re").compile(r"\([^)]*\)")
+
+# Tokens we drop before computing phrase↔gloss overlap. Restricted
+# to true function words (articles, conjunctions, copulas, common
+# prepositions). Pronouns + interrogatives + modals stay in because
+# they're often the semantic anchor of a Translation Hides phrase
+# (e.g. "her" in 11:81 "...striking her", "what" in 11:81 "what
+# struck them..."). Earlier I had a wider stopword list that
+# stripped everything down to verb-stems, which over-filtered
+# phrases like 11:81 to {strik, struck} and missed legitimate
+# matches on pos 21/23.
+_TH_STOPWORDS = frozenset({
+    "and", "the", "but", "for", "nor", "yet", "so",
+    "with", "from", "into", "onto", "over", "out", "off",
+    "are", "was", "were", "has", "have", "had", "been", "being",
+    "this", "that", "these", "those",
+    "than", "then", "thus", "also",
+    "indeed", "surely", "verily", "lo",
+})
+
+
+def _th_crude_stem(t: str) -> str:
+    """Strip common English inflections so 'striking' / 'strikes' /
+    'strike' all collapse onto a shared stem. Crude but predictable —
+    we don't need Porter accuracy here; we just need related forms
+    to share a stem when matching. The trailing-'e' rule is what
+    lets 'strike' (no suffix) collapse onto 'strik' from 'striking'
+    after the -ing strip; without it, 11:81 word 21 ('will strike
+    her') failed to match the phrase 'striking her' even though
+    the verbs are the same."""
+    for suf in ("ing", "ies", "ied", "ed", "es", "er", "s"):
+        if t.endswith(suf) and len(t) > len(suf) + 2:
+            return t[: -len(suf)]
+    if t.endswith("e") and len(t) > 3:
+        return t[:-1]
+    return t
+
+
+def _th_tokenize(text: str) -> set[str]:
+    """Lowercase, strip parentheticals + punctuation, drop stopwords,
+    stem the survivors, return significant tokens (length ≥ 3 after
+    stemming)."""
+    if not text:
+        return set()
+    norm = _TH_PAREN_STRIP.sub(" ", text.lower())
+    raw = [
+        t for t in _TH_TOKEN_SPLIT.split(norm)
+        if len(t) >= 3 and t not in _TH_STOPWORDS
+    ]
+    return {_th_crude_stem(t) for t in raw}
+
+
+def _arabic_indices_for_english_phrase(
+    conn, chapter: int, verse: int, phrase: str
+) -> list[int]:
+    """Map an English phrase from the verse translation back to the
+    1-indexed Arabic word positions whose per-word glosses overlap it.
+
+    Used by the Translation Hides verse-flow slide so the Arabic
+    side highlights the same span the English side does — for
+    phrase-level reveals (where script.selected_word_pos is null)
+    this is the only way the Arabic gets any highlight at all.
+
+    Returns [] when the phrase doesn't substantially overlap any
+    word; caller falls back to the single-word highlight (if any).
+    """
+    p_tokens = _th_tokenize(phrase)
+    if not p_tokens:
+        return []
+    rows = conn.execute(
+        "SELECT word_pos, translation_en FROM word_glosses "
+        "WHERE chapter = ? AND verse = ? "
+        "ORDER BY word_pos",
+        (chapter, verse),
+    ).fetchall()
+    matches: list[int] = []
+    for r in rows:
+        g_tokens = _th_tokenize(r["translation_en"] or "")
+        if not g_tokens:
+            continue
+        overlap = p_tokens & g_tokens
+        # ≥50% of the gloss's significant tokens must appear in the
+        # phrase. This filters incidental "will" / "they" overlaps —
+        # a gloss "they will reach" has tokens {they, will, reach};
+        # phrase "what struck them will be striking her" overlaps
+        # only on "will" (1/3 = 33%), so the word isn't picked up.
+        if len(overlap) / max(1, len(g_tokens)) >= 0.5:
+            matches.append(r["word_pos"])
+    return matches
+
+
 def _word_arabic_at_pos(conn, c: int, v: int, p: int) -> str:
     """Reconstruct the visible Arabic surface form for word `p` by
     concatenating its morphology segments. Returns '' if no rows.
@@ -1580,6 +1681,23 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
     # implicit (this series favors one focus per video).
     if en_emphases:
         verse_slide["highlightTranslationText"] = en_emphases[0]["phrase"]
+    # Multi-word Arabic highlight. Phrase-level Translation Hides
+    # reveals (e.g. 11:81 "what struck them will be striking her")
+    # span 2-4 Arabic words; without this the Arabic side would
+    # render with no highlight at all, leaving the viewer unsure
+    # which Arabic span the reveal is about. Map every English
+    # emphasis back to its Arabic word indices via word_glosses,
+    # union them, and pass them through. The renderer's
+    # VerseFlowPage takes the union of `highlightWordIndices` and
+    # `highlightWordIndex` so both fields stay live.
+    multi_idx: set[int] = set()
+    for em in en_emphases:
+        for p in _arabic_indices_for_english_phrase(conn, chapter, verse, em["phrase"]):
+            multi_idx.add(p)
+    if target_pos:
+        multi_idx.add(target_pos)
+    if multi_idx:
+        verse_slide["highlightWordIndices"] = sorted(multi_idx)
     if intro_text:
         verse_slide["narration"] = {"text": intro_text}
 

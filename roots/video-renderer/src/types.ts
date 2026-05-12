@@ -61,6 +61,17 @@ export const VerseFlowSlide = z.object({
   // on whitespace). Highlighted on screen so the viewer can match
   // the spoken word to the visible word.
   highlightWordIndex: z.number().int().positive().optional(),
+  // 1-indexed positions of multiple Arabic words to highlight as a
+  // contiguous (or near-contiguous) phrase. Translation Hides uses
+  // this when the hidden nuance is phrase-level: the corresponding
+  // English span ("what struck them will be striking her") maps to
+  // 2-4 Arabic words, and highlighting only one would leave the
+  // viewer wondering which Arabic part they're meant to be looking
+  // at. When both `highlightWordIndex` and `highlightWordIndices`
+  // are present, indices is the source of truth; the singular field
+  // stays for backward compatibility with payloads that predate the
+  // multi-word highlight.
+  highlightWordIndices: z.array(z.number().int().positive()).optional(),
   // Optional substring of `translation` to highlight. When present,
   // the renderer finds it (case-insensitively) and gives it the
   // same yellow pill treatment so the viewer can see the
