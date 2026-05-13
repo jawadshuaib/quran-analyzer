@@ -1530,6 +1530,25 @@ _TH_HOOK_PATTERNS = [
         r"(.+?)[\.\?\!]?$",
         flags=__import__("re").IGNORECASE | __import__("re").DOTALL,
     ),
+    # "...isn't about|describing|saying X, but [about|describing] Y" —
+    # the speculative-opener register the old script prompt produced
+    # ("What if this verse isn't about calling them by a name, but
+    # about claiming them as yours?"). Anchor on the contrast pivot
+    # `isn't|is not` followed by a contrast verb so the X capture
+    # starts right after the verb — without that anchor, the regex
+    # would slurp the leading "What if this verse about ..." into
+    # the conventional half. Captured here because plenty of
+    # existing rows have hooks shaped this way; the new prompt
+    # guidance discourages new ones.
+    __import__("re").compile(
+        r"(?:isn[''‘’]?t|is\s+not)\s+"
+        r"(?:about|saying|describing|telling|claiming)\s+"
+        r"(.+?)[,;]\s+"
+        r"but\s+"
+        r"(?:about\s+|that\s+|saying\s+|describing\s+|claiming\s+|it[''‘’]?s\s+about\s+)?"
+        r"(.+?)[\.\?\!]?$",
+        flags=__import__("re").IGNORECASE | __import__("re").DOTALL,
+    ),
 ]
 
 
@@ -2535,25 +2554,15 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
             conv_text = parsed_conv
         if not hidden_text and parsed_hidden:
             hidden_text = parsed_hidden
-    # Build the hook beat — verse reference + a curiosity-bait
-    # one-liner. The reference (Quran X:Y) plus the big Arabic
-    # word the rest of the video unpacks gives the viewer the
-    # context the previous 7s slide jumped straight past. Without
-    # this, opening lines like "...the Arabic actually says He's
-    # aware of their tails" read as bizarre rather than profound,
-    # and viewers swipe before the body of the video lands the
-    # root-image. (See user feedback after 25:58 render.)
-    #
-    # Hook copy is generic-on-purpose: the AI judge's headline
-    # field can be very technical ("morphology: passive voice"),
-    # which doesn't sing as an opening line. A short, evergreen
-    # "There's a word in this verse..." opens curiosity without
-    # spoiling the reveal.
-    hook_line = (
-        "There's a word in this verse..."
-        if target_pos
-        else "Most translations miss this."
-    )
+    # The hookLine field is now OPTIONAL. Previous defaults
+    # ("Most translations miss this." / "There's a word in this
+    # verse...") were dismissive of the conventional reading and
+    # operator feedback on the 33:5 render called them out —
+    # "Most translations miss this... can come off as a bit
+    # offensive." The contrast pills the viewer is about to see
+    # already make the same point without sounding accusatory, so
+    # we just omit the hook chrome and let the artifact + verse
+    # reference open the slide on their own.
     reveal_slide: dict = {
         "type": "translation-reveal",
         "durationSec": 10,  # bumped from 7s; the new 4-beat
@@ -2563,7 +2572,6 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
         "chapter": chapter,
         "verse": verse,
         "verseRef": f"Quran {chapter}:{verse}",
-        "hookLine": hook_line,
         "conventionalLabel": "Most translations say",
         "conventionalText": conv_text,
         "hiddenLabel": "The Arabic actually says",

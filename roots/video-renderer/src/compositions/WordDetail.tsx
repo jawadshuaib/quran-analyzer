@@ -51,18 +51,30 @@ export function WordDetailComposition({ payload }: { payload: PayloadT }) {
   );
 }
 
+// Slide types whose visual layout already integrates the spoken
+// content (the "MOST TRANSLATIONS SAY" / "THE ARABIC ACTUALLY SAYS"
+// contrast rows on translation-reveal; the giant Arabic + glosses
+// on word-lens). For these the karaoke overlay is redundant chrome
+// and worse, the bottom-anchored caption bar physically overlaps
+// the pills (operator feedback on 33:5 render — "THE ARABIC
+// ACTUALLY SAYS is so far down, nobody can read it" because the
+// caption gradient sits on top of it).
+const KARAOKE_OPTED_OUT = new Set(['translation-reveal', 'word-lens']);
+
 // Renders the slide visual + (when present) the audio track + the
 // karaoke overlay. Karaoke uses audioStartFrame=0 because we're
 // inside the slide's <Sequence>, which already resets useCurrentFrame.
 function SlideWithNarration({ slide }: { slide: SlideT }) {
   const hasNarration = 'narration' in slide && !!slide.narration;
+  const showKaraoke =
+    hasNarration && slide.narration?.alignment && !KARAOKE_OPTED_OUT.has(slide.type);
   return (
     <>
       <SlideRenderer slide={slide} />
       {hasNarration && slide.narration?.audioFile && (
         <Audio src={staticFile(slide.narration.audioFile)} />
       )}
-      {hasNarration && slide.narration?.alignment && (
+      {showKaraoke && (
         <KaraokeOverlay
           narration={slide.narration}
           audioStartFrame={0}

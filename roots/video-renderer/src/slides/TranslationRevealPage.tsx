@@ -145,13 +145,16 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
   const refLine = (slide.verseRef && slide.verseRef.trim())
     || (slide.chapter && slide.verse ? `Quran ${slide.chapter}:${slide.verse}` : '');
 
-  // The hook line — let the script override, but provide a
-  // sensible default so the slide is never naked. The default
-  // is intentionally a curiosity-bait phrase, not a thesis.
-  const hookLine = (slide.hookLine && slide.hookLine.trim())
-    || (hasArabicArtifact
-      ? "There's a word in this verse..."
-      : "Most translations miss this.");
+  // The hook line is OPTIONAL now — if the payload provides one we
+  // render it, otherwise the slide opens with just the artifact +
+  // verse reference + contrast pills. Previous defaults
+  // ("Most translations miss this." / "There's a word in this
+  // verse...") were dismissive of the conventional reading and
+  // operator feedback called them out — the contrast rows the
+  // viewer's about to see already make the same point without
+  // sounding accusatory. Better to lead with the artifact silently.
+  const hookLine = (slide.hookLine && slide.hookLine.trim()) || '';
+  const hasHook = !!hookLine;
 
   // Auto-scale gloss font by length. Tuned for vertical mobile —
   // these are the BODY lines (the actual "her chastity" / "her
@@ -200,23 +203,25 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           padding: '160px 60px 240px',
         }}
       >
-        {/* Hook line */}
-        <div
-          style={{
-            opacity: hookOpacity,
-            transform: `translateY(${hookTranslateY}px)`,
-            fontSize: 68,
-            fontWeight: 600,
-            fontStyle: 'italic',
-            color: COLORS.translationAccentDeep,
-            textAlign: 'center',
-            maxWidth: 920,
-            lineHeight: 1.2,
-            marginBottom: 28,
-          }}
-        >
-          {wrapArabicRuns(hookLine)}
-        </div>
+        {/* Hook line — only when the payload supplies one. */}
+        {hasHook && (
+          <div
+            style={{
+              opacity: hookOpacity,
+              transform: `translateY(${hookTranslateY}px)`,
+              fontSize: 68,
+              fontWeight: 600,
+              fontStyle: 'italic',
+              color: COLORS.translationAccentDeep,
+              textAlign: 'center',
+              maxWidth: 920,
+              lineHeight: 1.2,
+              marginBottom: 28,
+            }}
+          >
+            {wrapArabicRuns(hookLine)}
+          </div>
+        )}
 
         {/* Verse reference */}
         {refLine && (
@@ -312,14 +317,20 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
       {/* === Beats C + D: the contrast rows ===
           These sit in the lower half so the artifact (when
           present) keeps a watermark presence in the center. When
-          there's no artifact, the rows fill more of the space. */}
+          there's no artifact, the rows fill more of the space.
+          Anchored well above the bottom edge so the hidden row
+          (the payoff) reads comfortably — operator feedback on
+          33:5 render said the bottom pill sat too low. The
+          karaoke caption is also opted-out for this slide
+          (see compositions/WordDetail.tsx), so the rows have the
+          full lower-half real estate to themselves. */}
       <div
         style={{
           position: 'absolute',
-          left: 0, right: 0, bottom: 110,
+          left: 0, right: 0, bottom: 240,
           display: 'flex', flexDirection: 'column',
           alignItems: 'center',
-          gap: 28,
+          gap: 32,
           padding: '0 60px',
         }}
       >
