@@ -253,6 +253,12 @@ export const TranslationRevealSlide = z.object({
   // big Arabic word during the artifact beat. Useful when the
   // hook word is a content word the AI judge picked out.
   transliteration: z.string().optional(),
+  // Optional English gloss line shown below the big Arabic
+  // artifact. Even when the Arabic is a short word like فِيهِ,
+  // having an English anchor underneath ("into it") gives the
+  // viewer something to read and grounds the artifact in meaning.
+  // Backend populates this from script.english_emphases[0].
+  glossLine: z.string().optional(),
   // Top row — what most viewers think the verse says.
   conventionalLabel: z.string().default('Most translations say'),
   conventionalText: z.string(),

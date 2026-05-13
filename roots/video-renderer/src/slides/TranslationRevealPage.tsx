@@ -230,44 +230,73 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           </div>
         )}
 
-        {/* Arabic artifact — the big word the rest of the slide
-            unpacks. Slides up and dims (but does NOT vanish) as
-            the contrast rows enter below it. */}
-        {hasArabicArtifact && (
-          <div
-            style={{
-              opacity: artifactOpacity,
-              transform: `translateY(${artifactTranslateY}px) scale(${artifactScale})`,
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-            }}
-          >
+        {/* Arabic artifact — the word OR phrase the rest of the
+            slide unpacks. Slides up and dims (but does NOT vanish)
+            as the contrast rows enter below it. Font auto-scales
+            on length: single words get the dramatic 150px treatment;
+            multi-word phrases (e.g. "أَحْصَنَتْ فَرْجَهَا" — what
+            the script's english_emphases mapped to) shrink so they
+            fit on screen instead of overflowing. */}
+        {hasArabicArtifact && (() => {
+          const arLen = (slide.arabic || '').length;
+          const arabicFontSize =
+            arLen <= 7 ? 150 :
+            arLen <= 14 ? 120 :
+            arLen <= 24 ? 96 :
+            arLen <= 36 ? 78 : 62;
+          return (
             <div
-              dir="rtl"
-              lang="ar"
               style={{
-                fontFamily: ARABIC_FONT,
-                fontSize: 150,
-                lineHeight: 1.2,
-                color: COLORS.text,
-                textAlign: 'center',
+                opacity: artifactOpacity,
+                transform: `translateY(${artifactTranslateY}px) scale(${artifactScale})`,
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                maxWidth: 960,
               }}
             >
-              {slide.arabic}
-            </div>
-            {slide.transliteration && (
               <div
+                dir="rtl"
+                lang="ar"
                 style={{
-                  fontSize: 32,
-                  fontStyle: 'italic',
-                  color: COLORS.translationConvText,
-                  marginTop: 10,
+                  fontFamily: ARABIC_FONT,
+                  fontSize: arabicFontSize,
+                  lineHeight: 1.25,
+                  color: COLORS.text,
+                  textAlign: 'center',
+                  paddingLeft: 8, paddingRight: 8,
                 }}
               >
-                {slide.transliteration}
+                {slide.arabic}
               </div>
-            )}
-          </div>
-        )}
+              {slide.transliteration && (
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontStyle: 'italic',
+                    color: COLORS.translationConvText,
+                    marginTop: 10,
+                  }}
+                >
+                  {slide.transliteration}
+                </div>
+              )}
+              {slide.glossLine && (
+                <div
+                  style={{
+                    fontSize: 32,
+                    fontStyle: 'italic',
+                    color: COLORS.translationConvText,
+                    marginTop: slide.transliteration ? 6 : 18,
+                    maxWidth: 880,
+                    textAlign: 'center',
+                    lineHeight: 1.35,
+                  }}
+                >
+                  &ldquo;{slide.glossLine}&rdquo;
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* === Beats C + D: the contrast rows ===

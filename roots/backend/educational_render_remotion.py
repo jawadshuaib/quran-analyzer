@@ -1662,13 +1662,19 @@ def _normalize_arabic_for_match(s: str) -> str:
 
 def _signal_for_verse(conn, chapter: int, verse: int) -> dict | None:
     """Pull the most recent translation_hides_signals row for the
-    given verse, including the cached morphology_word_pos if any."""
+    given verse, including cached resolver columns (morphology
+    word_pos and the LLM-aligned artifact arabic). Both cache
+    columns are created on first call by the _ensure_* helpers so
+    a fresh DB or one synced from prod without these columns
+    auto-migrates."""
     _ensure_morphology_word_pos_column(conn)
+    _ensure_artifact_arabic_column(conn)
     try:
         row = conn.execute(
             """
             SELECT id, primary_word_pos, primary_arabic,
-                   COALESCE(morphology_word_pos, NULL) AS morphology_word_pos
+                   COALESCE(morphology_word_pos, NULL) AS morphology_word_pos,
+                   COALESCE(artifact_arabic, NULL) AS artifact_arabic
             FROM translation_hides_signals
             WHERE chapter = ? AND verse = ?
             ORDER BY id DESC
@@ -1685,6 +1691,7 @@ def _signal_for_verse(conn, chapter: int, verse: int) -> dict | None:
         "primary_word_pos": row["primary_word_pos"],
         "primary_arabic": row["primary_arabic"],
         "morphology_word_pos": row["morphology_word_pos"],
+        "artifact_arabic": row["artifact_arabic"],
     }
 
 
@@ -1828,6 +1835,196 @@ def _resolve_via_ollama(
     except Exception as e:
         print(f"[translation-hides] ollama resolver crashed: {e}")
         return None
+
+
+# ---------------------------------------------------------------------------
+# Artifact-Arabic resolver for the reveal slide.
+#
+# The big Arabic word in the center of the reveal slide should match
+# what the *script* is narrating about, not necessarily what the
+# judge's primary_arabic happens to be. These can disagree:
+#
+#   - The judge picks the most striking linguistic feature (e.g.
+#     for 66:12 it picked فِيهِ, the masculine pronoun where one
+#     might expect feminine — a real philological reveal).
+#
+#   - The script generator writes the narration around a different
+#     framing — for 66:12 it built the hook around the chastity
+#     narrative ("fortified her private part").
+#
+# When this happens, the slide ends up showing the judge's word
+# while the audio is talking about the script's phrase. On 66:12
+# that was a 4-character preposition (فِيهِ) floating alone in
+# the center while the voiceover narrated about Mary's chastity —
+# operator feedback: "weird; only fi-hi."
+#
+# The fix: ask Ollama to align the script's english_emphases[0]
+# phrase to the corresponding Arabic span in the verse. Falls back
+# to signal.primary_arabic when Ollama is unreachable, english_emphases
+# is empty, or the LLM returns garbage. Caches per signal row so we
+# never call the LLM twice for the same verse.
+# ---------------------------------------------------------------------------
+
+
+def _ensure_artifact_arabic_column(conn) -> None:
+    """Add the artifact_arabic cache column to translation_hides_signals
+    if it doesn't exist yet. Same shape as _ensure_morphology_word_pos_column."""
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(translation_hides_signals)").fetchall()]
+        if "artifact_arabic" not in cols:
+            conn.execute("ALTER TABLE translation_hides_signals ADD COLUMN artifact_arabic TEXT")
+            conn.commit()
+            print("[translation-hides] Added artifact_arabic column to translation_hides_signals")
+    except Exception as e:
+        print(f"[translation-hides] could not ensure artifact_arabic column: {e}")
+
+
+def _resolve_artifact_via_ollama(
+    conn,
+    chapter: int,
+    verse: int,
+    arabic_verse: str,
+    english_translation: str,
+    english_phrase: str,
+) -> str | None:
+    """Ask Ollama: given the verse in Arabic + English, find the
+    Arabic phrase that corresponds to this English phrase.
+
+    The phrase will be displayed as the big artifact on the reveal
+    slide. Returns the raw Arabic phrase (no normalization) or None
+    on any failure — caller falls back to signal.primary_arabic.
+    """
+    import json as _json
+    import urllib.request as _urlreq
+    import urllib.error as _urlerr
+    import re as _re
+
+    try:
+        pref = conn.execute(
+            "SELECT ollama_base_url, ollama_api_key FROM admin_preferences ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    except Exception:
+        pref = None
+    base_url = (pref["ollama_base_url"] if pref else None) or "http://localhost:11434"
+    api_key = (pref["ollama_api_key"] if pref else None) or None
+    model = "qwen3:14b"
+
+    prompt = (
+        f"You are aligning an English phrase to its corresponding Arabic in a Quranic verse.\n\n"
+        f"Arabic verse: {arabic_verse}\n"
+        f"English translation: {english_translation}\n\n"
+        f'The slide is highlighting this English phrase from the translation: "{english_phrase}"\n\n'
+        f"Find the corresponding Arabic phrase IN THE VERSE.\n"
+        f"Rules:\n"
+        f"  - Output ONLY the Arabic phrase, exactly as it appears in the verse.\n"
+        f"  - Keep diacritics from the verse intact. Do not add or remove any.\n"
+        f"  - Prefer the tightest matching span (1-4 words). Do not include leading/trailing connectors.\n"
+        f"  - If nothing in the verse clearly matches, output the single Arabic word: لا\n"
+        f"  - No explanation, no quotes, no transliteration, no English."
+    )
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "options": {"temperature": 0.0},
+    }
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        req = _urlreq.Request(
+            f"{base_url.rstrip('/')}/api/chat",
+            data=_json.dumps(payload).encode("utf-8"),
+            headers=headers,
+        )
+        with _urlreq.urlopen(req, timeout=25) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        content = (data.get("message") or {}).get("content") or ""
+        content = _re.sub(r"<think>.*?</think>", "", content, flags=_re.DOTALL).strip()
+        # Strip surrounding quotes or markdown
+        content = content.strip().strip('"\'`').strip()
+        if not content or content == "لا":
+            return None
+        # Sanity: must contain at least one Arabic-letter codepoint.
+        if not _re.search(r"[؀-ۿݐ-ݿࢠ-ࣿ]", content):
+            print(f"[translation-hides] artifact resolver: response contains no Arabic: {content!r}")
+            return None
+        # Sanity: must appear as a substring of the verse (modulo
+        # diacritic differences). This catches LLM hallucinations.
+        norm_verse = _normalize_arabic_for_match(arabic_verse)
+        norm_content = _normalize_arabic_for_match(content)
+        if norm_content and norm_content not in norm_verse:
+            print(f"[translation-hides] artifact resolver: response not in verse: {content!r}")
+            return None
+        return content
+    except (_urlerr.URLError, _urlerr.HTTPError, TimeoutError, ConnectionError) as e:
+        print(f"[translation-hides] artifact resolver unreachable ({e}); falling back")
+        return None
+    except Exception as e:
+        print(f"[translation-hides] artifact resolver crashed: {e}")
+        return None
+
+
+def resolve_artifact_arabic(
+    conn,
+    chapter: int,
+    verse: int,
+    signal: dict | None,
+    english_emphases: list[str],
+    *,
+    use_ollama: bool = True,
+) -> tuple[str, str]:
+    """Choose the Arabic to display as the reveal slide's big artifact.
+
+    Priority order:
+      1. Cached signals.artifact_arabic (if present)
+      2. Ollama-aligned phrase from script.english_emphases[0]
+      3. signal.primary_arabic (the judge's pick)
+      4. empty string (caller skips the artifact)
+
+    Returns (arabic, source_label). source_label is for logging:
+    'cached', 'ollama', 'primary', or 'none'.
+    """
+    _ensure_artifact_arabic_column(conn)
+    # 1. Cached?
+    if signal and signal.get("artifact_arabic"):
+        return (signal["artifact_arabic"], "cached")
+    # 2. Ollama alignment from english_emphases[0]?
+    if use_ollama and english_emphases:
+        phrase = (english_emphases[0] or "").strip()
+        if phrase:
+            vd = _verse_data(conn, chapter, verse)
+            if vd and vd.get("arabic"):
+                resolved = _resolve_artifact_via_ollama(
+                    conn,
+                    chapter,
+                    verse,
+                    vd["arabic"],
+                    vd.get("translation") or "",
+                    phrase,
+                )
+                if resolved:
+                    # Cache to the signal row if we have one.
+                    if signal and signal.get("id"):
+                        try:
+                            conn.execute(
+                                "UPDATE translation_hides_signals SET artifact_arabic = ? WHERE id = ?",
+                                (resolved, signal["id"]),
+                            )
+                            conn.commit()
+                            print(
+                                f"[translation-hides] resolved artifact_arabic for "
+                                f"{chapter}:{verse} → {resolved!r} (via ollama); cached"
+                            )
+                        except Exception as e:
+                            print(f"[translation-hides] could not cache artifact_arabic: {e}")
+                    return (resolved, "ollama")
+    # 3. Signal's primary_arabic (the judge's pick — may be short).
+    if signal and signal.get("primary_arabic"):
+        return (signal["primary_arabic"], "primary")
+    # 4. Nothing usable.
+    return ("", "none")
 
 
 def resolve_morphology_word_pos(
@@ -2100,27 +2297,34 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
         "hiddenLabel": "The Arabic actually says",
         "hiddenText": hidden_text,
     }
-    # Show the target word's Arabic on the reveal slide. PREFER
-    # signal.primary_arabic — the exact Arabic the judge wrote
-    # down — over a morphology-position lookup. Earlier renders
-    # called _word_arabic_at_pos(target_pos) and got the wrong
-    # word back (25:58 returned بِهِ instead of ذُنُوبِ) because the
-    # script's whitespace-count position doesn't align with the
-    # morphology table's word_pos. Using primary_arabic directly
-    # is both simpler AND correct.
-    artifact_arabic = ""
-    if signal and signal.get("primary_arabic"):
-        artifact_arabic = _strip_uthmani_marks(signal["primary_arabic"])
-    elif highlight_pos:
-        # No signal row (e.g. operator-curated video without a
-        # judge candidate). Fall back to the morphology lookup —
-        # may still be wrong on proclitic-heavy verses, but at
-        # least we tried.
+    # Choose the artifact Arabic. The script's english_emphases is
+    # the strongest signal of what the AUDIO is actually talking
+    # about — much stronger than signal.primary_arabic, which can
+    # be a tiny pronoun (66:12 فِيهِ) while the script is narrating
+    # about a completely different facet of the same verse (66:12
+    # script talks about Mary's chastity, not the pronoun shift).
+    # The resolver tries Ollama to align english_emphases[0] to the
+    # Arabic span in the verse, then caches; falls back to
+    # signal.primary_arabic if Ollama is unreachable.
+    emphases_for_resolver = [em["phrase"] for em in en_emphases]
+    artifact_arabic_raw, artifact_source = resolve_artifact_arabic(
+        conn, chapter, verse, signal, emphases_for_resolver
+    )
+    # If everything failed and we have a highlight_pos, last-ditch
+    # morphology lookup (may be wrong word due to position-mismatch,
+    # but better than showing nothing).
+    if not artifact_arabic_raw and highlight_pos:
         fallback = _word_arabic_at_pos(conn, chapter, verse, highlight_pos)
         if fallback:
-            artifact_arabic = _strip_uthmani_marks(fallback)
-    if artifact_arabic:
-        reveal_slide["arabic"] = artifact_arabic
+            artifact_arabic_raw = fallback
+            artifact_source = "morphology-fallback"
+    if artifact_arabic_raw:
+        reveal_slide["arabic"] = _strip_uthmani_marks(artifact_arabic_raw)
+    # Also pass the English emphasis as a gloss line so the viewer
+    # has a context anchor below the Arabic. Even when the Arabic
+    # is short or unfamiliar, the English under it makes it land.
+    if en_emphases:
+        reveal_slide["glossLine"] = en_emphases[0]["phrase"]
     if hook_text:
         reveal_slide["narration"] = {"text": hook_text}
 
