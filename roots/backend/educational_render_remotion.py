@@ -2066,6 +2066,76 @@ def resolve_morphology_word_pos(
     return (None, "no-match")
 
 
+def _resolve_lens_focal_pos(
+    conn,
+    chapter: int,
+    verse: int,
+    artifact_arabic: str,
+    signal: dict | None,
+) -> int | None:
+    """Pick the single morphology word_pos that should drive the
+    word-lens slide.
+
+    The lens magnifies ONE word and shows its conventional vs AI
+    glosses. When the artifact (from the script's english_emphases)
+    is a multi-word phrase, the signal's primary_arabic may point
+    at a completely different word — leaving the lens magnifying
+    something the audio isn't even talking about. Operator
+    feedback on 66:12: the audio narrates "fortified her farj.
+    Farj is..." while the lens slide displays فِيهِ ("into it") —
+    misaligned.
+
+    Resolution order:
+      1. If signal.primary_arabic is contained in the artifact
+         phrase, the lens is already aligned — use the signal's
+         cached morphology_word_pos (the previous fix).
+      2. Otherwise, scan morphology for words whose stripped form
+         appears inside the stripped artifact AND that have a
+         usable ai_word_meanings row. Prefer the LAST such word,
+         which in Arabic noun-phrases is typically the focal noun
+         the audio will name. (For 66:12 artifact
+         "أَحْصَنَتْ فَرْجَهَا" this returns pos 6 / فَرْجَهَا — what
+         the audio is actually narrating about.)
+      3. None — caller skips the lens slide and lets the insight
+         narration play over the verse-flow instead.
+    """
+    if not artifact_arabic:
+        return None
+    art_norm = _normalize_arabic_for_match(artifact_arabic)
+    if not art_norm:
+        return None
+    # Case 1: signal's primary_arabic is part of the artifact.
+    if signal and signal.get("primary_arabic"):
+        sig_norm = _normalize_arabic_for_match(signal["primary_arabic"])
+        if sig_norm and sig_norm in art_norm and signal.get("morphology_word_pos"):
+            return int(signal["morphology_word_pos"])
+    # Case 2: scan morphology words; pick the last one that's both
+    # inside the artifact and has an ai_word_meanings entry.
+    words = _morphology_word_forms(conn, chapter, verse)
+    if not words:
+        return None
+    # Pre-fetch which positions have ai_word_meanings to avoid
+    # per-iteration queries.
+    try:
+        meaning_positions = {
+            int(r[0])
+            for r in conn.execute(
+                "SELECT word_pos FROM ai_word_meanings WHERE chapter = ? AND verse = ?",
+                (chapter, verse),
+            ).fetchall()
+        }
+    except Exception:
+        meaning_positions = set()
+    best_pos: int | None = None
+    for pos, full in words:
+        full_norm = _normalize_arabic_for_match(full)
+        if not full_norm:
+            continue
+        if full_norm in art_norm and pos in meaning_positions:
+            best_pos = pos  # keep advancing; last wins
+    return best_pos
+
+
 def _word_arabic_at_pos(conn, c: int, v: int, p: int) -> str:
     """Reconstruct the visible Arabic surface form for word `p` by
     concatenating its morphology segments. Returns '' if no rows.
@@ -2375,17 +2445,35 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
     # insight narration is concatenated onto the verse-flow slide so the
     # spoken reveal still plays — just over the verse instead of a
     # dedicated lens.
+    # Lens slide focus — pick the word the AUDIO is talking about,
+    # not the word the judge originally flagged. The new resolver
+    # walks the morphology, intersects with the artifact phrase,
+    # and prefers the LAST matching word that has an
+    # ai_word_meanings row (typically the focal noun in Arabic
+    # noun-phrases). For verses where artifact and signal agree
+    # this is a no-op; for verses like 66:12 where they diverge,
+    # this picks فَرْجَهَا (pos 6) instead of فِيهِ (pos 8).
+    lens_focal_pos = _resolve_lens_focal_pos(
+        conn, chapter, verse, artifact_arabic_raw, signal
+    )
+    if lens_focal_pos is None:
+        # No lens-aligned word found — fall back to highlight_pos
+        # so we don't lose the lens slide entirely on edge cases
+        # (e.g. videos without a signal row).
+        lens_focal_pos = highlight_pos
+
     lens_emitted = False
-    if highlight_pos:
-        lens_data = _word_lens_data_for(conn, chapter, verse, highlight_pos)
-        # Prefer the judge's primary_arabic (correct word) over a
-        # morphology lookup (potentially wrong word due to the
-        # position-mismatch bug). Falls back to the lookup if no
-        # signal row exists.
-        target_arabic = (
-            (signal["primary_arabic"] if signal and signal.get("primary_arabic") else "")
-            or _word_arabic_at_pos(conn, chapter, verse, highlight_pos)
-        )
+    if lens_focal_pos:
+        lens_data = _word_lens_data_for(conn, chapter, verse, lens_focal_pos)
+        # The lens's big Arabic word should be the focal word at
+        # lens_focal_pos — NOT signal.primary_arabic, which can be
+        # a different word entirely. Fetch the word's surface form
+        # from morphology.
+        target_arabic = _word_arabic_at_pos(conn, chapter, verse, lens_focal_pos)
+        # Last resort if morphology lookup somehow fails: signal's
+        # primary_arabic (may be wrong word, but at least non-empty).
+        if not target_arabic and signal and signal.get("primary_arabic"):
+            target_arabic = signal["primary_arabic"]
         if lens_data and target_arabic and lens_data["ai_meaning_short"]:
             # We need BOTH a conventional gloss (for the strikethrough
             # row) and an AI gloss. Without the conventional, the
@@ -2402,7 +2490,7 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
                 "type": "word-lens",
                 "durationSec": 12,
                 "arabic": _strip_uthmani_marks(target_arabic),
-                "wordPos": highlight_pos,
+                "wordPos": lens_focal_pos,
                 "conventionalGloss": conv,
                 "hiddenGloss": lens_data["ai_meaning_short"],
                 "strikeConventional": True,
