@@ -72,35 +72,35 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
       <div
         style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          padding: '140px 80px 80px 80px',
+          // Symmetric vertical padding now that the "THE WORD" series
+          // mark is gone — gives the Arabic visual anchor more room
+          // to breathe at the optical center.
+          padding: '100px 80px 80px 80px',
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           justifyContent: 'center',
-          gap: 32,
+          // Larger inter-block gap so the conventional gloss row,
+          // the giant Arabic word, and the AI-gloss row don't crash
+          // into each other on mobile (where the slide is viewed
+          // upright at ~6" — the previous 32px collapsed visually).
+          gap: 64,
         }}
       >
-        {/* Series mark — rose, matches the reveal slide. */}
-        <div
-          style={{
-            color: COLORS.translationAccent, fontSize: 22, fontWeight: 600,
-            letterSpacing: 1.5, textTransform: 'uppercase',
-            position: 'absolute', top: 90, left: 0, right: 0, textAlign: 'center',
-          }}
-        >
-          The Word
-        </div>
 
         {/* Conventional gloss — muted, with optional strikethrough */}
         <div
           style={{
             opacity: convOpacity,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            gap: 8,
+            gap: 16,
           }}
         >
           <div
             style={{
-              fontSize: 22, color: COLORS.translationConvText,
-              letterSpacing: 0.4, textTransform: 'uppercase', fontWeight: 600,
+              // Bumped from 22 → 32 — mobile-readable label
+              // ("TRANSLATED AS"). At 22px these all-caps labels were
+              // dense on a small screen.
+              fontSize: 32, color: COLORS.translationConvText,
+              letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 700,
             }}
           >
             Translated as
@@ -108,7 +108,11 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
           <div
             style={{
               position: 'relative', display: 'inline-block',
-              fontSize: 44, color: COLORS.textSoft, lineHeight: 1.3,
+              // Bumped from 44 → 64 — the conventional gloss is the
+              // viewer's anchor for "what I think this means". On a
+              // phone the previous size disappeared next to the 200px
+              // Arabic; the contrast row needs visual weight.
+              fontSize: 64, color: COLORS.textSoft, lineHeight: 1.25,
               fontStyle: 'italic', textAlign: 'center',
               maxWidth: 880,
               padding: '0 12px',
@@ -124,7 +128,7 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
                   // Sit on the x-height roughly, not the baseline; looks
                   // like a deliberate strike rather than an underscore.
                   top: '52%',
-                  height: 3,
+                  height: 4,
                   background: COLORS.translationAccent,
                   transformOrigin: 'left center',
                   transform: `scaleX(${strikeProgress})`,
@@ -135,7 +139,13 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
           </div>
         </div>
 
-        {/* Arabic word — visual anchor */}
+        {/* Arabic word — visual anchor.
+            lineHeight bumped from 1 → 1.4 so the Arabic diacritics
+            (which sit ABOVE the baseline) don't intrude into the
+            conventional-gloss row above. With lineHeight 1 + a 200px
+            font, the kasra/fatha marks on فَرْجَهَا were rendering
+            right under "her chastity" — operator feedback. The extra
+            margin gives a clean band of empty space on both sides. */}
         <div
           dir="rtl"
           lang="ar"
@@ -143,12 +153,12 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
             fontFamily: ARABIC_FONT,
             fontSize: 200,
             fontWeight: 400,
-            lineHeight: 1,
+            lineHeight: 1.4,
             color: COLORS.text,
             letterSpacing: '0.04em',
             opacity: arabicOpacity,
             transform: `scale(${arabicScale})`,
-            margin: '12px 0',
+            margin: '40px 0',
           }}
         >
           {slide.arabic}
@@ -158,7 +168,7 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
         {slide.transliteration && (
           <div
             style={{
-              fontSize: 28, color: COLORS.textSoft,
+              fontSize: 32, color: COLORS.textSoft,
               fontStyle: 'italic',
               opacity: transliterationOpacity,
               marginTop: -16,
@@ -175,23 +185,29 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
             opacity: aiOpacity,
             transform: `translateY(${aiTranslateY}px)`,
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            gap: 8,
+            gap: 16,
           }}
         >
           <div
             style={{
-              fontSize: 22, color: COLORS.translationAccent,
-              letterSpacing: 0.4, textTransform: 'uppercase', fontWeight: 700,
+              // Mirrors the bumped "TRANSLATED AS" label above.
+              fontSize: 32, color: COLORS.translationAccent,
+              letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 700,
             }}
           >
             Actually means
           </div>
           <div
             style={{
-              fontSize: 54, color: COLORS.translationAccentDeep,
-              fontWeight: 600, lineHeight: 1.25,
+              // Bumped from 54 → 76 — this is the payoff line; it
+              // should be the LARGEST English on the slide so the
+              // viewer's eye lands here last and longest. Previous
+              // size let the conventional gloss (post-bump) compete
+              // for weight, which dulled the reveal.
+              fontSize: 76, color: COLORS.translationAccentDeep,
+              fontWeight: 700, lineHeight: 1.2,
               textAlign: 'center', maxWidth: 880,
-              letterSpacing: '-0.005em',
+              letterSpacing: '-0.01em',
             }}
           >
             {wrapArabicRuns(slide.hiddenGloss)}
@@ -204,12 +220,12 @@ export function WordLensPage({ slide }: { slide: WordLensSlideT }) {
             style={{
               opacity: chipOpacity,
               display: 'inline-block',
-              padding: '8px 20px',
+              padding: '12px 26px',
               borderRadius: 999,
               background: COLORS.translationAccentSoft,
               border: `1px solid ${COLORS.translationAccent}33`,
               color: COLORS.translationAccentDeep,
-              fontSize: 22, fontWeight: 500,
+              fontSize: 28, fontWeight: 600,
               letterSpacing: 0.3,
               marginTop: 8,
             }}

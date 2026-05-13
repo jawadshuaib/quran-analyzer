@@ -153,15 +153,20 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
       ? "There's a word in this verse..."
       : "Most translations miss this.");
 
-  // Auto-scale gloss font by length. Tuned for vertical mobile.
+  // Auto-scale gloss font by length. Tuned for vertical mobile —
+  // these are the BODY lines (the actual "her chastity" / "her
+  // private parts" content), so they need to dominate the slide.
+  // Previous values felt cramped on phone playback; operator
+  // feedback after 66:12 dev render: "English here still looks
+  // small." Bumped each tier by ~25%.
   const fontFor = (text: string, big: number, mid: number, small: number) => {
     const n = (text || '').length;
     if (n <= 60) return big;
     if (n <= 110) return mid;
     return small;
   };
-  const convFontSize = fontFor(slide.conventionalText, 60, 50, 44);
-  const hiddenFontSize = fontFor(slide.hiddenText, 68, 56, 48);
+  const convFontSize = fontFor(slide.conventionalText, 76, 62, 54);
+  const hiddenFontSize = fontFor(slide.hiddenText, 86, 72, 60);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.appBg, fontFamily: SYSTEM_FONT }}>
@@ -171,7 +176,7 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
         style={{
           position: 'absolute', top: 70, left: 0, right: 0,
           color: COLORS.translationAccent,
-          fontSize: 38, fontWeight: 700, letterSpacing: 3,
+          fontSize: 46, fontWeight: 700, letterSpacing: 3,
           textTransform: 'uppercase', textAlign: 'center',
         }}
       >
@@ -200,7 +205,7 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           style={{
             opacity: hookOpacity,
             transform: `translateY(${hookTranslateY}px)`,
-            fontSize: 56,
+            fontSize: 68,
             fontWeight: 600,
             fontStyle: 'italic',
             color: COLORS.translationAccentDeep,
@@ -218,7 +223,7 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           <div
             style={{
               opacity: hookOpacity,
-              fontSize: 30,
+              fontSize: 38,
               fontWeight: 600,
               letterSpacing: 1.5,
               color: COLORS.translationConvText,
@@ -270,7 +275,7 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
               {slide.transliteration && (
                 <div
                   style={{
-                    fontSize: 32,
+                    fontSize: 40,
                     fontStyle: 'italic',
                     color: COLORS.translationConvText,
                     marginTop: 10,
@@ -282,7 +287,12 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
               {slide.glossLine && (
                 <div
                   style={{
-                    fontSize: 32,
+                    // Bumped 32 → 48 — this English line sits
+                    // directly under the artifact and is what
+                    // anchors the viewer when the Arabic alone is
+                    // unfamiliar. Needs to be readable at arm's
+                    // length on a phone.
+                    fontSize: 48,
                     fontStyle: 'italic',
                     color: COLORS.translationConvText,
                     marginTop: slide.transliteration ? 6 : 18,
@@ -331,7 +341,7 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           style={{
             opacity: butOpacity,
             color: COLORS.translationConvText,
-            fontSize: 44,
+            fontSize: 56,
             fontStyle: 'italic',
             margin: '4px 0',
           }}
@@ -358,7 +368,7 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
             style={{
               marginTop: 20,
               opacity: taglineOpacity,
-              fontSize: 34,
+              fontSize: 42,
               color: COLORS.translationAccentDeep,
               fontStyle: 'italic',
               textAlign: 'center',
@@ -406,10 +416,15 @@ function RevealRow({
       <div
         style={{
           background: bgColor,
-          padding: '12px 30px',
+          padding: '16px 36px',
           borderRadius: 999,
           color: labelColor,
-          fontSize: 28,
+          // Bumped 28 → 38. The label pills ("MOST TRANSLATIONS
+          // SAY" / "THE ARABIC ACTUALLY SAYS") were the most
+          // anaemic English on the slide at the previous size —
+          // operator screenshot showed them dwarfed by the body
+          // text. Pill padding bumped to match.
+          fontSize: 38,
           fontWeight: 700,
           letterSpacing: 1.2,
           textTransform: 'uppercase',
