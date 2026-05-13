@@ -1966,6 +1966,182 @@ def _resolve_artifact_via_ollama(
         return None
 
 
+def _resolve_artifact_via_glosses(
+    conn, chapter: int, verse: int, english_phrase: str
+) -> str | None:
+    """Algorithmic artifact resolver — no LLM needed, runs everywhere.
+
+    Why this exists alongside the Ollama resolver: prod doesn't have
+    Ollama reachable (the container's network can't hit
+    localhost:11434), so the Ollama path falls through and we end up
+    showing signal.primary_arabic — which on 66:12 is the pronoun
+    فِيهِ while the script narrates about Mary's chastity. This is
+    the deterministic path that catches the common case without an
+    LLM round-trip.
+
+    Method:
+      1. Score every word_pos by overlap between english_phrase
+         tokens and a UNION of (word_glosses.translation_en,
+         ai_word_meanings.preferred_translation, .meaning_short).
+         Pulling in ai_word_meanings is what unlocks 66:12 — its
+         preferred_translation for pos 6 is "her private part",
+         which `her chastity` (the word_glosses version) doesn't
+         cover.
+      2. Weight by overlap size so multi-token matches dominate
+         the 1-token "her" / "his" matches that would otherwise
+         pull anchors across the whole verse.
+      3. Take the highest-scoring position as the anchor; extend
+         left/right into adjacent words whose score is also above
+         a noise floor.
+      4. Concatenate morphology forms across the contiguous span.
+
+    Returns the Arabic phrase string, or None when no position
+    cleared the noise floor.
+    """
+    phrase_toks = _th_tokenize(english_phrase)
+    if not phrase_toks:
+        return None
+
+    # Per-position English signal — union of glosses + AI meaning.
+    rows = conn.execute(
+        "SELECT g.word_pos, g.translation_en AS gloss, "
+        "       a.preferred_translation AS pref, "
+        "       a.meaning_short AS meaning_short "
+        "FROM word_glosses g "
+        "LEFT JOIN ai_word_meanings a "
+        "  ON a.chapter = g.chapter AND a.verse = g.verse "
+        "     AND a.word_pos = g.word_pos "
+        "WHERE g.chapter = ? AND g.verse = ? "
+        "ORDER BY g.word_pos",
+        (chapter, verse),
+    ).fetchall()
+    if not rows:
+        return None
+
+    scores: dict[int, float] = {}
+    for r in rows:
+        toks = (
+            _th_tokenize(r["gloss"] or "")
+            | _th_tokenize(r["pref"] or "")
+            | _th_tokenize(r["meaning_short"] or "")
+        )
+        if not toks:
+            continue
+        overlap = toks & phrase_toks
+        if not overlap:
+            continue
+        # Score = overlap_count * (1 + overlap_count). This is
+        # n + n²: it rewards multi-token matches much more strongly
+        # than 1-token matches without dividing by signal size
+        # (which would let a tight 1-token gloss tie a broader
+        # multi-token gloss). Concretely on 34:39 / "will replace
+        # it (succession)" this is what lets pos 17 (gloss "will
+        # replace it" — overlap {will, replac}, score 6) beat
+        # pos 7 (gloss "He wills" — overlap {will}, score 2).
+        n = len(overlap)
+        scores[int(r["word_pos"])] = n * (1 + n)
+
+    if not scores:
+        return None
+
+    # Identify which positions are CONTENT words (have a Verb,
+    # Noun, Proper Noun, or Adjective segment in their morphology).
+    # We restrict the ANCHOR pick to these — pure-particle words
+    # like لِلَّذِينَ ("for those who") would otherwise win the
+    # anchor on phrases like "those who covered the truth" simply
+    # because their gloss is itself "for those who" (100% overlap
+    # against a function-word slot). The focal verb كَفَرُوا is
+    # what the script actually wants the slide to show. Non-content
+    # positions can still be PICKED UP via the lo/hi extension step
+    # below — they just can't seed the anchor.
+    content_positions: set[int] = set()
+    try:
+        morph_tags = conn.execute(
+            "SELECT word_pos, tag FROM morphology "
+            "WHERE chapter = ? AND verse = ?",
+            (chapter, verse),
+        ).fetchall()
+        for m in morph_tags:
+            tag = (m["tag"] or "").upper()
+            if tag in ("V", "N", "PN", "ADJ"):
+                content_positions.add(int(m["word_pos"]))
+    except Exception:
+        # If we can't read morphology for any reason, fall through
+        # and let any position anchor — better than no result.
+        content_positions = set(scores.keys())
+
+    anchor_scores = {p: s for p, s in scores.items() if p in content_positions}
+    if not anchor_scores:
+        # No content-word anchor — fall back to any-position anchor
+        # so we don't return None just because the matched gloss is
+        # on a particle (rare; usually the script picks content
+        # phrases).
+        anchor_scores = scores
+    anchor = max(anchor_scores, key=anchor_scores.get)
+    # Pre-compute which positions START a new clause (their first
+    # morphology segment is a fa- or sa- prefix). We refuse to
+    # extend ACROSS those — even when the position has a weak
+    # token overlap — because in Arabic those prefixes mark a
+    # clause boundary, and the script's english_emphases is
+    # almost always a sub-clause, not a spanning one. Concretely
+    # on 66:12, pos 7 (فَنَفَخْنَا "so We breathed") shares the
+    # promiscuous token "her" with the phrase "fortified her
+    # private part" via its ai_meaning "breathe into her", which
+    # without this guard would over-extend the span by pulling
+    # in pos 7. wa- (و) is intentionally NOT treated as a hard
+    # boundary because it's also used to coordinate noun lists
+    # (e.g. الرَّحْمَٰنِ الرَّحِيمِ has no wa-, but many noun
+    # phrases do — being too aggressive splits legitimate lists).
+    clause_starters: set[int] = set()
+    try:
+        first_segs = conn.execute(
+            "SELECT word_pos, MIN(segment), tag, form_arabic FROM morphology "
+            "WHERE chapter = ? AND verse = ? "
+            "GROUP BY word_pos",
+            (chapter, verse),
+        ).fetchall()
+        for r in first_segs:
+            tag = (r["tag"] or "").upper()
+            if tag != "PREFIX":
+                continue
+            form_norm = _normalize_arabic_for_match(r["form_arabic"] or "")
+            if form_norm in ("ف", "س"):
+                clause_starters.add(int(r["word_pos"]))
+    except Exception:
+        pass
+
+    # Extension: walk outward as long as the IMMEDIATE neighbor
+    # has overlap AND isn't a clause-starter. "In scores" already
+    # filters to positions with non-zero overlap; the clause
+    # filter blocks the fa-/sa- bleed described above.
+    lo = anchor
+    while lo - 1 in scores and (lo - 1) not in clause_starters:
+        lo -= 1
+    hi = anchor
+    while hi + 1 in scores and (hi + 1) not in clause_starters:
+        hi += 1
+
+    # Walk morphology to build the Arabic surface form.
+    morph_rows = conn.execute(
+        "SELECT word_pos, segment, form_arabic FROM morphology "
+        "WHERE chapter = ? AND verse = ? "
+        "ORDER BY word_pos, segment",
+        (chapter, verse),
+    ).fetchall()
+    by_pos: dict[int, list[str]] = {}
+    for m in morph_rows:
+        by_pos.setdefault(int(m["word_pos"]), []).append(m["form_arabic"] or "")
+    parts: list[str] = []
+    for p in range(lo, hi + 1):
+        segs = by_pos.get(p)
+        if not segs:
+            continue
+        parts.append("".join(segs))
+    if not parts:
+        return None
+    return " ".join(parts)
+
+
 def resolve_artifact_arabic(
     conn,
     chapter: int,
@@ -1978,19 +2154,45 @@ def resolve_artifact_arabic(
     """Choose the Arabic to display as the reveal slide's big artifact.
 
     Priority order:
-      1. Cached signals.artifact_arabic (if present)
-      2. Ollama-aligned phrase from script.english_emphases[0]
-      3. signal.primary_arabic (the judge's pick)
-      4. empty string (caller skips the artifact)
+      1. Algorithmic glosses+ai_word_meanings match — runs first
+         because it's fast (a couple of SQL queries), deterministic,
+         and ALWAYS reflects the current script.english_emphases. We
+         deliberately do NOT cache its result: re-running at render
+         time costs almost nothing and avoids stale cache mismatches
+         when the script gets regenerated with a different emphasis.
+      2. Cached signals.artifact_arabic — only populated by the
+         Ollama path below (kept as a hint when the algorithmic path
+         failed but Ollama once succeeded for this verse).
+      3. Ollama-aligned phrase from script.english_emphases[0] —
+         the fallback for verses the algorithm can't handle (e.g.,
+         when the script's emphasis uses tokens that don't appear
+         anywhere in the per-word gloss data).
+      4. signal.primary_arabic (the judge's pick — may be a tiny
+         pronoun, but better than nothing).
+      5. empty string (caller skips the artifact).
 
-    Returns (arabic, source_label). source_label is for logging:
-    'cached', 'ollama', 'primary', or 'none'.
+    Returns (arabic, source_label).
     """
     _ensure_artifact_arabic_column(conn)
-    # 1. Cached?
+
+    # 1. Algorithmic — fast, deterministic, no LLM. This is what
+    # makes prod work (Ollama not reachable there). It also takes
+    # precedence over the cache because the cache may have been
+    # populated against an OLDER script.english_emphases — running
+    # algorithm fresh against the current phrase keeps the artifact
+    # in sync with whatever the audio is narrating right now.
+    if english_emphases:
+        phrase = (english_emphases[0] or "").strip()
+        if phrase:
+            resolved = _resolve_artifact_via_glosses(conn, chapter, verse, phrase)
+            if resolved:
+                return (resolved, "glosses")
+
+    # 2. Cached (from a prior Ollama run)?
     if signal and signal.get("artifact_arabic"):
         return (signal["artifact_arabic"], "cached")
-    # 2. Ollama alignment from english_emphases[0]?
+
+    # 3. Ollama alignment from english_emphases[0]?
     if use_ollama and english_emphases:
         phrase = (english_emphases[0] or "").strip()
         if phrase:
@@ -2020,10 +2222,10 @@ def resolve_artifact_arabic(
                         except Exception as e:
                             print(f"[translation-hides] could not cache artifact_arabic: {e}")
                     return (resolved, "ollama")
-    # 3. Signal's primary_arabic (the judge's pick — may be short).
+    # 4. Signal's primary_arabic (the judge's pick — may be short).
     if signal and signal.get("primary_arabic"):
         return (signal["primary_arabic"], "primary")
-    # 4. Nothing usable.
+    # 5. Nothing usable.
     return ("", "none")
 
 

@@ -84,8 +84,10 @@ async function callElevenLabs({ apiKey, voiceId, modelId, text }) {
 }
 
 // Generate (or load from cache) one slide's narration. Returns the
-// patch object that should be merged into slide.narration.
-async function generateOne({ apiKey, voiceId, modelId, text }) {
+// patch object that should be merged into slide.narration, OR null
+// when the cache misses and TTS generation is disabled — the caller
+// then renders the slide silently instead of paying for new audio.
+async function generateOne({ apiKey, voiceId, modelId, text, ttsDisabled }) {
   ensureDirs();
   const hash = hashFor(voiceId, modelId, text);
   const audioPath = resolve(CACHE_DIR, `${hash}.mp3`);
@@ -102,6 +104,19 @@ async function generateOne({ apiKey, voiceId, modelId, text }) {
       durationSec: meta.durationSec,
       cached: true,
     };
+  }
+
+  // Cache miss. If the operator set ELEVENLABS_DISABLE_GENERATION=1
+  // (the "dev kill switch" — used during iterative renders where we
+  // don't want to burn API credits regenerating audio for every
+  // tweak), return null so the slide renders silently. Cached audio
+  // still plays; only NEW lines are dropped.
+  if (ttsDisabled) {
+    console.error(
+      `[narration] CACHE MISS (${hash}) and ELEVENLABS_DISABLE_GENERATION=1 — ` +
+      `slide will render silently. Text: "${text.slice(0, 60)}…"`,
+    );
+    return null;
   }
 
   // Cache miss — call the API.
@@ -142,6 +157,12 @@ export async function prepareNarration(payload, env = process.env) {
   const apiKey = env.ELEVENLABS_API_KEY || '';
   const voiceId = env.ELEVENLABS_VOICE_ID || '';
   const modelId = env.ELEVENLABS_MODEL_ID || DEFAULT_MODEL;
+  // Kill switch for dev / iterative renders: setting
+  // ELEVENLABS_DISABLE_GENERATION=1 means we still REUSE cached audio
+  // (free) but we never call the API for new lines. Slides whose
+  // narration is uncached render silently. This lets the visual side
+  // of a video be iterated on cheaply.
+  const ttsDisabled = /^(1|true|yes)$/i.test(env.ELEVENLABS_DISABLE_GENERATION || '');
 
   if (!voiceId) {
     console.error(
@@ -149,6 +170,13 @@ export async function prepareNarration(payload, env = process.env) {
       'Slides will render silently. Set it in .env to enable.',
     );
     return payload;
+  }
+
+  if (ttsDisabled) {
+    console.error(
+      '[narration] ELEVENLABS_DISABLE_GENERATION=1 — using cached audio ' +
+      'only. Cache misses will render silently (no API calls, no cost).',
+    );
   }
 
   const enriched = JSON.parse(JSON.stringify(payload));
@@ -175,8 +203,13 @@ export async function prepareNarration(payload, env = process.env) {
 
     try {
       const result = await generateOne({
-        apiKey, voiceId, modelId, text: narr.text,
+        apiKey, voiceId, modelId, text: narr.text, ttsDisabled,
       });
+      if (result === null) {
+        // Dev kill-switch path: cache missed and generation is off.
+        // Leave the slide silent — visual dwell still applies.
+        continue;
+      }
       slide.narration = {
         ...narr,
         audioFile: result.audioFile,
