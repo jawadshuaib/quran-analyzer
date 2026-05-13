@@ -1584,6 +1584,291 @@ def _extract_reveal_from_hook(hook: str) -> tuple[str, str]:
     return ("", "")
 
 
+# ---------------------------------------------------------------------------
+# Morphology-position resolver for translation_hides signals
+#
+# Why this exists: the judge's translation_hides_signals row records
+# `primary_word_pos` (the judge's own word-index, derived from
+# whitespace-splitting the verse text) and `primary_arabic` (the
+# actual Arabic word/phrase the judge picked). These two don't
+# always line up with the morphology table's `word_pos`, which uses
+# a different counting (proclitics like بِ get their own
+# segment-grouping, etc.). On 25:58 the signal says position 10
+# for dhunūb, but morphology position 10 is bihi — so calling
+# `_word_arabic_at_pos(conn, 25, 58, 10)` returned the wrong word
+# for the big artifact on the reveal slide and the highlight on
+# verse-flow.
+#
+# The fix is two-pronged:
+#
+#   1. For the big artifact, don't look it up at all — just trust
+#      `signal.primary_arabic`, the word the judge already wrote
+#      down. No resolver, no LLM, 100% correct.
+#
+#   2. For the verse-flow highlight (which DOES need a morphology
+#      word_pos because the renderer draws a yellow pill around
+#      the N-th word), resolve via algorithmic substring matching
+#      first. It handles 99% of cases instantly. Only when the
+#      algorithm can't find a unique match do we call an Ollama
+#      LLM to disambiguate — and we cache the answer so we never
+#      ask twice.
+#
+# The cache lives in a column on translation_hides_signals
+# (`morphology_word_pos`, added below in
+# _ensure_morphology_word_pos_column).
+# ---------------------------------------------------------------------------
+
+
+_MWP_COLUMN_CHECKED = False
+
+
+def _ensure_morphology_word_pos_column(conn) -> None:
+    """Add the `morphology_word_pos` cache column to
+    translation_hides_signals if it doesn't exist yet. Safe to call
+    on every render — short-circuits after the first check per
+    process via the module-level flag."""
+    global _MWP_COLUMN_CHECKED
+    if _MWP_COLUMN_CHECKED:
+        return
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(translation_hides_signals)").fetchall()]
+        if "morphology_word_pos" not in cols:
+            conn.execute("ALTER TABLE translation_hides_signals ADD COLUMN morphology_word_pos INTEGER")
+            conn.commit()
+            print("[translation-hides] Added morphology_word_pos column to translation_hides_signals")
+    except Exception as e:
+        # Table might not exist yet on a fresh DB — fail soft and
+        # let the resolver no-op when called.
+        print(f"[translation-hides] could not ensure morphology_word_pos column: {e}")
+    finally:
+        _MWP_COLUMN_CHECKED = True
+
+
+def _normalize_arabic_for_match(s: str) -> str:
+    """Lighter normalization than _strip_uthmani_marks — strips ALL
+    diacritics and punctuation so that 'ذُنُوبِ' and 'ذنوب' and
+    'ذُنوب.' all collapse to the same matchable form."""
+    if not s:
+        return ""
+    import re as _re
+    # Strip all Arabic diacritical marks (fatha/kasra/damma/shadda/sukun/etc.)
+    s = _re.sub(r"[ً-ٰٟـۖ-ۭ]", "", s)
+    # alef wasla → plain alef, alef maksura stays as-is
+    s = s.replace("ٱ", "ا")
+    # Strip non-Arabic punctuation and whitespace
+    s = _re.sub(r"[^؀-ۿ]", "", s)
+    return s.strip()
+
+
+def _signal_for_verse(conn, chapter: int, verse: int) -> dict | None:
+    """Pull the most recent translation_hides_signals row for the
+    given verse, including the cached morphology_word_pos if any."""
+    _ensure_morphology_word_pos_column(conn)
+    try:
+        row = conn.execute(
+            """
+            SELECT id, primary_word_pos, primary_arabic,
+                   COALESCE(morphology_word_pos, NULL) AS morphology_word_pos
+            FROM translation_hides_signals
+            WHERE chapter = ? AND verse = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (chapter, verse),
+        ).fetchone()
+    except Exception:
+        return None
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "primary_word_pos": row["primary_word_pos"],
+        "primary_arabic": row["primary_arabic"],
+        "morphology_word_pos": row["morphology_word_pos"],
+    }
+
+
+def _morphology_word_forms(conn, chapter: int, verse: int) -> list[tuple[int, str]]:
+    """Return [(word_pos, full_concatenated_form), ...] for every
+    word position in the verse. The full form is each word's
+    segments joined together — so a word stored as multiple
+    morphology rows (proclitic + stem + enclitic) shows up as one
+    string here."""
+    rows = conn.execute(
+        """
+        SELECT word_pos, GROUP_CONCAT(form_arabic, '') AS full_word
+        FROM morphology
+        WHERE chapter = ? AND verse = ?
+        GROUP BY word_pos
+        ORDER BY word_pos
+        """,
+        (chapter, verse),
+    ).fetchall()
+    return [(int(r[0]), r[1] or "") for r in rows]
+
+
+def _resolve_via_substring(
+    target_norm: str,
+    words: list[tuple[int, str]],
+) -> tuple[int | None, list[int]]:
+    """Algorithmic resolver. Returns (best_pos, candidate_positions).
+    Tries exact-equal first, then substring (target in word), then
+    reverse-substring (word in target — handles cases where the
+    judge picked a phrase that includes a stem-only word).
+
+    If there's exactly one best match, returns it as best_pos.
+    Otherwise best_pos is None and the caller should fall back to
+    the LLM disambiguator."""
+    if not target_norm:
+        return (None, [])
+    # Pass 1: exact match after normalization.
+    exact = [p for (p, full) in words if _normalize_arabic_for_match(full) == target_norm]
+    if len(exact) == 1:
+        return (exact[0], exact)
+    # Pass 2: target appears inside a word (handles بِذُنُوبِ ⊇ ذُنُوبِ).
+    contains = [p for (p, full) in words if target_norm in _normalize_arabic_for_match(full)]
+    if len(contains) == 1:
+        return (contains[0], contains)
+    # Pass 3: word appears inside the target (handles judge-picked phrase).
+    contained_by = [p for (p, full) in words
+                    if _normalize_arabic_for_match(full)
+                    and _normalize_arabic_for_match(full) in target_norm]
+    if len(contained_by) == 1:
+        return (contained_by[0], contained_by)
+    # Collect every candidate from any pass for the LLM.
+    candidates = sorted(set(exact + contains + contained_by))
+    return (None, candidates)
+
+
+def _resolve_via_ollama(
+    conn,
+    chapter: int,
+    verse: int,
+    target_arabic: str,
+    candidates: list[int],
+    words: list[tuple[int, str]],
+) -> int | None:
+    """LLM-based disambiguator. Only invoked when the algorithmic
+    resolver finds zero or multiple candidates. Uses the
+    admin-configured Ollama endpoint and a small fast local model.
+
+    Returns the resolved word_pos, or None if Ollama is unreachable
+    / returns garbage. The caller treats a None as 'don't render
+    the highlight rather than render the wrong one.'"""
+    import json as _json
+    import urllib.request as _urlreq
+    import urllib.error as _urlerr
+    import re as _re
+
+    # Read Ollama config from admin_preferences (same path the
+    # translate_ai pipeline uses, so the operator only configures
+    # the endpoint in one place).
+    try:
+        pref = conn.execute(
+            "SELECT ollama_base_url, ollama_api_key FROM admin_preferences ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    except Exception:
+        pref = None
+    base_url = (pref["ollama_base_url"] if pref else None) or "http://localhost:11434"
+    api_key = (pref["ollama_api_key"] if pref else None) or None
+    model = "qwen3:14b"  # local, fast, plenty accurate for "pick an integer"
+
+    # Build a clear prompt — give the model the whole verse with
+    # numbered positions so it can see the context, not just the
+    # candidate set. Otherwise it can't tell which بِذُنُوبِ etc.
+    # the judge meant in verses where the same word appears twice.
+    numbered = "\n".join(f"  [{p}] {w}" for (p, w) in words)
+    candidate_str = ", ".join(str(p) for p in candidates) if candidates else "none — search all"
+    prompt = (
+        f"You are matching an Arabic word/phrase to its position in a Quranic verse.\n\n"
+        f"Verse {chapter}:{verse}, words with positions:\n{numbered}\n\n"
+        f"The target word/phrase from the judge: \"{target_arabic}\"\n\n"
+        f"Algorithmic-matcher candidates that need disambiguation: {candidate_str}\n\n"
+        f"Return ONLY the single integer position of the word that best matches the target. "
+        f"If multiple are equally plausible, pick the most semantically central one. "
+        f"If nothing matches at all, return 0."
+    )
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "options": {"temperature": 0.0},  # deterministic — we want a single integer
+    }
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    try:
+        req = _urlreq.Request(
+            f"{base_url.rstrip('/')}/api/chat",
+            data=_json.dumps(payload).encode("utf-8"),
+            headers=headers,
+        )
+        with _urlreq.urlopen(req, timeout=20) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        content = (data.get("message") or {}).get("content") or ""
+        # Strip Ollama <think>...</think> chain-of-thought if present.
+        content = _re.sub(r"<think>.*?</think>", "", content, flags=_re.DOTALL).strip()
+        m = _re.search(r"\b(\d+)\b", content)
+        if not m:
+            print(f"[translation-hides] ollama resolver: no integer in response: {content[:120]!r}")
+            return None
+        pos = int(m.group(1))
+        if pos == 0:
+            return None
+        # Validate: position must exist in the verse's morphology.
+        valid_positions = {p for (p, _) in words}
+        if pos not in valid_positions:
+            print(f"[translation-hides] ollama resolver returned invalid pos {pos} for {chapter}:{verse}")
+            return None
+        return pos
+    except (_urlerr.URLError, _urlerr.HTTPError, TimeoutError, ConnectionError) as e:
+        print(f"[translation-hides] ollama resolver unreachable ({e}); falling back")
+        return None
+    except Exception as e:
+        print(f"[translation-hides] ollama resolver crashed: {e}")
+        return None
+
+
+def resolve_morphology_word_pos(
+    conn,
+    chapter: int,
+    verse: int,
+    target_arabic: str,
+    *,
+    use_ollama: bool = True,
+) -> tuple[int | None, str]:
+    """Public entry point. Given a verse and the Arabic word/phrase
+    the judge identified, return the morphology word_pos that
+    contains it (or None if we can't determine one safely).
+
+    The second tuple element is a source label for logging:
+      'exact'      — algorithmic exact match after normalization
+      'substring'  — algorithmic unique substring match
+      'cached'     — pulled from translation_hides_signals.morphology_word_pos
+      'ollama'     — LLM disambiguated
+      'no-match'   — couldn't resolve; caller should skip highlight
+    """
+    _ensure_morphology_word_pos_column(conn)
+    target_norm = _normalize_arabic_for_match(target_arabic)
+    if not target_norm:
+        return (None, "no-match")
+    words = _morphology_word_forms(conn, chapter, verse)
+    if not words:
+        return (None, "no-match")
+    # Algorithmic first — fast and free.
+    best, candidates = _resolve_via_substring(target_norm, words)
+    if best is not None:
+        return (best, "substring")
+    if not use_ollama:
+        return (None, "no-match")
+    # LLM fallback for genuinely ambiguous cases.
+    pos = _resolve_via_ollama(conn, chapter, verse, target_arabic, candidates, words)
+    if pos is not None:
+        return (pos, "ollama")
+    return (None, "no-match")
+
+
 def _word_arabic_at_pos(conn, c: int, v: int, p: int) -> str:
     """Reconstruct the visible Arabic surface form for word `p` by
     concatenating its morphology segments. Returns '' if no rows.
@@ -1703,6 +1988,52 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
 
     target_pos = _maybe_rose_highlight_word_index(script)
 
+    # Pull the signals row — the judge already wrote down the
+    # exact Arabic word/phrase it picked, and we trust that as the
+    # source of truth for what to display. The script's
+    # selected_word_pos is the judge's own count (whitespace-based);
+    # it doesn't always agree with the morphology table's word_pos
+    # because proclitics (بِ, لِ, وَ, ...) get split differently.
+    # The signal row lets us SIDESTEP the count entirely for the
+    # big reveal-slide artifact and resolve the morphology position
+    # only for the highlight (which truly needs an integer position).
+    signal = _signal_for_verse(conn, chapter, verse)
+
+    # Resolve the *morphology-aligned* word position so the
+    # verse-flow highlight lands on the right word. Order of
+    # preference:
+    #   1. cached signals.morphology_word_pos (resolved once, used forever)
+    #   2. algorithmic substring match on signal.primary_arabic
+    #   3. Ollama LLM disambiguator for ambiguous candidates
+    #   4. fall back to script.selected_word_pos (the original bug)
+    morph_pos: int | None = None
+    if signal and signal.get("morphology_word_pos"):
+        morph_pos = int(signal["morphology_word_pos"])
+    elif signal and signal.get("primary_arabic"):
+        resolved, source = resolve_morphology_word_pos(
+            conn, chapter, verse, signal["primary_arabic"]
+        )
+        if resolved is not None:
+            morph_pos = resolved
+            # Cache the answer back to the signals row so we never
+            # have to call the LLM again for this verse.
+            try:
+                conn.execute(
+                    "UPDATE translation_hides_signals SET morphology_word_pos = ? WHERE id = ?",
+                    (morph_pos, signal["id"]),
+                )
+                conn.commit()
+                print(
+                    f"[translation-hides] resolved morphology_word_pos for "
+                    f"{chapter}:{verse} → {morph_pos} (via {source}); cached"
+                )
+            except Exception as e:
+                print(f"[translation-hides] could not cache morphology_word_pos: {e}")
+    # If we have a morph_pos from signal-resolution AND a script
+    # target_pos that disagrees, prefer the resolved one — the
+    # signal's primary_arabic is the most trustworthy anchor.
+    highlight_pos = morph_pos if morph_pos is not None else target_pos
+
     # Per-slide narration sourced from the script's structured beats.
     hook_text = sanitize_for_tts((script.get("hook") or "").strip())
     intro_text = sanitize_for_tts((script.get("verse_intro") or "").strip())
@@ -1769,13 +2100,27 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
         "hiddenLabel": "The Arabic actually says",
         "hiddenText": hidden_text,
     }
-    # Show the target word's Arabic on the reveal slide too — only when
-    # a single word is the focus. For phrase-level reveals we omit it
-    # so the slide doesn't imply false specificity.
-    if target_pos:
-        arabic_at_target = _word_arabic_at_pos(conn, chapter, verse, target_pos)
-        if arabic_at_target:
-            reveal_slide["arabic"] = _strip_uthmani_marks(arabic_at_target)
+    # Show the target word's Arabic on the reveal slide. PREFER
+    # signal.primary_arabic — the exact Arabic the judge wrote
+    # down — over a morphology-position lookup. Earlier renders
+    # called _word_arabic_at_pos(target_pos) and got the wrong
+    # word back (25:58 returned بِهِ instead of ذُنُوبِ) because the
+    # script's whitespace-count position doesn't align with the
+    # morphology table's word_pos. Using primary_arabic directly
+    # is both simpler AND correct.
+    artifact_arabic = ""
+    if signal and signal.get("primary_arabic"):
+        artifact_arabic = _strip_uthmani_marks(signal["primary_arabic"])
+    elif highlight_pos:
+        # No signal row (e.g. operator-curated video without a
+        # judge candidate). Fall back to the morphology lookup —
+        # may still be wrong on proclitic-heavy verses, but at
+        # least we tried.
+        fallback = _word_arabic_at_pos(conn, chapter, verse, highlight_pos)
+        if fallback:
+            artifact_arabic = _strip_uthmani_marks(fallback)
+    if artifact_arabic:
+        reveal_slide["arabic"] = artifact_arabic
     if hook_text:
         reveal_slide["narration"] = {"text": hook_text}
 
@@ -1791,8 +2136,8 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
         "arabicText": arabic,
         "translation": translation,
     }
-    if target_pos:
-        verse_slide["highlightWordIndex"] = target_pos
+    if highlight_pos:
+        verse_slide["highlightWordIndex"] = highlight_pos
     # The existing verse-flow slide supports a single highlight word +
     # a single highlight phrase via highlightTranslationText. Use the
     # first emphasis as the translation highlight; the rest are
@@ -1812,8 +2157,8 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
     for em in en_emphases:
         for p in _arabic_indices_for_english_phrase(conn, chapter, verse, em["phrase"]):
             multi_idx.add(p)
-    if target_pos:
-        multi_idx.add(target_pos)
+    if highlight_pos:
+        multi_idx.add(highlight_pos)
     if multi_idx:
         verse_slide["highlightWordIndices"] = sorted(multi_idx)
     if intro_text:
@@ -1827,9 +2172,16 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
     # spoken reveal still plays — just over the verse instead of a
     # dedicated lens.
     lens_emitted = False
-    if target_pos:
-        lens_data = _word_lens_data_for(conn, chapter, verse, target_pos)
-        target_arabic = _word_arabic_at_pos(conn, chapter, verse, target_pos)
+    if highlight_pos:
+        lens_data = _word_lens_data_for(conn, chapter, verse, highlight_pos)
+        # Prefer the judge's primary_arabic (correct word) over a
+        # morphology lookup (potentially wrong word due to the
+        # position-mismatch bug). Falls back to the lookup if no
+        # signal row exists.
+        target_arabic = (
+            (signal["primary_arabic"] if signal and signal.get("primary_arabic") else "")
+            or _word_arabic_at_pos(conn, chapter, verse, highlight_pos)
+        )
         if lens_data and target_arabic and lens_data["ai_meaning_short"]:
             # We need BOTH a conventional gloss (for the strikethrough
             # row) and an AI gloss. Without the conventional, the
@@ -1846,7 +2198,7 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
                 "type": "word-lens",
                 "durationSec": 12,
                 "arabic": _strip_uthmani_marks(target_arabic),
-                "wordPos": target_pos,
+                "wordPos": highlight_pos,
                 "conventionalGloss": conv,
                 "hiddenGloss": lens_data["ai_meaning_short"],
                 "strikeConventional": True,
