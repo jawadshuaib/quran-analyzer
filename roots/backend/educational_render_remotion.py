@@ -2407,9 +2407,21 @@ def _word_lens_data_for(conn, c: int, v: int, p: int) -> dict | None:
     the lens slide if there's no "hidden" gloss to reveal).
 
     Conventional gloss falls back through:
-      1. ai_word_meanings's recorded conventional_gloss (judge column)
-      2. word_glosses.gloss
-      3. the morphology row's primary translation, when available
+      1. word_glosses.translation_en (the plain conventional English)
+      2. None (caller substitutes a neutral label like "the usual reading")
+
+    For the "actually means" (ai_short) side, we pick between two
+    candidates on the ai_word_meanings row:
+      - meaning_short: the polished AI gloss (e.g. "the sins")
+      - preferred_translation: the judge's preferred surface form
+        (e.g. "the tails")
+    and prefer the one that CONTRASTS MORE with the conventional
+    gloss. Operator feedback on 25:58: conv was "regarding the sins",
+    meaning_short was "the sins" (just a synonym → no reveal),
+    preferred_translation was "the tails" — which is what the audio
+    is unpacking. Picking by contrast lands the right answer in both
+    that case and 17:62 (where meaning_short "I will firmly seize
+    /control" is more contrasty than preferred "take full control").
     """
     awm = conn.execute(
         """
@@ -2423,8 +2435,9 @@ def _word_lens_data_for(conn, c: int, v: int, p: int) -> dict | None:
     ).fetchone()
     if not awm:
         return None
-    ai_short = (awm["meaning_short"] or "").strip()
-    if not ai_short:
+    meaning_short = (awm["meaning_short"] or "").strip()
+    preferred = (awm["preferred_translation"] or "").strip()
+    if not meaning_short and not preferred:
         return None
 
     # Conventional gloss — prefer word_glosses.gloss because it's the
@@ -2437,6 +2450,44 @@ def _word_lens_data_for(conn, c: int, v: int, p: int) -> dict | None:
     ).fetchone()
     conv = (conv_row["gloss"] if conv_row else "") or ""
     conv = conv.strip()
+
+    # Pick the hidden gloss. Prefer meaning_short (the judge's
+    # polished default) UNLESS its content tokens are a subset of
+    # the conventional gloss — that's the synonym-swap case where
+    # the lens slide would show "regarding the sins" → "the sins"
+    # (no reveal). When that happens, fall back to
+    # preferred_translation, which on those rows tends to carry the
+    # actual literal/etymological surface form (e.g. "the tails").
+    #
+    # Tested on:
+    #   25:58 pos 11: conv "regarding the sins" / meaning_short
+    #       "the sins" (subset → reject) / preferred "the tails"
+    #       → use "the tails" ✓
+    #   17:62 pos 12: conv "I will surely destroy" / meaning_short
+    #       "I will firmly seize/control" (adds seize+firmly+control)
+    #       → use meaning_short ✓
+    #   66:12 pos 6:  conv "her chastity" / meaning_short
+    #       "her private parts" (adds privat+part) → use meaning_short ✓
+    conv_tokens = _th_tokenize(conv)
+
+    def _is_subset_of_conv(candidate: str) -> bool:
+        """True when candidate's significant tokens are all already
+        in the conventional gloss — i.e. nothing new is revealed."""
+        toks = _th_tokenize(candidate)
+        if not toks:
+            return True  # empty has nothing to reveal
+        return toks.issubset(conv_tokens)
+
+    if meaning_short and not _is_subset_of_conv(meaning_short):
+        ai_short = meaning_short
+    elif preferred and not _is_subset_of_conv(preferred):
+        ai_short = preferred
+    elif meaning_short:
+        # Both look like synonym-swaps but we have to render
+        # something — pick the more verbose one.
+        ai_short = meaning_short
+    else:
+        ai_short = preferred
 
     # Transliteration — the morphology table holds an English-friendly
     # form per segment. Take the stem's transliteration when present;
