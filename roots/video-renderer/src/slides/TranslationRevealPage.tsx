@@ -1,109 +1,290 @@
 import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { TranslationRevealSlideT } from '../types';
-import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
+import { COLORS, ARABIC_FONT, SYSTEM_FONT } from './shared';
 import { wrapArabicRuns } from './arabic-runs';
 
 // What Translation Hides — opening reveal slide.
 //
-// Two stacked rows that frame the entire video premise:
-//   - Top, muted stone:    "Most translations say"        — conventional rendering
-//   - Bottom, saturated rose:    "The Arabic actually says"     — what the verse really conveys
+// Four-beat choreography (YouTube/Shorts attention model):
 //
-// Visual identity: rose-700 accent + rose-100 pill background. The
-// muted "conventional" row reads as washed-out / cliché; the
-// saturated "actual" row pops and feels like the reveal.
+//   Beat A — HOOK            (0-1.5s)
+//     One-line curiosity-bait: "There's a word in this verse..."
+//     Plus a small verse reference ("Quran 25:58") so the viewer
+//     knows we're talking about a specific verse, not a generic
+//     gripe about translations.
 //
-// Sizing: every font / pill / gap is sized for the 1080×1920 vertical
-// mobile composition. Earlier sizes were tuned for a 16:9 desktop
-// render and disappeared on phone screens — operator pointed out that
-// the slide looked nearly blank with a small label at the top. This
-// version centers vertically and roughly doubles every font so the
-// reveal fills the screen and reads at a glance on mobile.
+//   Beat B — ARTIFACT        (1.5-3.5s)
+//     Big Arabic word in the center, transliteration under it.
+//     This is the visual authority: the viewer SEES the actual
+//     Quranic word the rest of the video will unpack. (When the
+//     reveal is phrase-level and there's no single word in focus,
+//     we skip this beat and stretch the hook beat instead.)
 //
-// Animation timing (~7s slide):
-//   - Conventional row fades in first (0-18f), establishing the baseline.
-//   - The "but" connector lands at ~22-36f.
-//   - Hidden row enters at 30f with a subtle scale-up (96% → 100%) so
-//     the eye is pulled to the reveal even before the narration explains it.
-//   - Optional tagline fades in last (~60f) so it doesn't compete with
-//     the contrast itself.
+//   Beat C — CONVENTIONAL    (3.5-5.5s)
+//     "MOST TRANSLATIONS SAY [X]" — the conventional rendering
+//     the audience already knows.
 //
-// Parallels GrammarContrastPage's structure but English-first because
-// the audience reads English; the contrast IS the hook.
+//   Beat D — REVEAL          (5.5-9s)
+//     "but" — then "THE ARABIC ACTUALLY SAYS [Y]". The rose pill
+//     pops; the hidden gloss lands.
+//
+// Why the redesign:
+//   The prior version dumped both rows in the first ~2.5s with no
+//   context. On 25:58 that meant the viewer saw
+//     "Most translations say God is aware of servants' sins.
+//      The Arabic actually says He's aware of their tails."
+//   in the opening seconds with zero framing. Read cold, "tails"
+//   sounds bizarre — viewers skipped before the body of the video
+//   ever explained the root-image. The four-beat version delays
+//   the contrast until the viewer has (a) heard a curiosity-hook,
+//   (b) seen the actual Arabic word in big type, and (c) had
+//   roughly two seconds to absorb the conventional reading they
+//   already know. Then the reveal lands as a payoff, not a
+//   non-sequitur.
+//
+// Sizing: tuned for the 1080×1920 vertical mobile composition.
+// Earlier sizes were tuned for desktop and read as tiny on phone
+// screens; this version sizes the hook and Arabic for thumb-stop
+// readability.
 export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlideT }) {
   const frame = useCurrentFrame();
 
-  const convOpacity = interpolate(frame, [0, ENTRY_FRAMES], [0, 1], { extrapolateRight: 'clamp' });
-  const convTranslateY = interpolate(frame, [0, ENTRY_FRAMES], [-12, 0], { extrapolateRight: 'clamp' });
+  // Frame anchors — keep these explicit so the choreography is
+  // easy to retune. All in 30fps frames.
+  const BEAT_A_IN = 0;       // hook fade-in starts
+  const BEAT_A_FULL = 14;    // hook fully on screen
+  const BEAT_B_IN = 36;      // Arabic word starts to enter
+  const BEAT_B_FULL = 56;    // Arabic word fully on screen
+  const BEAT_C_IN = 90;      // conventional row enters
+  const BEAT_C_FULL = 110;
+  const BUT_IN = 130;        // "but" lands between rows
+  const BUT_FULL = 144;
+  const BEAT_D_IN = 156;     // hidden row enters
+  const BEAT_D_FULL = 180;
+  const TAGLINE_IN = 220;
+  const TAGLINE_FULL = 240;
 
-  const connectorOpacity = interpolate(frame, [22, 36], [0, 1], { extrapolateRight: 'clamp' });
+  // Determine whether we have a single Arabic artifact to focus
+  // on. If the reveal is phrase-level the AI judge omits this and
+  // we collapse beats A+B into a single "hook + ref" frame so the
+  // pacing doesn't drag.
+  const hasArabicArtifact = !!(slide.arabic && slide.arabic.trim());
 
-  const hiddenOpacity = interpolate(frame, [30, 50], [0, 1], { extrapolateRight: 'clamp' });
-  const hiddenTranslateY = interpolate(frame, [30, 50], [12, 0], { extrapolateRight: 'clamp' });
-  const hiddenScale = interpolate(
-    frame, [30, 50], [0.96, 1],
+  // ---------- opacity / transform helpers ----------
+  const fadeIn = (a: number, b: number) =>
+    interpolate(frame, [a, b], [0, 1], { extrapolateRight: 'clamp' });
+  const fadeOut = (a: number, b: number) =>
+    interpolate(frame, [a, b], [1, 0], { extrapolateRight: 'clamp' });
+
+  // Beat A — hook line. Fades in fast (it's the first thing the
+  // viewer reads, and it's the hook), and then *fades out* when
+  // the artifact phase begins so the artifact has the stage.
+  const hookOpacity = Math.min(
+    fadeIn(BEAT_A_IN, BEAT_A_FULL),
+    hasArabicArtifact ? fadeOut(BEAT_B_FULL, BEAT_B_FULL + 12) : 1,
+  );
+  const hookTranslateY = interpolate(
+    frame, [BEAT_A_IN, BEAT_A_FULL], [-12, 0],
+    { extrapolateRight: 'clamp' },
+  );
+
+  // Beat B — Arabic artifact. Slow scale-up while fading in so it
+  // feels weighty, like a piece of evidence being placed on the
+  // table. Then it slides up to make room for the contrast in
+  // beats C+D — but it stays visible (semi-transparent) so the
+  // viewer keeps a thread to the artifact while reading the
+  // English.
+  const artifactOpacity = hasArabicArtifact
+    ? Math.min(
+        fadeIn(BEAT_B_IN, BEAT_B_FULL),
+        interpolate(
+          frame,
+          [BEAT_C_IN, BEAT_C_FULL],
+          [1, 0.45],
+          { extrapolateRight: 'clamp' },
+        ),
+      )
+    : 0;
+  const artifactScale = interpolate(
+    frame, [BEAT_B_IN, BEAT_B_FULL], [0.92, 1],
+    { extrapolateRight: 'clamp', easing: Easing.out(Easing.ease) },
+  );
+  const artifactTranslateY = interpolate(
+    frame, [BEAT_C_IN, BEAT_C_FULL], [0, -120],
     { extrapolateRight: 'clamp', easing: Easing.out(Easing.ease) },
   );
 
-  const taglineOpacity = interpolate(frame, [60, 78], [0, 1], { extrapolateRight: 'clamp' });
+  // Beat C — conventional row.
+  const convOpacity = fadeIn(BEAT_C_IN, BEAT_C_FULL);
+  const convTranslateY = interpolate(
+    frame, [BEAT_C_IN, BEAT_C_FULL], [-12, 0],
+    { extrapolateRight: 'clamp' },
+  );
 
-  // Auto-scale gloss font by length. Long conventional translations
-  // shrink so they don't dominate the screen; punchy "Y" reveals
-  // stay bigger to feel like the payoff.
-  //
-  // Sizes are for 1080×1920 mobile. The smallest tier (>=110 chars)
-  // still lands at 56px — large enough to read at a glance on a phone.
+  // "but" connector.
+  const butOpacity = fadeIn(BUT_IN, BUT_FULL);
+
+  // Beat D — reveal row. Subtle scale-up to draw the eye.
+  const hiddenOpacity = fadeIn(BEAT_D_IN, BEAT_D_FULL);
+  const hiddenTranslateY = interpolate(
+    frame, [BEAT_D_IN, BEAT_D_FULL], [12, 0],
+    { extrapolateRight: 'clamp' },
+  );
+  const hiddenScale = interpolate(
+    frame, [BEAT_D_IN, BEAT_D_FULL], [0.96, 1],
+    { extrapolateRight: 'clamp', easing: Easing.out(Easing.ease) },
+  );
+
+  // Tagline.
+  const taglineOpacity = fadeIn(TAGLINE_IN, TAGLINE_FULL);
+
+  // Build the verse reference line — prefer an explicit verseRef,
+  // otherwise auto-build from chapter:verse. We keep it small and
+  // tucked under the hook line so it doesn't compete with the
+  // word itself.
+  const refLine = (slide.verseRef && slide.verseRef.trim())
+    || (slide.chapter && slide.verse ? `Quran ${slide.chapter}:${slide.verse}` : '');
+
+  // The hook line — let the script override, but provide a
+  // sensible default so the slide is never naked. The default
+  // is intentionally a curiosity-bait phrase, not a thesis.
+  const hookLine = (slide.hookLine && slide.hookLine.trim())
+    || (hasArabicArtifact
+      ? "There's a word in this verse..."
+      : "Most translations miss this.");
+
+  // Auto-scale gloss font by length. Tuned for vertical mobile.
   const fontFor = (text: string, big: number, mid: number, small: number) => {
     const n = (text || '').length;
     if (n <= 60) return big;
     if (n <= 110) return mid;
     return small;
   };
-  const convFontSize = fontFor(slide.conventionalText, 72, 60, 52);
-  const hiddenFontSize = fontFor(slide.hiddenText, 80, 66, 56);
+  const convFontSize = fontFor(slide.conventionalText, 60, 50, 44);
+  const hiddenFontSize = fontFor(slide.hiddenText, 68, 56, 48);
 
   return (
     <AbsoluteFill style={{ backgroundColor: COLORS.appBg, fontFamily: SYSTEM_FONT }}>
-      {/* Series mark — pinned near the top so it doesn't shift as the
-          centered content scales. Was previously stacked with the rows
-          which made the layout drift toward the top of the screen on
-          mobile and left the bottom half empty. */}
+      {/* Series mark — pinned at the top throughout the slide so
+          the viewer always knows what they're watching. */}
       <div
         style={{
-          position: 'absolute',
-          top: 80,
-          left: 0,
-          right: 0,
+          position: 'absolute', top: 70, left: 0, right: 0,
           color: COLORS.translationAccent,
-          fontSize: 44,
-          fontWeight: 700,
-          letterSpacing: 3,
-          textTransform: 'uppercase',
-          textAlign: 'center',
+          fontSize: 38, fontWeight: 700, letterSpacing: 3,
+          textTransform: 'uppercase', textAlign: 'center',
         }}
       >
         What Translation Hides
       </div>
 
-      {/* Centered reveal stack — vertically centered so the contrast
-          sits in the optical middle of the phone screen. Previously
-          was flex-start which left the bottom half blank. */}
+      {/* === Beats A + B: hook + artifact overlay layer ===
+          These two beats share visual space — the hook sits high,
+          the Arabic word sits in the optical center. As the slide
+          progresses into Beats C+D, the artifact slides up and
+          fades to ~45%, becoming a watermark that anchors the
+          word the contrast is about. */}
       <div
         style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          padding: '200px 60px 120px 60px',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 44,
+          top: 0, left: 0, right: 0,
+          height: '100%',
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none',
+          padding: '160px 60px 240px',
         }}
       >
-        {/* Conventional row — muted */}
+        {/* Hook line */}
+        <div
+          style={{
+            opacity: hookOpacity,
+            transform: `translateY(${hookTranslateY}px)`,
+            fontSize: 56,
+            fontWeight: 600,
+            fontStyle: 'italic',
+            color: COLORS.translationAccentDeep,
+            textAlign: 'center',
+            maxWidth: 920,
+            lineHeight: 1.2,
+            marginBottom: 28,
+          }}
+        >
+          {wrapArabicRuns(hookLine)}
+        </div>
+
+        {/* Verse reference */}
+        {refLine && (
+          <div
+            style={{
+              opacity: hookOpacity,
+              fontSize: 30,
+              fontWeight: 600,
+              letterSpacing: 1.5,
+              color: COLORS.translationConvText,
+              textTransform: 'uppercase',
+              marginBottom: 40,
+            }}
+          >
+            {refLine}
+          </div>
+        )}
+
+        {/* Arabic artifact — the big word the rest of the slide
+            unpacks. Slides up and dims (but does NOT vanish) as
+            the contrast rows enter below it. */}
+        {hasArabicArtifact && (
+          <div
+            style={{
+              opacity: artifactOpacity,
+              transform: `translateY(${artifactTranslateY}px) scale(${artifactScale})`,
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+            }}
+          >
+            <div
+              dir="rtl"
+              lang="ar"
+              style={{
+                fontFamily: ARABIC_FONT,
+                fontSize: 150,
+                lineHeight: 1.2,
+                color: COLORS.text,
+                textAlign: 'center',
+              }}
+            >
+              {slide.arabic}
+            </div>
+            {slide.transliteration && (
+              <div
+                style={{
+                  fontSize: 32,
+                  fontStyle: 'italic',
+                  color: COLORS.translationConvText,
+                  marginTop: 10,
+                }}
+              >
+                {slide.transliteration}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* === Beats C + D: the contrast rows ===
+          These sit in the lower half so the artifact (when
+          present) keeps a watermark presence in the center. When
+          there's no artifact, the rows fill more of the space. */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0, right: 0, bottom: 110,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center',
+          gap: 28,
+          padding: '0 60px',
+        }}
+      >
+        {/* Conventional row */}
         <RevealRow
           label={slide.conventionalLabel}
           text={slide.conventionalText}
@@ -116,24 +297,23 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           scale={1}
         />
 
-        {/* Connector — italic "but", a beat between the two rows */}
+        {/* but */}
         <div
           style={{
-            opacity: connectorOpacity,
+            opacity: butOpacity,
             color: COLORS.translationConvText,
-            fontSize: 52,
+            fontSize: 44,
             fontStyle: 'italic',
-            margin: '12px 0',
+            margin: '4px 0',
           }}
         >
           but
         </div>
 
-        {/* Hidden row — saturated rose, slightly larger to win the comparison */}
+        {/* Hidden row */}
         <RevealRow
           label={slide.hiddenLabel}
           text={slide.hiddenText}
-          arabic={slide.arabic}
           bgColor={COLORS.translationAccentSoft}
           labelColor={COLORS.translationAccent}
           textColor={COLORS.text}
@@ -143,17 +323,17 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
           scale={hiddenScale}
         />
 
-        {/* Optional tagline — what does this reveal DO? */}
+        {/* Tagline */}
         {slide.tagline && (
           <div
             style={{
-              marginTop: 36,
+              marginTop: 20,
               opacity: taglineOpacity,
-              fontSize: 40,
+              fontSize: 34,
               color: COLORS.translationAccentDeep,
               fontStyle: 'italic',
               textAlign: 'center',
-              maxWidth: 940,
+              maxWidth: 900,
               fontWeight: 500,
               lineHeight: 1.35,
             }}
@@ -166,19 +346,17 @@ export function TranslationRevealPage({ slide }: { slide: TranslationRevealSlide
   );
 }
 
-// One side of the reveal — label pill on top, gloss text below,
-// optional Arabic form to the right of the gloss for legitimacy.
-// Encapsulates the geometry so both rows render with consistent
-// spacing and the entrance animation only has to drive a wrapper div.
+// One side of the reveal — label pill on top, gloss text below.
+// No Arabic prop now — the big artifact lives in the upper layer
+// and stays visible (dimmed) as the contrast rows land.
 function RevealRow({
-  label, text, arabic,
+  label, text,
   bgColor, labelColor, textColor,
   textSize,
   opacity, translateY, scale,
 }: {
   label: string;
   text: string;
-  arabic?: string;
   bgColor: string;
   labelColor: string;
   textColor: string;
@@ -193,16 +371,16 @@ function RevealRow({
         opacity,
         transform: `translateY(${translateY}px) scale(${scale})`,
         display: 'flex', flexDirection: 'column', alignItems: 'center',
-        gap: 28, width: '100%', maxWidth: 980,
+        gap: 18, width: '100%', maxWidth: 960,
       }}
     >
       <div
         style={{
           background: bgColor,
-          padding: '14px 36px',
+          padding: '12px 30px',
           borderRadius: 999,
           color: labelColor,
-          fontSize: 32,
+          fontSize: 28,
           fontWeight: 700,
           letterSpacing: 1.2,
           textTransform: 'uppercase',
@@ -216,32 +394,12 @@ function RevealRow({
           lineHeight: 1.3,
           color: textColor,
           textAlign: 'center',
-          maxWidth: 960,
+          maxWidth: 940,
           fontWeight: 500,
-          // "Hidden" rows often quote a short phrase — italic gives the
-          // reveal a quotation-y feel that signals "this is the real
-          // reading," vs the conventional row's plain stone.
-          fontStyle: 'normal',
         }}
       >
         {wrapArabicRuns(text)}
       </div>
-      {arabic && (
-        <div
-          dir="rtl"
-          lang="ar"
-          style={{
-            fontFamily: ARABIC_FONT,
-            fontSize: 88,
-            lineHeight: 1.4,
-            color: textColor,
-            textAlign: 'center',
-            marginTop: 10,
-          }}
-        >
-          {arabic}
-        </div>
-      )}
     </div>
   );
 }

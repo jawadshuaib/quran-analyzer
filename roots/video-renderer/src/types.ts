@@ -228,7 +228,31 @@ export const GrammarContrastSlide = z.object({
 // vs Quran" framing is universal regardless.
 export const TranslationRevealSlide = z.object({
   type: z.literal('translation-reveal'),
-  durationSec: z.number().positive().default(7),
+  // Bumped to 10s from 7s so the new four-beat choreography
+  // (hook → artifact → conventional → reveal) has room to breathe.
+  // Earlier 7s collapsed all four beats into ~2.5s — viewers got
+  // the contrast before any context, which read as "He's aware of
+  // their tails" with no idea what verse or word was being talked
+  // about. YouTube-marketer principle: hook + context first,
+  // payoff earned.
+  durationSec: z.number().positive().default(10),
+  // Optional verse reference shown during the context beat
+  // ("Quran 25:58" or "Sura al-Furqan • 25:58"). Renderer builds
+  // a default from chapter:verse when this is omitted but the
+  // chapter+verse fields below are set.
+  verseRef: z.string().optional(),
+  chapter: z.number().int().positive().optional(),
+  verse: z.number().int().positive().optional(),
+  // Optional hook line — the catch-the-thumb-scroll line that
+  // opens the slide. "There's a word in this verse that doesn't
+  // mean what you think." If omitted, the renderer uses a sensible
+  // default phrased around the verse reference so the viewer always
+  // gets a context-setting beat before the contrast lands.
+  hookLine: z.string().optional(),
+  // Optional transliteration of `arabic` — shown small under the
+  // big Arabic word during the artifact beat. Useful when the
+  // hook word is a content word the AI judge picked out.
+  transliteration: z.string().optional(),
   // Top row — what most viewers think the verse says.
   conventionalLabel: z.string().default('Most translations say'),
   conventionalText: z.string(),

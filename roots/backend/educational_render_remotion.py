@@ -1735,9 +1735,35 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
             conv_text = parsed_conv
         if not hidden_text and parsed_hidden:
             hidden_text = parsed_hidden
+    # Build the hook beat — verse reference + a curiosity-bait
+    # one-liner. The reference (Quran X:Y) plus the big Arabic
+    # word the rest of the video unpacks gives the viewer the
+    # context the previous 7s slide jumped straight past. Without
+    # this, opening lines like "...the Arabic actually says He's
+    # aware of their tails" read as bizarre rather than profound,
+    # and viewers swipe before the body of the video lands the
+    # root-image. (See user feedback after 25:58 render.)
+    #
+    # Hook copy is generic-on-purpose: the AI judge's headline
+    # field can be very technical ("morphology: passive voice"),
+    # which doesn't sing as an opening line. A short, evergreen
+    # "There's a word in this verse..." opens curiosity without
+    # spoiling the reveal.
+    hook_line = (
+        "There's a word in this verse..."
+        if target_pos
+        else "Most translations miss this."
+    )
     reveal_slide: dict = {
         "type": "translation-reveal",
-        "durationSec": 7,
+        "durationSec": 10,  # bumped from 7s; the new 4-beat
+                            # choreography needs the runway. The
+                            # narration audio still drives final
+                            # playback length via prepareNarration.
+        "chapter": chapter,
+        "verse": verse,
+        "verseRef": f"Quran {chapter}:{verse}",
+        "hookLine": hook_line,
         "conventionalLabel": "Most translations say",
         "conventionalText": conv_text,
         "hiddenLabel": "The Arabic actually says",
