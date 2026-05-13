@@ -2338,11 +2338,26 @@ def _resolve_lens_focal_pos(
     art_norm = _normalize_arabic_for_match(artifact_arabic)
     if not art_norm:
         return None
-    # Case 1: signal's primary_arabic is part of the artifact.
+    # Case 1: signal's primary_arabic is part of the artifact — use
+    # the morphology position of that primary word. If the cached
+    # value isn't on the signal dict (e.g. first render of a new
+    # signal where the caller forgot to patch the in-memory dict
+    # after the DB UPDATE), resolve it on the fly via the
+    # algorithm-only path so we never fall through to the LAST-wins
+    # Case 2 just because of stale dict state. This is the
+    # defense-in-depth half of the 17:62 / 25:58 lens bug fix.
     if signal and signal.get("primary_arabic"):
         sig_norm = _normalize_arabic_for_match(signal["primary_arabic"])
-        if sig_norm and sig_norm in art_norm and signal.get("morphology_word_pos"):
-            return int(signal["morphology_word_pos"])
+        if sig_norm and sig_norm in art_norm:
+            mp = signal.get("morphology_word_pos")
+            if mp is None:
+                resolved, _src = resolve_morphology_word_pos(
+                    conn, chapter, verse, signal["primary_arabic"],
+                    use_ollama=False,  # algorithm-only — fast + deterministic
+                )
+                mp = resolved
+            if mp is not None:
+                return int(mp)
     # Case 2: scan morphology words; pick the last one that's both
     # inside the artifact and has an ai_word_meanings entry.
     words = _morphology_word_forms(conn, chapter, verse)
@@ -2516,6 +2531,18 @@ def build_translation_hides_payload(conn, rd: dict, script: dict) -> dict:
         )
         if resolved is not None:
             morph_pos = resolved
+            # CRITICAL: also patch the in-memory signal dict, NOT
+            # just the DB. _resolve_lens_focal_pos below reads
+            # signal["morphology_word_pos"] directly and used to
+            # see the pre-resolution None value, dropping into Case
+            # 2 (LAST-matching-word) which picks the wrong focal
+            # word in verb+noun artifacts (17:62 noun ذُرِّيَّتَهُ
+            # instead of verb لَأَحْتَنِكَنَّ; 25:58 noun عِبَادِهِ
+            # instead of verb بِذُنُوبِ). Cached DB rows used Case 1
+            # correctly on SECOND render, which is why these bugs
+            # were invisible during diagnostics — only the FIRST
+            # render of any new signal hit them.
+            signal["morphology_word_pos"] = morph_pos
             # Cache the answer back to the signals row so we never
             # have to call the LLM again for this verse.
             try:
