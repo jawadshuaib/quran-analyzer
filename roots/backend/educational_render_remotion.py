@@ -1766,6 +1766,22 @@ def _resolve_via_substring(
     return (None, candidates)
 
 
+def _ollama_prefs(conn) -> dict:
+    """Read all ollama_* admin_preferences in one query. The table
+    is a flat key→value store (`key TEXT PRIMARY KEY, value TEXT`).
+    Two earlier callers in this file were SELECTing column names
+    that don't exist, which raised silently and made every Ollama
+    call fall through to the localhost default — broken on prod."""
+    try:
+        rows = conn.execute(
+            "SELECT key, value FROM admin_preferences WHERE key LIKE 'ollama_%'"
+        ).fetchall()
+        return {r["key"]: r["value"] for r in rows}
+    except Exception as e:
+        print(f"[ollama-prefs] could not read admin_preferences: {e}")
+        return {}
+
+
 def _resolve_via_ollama(
     conn,
     chapter: int,
@@ -1786,17 +1802,17 @@ def _resolve_via_ollama(
     import urllib.error as _urlerr
     import re as _re
 
-    # Read Ollama config from admin_preferences (same path the
-    # translate_ai pipeline uses, so the operator only configures
-    # the endpoint in one place).
-    try:
-        pref = conn.execute(
-            "SELECT ollama_base_url, ollama_api_key FROM admin_preferences ORDER BY id DESC LIMIT 1"
-        ).fetchone()
-    except Exception:
-        pref = None
-    base_url = (pref["ollama_base_url"] if pref else None) or "http://localhost:11434"
-    api_key = (pref["ollama_api_key"] if pref else None) or None
+    # Read Ollama config from admin_preferences. The table is a flat
+    # key→value store (key TEXT PRIMARY KEY, value TEXT) — earlier
+    # versions of this function ran SELECT ollama_base_url, ollama_api_key
+    # FROM admin_preferences which silently raised "no such column"
+    # and fell through to the localhost fallback. On prod, where
+    # localhost:11434 isn't reachable from inside the container, this
+    # made every Ollama call fail and the resolver default to
+    # signal.primary_arabic — the source of the 66:12 'فِيهِ' bug.
+    prefs = _ollama_prefs(conn)
+    base_url = (prefs.get("ollama_base_url") or "http://localhost:11434").rstrip("/")
+    api_key = prefs.get("ollama_api_key") or None
     model = "qwen3:14b"  # local, fast, plenty accurate for "pick an integer"
 
     # Build a clear prompt — give the model the whole verse with
@@ -1918,14 +1934,11 @@ def _resolve_artifact_via_ollama(
     import urllib.error as _urlerr
     import re as _re
 
-    try:
-        pref = conn.execute(
-            "SELECT ollama_base_url, ollama_api_key FROM admin_preferences ORDER BY id DESC LIMIT 1"
-        ).fetchone()
-    except Exception:
-        pref = None
-    base_url = (pref["ollama_base_url"] if pref else None) or "http://localhost:11434"
-    api_key = (pref["ollama_api_key"] if pref else None) or None
+    # Same key-value fetch fix as _resolve_via_ollama above — the
+    # previous SELECT-by-column-name was raising on every prod call.
+    prefs = _ollama_prefs(conn)
+    base_url = (prefs.get("ollama_base_url") or "http://localhost:11434").rstrip("/")
+    api_key = prefs.get("ollama_api_key") or None
     model = "qwen3:14b"
 
     prompt = (

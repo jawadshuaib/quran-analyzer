@@ -8753,12 +8753,16 @@ _ensure_tts_cache_table()
 try:
     import educational_pipeline as _edu
     import educational_safety as _safety
+    import educational_interestingness as _interest
 
     def _ensure_educational_table():
         conn = get_db()
         try:
             _edu.ensure_table(conn)
             _safety.ensure_table(conn)
+            # Adds interestingness_* columns to educational_videos so
+            # the judge verdict can be persisted alongside the row.
+            _interest.ensure_columns(conn)
         finally:
             conn.close()
 
@@ -8769,6 +8773,7 @@ except Exception as _edu_exc:
     _EDU_OK = False
     _edu = None  # type: ignore
     _safety = None  # type: ignore
+    _interest = None  # type: ignore
 
 
 def _edu_unavailable():
@@ -9899,57 +9904,177 @@ def _educational_pipeline_run_thread(
     pipeline_id: int, video_id: int, voice_id: str,
     fmt: str, elevenlabs_key: str, claude_key: str,
 ) -> None:
-    """The script→render→metadata chain run inside a daemon thread.
+    """The script→judge→render→metadata chain run inside a daemon thread.
     Used by both the manual /run endpoint and the scheduler. Caller
-    is responsible for queueing the candidate row first; this
-    function takes the resulting video_id and progresses it through
-    candidate → script_ready → rendering → rendered (or failed).
-    Errors are captured on the row's error_message; the function
-    never raises to its caller."""
+    is responsible for queueing the FIRST candidate row; this
+    function takes that video_id, generates a script, judges it, and
+    if the judge rejects it, picks the next candidate and tries
+    again — up to MAX_REJECTIONS_PER_RUN attempts — before giving
+    up.
+
+    Status flow per attempt:
+      candidate → script_ready → judged-interesting → rendering → rendered
+                                ↘ judged-skip → rejected_uninteresting (final for THIS row)
+
+    Errors are captured on the relevant row's error_message; the
+    function never raises to its caller.
+
+    Only the LAST surviving row (the one that passes the judge)
+    proceeds to render + YouTube metadata. Rejected rows stay in the
+    DB with status='rejected_uninteresting' so the admin UI can show
+    why they were skipped and the operator can manually override if
+    they disagree with the judge.
+    """
     c = get_db()
     try:
-        # Step 1: script generation
-        try:
-            row = c.execute(
-                "SELECT * FROM educational_videos WHERE id = ?", (video_id,),
-            ).fetchone()
-            rd = dict(row)
-            import educational_scripts as _scripts
-            payload = _scripts.enrich_payload(c, rd)
-            script = _scripts.generate_script(payload, api_key=claude_key)
+        import educational_scripts as _scripts
+        approved_video_id: int | None = None
+        rejected_run: list[tuple[int, int, str]] = []  # (video_id, score, reason)
+        attempts = 0
+        # First iteration uses the video_id the caller queued. Later
+        # iterations queue their own.
+        current_video_id = video_id
+        while approved_video_id is None and attempts < _interest.MAX_REJECTIONS_PER_RUN:
+            attempts += 1
+            try:
+                row = c.execute(
+                    "SELECT * FROM educational_videos WHERE id = ?", (current_video_id,),
+                ).fetchone()
+                if row is None:
+                    print(
+                        f"[interestingness] candidate {current_video_id} vanished — aborting run"
+                    )
+                    return
+                rd = dict(row)
+                payload = _scripts.enrich_payload(c, rd)
+                script = _scripts.generate_script(payload, api_key=claude_key)
+                c.execute(
+                    "UPDATE educational_videos SET "
+                    "  payload_json = ?, script_json = ?, voiceover_text = ?, "
+                    "  status = 'script_ready', error_message = NULL "
+                    "WHERE id = ?",
+                    (
+                        json.dumps(payload, ensure_ascii=False),
+                        json.dumps({
+                            k: script.get(k) for k in (
+                                "hook", "verse_intro", "insight", "close",
+                                "tidbit_about_root", "tidbit_about_quran_usage",
+                                "tidbit_about_semitic", "selected_verse_refs",
+                                "english_emphases", "additional_examples",
+                                "voiceover_short", "voiceover_short_raw",
+                                "voiceover_long_raw",
+                                "languages_referenced", "notes", "model",
+                            )
+                        }, ensure_ascii=False),
+                        script.get("voiceover_long"),
+                        current_video_id,
+                    ),
+                )
+                c.commit()
+            except Exception as e:
+                # Script generation failed on this candidate. Mark
+                # the row and try the next one — script-gen failures
+                # are typically transient or model-specific.
+                c.execute(
+                    "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
+                    (f"script: {e}"[:1000], current_video_id),
+                )
+                c.commit()
+                # Try another candidate.
+                try:
+                    current_video_id = _edu.pick_and_queue_for_pipeline(
+                        c, pipeline_id, triggered_by="interestingness-retry",
+                    )
+                    continue
+                except _edu.PipelineRunError as pe:
+                    print(f"[interestingness] no more candidates after script-fail: {pe}")
+                    return
+
+            # Interestingness gate. Ollama-based judge on the
+            # generated script. 'unknown' (Ollama down / malformed)
+            # passes through — see educational_interestingness.judge_script.
+            try:
+                verdict = _interest.judge_script(c, payload, script)
+            except Exception as e:
+                print(f"[interestingness] judge raised, accepting: {e}")
+                verdict = {"verdict": "unknown", "score": 0,
+                           "reason": f"judge crashed: {e}", "model": "",
+                           "pass": True}
+
+            try:
+                c.execute(
+                    "UPDATE educational_videos SET "
+                    "  interestingness_score = ?, "
+                    "  interestingness_verdict = ?, "
+                    "  interestingness_reason = ?, "
+                    "  interestingness_model = ? "
+                    "WHERE id = ?",
+                    (
+                        verdict.get("score") or None,
+                        verdict.get("verdict"),
+                        verdict.get("reason"),
+                        verdict.get("model"),
+                        current_video_id,
+                    ),
+                )
+                c.commit()
+            except Exception as e:
+                print(f"[interestingness] could not persist verdict: {e}")
+
+            if verdict.get("pass"):
+                approved_video_id = current_video_id
+                print(
+                    f"[interestingness] {current_video_id} APPROVED "
+                    f"(score={verdict.get('score')}, "
+                    f"verdict={verdict.get('verdict')}): {verdict.get('reason')}"
+                )
+                break
+
+            # Rejected — mark row and pick the next candidate.
+            rejected_run.append(
+                (current_video_id, verdict.get("score") or 0, verdict.get("reason") or "")
+            )
             c.execute(
                 "UPDATE educational_videos SET "
-                "  payload_json = ?, script_json = ?, voiceover_text = ?, "
-                "  status = 'script_ready', error_message = NULL "
+                "  status = 'rejected_uninteresting', "
+                "  error_message = ? "
                 "WHERE id = ?",
                 (
-                    json.dumps(payload, ensure_ascii=False),
-                    json.dumps({
-                        k: script.get(k) for k in (
-                            "hook", "verse_intro", "insight", "close",
-                            "tidbit_about_root", "tidbit_about_quran_usage",
-                            "tidbit_about_semitic", "selected_verse_refs",
-                            # Grammar Insights template fields — read by the
-                            # renderer at compose time for English phrase
-                            # highlights and cross-reference example slides.
-                            "english_emphases", "additional_examples",
-                            "voiceover_short", "voiceover_short_raw",
-                            "voiceover_long_raw",
-                            "languages_referenced", "notes", "model",
-                        )
-                    }, ensure_ascii=False),
-                    script.get("voiceover_long"),
-                    video_id,
+                    f"interestingness skip (score={verdict.get('score')}): "
+                    f"{verdict.get('reason')}"[:1000],
+                    current_video_id,
                 ),
             )
             c.commit()
-        except Exception as e:
-            c.execute(
-                "UPDATE educational_videos SET status='failed', error_message=? WHERE id=?",
-                (f"script: {e}"[:1000], video_id),
+            print(
+                f"[interestingness] {current_video_id} REJECTED "
+                f"(score={verdict.get('score')}): {verdict.get('reason')} "
+                f"— attempt {attempts}/{_interest.MAX_REJECTIONS_PER_RUN}"
             )
-            c.commit()
+            try:
+                current_video_id = _edu.pick_and_queue_for_pipeline(
+                    c, pipeline_id, triggered_by="interestingness-retry",
+                )
+            except _edu.PipelineRunError as pe:
+                # No more candidates to try. Log + abort.
+                print(
+                    f"[interestingness] candidate pool exhausted after "
+                    f"{attempts} attempts ({len(rejected_run)} rejected): {pe}"
+                )
+                return
+
+        if approved_video_id is None:
+            print(
+                f"[interestingness] gave up after {attempts} attempts — "
+                f"all judged 'skip'. Rejected: "
+                + ", ".join(
+                    f"#{vid}(score={s})" for vid, s, _r in rejected_run
+                )
+            )
             return
+
+        # From here on we use approved_video_id, not the original.
+        video_id = approved_video_id
 
         # Step 2: render
         try:
