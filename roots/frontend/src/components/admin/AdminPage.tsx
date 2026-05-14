@@ -205,16 +205,20 @@ export default function AdminPage() {
 
   return (
     <div className={`min-h-screen ${isDev ? 'bg-rose-50' : 'bg-stone-50'}`}>
-      {/* Admin nav */}
+      {/* Admin nav. Wider container + wrapping section links so the
+          full list of pages fits comfortably as the admin surface
+          grows. Previously max-w-5xl with no wrap, which crowded
+          everything onto one tight line once Judge Lessons + Stats
+          were both added. */}
       <nav className={`border-b ${isDev ? 'border-rose-300 bg-rose-100' : 'border-stone-200 bg-white'}`}>
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <a href="/" className="text-sm font-serif font-medium text-stone-800 hover:text-stone-600">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex items-start justify-between gap-4">
+          <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap min-w-0">
+            <a href="/" className="text-sm font-serif font-medium text-stone-800 hover:text-stone-600 whitespace-nowrap">
               al-nuqta
             </a>
             {isDev && (
               <span
-                className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-rose-600 text-white uppercase"
+                className="px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-rose-600 text-white uppercase whitespace-nowrap"
                 title="You are on local dev — data is sandboxed and separate from production"
               >
                 Dev
@@ -223,7 +227,7 @@ export default function AdminPage() {
             <span className="text-stone-300">|</span>
             <a
               href="/admin"
-              className={`text-sm ${route === 'dashboard' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+              className={`text-sm whitespace-nowrap ${route === 'dashboard' ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
             >
               Dashboard
             </a>
@@ -234,14 +238,14 @@ export default function AdminPage() {
               <a
                 key={s.href}
                 href={s.href}
-                className={`text-sm ${s.matches(route) ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
+                className={`text-sm whitespace-nowrap ${s.matches(route) ? 'font-semibold text-stone-800' : 'text-stone-500 hover:text-stone-700'}`}
               >
                 {s.label}
               </a>
             ))}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-stone-400">{username}</span>
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="text-xs text-stone-400 whitespace-nowrap">{username}</span>
             <button
               onClick={handleLogout}
               className="text-xs text-stone-500 hover:text-stone-700 cursor-pointer"
@@ -254,7 +258,7 @@ export default function AdminPage() {
 
       {/* Breadcrumbs for nested routes — Media branch */}
       {(route === 'recitations' || route === 'resources' || route === 'music' || route === 'generate' || route === 'explanations' || route === 'generate-explanation') && (
-        <div className="max-w-5xl mx-auto px-4 py-2">
+        <div className="max-w-7xl mx-auto px-4 py-2">
           <div className="flex items-center gap-1.5 text-xs text-stone-400">
             <a href="/admin/media" className="hover:text-stone-600">Media</a>
             <span>/</span>
@@ -271,7 +275,7 @@ export default function AdminPage() {
       )}
       {/* Breadcrumbs — Pipelines branch */}
       {(route === 'pipelines-recitation' || route === 'pipelines-educational' || route === 'pipelines-educational-candidates') && (
-        <div className="max-w-5xl mx-auto px-4 py-2">
+        <div className="max-w-7xl mx-auto px-4 py-2">
           <div className="flex items-center gap-1.5 text-xs text-stone-400">
             <a href="/admin/pipelines" className="hover:text-stone-600">Pipelines</a>
             <span>/</span>
@@ -284,7 +288,7 @@ export default function AdminPage() {
         </div>
       )}
       {(route === 'vocabulary' || route === 'vocabulary-studio' || route === 'proper-nouns') && (
-        <div className="max-w-5xl mx-auto px-4 py-2">
+        <div className="max-w-7xl mx-auto px-4 py-2">
           <div className="flex items-center gap-1.5 text-xs text-stone-400">
             <a href="/admin/revisions" className="hover:text-stone-600">Revisions</a>
             <span>/</span>
@@ -297,7 +301,7 @@ export default function AdminPage() {
       )}
 
       {/* Content */}
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-8">
         {route === 'dashboard' && <AdminDashboard username={username} />}
         {route === 'settings' && <AdminSettings />}
         {route === 'scheduler' && <SchedulerPage />}
