@@ -9239,6 +9239,55 @@ def admin_educational_edit_script(video_id: int):
         conn.close()
 
 
+@app.route("/api/admin/educational/<int:video_id>/override-judge", methods=["POST"])
+@admin_required
+def admin_educational_override_judge(video_id: int):
+    """Operator override: flip a rejected_uninteresting row back to
+    script_ready so it can be rendered. The judge's verdict + score
+    + reason stay on the row for auditing — we just clear the
+    error_message and lift the status gate. The operator can then
+    hit Render normally.
+
+    This is the manual escape hatch when the judge's call disagrees
+    with the operator's editorial taste. The judge's verdict + reason
+    remain visible in the admin UI so the operator can revisit later
+    or use the override as a signal that the rubric needs tuning."""
+    if not _EDU_OK:
+        return _edu_unavailable()
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id, status, script_json FROM educational_videos WHERE id = ?",
+            (video_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "video not found"}), 404
+        if row["status"] != "rejected_uninteresting":
+            return jsonify({
+                "error": (
+                    f"override only valid for rejected_uninteresting rows "
+                    f"(current status: {row['status']})"
+                ),
+            }), 400
+        if not row["script_json"]:
+            return jsonify({
+                "error": "row has no script_json — cannot flip to script_ready",
+            }), 400
+        # Lift the status gate; preserve the judge's verdict so the
+        # admin UI still shows why the auto-pipeline skipped this row.
+        conn.execute(
+            "UPDATE educational_videos SET "
+            "  status = 'script_ready', "
+            "  error_message = NULL "
+            "WHERE id = ?",
+            (video_id,),
+        )
+        conn.commit()
+        return jsonify({"ok": True, "id": video_id, "status": "script_ready"})
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/educational/<int:video_id>/render", methods=["POST"])
 @admin_required
 def admin_educational_render(video_id: int):

@@ -9,6 +9,7 @@ import {
   uploadEducationalVideoToYouTube,
   retryEducationalPlaylistAdd,
   getEducationalYouTubeStats,
+  overrideEducationalJudge,
   uploadEducationalOutroAudio,
   deleteEducationalOutroAudio,
   educationalOutroAudioUrl,
@@ -444,11 +445,30 @@ function PipelineVideoRow({
   } | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsErr, setStatsErr] = useState('');
+  // Judge-override flow (only relevant for rejected_uninteresting rows).
+  const [overriding, setOverriding] = useState(false);
+  const [overrideErr, setOverrideErr] = useState('');
   const hasMeta = !!(v.youtube_title || v.youtube_description);
   // 'rendering' rows are blocked server-side from deletion to avoid
   // yanking a file out from under ffmpeg; reflect that in the button.
   const cannotDelete = v.status === 'rendering';
   const isUploaded = !!v.youtube_video_id;
+  const isJudgeRejected = v.status === 'rejected_uninteresting';
+  const judgeNote = v.interestingness_reason || v.error_message;
+  const judgeScore = v.interestingness_score;
+
+  async function handleOverrideJudge() {
+    setOverriding(true);
+    setOverrideErr('');
+    try {
+      await overrideEducationalJudge(v.id);
+      onUploaded(); // reuses the same refresh hook the parent already passes
+    } catch (e) {
+      setOverrideErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOverriding(false);
+    }
+  }
   const canUpload = v.status === 'rendered' && !!v.filename && !isUploaded;
 
   async function handleUpload() {
@@ -577,6 +597,16 @@ function PipelineVideoRow({
             {uploading ? 'Uploading…' : 'Upload to YouTube'}
           </button>
         )}
+        {isJudgeRejected && (
+          <button
+            onClick={handleOverrideJudge}
+            disabled={overriding}
+            className="px-2.5 py-1 rounded-md border border-orange-400 text-orange-700 text-xs font-medium hover:bg-orange-50 disabled:opacity-60 cursor-pointer"
+            title="Disagree with the judge — flip this row back to script_ready so it can be rendered."
+          >
+            {overriding ? 'Overriding…' : 'Override judge → render'}
+          </button>
+        )}
         <button
           onClick={onDelete}
           disabled={cannotDelete}
@@ -591,6 +621,25 @@ function PipelineVideoRow({
       {uploadErr && (
         <div className="px-3 pb-2 text-xs text-red-700">
           Upload failed: {uploadErr}
+        </div>
+      )}
+      {isJudgeRejected && (judgeNote || judgeScore != null) && (
+        <div className="px-3 pb-2 text-xs text-orange-800 bg-orange-50/60 border-y border-orange-100">
+          <span className="font-semibold">Judge:</span>{' '}
+          {judgeScore != null && (
+            <span className="font-mono">score {judgeScore}/10</span>
+          )}
+          {judgeNote && (
+            <>
+              {judgeScore != null && ' — '}
+              <span>{judgeNote}</span>
+            </>
+          )}
+        </div>
+      )}
+      {overrideErr && (
+        <div className="px-3 pb-2 text-xs text-red-700">
+          Override failed: {overrideErr}
         </div>
       )}
       {stats && (
@@ -695,6 +744,7 @@ function statusTone(s: string): string {
     case 'rendered': return 'bg-emerald-100 text-emerald-700';
     case 'rendering': return 'bg-amber-100 text-amber-700';
     case 'script_ready': return 'bg-blue-100 text-blue-700';
+    case 'rejected_uninteresting': return 'bg-orange-100 text-orange-700';
     default: return 'bg-stone-100 text-stone-600';
   }
 }

@@ -1527,7 +1527,14 @@ export interface EducationalVideo {
   verse: number;
   anchor_word_pos: number | null;
   anchor_insight_id: string | null;
-  status: 'candidate' | 'script_ready' | 'rendering' | 'rendered' | 'uploaded' | 'failed';
+  status:
+    | 'candidate'
+    | 'script_ready'
+    | 'rendering'
+    | 'rendered'
+    | 'uploaded'
+    | 'failed'
+    | 'rejected_uninteresting';
   format: string | null;
   filename: string | null;
   file_size: number | null;
@@ -1544,6 +1551,27 @@ export interface EducationalVideo {
   error_message: string | null;
   created_at: string;
   completed_at: string | null;
+  /** Interestingness-judge verdict columns (set after script gen). */
+  interestingness_score?: number | null;
+  interestingness_verdict?: 'interesting' | 'skip' | 'unknown' | null;
+  interestingness_reason?: string | null;
+}
+
+/**
+ * Operator override: flip a rejected_uninteresting row back to
+ * script_ready so it can be rendered. The judge's verdict stays on
+ * the row for auditing.
+ */
+export async function overrideEducationalJudge(
+  videoId: number,
+): Promise<{ ok: true; id: number; status: string }> {
+  const res = await authFetch(
+    `${BASE}/educational/${videoId}/override-judge`,
+    { method: 'POST' },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Override failed');
+  return data;
 }
 
 export async function getEducationalPool(): Promise<EducationalPool> {

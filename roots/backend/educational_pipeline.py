@@ -859,7 +859,9 @@ def list_videos(
                youtube_video_id, tiktok_video_id,
                youtube_title, youtube_description, youtube_tags,
                pipeline_id, triggered_by,
-               score, error_message, created_at, completed_at
+               score, error_message, created_at, completed_at,
+               interestingness_score, interestingness_verdict,
+               interestingness_reason
         FROM educational_videos
         {where}
         ORDER BY created_at DESC
