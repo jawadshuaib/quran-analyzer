@@ -8768,9 +8768,16 @@ try:
 
     _ensure_educational_table()
     _EDU_OK = True
+    # Separate flag for the recitation pipeline — it has its own
+    # admin_pipeline_videos table and lives outside the educational
+    # bootstrap path, but it consumes the same _interest module to
+    # judge passages before render. If the module loaded above, the
+    # recitation path can use it too.
+    _INTEREST_OK = True
 except Exception as _edu_exc:
     print(f"[educational] failed to initialize: {_edu_exc}")
     _EDU_OK = False
+    _INTEREST_OK = False
     _edu = None  # type: ignore
     _safety = None  # type: ignore
     _interest = None  # type: ignore
@@ -9991,10 +9998,16 @@ def _educational_pipeline_run_thread(
                     return
 
             # Interestingness gate. Ollama-based judge on the
-            # generated script. 'unknown' (Ollama down / malformed)
-            # passes through — see educational_interestingness.judge_script.
+            # generated script — uses a TYPE-SPECIFIC rubric, since
+            # what makes a translation_hides short stop the scroll
+            # is different from what makes a word_origins one
+            # ("chastity→architecture" picture-flip vs. "etymology
+            # reframes a familiar verse"). 'unknown' (Ollama down
+            # or malformed JSON) passes through — see
+            # educational_interestingness.judge_script.
+            vtype = (rd.get("type") or "translation_hides").strip()
             try:
-                verdict = _interest.judge_script(c, payload, script)
+                verdict = _interest.judge_script(c, payload, script, vtype)
             except Exception as e:
                 print(f"[interestingness] judge raised, accepting: {e}")
                 verdict = {"verdict": "unknown", "score": 0,
@@ -14508,12 +14521,18 @@ def _pipeline_generate_task(video_id):
                 _update_pipeline_video_status(video_id, "failed", error="Arabic pipeline has no reciter configured")
                 return
 
-            # Gather used passage ranges from the last 30 days of completed runs.
-            # Anything older is eligible to be picked again.
+            # Gather used passage ranges from the last 30 days of completed
+            # runs PLUS any runs the interestingness judge skipped. Anything
+            # older than 30 days (or in other failure modes) is eligible
+            # to be picked again. We include 'rejected_uninteresting' so
+            # Claude won't keep proposing the same boring passage that
+            # the judge just turned down — without this, every scheduled
+            # run would burn a Claude API call on the same reject.
             used_rows = conn.execute(
                 "SELECT verse_data FROM admin_pipeline_videos "
-                "WHERE pipeline_id = ? AND status = 'complete' "
-                "AND created_at >= datetime('now', '-30 days')",
+                "WHERE pipeline_id = ? "
+                "  AND status IN ('complete', 'rejected_uninteresting') "
+                "  AND created_at >= datetime('now', '-30 days')",
                 (pipeline["id"],),
             ).fetchall()
             used_ranges = []
@@ -14749,6 +14768,105 @@ def _pipeline_generate_task(video_id):
             max_verses = 6 if is_arabic else 8
             if ayah_end - ayah_start + 1 > max_verses:
                 ayah_end = ayah_start + max_verses - 1
+
+        # ---- 2.5. Interestingness gate ----
+        # For AI-selected passages, run an Ollama-based judge on the
+        # passage BEFORE we spend money on Claude polish + ElevenLabs
+        # TTS + render. Operator feedback: a himar-etymology word
+        # origins video "will lead to losing subscribers" — bad
+        # uploads actively hurt the channel. Recitations have the
+        # same risk: a transitional / legalistic / repetitive
+        # passage published as a standalone short reads as boring
+        # and trains the YouTube algorithm against us.
+        #
+        # On rejection we mark the row 'rejected_uninteresting' and
+        # return. The pipeline's used_rows query has been widened to
+        # include this status, so the NEXT scheduled run won't pick
+        # the same passage. Manual selections skip the gate (the
+        # operator opted in).
+        if not is_manual_selection and _INTEREST_OK:
+            try:
+                _update_pipeline_video_status(
+                    video_id, "judging",
+                    f"Checking if {chapter}:{ayah_start}-{ayah_end} is interesting enough...",
+                )
+                _judge_conn = get_db()
+                try:
+                    verdict = _interest.judge_passage(
+                        _judge_conn, chapter, ayah_start, ayah_end,
+                    )
+                finally:
+                    _judge_conn.close()
+                # Persist the verdict regardless of pass/fail so the
+                # admin UI can show why a candidate was skipped.
+                _persist_conn = get_db()
+                try:
+                    _persist_conn.execute(
+                        "UPDATE admin_pipeline_videos SET "
+                        "  interestingness_score = ?, "
+                        "  interestingness_verdict = ?, "
+                        "  interestingness_reason = ?, "
+                        "  interestingness_model = ? "
+                        "WHERE id = ?",
+                        (
+                            verdict.get("score") or None,
+                            verdict.get("verdict"),
+                            verdict.get("reason"),
+                            verdict.get("model"),
+                            video_id,
+                        ),
+                    )
+                    _persist_conn.commit()
+                finally:
+                    _persist_conn.close()
+                if not verdict.get("pass"):
+                    msg = (
+                        f"interestingness skip "
+                        f"(score={verdict.get('score')}): "
+                        f"{verdict.get('reason')}"
+                    )
+                    print(
+                        f"[interestingness] recitation {video_id} "
+                        f"{chapter}:{ayah_start}-{ayah_end} REJECTED — {msg}"
+                    )
+                    _set_conn = get_db()
+                    try:
+                        _set_conn.execute(
+                            "UPDATE admin_pipeline_videos SET "
+                            "  status='rejected_uninteresting', "
+                            "  error_message=?, "
+                            "  verse_data=? "
+                            "WHERE id=?",
+                            (
+                                msg[:1000],
+                                # Persist the rejected verse range so the
+                                # next run's used_rows query picks it up
+                                # and forces Claude to avoid it.
+                                json.dumps(
+                                    [
+                                        {"chapter": chapter, "verse": vs}
+                                        for vs in range(ayah_start, ayah_end + 1)
+                                    ]
+                                ),
+                                video_id,
+                            ),
+                        )
+                        _set_conn.commit()
+                    finally:
+                        _set_conn.close()
+                    return
+                print(
+                    f"[interestingness] recitation {video_id} "
+                    f"{chapter}:{ayah_start}-{ayah_end} APPROVED "
+                    f"(score={verdict.get('score')}): {verdict.get('reason')}"
+                )
+            except Exception as e:
+                # Judge crashed — permissive: let it through so we
+                # don't starve the pipeline on Ollama issues.
+                print(
+                    f"[interestingness] recitation judge crashed, "
+                    f"accepting: {e}"
+                )
 
         # ---- 3. Fetch translations ----
         surah_name = _surah_name(chapter)
