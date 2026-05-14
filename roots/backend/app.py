@@ -5108,7 +5108,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/verse-of-the-day|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/verse-of-the-day|/stats|/judge-lessons|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
         return True
     return False
 
@@ -8754,6 +8754,7 @@ try:
     import educational_pipeline as _edu
     import educational_safety as _safety
     import educational_interestingness as _interest
+    import educational_lessons as _lessons
 
     def _ensure_educational_table():
         conn = get_db()
@@ -8763,6 +8764,9 @@ try:
             # Adds interestingness_* columns to educational_videos so
             # the judge verdict can be persisted alongside the row.
             _interest.ensure_columns(conn)
+            # judge_lessons table + admin_preferences keys that drive
+            # the every-N-days "learn from YouTube performance" cron.
+            _lessons.ensure_tables(conn)
         finally:
             conn.close()
 
@@ -8774,13 +8778,16 @@ try:
     # judge passages before render. If the module loaded above, the
     # recitation path can use it too.
     _INTEREST_OK = True
+    _LESSONS_OK = True
 except Exception as _edu_exc:
     print(f"[educational] failed to initialize: {_edu_exc}")
     _EDU_OK = False
     _INTEREST_OK = False
+    _LESSONS_OK = False
     _edu = None  # type: ignore
     _safety = None  # type: ignore
     _interest = None  # type: ignore
+    _lessons = None  # type: ignore
 
 
 def _edu_unavailable():
@@ -10187,6 +10194,249 @@ def _start_educational_pipeline_run(
         daemon=True,
     ).start()
     return video_id, None
+
+
+# ----------------------------------------------------------------------------
+# Judge-tuning lessons — performance-driven refinements to the
+# interestingness judge's rubric. Lessons get auto-refreshed by the
+# scheduler tick every N days; operator can read / edit / disable
+# individual lessons or trigger a manual refresh here.
+# ----------------------------------------------------------------------------
+
+@app.route("/api/admin/judge-lessons", methods=["GET"])
+@admin_required
+def admin_judge_lessons_list():
+    """All lessons grouped by pipeline_type, plus the cron settings.
+    Lets the operator audit what the judge is currently weighting."""
+    if not _LESSONS_OK or _lessons is None:
+        return jsonify({"error": "lessons module not available"}), 503
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, pipeline_type, lesson, evidence_video_ids,
+                   generation_id, source, active, operator_note,
+                   generated_at
+            FROM judge_lessons
+            ORDER BY pipeline_type, source,
+                     active DESC, generated_at DESC, id DESC
+            """
+        ).fetchall()
+        lessons = []
+        for r in rows:
+            lessons.append({
+                "id": r["id"],
+                "pipeline_type": r["pipeline_type"],
+                "lesson": r["lesson"],
+                "evidence_video_ids": json.loads(r["evidence_video_ids"] or "[]"),
+                "generation_id": r["generation_id"],
+                "source": r["source"],
+                "active": bool(r["active"]),
+                "operator_note": r["operator_note"],
+                "generated_at": r["generated_at"],
+            })
+        # Pipe settings out too — keeps the UI single-fetch.
+        prefs = {}
+        for k in (
+            "lessons_auto_refresh_enabled",
+            "lessons_refresh_interval_days",
+            "lessons_min_age_days",
+            "lessons_min_views",
+            "lessons_last_refresh_at",
+        ):
+            row = conn.execute(
+                "SELECT value FROM admin_preferences WHERE key = ?", (k,)
+            ).fetchone()
+            prefs[k] = row["value"] if row else None
+        return jsonify({"lessons": lessons, "settings": prefs,
+                        "pipeline_types": list(_lessons.PIPELINE_TYPES)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/judge-lessons/<int:lesson_id>", methods=["PATCH"])
+@admin_required
+def admin_judge_lessons_update(lesson_id: int):
+    """Edit a lesson — toggle `active`, edit `lesson` text, set an
+    `operator_note`. Promote an auto lesson to source='manual' so a
+    future cron run doesn't retire it.
+
+    Body keys (all optional):
+      active (bool), lesson (str), operator_note (str), source (str)
+    """
+    if not _LESSONS_OK:
+        return jsonify({"error": "lessons module not available"}), 503
+    body = request.get_json(silent=True) or {}
+    sets = []
+    args: list = []
+    if "active" in body:
+        sets.append("active = ?")
+        args.append(1 if body["active"] else 0)
+    if "lesson" in body:
+        text = (body.get("lesson") or "").strip()
+        if not text:
+            return jsonify({"error": "lesson cannot be empty"}), 400
+        sets.append("lesson = ?")
+        args.append(text[:500])
+    if "operator_note" in body:
+        sets.append("operator_note = ?")
+        args.append((body.get("operator_note") or "").strip()[:500] or None)
+    if "source" in body:
+        src = body.get("source")
+        if src not in ("auto", "manual"):
+            return jsonify({"error": "source must be 'auto' or 'manual'"}), 400
+        sets.append("source = ?")
+        args.append(src)
+    if not sets:
+        return jsonify({"error": "no editable fields supplied"}), 400
+    args.append(lesson_id)
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            f"UPDATE judge_lessons SET {', '.join(sets)} WHERE id = ?",
+            args,
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"ok": True, "id": lesson_id})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/judge-lessons", methods=["POST"])
+@admin_required
+def admin_judge_lessons_create():
+    """Add a manual lesson. The operator's own editorial nuggets live
+    alongside the auto-generated ones and survive cron retirements."""
+    if not _LESSONS_OK:
+        return jsonify({"error": "lessons module not available"}), 503
+    body = request.get_json(silent=True) or {}
+    ptype = (body.get("pipeline_type") or "").strip()
+    text = (body.get("lesson") or "").strip()
+    if ptype not in (set(_lessons.PIPELINE_TYPES) | {"all"}):
+        return jsonify({"error": "pipeline_type must be one of "
+                        + ", ".join(_lessons.PIPELINE_TYPES) + ", all"}), 400
+    if not text:
+        return jsonify({"error": "lesson is required"}), 400
+    evidence = body.get("evidence_video_ids") or []
+    if not isinstance(evidence, list):
+        return jsonify({"error": "evidence_video_ids must be a list"}), 400
+    note = (body.get("operator_note") or "").strip()[:500] or None
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO judge_lessons
+              (pipeline_type, lesson, evidence_video_ids,
+               source, active, operator_note)
+            VALUES (?, ?, ?, 'manual', 1, ?)
+            """,
+            (ptype, text[:500], json.dumps([str(i) for i in evidence]), note),
+        )
+        conn.commit()
+        return jsonify({"ok": True, "id": cur.lastrowid})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/judge-lessons/<int:lesson_id>", methods=["DELETE"])
+@admin_required
+def admin_judge_lessons_delete(lesson_id: int):
+    if not _LESSONS_OK:
+        return jsonify({"error": "lessons module not available"}), 503
+    conn = get_db()
+    try:
+        cur = conn.execute("DELETE FROM judge_lessons WHERE id = ?", (lesson_id,))
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "not found"}), 404
+        return jsonify({"ok": True})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/judge-lessons/refresh", methods=["POST"])
+@admin_required
+def admin_judge_lessons_refresh():
+    """Force a cron run NOW, regardless of the last-refresh schedule.
+    Useful when the operator just changed thresholds in settings or
+    wants a fresh sample after a batch upload."""
+    if not _LESSONS_OK or _lessons is None:
+        return jsonify({"error": "lessons module not available"}), 503
+    body = request.get_json(silent=True) or {}
+    only_type = body.get("pipeline_type")  # optional — limit to one type
+    if only_type and only_type not in _lessons.PIPELINE_TYPES:
+        return jsonify({"error": "invalid pipeline_type"}), 400
+
+    # Run in a background thread — the analyzer hits Ollama Cloud
+    # 4× (once per pipeline type) and can take 30-90s total, so we
+    # don't want to block the request.
+    def _bg():
+        c = get_db()
+        try:
+            summary = _lessons.refresh_lessons(c, only_type=only_type, force=True)
+            print(f"[lessons] manual refresh done: {summary}")
+        except Exception as e:
+            print(f"[lessons] manual refresh error: {e}")
+        finally:
+            c.close()
+
+    threading.Thread(target=_bg, daemon=True).start()
+    return jsonify({"ok": True, "status": "started",
+                    "note": "Refresh running in background; poll GET /api/admin/judge-lessons in ~60-120s."})
+
+
+@app.route("/api/admin/judge-lessons/settings", methods=["PUT"])
+@admin_required
+def admin_judge_lessons_settings():
+    """Update the cron's tunables: enabled, interval, min_age, min_views."""
+    if not _LESSONS_OK:
+        return jsonify({"error": "lessons module not available"}), 503
+    body = request.get_json(silent=True) or {}
+    updates: list[tuple[str, str]] = []
+    if "enabled" in body:
+        updates.append(("lessons_auto_refresh_enabled",
+                        "1" if body["enabled"] else "0"))
+    if "interval_days" in body:
+        try:
+            n = int(body["interval_days"])
+            if n < 1 or n > 60:
+                raise ValueError("range")
+            updates.append(("lessons_refresh_interval_days", str(n)))
+        except (TypeError, ValueError):
+            return jsonify({"error": "interval_days must be 1-60"}), 400
+    if "min_age_days" in body:
+        try:
+            n = int(body["min_age_days"])
+            if n < 0 or n > 90:
+                raise ValueError("range")
+            updates.append(("lessons_min_age_days", str(n)))
+        except (TypeError, ValueError):
+            return jsonify({"error": "min_age_days must be 0-90"}), 400
+    if "min_views" in body:
+        try:
+            n = int(body["min_views"])
+            if n < 0:
+                raise ValueError("range")
+            updates.append(("lessons_min_views", str(n)))
+        except (TypeError, ValueError):
+            return jsonify({"error": "min_views must be a non-negative integer"}), 400
+    if not updates:
+        return jsonify({"error": "no settings supplied"}), 400
+    conn = get_db()
+    try:
+        for k, v in updates:
+            conn.execute(
+                "INSERT INTO admin_preferences (key, value, updated_at) "
+                "VALUES (?, ?, CURRENT_TIMESTAMP) "
+                "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP",
+                (k, v),
+            )
+        conn.commit()
+        return jsonify({"ok": True, "updated": [k for k, _ in updates]})
+    finally:
+        conn.close()
 
 
 @app.route("/api/admin/educational/schedules", methods=["GET"])
@@ -16442,6 +16692,25 @@ def _educational_scheduler_tick():
                 c.close()
 
 
+def _lessons_refresh_tick():
+    """Every-30-seconds tick that fires the lessons-refresh cron when
+    the configured interval (default 3 days) has elapsed. The actual
+    work is a single Ollama call per pipeline type — cheap enough to
+    just gate on `should_refresh` rather than maintaining a separate
+    daemon clock."""
+    if not _LESSONS_OK or _lessons is None:
+        return
+    conn = get_db()
+    try:
+        if not _lessons.should_refresh(conn):
+            return
+        print("[lessons] scheduled refresh starting")
+        summary = _lessons.refresh_lessons(conn)
+        print(f"[lessons] scheduled refresh done: {summary}")
+    finally:
+        conn.close()
+
+
 def _scheduler_loop():
     """Main scheduler daemon — ticks every 30 seconds."""
     print("[scheduler] daemon started")
@@ -16458,6 +16727,10 @@ def _scheduler_loop():
             _educational_scheduler_tick()
         except Exception as e:
             print(f"[edu-scheduler] tick error: {e}")
+        try:
+            _lessons_refresh_tick()
+        except Exception as e:
+            print(f"[lessons-scheduler] tick error: {e}")
         # Sleep in 5s chunks so shutdown can interrupt quickly.
         for _ in range(6):
             if _scheduler_stop.is_set():

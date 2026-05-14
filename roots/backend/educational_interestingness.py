@@ -228,14 +228,31 @@ _PROMPT_RECITATION = _PRELUDE + (
 )
 
 
-def _prompt_for(vtype: str) -> str:
-    """Pick the right system prompt for the candidate's pipeline type."""
-    return {
+def _prompt_for(vtype: str, conn: sqlite3.Connection | None = None) -> str:
+    """Pick the right system prompt for the candidate's pipeline type
+    and append the latest performance-driven lessons (when available)
+    so the judge stays calibrated to what actually engages viewers on
+    YouTube. The hand-written rubric stays on top — editorial values
+    take precedence over data-derived trends."""
+    base = {
         "translation_hides": _PROMPT_TRANSLATION_HIDES,
         "word_origins": _PROMPT_WORD_ORIGINS,
         "grammar_insights": _PROMPT_GRAMMAR_INSIGHTS,
         "recitation": _PROMPT_RECITATION,
     }.get(vtype, _PROMPT_TRANSLATION_HIDES)
+    if conn is None:
+        return base
+    try:
+        import educational_lessons as _lessons
+        section = _lessons.lesson_section_for_prompt(conn, vtype)
+        if section:
+            return base + section
+    except Exception as e:
+        # Never let a lessons-module failure block the judge — the
+        # base rubric is enough to operate; we just lose the data-
+        # informed refinement until the module can be loaded again.
+        print(f"[interestingness] lessons-section skipped: {e}")
+    return base
 
 
 # ---------------------------------------------------------------------------
@@ -471,7 +488,7 @@ def judge_script(
     """Judge a generated educational script. vtype is one of
     'word_origins' / 'translation_hides' / 'grammar_insights' — each
     routes to its own prompt + summary builder."""
-    system_prompt = _prompt_for(vtype)
+    system_prompt = _prompt_for(vtype, conn)
     if vtype == "word_origins":
         user_msg = _summarize_word_origins(payload, script)
     elif vtype == "grammar_insights":
@@ -512,4 +529,4 @@ def judge_passage(
         return {"verdict": "unknown", "score": 0,
                 "reason": "no verse data", "model": "", "pass": True}
     user_msg = _summarize_recitation(arabic, translation, chapter, ayah_start, ayah_end)
-    return _resolve(conn, _PROMPT_RECITATION, user_msg)
+    return _resolve(conn, _prompt_for("recitation", conn), user_msg)

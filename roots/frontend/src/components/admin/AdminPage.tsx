@@ -33,6 +33,7 @@ import AdminEducationalPipelines from './AdminEducationalPipelines';
 import AdminPipelines from './AdminPipelines';
 import AdminVerseOfTheDay from './AdminVerseOfTheDay';
 import StatsPage from './StatsPage';
+import JudgeLessonsPage from './JudgeLessonsPage';
 
 type AdminRoute =
   | 'dashboard' | 'settings' | 'scheduler'
@@ -46,7 +47,8 @@ type AdminRoute =
   | 'revisions' | 'vocabulary' | 'vocabulary-studio' | 'proper-nouns'
   | 'verse-settings'
   | 'verse-of-the-day'
-  | 'stats';
+  | 'stats'
+  | 'judge-lessons';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -79,6 +81,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/verse-settings\/?$/.test(path)) return 'verse-settings';
   if (/^\/admin\/verse-of-the-day\/?$/.test(path)) return 'verse-of-the-day';
   if (/^\/admin\/stats\/?$/.test(path)) return 'stats';
+  if (/^\/admin\/judge-lessons\/?$/.test(path)) return 'judge-lessons';
   return 'dashboard';
 }
 
@@ -129,6 +132,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Stats',
     description: 'Public-site analytics and YouTube performance with 7d/30d trends.',
     matches: (r) => r === 'stats',
+  },
+  {
+    href: '/admin/judge-lessons',
+    label: 'Judge Lessons',
+    description: 'Performance-driven refinements to the interestingness judge — what YouTube engagement is teaching the pipeline.',
+    matches: (r) => r === 'judge-lessons',
   },
   {
     href: '/admin/verse-settings',
@@ -310,6 +319,7 @@ export default function AdminPage() {
         {route === 'verse-settings' && <VerseSettings />}
         {route === 'verse-of-the-day' && <AdminVerseOfTheDay />}
         {route === 'stats' && <StatsPage />}
+        {route === 'judge-lessons' && <JudgeLessonsPage />}
       </div>
     </div>
   );
