@@ -164,12 +164,25 @@ export async function prepareNarration(payload, env = process.env) {
   // of a video be iterated on cheaply.
   const ttsDisabled = /^(1|true|yes)$/i.test(env.ELEVENLABS_DISABLE_GENERATION || '');
 
+  // Voice not configured is a HARD STOP unless the dev kill switch is
+  // on (which means the operator opted into silent renders for visual
+  // iteration). Previously this just logged and returned the payload
+  // unchanged, which on prod produced silent MP4s that still uploaded
+  // to YouTube — operator hit this when ElevenLabs credits ran out.
   if (!voiceId) {
-    console.error(
-      '[narration] ELEVENLABS_VOICE_ID not set — skipping narration. ' +
-      'Slides will render silently. Set it in .env to enable.',
+    if (ttsDisabled) {
+      console.error(
+        '[narration] ELEVENLABS_VOICE_ID not set + DISABLE_GENERATION on — ' +
+        'skipping narration. Slides will render silently.',
+      );
+      return payload;
+    }
+    throw new Error(
+      'ELEVENLABS_VOICE_ID is not configured. Set it in .env or pass ' +
+      'ELEVENLABS_DISABLE_GENERATION=1 to render silently on purpose. ' +
+      'Refusing to render — a silent video would publish to YouTube ' +
+      'with no narration.',
     );
-    return payload;
   }
 
   if (ttsDisabled) {
@@ -182,6 +195,11 @@ export async function prepareNarration(payload, env = process.env) {
   const enriched = JSON.parse(JSON.stringify(payload));
   let cacheHits = 0;
   let cacheMisses = 0;
+  // Collect TTS errors and throw at the end so the operator sees
+  // EVERY failure at once (not just the first one). Even one
+  // failure aborts the render — better to fail loudly than ship a
+  // half-audio video to YouTube.
+  const failures = [];
 
   for (let i = 0; i < enriched.slides.length; i++) {
     const slide = enriched.slides[i];
@@ -224,9 +242,30 @@ export async function prepareNarration(payload, env = process.env) {
       slide.durationSec = Math.max(slide.durationSec || 0, audioDwell);
       result.cached ? cacheHits++ : cacheMisses++;
     } catch (e) {
-      console.error(`[narration] Slide ${i} (${slide.type}) FAILED: ${e.message}`);
-      console.error('[narration] Continuing without narration for this slide.');
+      // Record the failure; we keep iterating so the operator sees
+      // EVERY broken slide at once instead of having to retry to
+      // find the next one. Common cases for a real-world failure:
+      // - 401 unauthorized (bad API key)
+      // - 402 payment required (out of credits — operator hit this)
+      // - 429 rate limited
+      // - 5xx server error
+      // - transport / network blip
+      // None of these should produce a silent video. If the
+      // operator genuinely wants a silent slide, the explicit
+      // kill switch is the way to opt in.
+      const msg = `slide ${i} (${slide.type}) "${narr.text.slice(0, 60)}…" — ${e.message}`;
+      console.error(`[narration] FAIL: ${msg}`);
+      failures.push(msg);
     }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(
+      `Narration generation failed for ${failures.length} slide(s). ` +
+      `Refusing to render — a partial-audio video would publish to ` +
+      `YouTube with broken narration. First failure: ${failures[0]}` +
+      (failures.length > 1 ? ` (+${failures.length - 1} more)` : ''),
+    );
   }
 
   console.error(

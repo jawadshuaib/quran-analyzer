@@ -9524,6 +9524,45 @@ def _perform_educational_youtube_upload(
         if not os.path.isfile(filepath):
             return {"ok": False, "error": "Video file missing on disk", "status": 404}
 
+        # Defense-in-depth: ffprobe the file and refuse to upload if it
+        # has no audio stream. Operator hit this when ElevenLabs credits
+        # ran out — the renderer silently produced a soundless mp4 and
+        # the scheduler pushed it to YouTube. The narration helper now
+        # fails the render outright on TTS errors, but this last guard
+        # also catches manual / pre-existing rows that slipped through
+        # before that fix landed.
+        try:
+            probe = subprocess.run(
+                [
+                    "ffprobe", "-v", "error",
+                    "-select_streams", "a",
+                    "-show_entries", "stream=codec_type",
+                    "-of", "csv=p=0",
+                    filepath,
+                ],
+                capture_output=True, text=True, timeout=30,
+            )
+            audio_streams = [
+                line for line in (probe.stdout or "").splitlines()
+                if line.strip() == "audio"
+            ]
+            if not audio_streams:
+                return {
+                    "ok": False,
+                    "error": (
+                        f"Refusing to upload {rd['filename']} — the mp4 has "
+                        f"no audio stream. This usually means TTS failed "
+                        f"during render (e.g. ElevenLabs credits exhausted). "
+                        f"Re-render the row first."
+                    ),
+                    "status": 409,
+                }
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            # ffprobe missing or slow — log and proceed. We don't want
+            # an ffprobe issue to block a legitimate upload, but we DO
+            # want to know.
+            print(f"[edu-upload] audio-stream check skipped: {e}")
+
         # Resolve metadata: educational_videos columns > generic Quran
         # fallback. Same fallback constants the recitation pipeline
         # uses so a metadata-less upload still publishes sensibly.
@@ -17317,6 +17356,38 @@ def _perform_youtube_upload(
         filepath = os.path.join(_GENERATED_VIDEOS_DIR, row["filename"])
         if not os.path.isfile(filepath):
             return {"ok": False, "error": "Video file missing on disk", "status": 404}
+
+        # Audio-stream guard — same defense as the educational upload
+        # helper. Refuse to publish a silent video (ElevenLabs credits
+        # exhausted is the most common cause).
+        try:
+            probe = subprocess.run(
+                [
+                    "ffprobe", "-v", "error",
+                    "-select_streams", "a",
+                    "-show_entries", "stream=codec_type",
+                    "-of", "csv=p=0",
+                    filepath,
+                ],
+                capture_output=True, text=True, timeout=30,
+            )
+            audio_streams = [
+                line for line in (probe.stdout or "").splitlines()
+                if line.strip() == "audio"
+            ]
+            if not audio_streams:
+                return {
+                    "ok": False,
+                    "error": (
+                        f"Refusing to upload {row['filename']} — the mp4 has "
+                        f"no audio stream. This usually means TTS failed "
+                        f"during render (e.g. ElevenLabs credits exhausted). "
+                        f"Re-render the row first."
+                    ),
+                    "status": 409,
+                }
+        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+            print(f"[recitation-upload] audio-stream check skipped: {e}")
 
         # Resolve metadata: caller overrides > stored columns > generic
         # Quran-themed fallback. When Ollama is down (or hasn't run yet)

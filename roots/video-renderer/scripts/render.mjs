@@ -94,8 +94,20 @@ if (!Array.isArray(payload?.slides) || payload.slides.length === 0) {
 //
 // Mutates the input file in place so the studio (which imports
 // sample-payload.json directly) picks up the same karaoke data.
+//
+// IMPORTANT: any narration failure (credits exhausted, bad voice
+// id, network error) MUST abort the whole render. Without this,
+// the renderer would happily produce a video with NO audio and
+// the upload pipeline would push it to YouTube — operator hit this
+// when ElevenLabs credits ran out. prepareNarration now throws on
+// real API failures; we route that through fatal() so the Python
+// caller gets a clean JSON error + non-zero exit code.
 console.error('[render.mjs] Preparing narration…');
-payload = await prepareNarration(payload);
+try {
+  payload = await prepareNarration(payload);
+} catch (e) {
+  fatal(`Narration prep failed: ${e.message}`);
+}
 writeFileSync(payloadPath, JSON.stringify(payload, null, 2) + '\n');
 console.error(`[render.mjs] Updated payload in place → ${basename(payloadPath)}`);
 
