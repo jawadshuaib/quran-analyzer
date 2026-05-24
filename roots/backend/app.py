@@ -16412,10 +16412,87 @@ def _youtube_update_run_status(
         conn.close()
 
 
+# OAuth circuit-breaker tunables. After N consecutive OAuth failures
+# across upload attempts, skip ALL upcoming slots until the operator
+# fixes the credentials. Without this, every slot retried the same
+# broken upload, accumulating ~5 failed-run rows per day until the
+# Google API put us on a quota probation.
+OAUTH_CIRCUIT_BREAKER_THRESHOLD = 3
+
+
+def _youtube_oauth_failure_count(conn) -> int:
+    row = conn.execute(
+        "SELECT value FROM admin_preferences WHERE key='youtube_oauth_failure_count'"
+    ).fetchone()
+    try:
+        return int(row["value"]) if row and row["value"] else 0
+    except (TypeError, ValueError):
+        return 0
+
+
+def _youtube_oauth_record_failure(conn, error_message: str) -> int:
+    """Bump the consecutive-OAuth-failure counter. Returns the new count.
+    Called from any upload helper when OAuth fails."""
+    new_count = _youtube_oauth_failure_count(conn) + 1
+    conn.execute(
+        "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) "
+        "VALUES ('youtube_oauth_failure_count', ?, CURRENT_TIMESTAMP)",
+        (str(new_count),),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) "
+        "VALUES ('youtube_oauth_last_failure_message', ?, CURRENT_TIMESTAMP)",
+        ((error_message or "")[:1000],),
+    )
+    conn.commit()
+    return new_count
+
+
+def _youtube_oauth_record_success(conn) -> None:
+    """Reset the consecutive-OAuth-failure counter on any successful
+    token fetch. Called from _get_youtube_access_token below."""
+    conn.execute(
+        "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) "
+        "VALUES ('youtube_oauth_failure_count', '0', CURRENT_TIMESTAMP)",
+    )
+    conn.execute("DELETE FROM admin_preferences WHERE key='youtube_oauth_last_failure_message'")
+    conn.commit()
+
+
 def _youtube_upload_tick():
     """One pass of the YouTube upload scheduler. Idempotent per slot."""
     from datetime import datetime, timedelta
     now = datetime.now()
+
+    # Circuit-breaker check FIRST — if OAuth is broken, every upload
+    # attempt this tick would fail identically. Skip all slots until
+    # the operator resets the breaker (which happens automatically
+    # the next time _get_youtube_access_token succeeds).
+    conn_cb = get_db()
+    try:
+        failures = _youtube_oauth_failure_count(conn_cb)
+        last_msg_row = conn_cb.execute(
+            "SELECT value FROM admin_preferences "
+            "WHERE key='youtube_oauth_last_failure_message'"
+        ).fetchone()
+        last_msg = last_msg_row["value"] if last_msg_row else ""
+    finally:
+        conn_cb.close()
+    if failures >= OAUTH_CIRCUIT_BREAKER_THRESHOLD:
+        # Don't even attempt — just record one breaker-tripped row at
+        # the earliest pending slot so the operator sees it on the UI
+        # and stops getting one error per slot per day.
+        # We log every ~hour, not every 30s tick.
+        if not hasattr(_youtube_upload_tick, "_last_breaker_log") or \
+           (now - _youtube_upload_tick._last_breaker_log).total_seconds() > 3600:
+            print(
+                f"[youtube-scheduler] OAuth circuit breaker open "
+                f"({failures} consecutive failures). Last: "
+                f"{last_msg[:200]}. Reset by fixing credentials at "
+                f"Admin → Settings → YouTube."
+            )
+            _youtube_upload_tick._last_breaker_log = now
+        return
 
     conn = get_db()
     try:
@@ -17068,8 +17145,19 @@ def admin_get_youtube_upload_schedule():
             "       privacy, updated_at "
             "FROM youtube_upload_schedule WHERE id = 1"
         ).fetchone()
+        # OAuth circuit-breaker status — surfaced so the UI can warn
+        # the operator that the schedule is currently paused (the tick
+        # auto-pauses after N consecutive OAuth failures to stop
+        # hammering broken credentials).
+        oauth_failures = _youtube_oauth_failure_count(conn)
+        oauth_msg_row = conn.execute(
+            "SELECT value FROM admin_preferences "
+            "WHERE key='youtube_oauth_last_failure_message'"
+        ).fetchone()
+        oauth_msg = oauth_msg_row["value"] if oauth_msg_row else None
     finally:
         conn.close()
+    breaker_open = oauth_failures >= OAUTH_CIRCUIT_BREAKER_THRESHOLD
     if not row:
         return jsonify({
             "enabled": False,
@@ -17078,6 +17166,11 @@ def admin_get_youtube_upload_schedule():
             "sanity_check_enabled": True,
             "privacy": "public",
             "updated_at": None,
+            "oauth_circuit_breaker": {
+                "open": breaker_open,
+                "consecutive_failures": oauth_failures,
+                "last_failure": oauth_msg,
+            },
         })
     try:
         times = json.loads(row["times"] or "[]")
@@ -17090,7 +17183,45 @@ def admin_get_youtube_upload_schedule():
         "sanity_check_enabled": bool(row["sanity_check_enabled"]),
         "privacy": row["privacy"],
         "updated_at": row["updated_at"],
+        "oauth_circuit_breaker": {
+            "open": breaker_open,
+            "consecutive_failures": oauth_failures,
+            "last_failure": oauth_msg,
+        },
     })
+
+
+@app.route("/api/admin/youtube-upload-schedule/test-oauth", methods=["POST"])
+@admin_required
+def admin_test_youtube_oauth():
+    """Operator action: try a token exchange right now to validate
+    the configured credentials. On success, the circuit-breaker
+    counter resets automatically (the helper records success). On
+    failure, the helper records the failure with a concrete
+    remediation message. Returns the result so the UI can show it."""
+    try:
+        token = _get_youtube_access_token()
+        return jsonify({
+            "ok": True,
+            "message": "OAuth refresh succeeded. Upload schedule will resume on the next slot.",
+            "access_token_prefix": (token or "")[:8] + "…",
+        })
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+
+@app.route("/api/admin/youtube-upload-schedule/reset-circuit-breaker", methods=["POST"])
+@admin_required
+def admin_reset_youtube_circuit_breaker():
+    """Operator escape hatch — clear the OAuth failure counter without
+    actually testing creds. Use after manually fixing credentials when
+    test-oauth would burn API quota you'd rather save."""
+    conn = get_db()
+    try:
+        _youtube_oauth_record_success(conn)
+    finally:
+        conn.close()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/admin/youtube-upload-schedule", methods=["PUT"])
@@ -17318,15 +17449,79 @@ def _youtube_get_access_token() -> str:
         timeout=20,
     )
     if resp.status_code != 200:
-        # Surface Google's specific error so the admin can fix it
+        # Build a useful error. Google's `error_description` is often
+        # the unhelpful literal string "Bad Request" for invalid_grant —
+        # the `error` field carries the actual diagnostic code. Prefer
+        # the code, and turn known codes into concrete remediation
+        # instructions for the operator (the prior message was
+        # 'OAuth token exchange failed: Bad Request', which gave the
+        # operator no idea what to fix).
         try:
-            err = resp.json().get("error_description") or resp.json().get("error") or resp.text
+            body = resp.json()
+            err_code = (body.get("error") or "").strip()
+            err_desc = (body.get("error_description") or "").strip()
         except Exception:
-            err = resp.text[:300]
-        raise RuntimeError(f"OAuth token exchange failed: {err}")
+            err_code = ""
+            err_desc = (resp.text or "")[:300]
+
+        # Bump the consecutive-failure counter so the upload-tick
+        # circuit breaker can stop hammering the same broken creds.
+        try:
+            _conn_cb = get_db()
+            _youtube_oauth_record_failure(
+                _conn_cb,
+                f"{err_code or 'HTTP ' + str(resp.status_code)}: {err_desc[:200]}",
+            )
+        finally:
+            try: _conn_cb.close()
+            except Exception: pass
+
+        REMEDIATIONS = {
+            "invalid_grant": (
+                "Google rejected the refresh token (invalid_grant). The "
+                "stored token is no longer valid. Common causes: (1) the "
+                "OAuth consent screen is still in 'Testing' status in "
+                "Google Cloud Console — refresh tokens expire after 7 "
+                "days in that mode; publish the app to fix permanently. "
+                "(2) The client secret was regenerated, which invalidates "
+                "all refresh tokens. (3) The Google account revoked access "
+                "at myaccount.google.com/permissions. "
+                "FIX: re-run the OAuth flow and paste the new refresh "
+                "token at Admin → Settings → YouTube."
+            ),
+            "invalid_client": (
+                "Google rejected the client credentials (invalid_client). "
+                "The Client ID or Client Secret is wrong. Re-copy both "
+                "from Google Cloud Console → Credentials → OAuth 2.0 "
+                "Client IDs at Admin → Settings → YouTube."
+            ),
+            "unauthorized_client": (
+                "OAuth client is not authorized for this grant type "
+                "(unauthorized_client). Likely the OAuth client was "
+                "created as the wrong type (e.g. 'Desktop' vs 'Web "
+                "application'). Recreate the OAuth client and reconnect."
+            ),
+        }
+        if err_code in REMEDIATIONS:
+            raise RuntimeError(
+                f"OAuth token exchange failed ({err_code}): {REMEDIATIONS[err_code]}"
+            )
+        # Unknown error code — surface as much detail as we have.
+        detail = err_desc or err_code or resp.text[:200] or f"HTTP {resp.status_code}"
+        raise RuntimeError(
+            f"OAuth token exchange failed ({err_code or 'HTTP ' + str(resp.status_code)}): {detail}"
+        )
     token = resp.json().get("access_token")
     if not token:
         raise RuntimeError("OAuth response missing access_token")
+    # Successful token fetch — clear the circuit breaker so the
+    # upload tick resumes on the next slot.
+    try:
+        _conn_ok = get_db()
+        _youtube_oauth_record_success(_conn_ok)
+    finally:
+        try: _conn_ok.close()
+        except Exception: pass
     return token
 
 

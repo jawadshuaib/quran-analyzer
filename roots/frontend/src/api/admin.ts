@@ -1374,6 +1374,43 @@ export interface YoutubeUploadSchedule {
   sanity_check_enabled: boolean;
   privacy: 'public' | 'unlisted' | 'private';
   updated_at: string | null;
+  /** OAuth circuit-breaker state. open=true means consecutive OAuth
+   *  failures crossed the threshold and the upload tick is pausing
+   *  all slots until the operator fixes credentials and the breaker
+   *  resets (auto on next successful token fetch, or via the manual
+   *  reset endpoint). */
+  oauth_circuit_breaker?: {
+    open: boolean;
+    consecutive_failures: number;
+    last_failure: string | null;
+  };
+}
+
+/** Run an OAuth token exchange right now and return the result. Used
+ *  by the "Test OAuth" button on the YouTube schedule page. */
+export async function testYoutubeOAuth(): Promise<{
+  ok: boolean;
+  message?: string;
+  error?: string;
+  access_token_prefix?: string;
+}> {
+  const res = await authFetch(`${BASE}/youtube-upload-schedule/test-oauth`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+/** Manually clear the OAuth failure counter without retrying — useful
+ *  when the operator just fixed the credentials and wants to resume
+ *  the schedule without burning a token-exchange call. */
+export async function resetYoutubeOAuthCircuitBreaker(): Promise<{ ok: true }> {
+  const res = await authFetch(
+    `${BASE}/youtube-upload-schedule/reset-circuit-breaker`,
+    { method: 'POST' },
+  );
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Reset failed');
+  return data;
 }
 
 export interface YoutubeUploadRun {

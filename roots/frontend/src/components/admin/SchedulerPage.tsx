@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getPipelineSchedules, savePipelineSchedule, getPipelineScheduleRuns,
   getYoutubeUploadSchedule, saveYoutubeUploadSchedule, getYoutubeUploadRuns,
+  testYoutubeOAuth, resetYoutubeOAuthCircuitBreaker,
   getPreferences,
   getAllEducationalSchedules, getAllEducationalScheduleRuns,
   upsertEducationalSchedule,
@@ -1294,6 +1295,57 @@ function YoutubeUploadSection({
   const [runs, setRuns] = useState<YoutubeUploadRun[]>([]);
   const [ytConfigured, setYtConfigured] = useState<boolean | null>(null);
   const [err, setErr] = useState('');
+  // OAuth circuit-breaker UI state — testing/resetting the OAuth
+  // refresh-token flow, with feedback inline so the operator doesn't
+  // have to navigate elsewhere to see whether the fix worked.
+  const [oauthTesting, setOauthTesting] = useState(false);
+  const [oauthFeedback, setOauthFeedback] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const [oauthResetting, setOauthResetting] = useState(false);
+
+  async function handleTestOauth() {
+    setOauthTesting(true);
+    setOauthFeedback(null);
+    try {
+      const r = await testYoutubeOAuth();
+      setOauthFeedback({
+        ok: !!r.ok,
+        message: r.ok ? (r.message || 'OAuth refresh succeeded.') : (r.error || 'OAuth refresh failed.'),
+      });
+      // Reload so the breaker badge updates immediately.
+      const fresh = await getYoutubeUploadSchedule().catch(() => null);
+      if (fresh) setSchedule(fresh);
+    } catch (e) {
+      setOauthFeedback({
+        ok: false,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setOauthTesting(false);
+    }
+  }
+
+  async function handleResetBreaker() {
+    setOauthResetting(true);
+    try {
+      await resetYoutubeOAuthCircuitBreaker();
+      const fresh = await getYoutubeUploadSchedule().catch(() => null);
+      if (fresh) setSchedule(fresh);
+      setOauthFeedback({
+        ok: true,
+        message: 'Circuit breaker reset. Next scheduled slot will try uploading again.',
+      });
+    } catch (e) {
+      setOauthFeedback({
+        ok: false,
+        message: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setOauthResetting(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setErr('');
@@ -1361,6 +1413,63 @@ function YoutubeUploadSection({
         <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
           YouTube credentials aren't configured — uploads will fail until you set them up in{' '}
           <a href="/admin/settings" className="underline font-medium">Admin Settings → YouTube</a>.
+        </div>
+      )}
+
+      {/* OAuth circuit-breaker banner. Trips after N consecutive token-
+          exchange failures so the scheduler stops re-attempting the
+          same broken upload every slot. Surfaces the actual Google
+          remediation message (not the unhelpful 'Bad Request') and
+          gives the operator a Test + Reset workflow inline. */}
+      {schedule?.oauth_circuit_breaker?.open && (
+        <div className="mb-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="font-semibold mb-1">
+            ⚠ Upload schedule paused — YouTube OAuth is broken
+          </div>
+          <div className="mb-2">
+            {schedule.oauth_circuit_breaker.consecutive_failures} consecutive token-exchange failures.
+            All upcoming slots are skipping uploads until this is fixed.
+          </div>
+          {schedule.oauth_circuit_breaker.last_failure && (
+            <div className="mb-2 px-3 py-2 bg-white border border-red-200 rounded text-xs font-mono text-red-700 whitespace-pre-wrap">
+              {schedule.oauth_circuit_breaker.last_failure}
+            </div>
+          )}
+          <div className="mb-3 text-xs text-red-700">
+            After fixing credentials at{' '}
+            <a href="/admin/settings" className="underline font-medium">Admin Settings → YouTube</a>,
+            click <em>Test OAuth</em> below. A successful test auto-clears
+            the breaker; or click <em>Reset breaker</em> to clear it manually.
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleTestOauth}
+              disabled={oauthTesting}
+              className="px-3 py-1.5 text-xs rounded-md bg-stone-800 text-white hover:bg-stone-700 disabled:opacity-50"
+            >
+              {oauthTesting ? 'Testing…' : 'Test OAuth'}
+            </button>
+            <button
+              onClick={handleResetBreaker}
+              disabled={oauthResetting}
+              className="px-3 py-1.5 text-xs rounded-md border border-red-400 text-red-700 hover:bg-red-100 disabled:opacity-50"
+            >
+              {oauthResetting ? 'Resetting…' : 'Reset breaker'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {oauthFeedback && (
+        <div
+          className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+            oauthFeedback.ok
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {oauthFeedback.ok ? '✓ ' : '✗ '}
+          {oauthFeedback.message}
         </div>
       )}
 
