@@ -58,11 +58,33 @@ export default function AdminVerseOfTheDay() {
     return { chapter, verse };
   }
 
+  // Live duplicate detection — parse the input on every keystroke
+  // so we can pre-empt the API 409 and disable the Add button before
+  // the operator clicks it. Backend still enforces the constraint;
+  // this is purely UX.
+  const parsedNew = parseRef(newRef);
+  const isDuplicate = !!(
+    parsedNew &&
+    items.some(
+      (i) => i.chapter === parsedNew.chapter && i.verse === parsedNew.verse,
+    )
+  );
+
   async function handleAdd() {
     setAddErr('');
     const parsed = parseRef(newRef);
     if (!parsed) {
       setAddErr('Use format like "2:255" — chapter 1-114, verse ≥ 1');
+      return;
+    }
+    // Mirror the backend's 409 — surface it inline before the call.
+    const dup = items.find(
+      (i) => i.chapter === parsed.chapter && i.verse === parsed.verse,
+    );
+    if (dup) {
+      setAddErr(
+        `Quran ${parsed.chapter}:${parsed.verse} is already in the rotation.`,
+      );
       return;
     }
     setAdding(true);
@@ -124,26 +146,40 @@ export default function AdminVerseOfTheDay() {
       )}
 
       {/* Today's pick — emphasized so the admin knows what's currently
-          on the homepage before they decide what to change. */}
-      {today && (
-        <div className="mb-6 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50/60 to-white px-4 py-3 flex items-center gap-3 flex-wrap">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
-            Today
-          </span>
-          <span className="font-mono text-sm text-stone-800">
-            {today.chapter}:{today.verse}
-          </span>
-          {(() => {
-            const t = items.find((i) => i.chapter === today.chapter && i.verse === today.verse);
-            return t ? (
-              <span className="text-sm text-stone-600 truncate flex-1 min-w-0">
-                {t.surah_name && <span className="font-medium">{t.surah_name}</span>}
-                {t.translation_preview && <span className="ml-2 italic">— {t.translation_preview}</span>}
+          on the homepage before they decide what to change. Shows the
+          full Arabic + English text so the operator can see exactly
+          what's displaying without clicking through to the public page. */}
+      {today && (() => {
+        const t = items.find((i) => i.chapter === today.chapter && i.verse === today.verse);
+        const ar = t?.arabic || t?.arabic_preview || '';
+        const en = t?.translation_en || t?.translation_preview || '';
+        return (
+          <div className="mb-6 rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50/60 to-white px-4 py-3">
+            <div className="flex items-center gap-3 flex-wrap mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                Today
               </span>
-            ) : null;
-          })()}
-        </div>
-      )}
+              <span className="font-mono text-sm text-stone-800">
+                {today.chapter}:{today.verse}
+              </span>
+            </div>
+            {ar && (
+              <div
+                dir="rtl"
+                lang="ar"
+                className="font-arabic text-lg leading-loose text-stone-800 mb-2"
+              >
+                {ar}
+              </div>
+            )}
+            {en && (
+              <div className="text-sm text-stone-600 italic leading-relaxed">
+                {en}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Add row */}
       <div className="mb-6 rounded-xl border border-stone-200 bg-white p-4">
@@ -163,13 +199,24 @@ export default function AdminVerseOfTheDay() {
           </div>
           <button
             onClick={() => void handleAdd()}
-            disabled={adding || !newRef.trim()}
-            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 cursor-pointer"
+            disabled={adding || !newRef.trim() || isDuplicate}
+            className="px-4 py-2 rounded-lg bg-stone-800 text-white text-sm font-medium hover:bg-stone-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            title={isDuplicate
+              ? `Quran ${parsedNew?.chapter}:${parsedNew?.verse} is already in the rotation`
+              : ''
+            }
           >
-            {adding ? 'Adding…' : 'Add verse'}
+            {adding ? 'Adding…'
+              : isDuplicate ? 'Already in rotation'
+              : 'Add verse'}
           </button>
         </div>
         {addErr && <p className="mt-2 text-xs text-red-600">{addErr}</p>}
+        {isDuplicate && !addErr && (
+          <p className="mt-2 text-xs text-amber-700">
+            Quran {parsedNew?.chapter}:{parsedNew?.verse} is already in the rotation below.
+          </p>
+        )}
       </div>
 
       {/* Pool list */}
@@ -204,23 +251,33 @@ export default function AdminVerseOfTheDay() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  {item.surah_name && (
-                    <div className="text-sm font-medium text-stone-700">{item.surah_name}</div>
-                  )}
-                  {item.arabic_preview && (
-                    <div
-                      dir="rtl"
-                      lang="ar"
-                      className="font-arabic text-base text-stone-700 mt-0.5 truncate"
-                    >
-                      {item.arabic_preview}
-                    </div>
-                  )}
-                  {item.translation_preview && (
-                    <div className="text-xs text-stone-500 mt-0.5 italic line-clamp-2">
-                      {item.translation_preview}
-                    </div>
-                  )}
+                  {(() => {
+                    const ar = item.arabic || item.arabic_preview || '';
+                    const en = item.translation_en || item.translation_preview || '';
+                    return (
+                      <>
+                        {ar && (
+                          <div
+                            dir="rtl"
+                            lang="ar"
+                            className="font-arabic text-base leading-loose text-stone-700"
+                          >
+                            {ar}
+                          </div>
+                        )}
+                        {en && (
+                          <div className="text-sm text-stone-500 mt-1 italic leading-relaxed">
+                            {en}
+                          </div>
+                        )}
+                        {!ar && !en && (
+                          <div className="text-xs text-stone-400 italic">
+                            (no text available — DB lookup failed for this verse)
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="flex-shrink-0 flex items-center gap-2">
                   <a

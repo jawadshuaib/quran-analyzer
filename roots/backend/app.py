@@ -6082,8 +6082,13 @@ _ensure_verse_of_the_day_table()
 
 def _list_verse_of_the_day_pool(conn) -> list[dict]:
     """Return the full pool ordered by id ASC (insertion order). Each row
-    is enriched with the surah name + a short translation snippet so
-    the admin UI can render rich rows without a second roundtrip."""
+    is enriched with the FULL Arabic + English text so the admin UI can
+    show the verse content inline (operator review pass 2026-05-15 —
+    the previous version returned 60-char Arabic / 140-char English
+    previews, and the surah_name lookup raised silently because there's
+    no `surahs` table in this DB, which also wiped the Arabic + English
+    fields via the catch-all except block).
+    """
     rows = conn.execute(
         "SELECT id, chapter, verse, position, created_at "
         "FROM verse_of_the_day_pool ORDER BY id ASC"
@@ -6091,42 +6096,44 @@ def _list_verse_of_the_day_pool(conn) -> list[dict]:
     out: list[dict] = []
     for r in rows:
         c = r["chapter"]; v = r["verse"]
-        # Best-effort enrichment — if the verse is missing from the
-        # corpus (shouldn't happen for valid Quran refs but defensive)
-        # we still return the row so the admin can delete it.
-        sname = ""
-        translation = ""
+        # Per-query try/except so one missing table doesn't take down
+        # the others. Older code wrapped all three lookups in a single
+        # try block — when `surahs` 404'd, arabic + translation both
+        # got skipped silently.
         arabic = ""
+        translation = ""
         try:
-            srow = conn.execute(
-                "SELECT name FROM surahs WHERE id = ?", (c,),
-            ).fetchone()
-            if srow:
-                sname = srow["name"]
             arow = conn.execute(
                 "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
                 (c, v),
             ).fetchone()
-            if arow:
-                arabic = arow["text_uthmani"]
+            if arow and arow["text_uthmani"]:
+                arabic = arow["text_uthmani"].strip()
+        except Exception as e:
+            print(f"[votd] arabic lookup failed for {c}:{v}: {e}")
+        try:
             trow = conn.execute(
                 "SELECT text_en FROM translations WHERE chapter = ? AND verse = ?",
                 (c, v),
             ).fetchone()
             if trow and trow["text_en"]:
-                t = trow["text_en"].strip()
-                translation = t if len(t) <= 140 else t[:137] + "…"
-        except Exception:
-            pass
+                translation = trow["text_en"].strip()
+        except Exception as e:
+            print(f"[votd] translation lookup failed for {c}:{v}: {e}")
         out.append({
             "id": r["id"],
             "chapter": c,
             "verse": v,
             "position": r["position"],
             "created_at": r["created_at"],
-            "surah_name": sname,
-            "arabic_preview": (arabic[:60] + "…") if len(arabic) > 60 else arabic,
+            # Keep the legacy `*_preview` field names for backwards
+            # compatibility with any callers that haven't redeployed.
+            # They now carry the FULL strings, not truncated previews.
+            "arabic_preview": arabic,
             "translation_preview": translation,
+            # Canonical full-text fields. Use these going forward.
+            "arabic": arabic,
+            "translation_en": translation,
         })
     return out
 

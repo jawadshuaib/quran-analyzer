@@ -2145,9 +2145,17 @@ export interface VerseOfTheDayPoolItem {
   verse: number;
   position: number;
   created_at: string;
-  surah_name: string;
+  /** Full Arabic verse text (Uthmani script). Backwards-compatible
+   *  alias `arabic_preview` is also populated. */
+  arabic?: string;
+  /** Full English translation. Alias: `translation_en`. */
+  translation_en?: string;
+  /** @deprecated use `arabic` — kept for back-compat with old bundles. */
   arabic_preview: string;
+  /** @deprecated use `translation_en` — kept for back-compat. */
   translation_preview: string;
+  /** @deprecated removed in May 2026 — DB has no surahs table. */
+  surah_name?: string;
 }
 
 export interface VerseOfTheDayPoolList {
