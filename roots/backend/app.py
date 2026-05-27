@@ -6756,24 +6756,82 @@ def _refresh_youtube_stats() -> dict:
                         return 0
 
                 if ch_id:
+                    # Channel-identity guard. Operator hit this on
+                    # 2026-05-25: after re-OAuthing from a different
+                    # Google account, channels.mine returned a
+                    # DIFFERENT channel — the personal one rather
+                    # than the brand-account one — and the dashboard
+                    # silently flipped to showing those stats
+                    # (subscribers 42 → 161 overnight). Refuse to
+                    # write the snapshot when the channel_id has
+                    # changed from the pinned one; surface the
+                    # mismatch so the operator can re-auth correctly.
                     conn = get_db()
                     try:
-                        conn.execute(
-                            "INSERT OR REPLACE INTO youtube_channel_stats "
-                            "(channel_id, title, subscriber_count, view_count, "
-                            " video_count, snapshot_date, fetched_at) "
-                            "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
-                            (
-                                ch_id,
-                                ch_snippet.get("title"),
-                                _ci("subscriberCount"),
-                                _ci("viewCount"),
-                                _ci("videoCount"),
-                                today,
-                            ),
-                        )
+                        # The "pinned" channel is whatever the
+                        # operator first connected — stored in
+                        # admin_preferences. If it's not set yet,
+                        # auto-pin to whatever we see today (first-
+                        # run case).
+                        pinned_row = conn.execute(
+                            "SELECT value FROM admin_preferences "
+                            "WHERE key='youtube_channel_id_pinned'"
+                        ).fetchone()
+                        pinned = pinned_row["value"] if pinned_row else None
+                        if pinned and pinned != ch_id:
+                            err_msg = (
+                                f"OAuth channel mismatch — pinned "
+                                f"channel is {pinned} but the connected "
+                                f"OAuth token resolves to {ch_id} "
+                                f"({ch_snippet.get('title') or '?'}). "
+                                f"Refusing to overwrite stats. "
+                                f"Either re-OAuth from the original "
+                                f"account, or visit Admin → Stats → "
+                                f"YouTube and click 'Repin to current "
+                                f"channel' to switch."
+                            )
+                            print(f"[youtube-stats] {err_msg}")
+                            # Persist the mismatch for the dashboard to
+                            # surface as a banner.
+                            conn.execute(
+                                "INSERT OR REPLACE INTO admin_preferences "
+                                "(key, value, updated_at) VALUES "
+                                "('youtube_channel_mismatch', ?, "
+                                "CURRENT_TIMESTAMP)",
+                                (f"{ch_id}|{ch_snippet.get('title') or ''}",),
+                            )
+                            conn.commit()
+                        else:
+                            if not pinned:
+                                # First-run pin
+                                conn.execute(
+                                    "INSERT OR REPLACE INTO admin_preferences "
+                                    "(key, value, updated_at) VALUES "
+                                    "('youtube_channel_id_pinned', ?, "
+                                    "CURRENT_TIMESTAMP)",
+                                    (ch_id,),
+                                )
+                            # Clear any stale mismatch marker.
+                            conn.execute(
+                                "DELETE FROM admin_preferences "
+                                "WHERE key='youtube_channel_mismatch'"
+                            )
+                            conn.execute(
+                                "INSERT OR REPLACE INTO youtube_channel_stats "
+                                "(channel_id, title, subscriber_count, view_count, "
+                                " video_count, snapshot_date, fetched_at) "
+                                "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                                (
+                                    ch_id,
+                                    ch_snippet.get("title"),
+                                    _ci("subscriberCount"),
+                                    _ci("viewCount"),
+                                    _ci("videoCount"),
+                                    today,
+                                ),
+                            )
+                            channel_ok = True
                         conn.commit()
-                        channel_ok = True
                     finally:
                         conn.close()
         else:
@@ -6833,17 +6891,34 @@ def admin_stats_youtube():
         ).fetchone()
         last_refresh = last_refresh_row[0] if last_refresh_row else None
 
-        # Channel: most-recent snapshot + the snapshot covering the
-        # start of the range (for gain) + a daily series for the
-        # subscribers chart on the frontend. There's only one channel
-        # in practice (the OAuth credentials point at one), but the
-        # schema admits multiple — we use the row with the highest
-        # snapshot_date and tie-break by channel_id.
-        channel_current = conn.execute(
-            "SELECT * FROM youtube_channel_stats "
-            "WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM youtube_channel_stats) "
-            "ORDER BY channel_id LIMIT 1"
+        # Channel: most-recent snapshot for the PINNED channel id (if
+        # one is set). Falls back to "latest snapshot regardless of
+        # channel" for first-run / pre-pin case. The pinning
+        # mechanism stops a mid-history channel switch from
+        # silently flipping the dashboard to the wrong channel's
+        # numbers — operator hit this 2026-05-25 when re-OAuthing
+        # pulled in a personal channel and 162 subs overlaid the
+        # real al-nuqta numbers (42 at the time).
+        pinned_row_q = conn.execute(
+            "SELECT value FROM admin_preferences "
+            "WHERE key='youtube_channel_id_pinned'"
         ).fetchone()
+        pinned_for_query = pinned_row_q["value"] if pinned_row_q else None
+
+        if pinned_for_query:
+            channel_current = conn.execute(
+                "SELECT * FROM youtube_channel_stats "
+                "WHERE channel_id = ? "
+                "ORDER BY snapshot_date DESC LIMIT 1",
+                (pinned_for_query,),
+            ).fetchone()
+        else:
+            channel_current = conn.execute(
+                "SELECT * FROM youtube_channel_stats "
+                "WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM youtube_channel_stats) "
+                "ORDER BY channel_id LIMIT 1"
+            ).fetchone()
+
         channel_prior = None
         channel_daily_rows: list = []
         if channel_current:
@@ -6925,6 +7000,35 @@ def admin_stats_youtube():
             ],
         }
 
+    # Channel-identity sanity block — surface the pinned channel ID
+    # and any mismatch detected during the most recent refresh. The
+    # frontend uses this to render a red banner when stats are coming
+    # from the wrong account (the 2026-05-25 incident).
+    conn2 = get_db()
+    try:
+        pin_row = conn2.execute(
+            "SELECT value FROM admin_preferences "
+            "WHERE key='youtube_channel_id_pinned'"
+        ).fetchone()
+        mismatch_row = conn2.execute(
+            "SELECT value, updated_at FROM admin_preferences "
+            "WHERE key='youtube_channel_mismatch'"
+        ).fetchone()
+    finally:
+        conn2.close()
+    pinned_channel_id = pin_row["value"] if pin_row else None
+    mismatch = None
+    if mismatch_row and mismatch_row["value"]:
+        raw = mismatch_row["value"]
+        # Format is "<connected_channel_id>|<title>"
+        connected_id, _, connected_title = raw.partition("|")
+        mismatch = {
+            "pinned_channel_id": pinned_channel_id,
+            "connected_channel_id": connected_id,
+            "connected_title": connected_title or None,
+            "detected_at": mismatch_row["updated_at"],
+        }
+
     return jsonify({
         "range": f"{days}d",
         "totals": {
@@ -6936,9 +7040,62 @@ def admin_stats_youtube():
         },
         "videos": videos,
         "channel": channel_block,
+        "pinned_channel_id": pinned_channel_id,
+        "channel_mismatch": mismatch,
         "last_refresh": last_refresh,
         "snapshot_count": snapshot_count,
     })
+
+
+@app.route("/api/admin/stats/youtube/repin", methods=["POST"])
+@admin_required
+def admin_stats_youtube_repin():
+    """Operator action — accept the currently-connected OAuth channel
+    as the pinned one. Use after intentionally switching channels.
+    Calls the YouTube API now to read the channel_id from `mine=true`,
+    overwrites the pinned id, clears the mismatch marker, and runs a
+    fresh refresh."""
+    try:
+        access_token = _youtube_get_access_token()
+    except RuntimeError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+    resp = requests.get(
+        "https://www.googleapis.com/youtube/v3/channels",
+        params={"part": "snippet,statistics", "mine": "true"},
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=20,
+    )
+    if resp.status_code != 200:
+        return jsonify({
+            "ok": False,
+            "error": f"YouTube channels.list returned {resp.status_code}",
+        }), 502
+    items = resp.json().get("items") or []
+    if not items:
+        return jsonify({"ok": False, "error": "No channel returned by mine=true"}), 502
+    ch = items[0]
+    ch_id = ch.get("id")
+    title = (ch.get("snippet") or {}).get("title") or ""
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) "
+            "VALUES ('youtube_channel_id_pinned', ?, CURRENT_TIMESTAMP)",
+            (ch_id,),
+        )
+        conn.execute(
+            "DELETE FROM admin_preferences WHERE key='youtube_channel_mismatch'"
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    # Fire a fresh refresh so the dashboard reflects the new pin
+    # immediately.
+    try:
+        _refresh_youtube_stats()
+    except Exception as e:
+        print(f"[youtube-stats] post-repin refresh failed: {e}")
+    return jsonify({"ok": True, "channel_id": ch_id, "title": title})
 
 
 @app.route("/api/admin/change-password", methods=["POST"])

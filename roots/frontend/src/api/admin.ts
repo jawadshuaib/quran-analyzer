@@ -2287,6 +2287,33 @@ export interface YoutubeStats {
   channel: YoutubeChannelStats | null;
   last_refresh: string | null;
   snapshot_count: number;
+  /** Channel ID we expect every refresh to belong to. Set on first
+   *  successful refresh; the operator can change it via the repin
+   *  endpoint when intentionally switching channels. */
+  pinned_channel_id?: string | null;
+  /** Set when the most-recent refresh saw a DIFFERENT channel_id
+   *  than the pinned one. The refresh REFUSES to overwrite stats
+   *  in that case — operator must re-OAuth from the right account
+   *  OR explicitly repin to the new channel. */
+  channel_mismatch?: {
+    pinned_channel_id: string | null;
+    connected_channel_id: string;
+    connected_title: string | null;
+    detected_at: string | null;
+  } | null;
+}
+
+/** Accept the currently-connected OAuth channel as the pinned one.
+ *  Used when the operator intentionally switches channels and wants
+ *  the dashboard to follow. */
+export async function repinYoutubeChannel(): Promise<{
+  ok: boolean;
+  channel_id?: string;
+  title?: string;
+  error?: string;
+}> {
+  const res = await authFetch(`${BASE}/stats/youtube/repin`, { method: 'POST' });
+  return res.json();
 }
 
 export async function getYoutubeStats(range: StatsRange): Promise<YoutubeStats> {

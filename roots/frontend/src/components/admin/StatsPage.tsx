@@ -4,7 +4,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
 import {
-  getWebsiteStats, getYoutubeStats, refreshYoutubeStats,
+  getWebsiteStats, getYoutubeStats, refreshYoutubeStats, repinYoutubeChannel,
   type WebsiteStats, type YoutubeStats, type YoutubeStatsVideo, type StatsRange,
 } from '../../api/admin';
 import { getSurahsForSearch } from '../../utils/surah-search';
@@ -390,6 +390,25 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
     }
   }
 
+  async function handleRepin() {
+    setRefreshing(true);
+    setRefreshMsg('');
+    try {
+      const r = await repinYoutubeChannel();
+      if (r.ok) {
+        setRefreshMsg(`Re-pinned to channel ${r.title ?? r.channel_id}. Refreshing…`);
+        await load();
+      } else {
+        setRefreshMsg(`Repin failed: ${r.error}`);
+      }
+    } catch (e) {
+      setRefreshMsg(`Repin failed: ${(e as Error).message}`);
+    } finally {
+      setRefreshing(false);
+      setTimeout(() => setRefreshMsg(''), 8000);
+    }
+  }
+
   if (loading) return <div className="text-stone-500 py-12 text-center">Loading…</div>;
   if (error) return <div className="text-red-600 py-12 text-center">{error}</div>;
   if (!data) return null;
@@ -397,9 +416,70 @@ function YoutubeStatsView({ range }: { range: StatsRange }) {
   const noData = data.snapshot_count === 0;
 
   const ch = data.channel;
+  const mismatch = data.channel_mismatch;
 
   return (
     <div className="space-y-6">
+      {/* Channel-identity banner. The dashboard shows whichever
+          channel the OAuth token authenticates against — operator hit
+          this 2026-05-25 when re-OAuthing pulled in the wrong account
+          and 162 subs for the personal channel replaced the real
+          al-nuqta numbers overnight. Always show WHICH channel is
+          connected so this is impossible to miss. Surface a red
+          mismatch banner when the connected channel != the pinned
+          one, with a repin button for intentional switches. */}
+      {(ch || mismatch) && (
+        <div className={
+          mismatch
+            ? 'rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800'
+            : 'rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-xs text-stone-600'
+        }>
+          {mismatch ? (
+            <>
+              <div className="font-semibold mb-1">
+                ⚠ OAuth channel mismatch — stats are NOT being updated
+              </div>
+              <div className="mb-2">
+                The connected OAuth token resolves to{' '}
+                <strong>{mismatch.connected_title || mismatch.connected_channel_id}</strong>{' '}
+                (<span className="font-mono">{mismatch.connected_channel_id}</span>),
+                but the pinned channel is{' '}
+                <span className="font-mono">{mismatch.pinned_channel_id || '?'}</span>.
+                Refusing to overwrite stats until this is resolved.
+              </div>
+              <div className="mb-3 text-xs">
+                Either re-OAuth from the original Google account at{' '}
+                <a href="/admin/settings" className="underline font-medium">
+                  Admin Settings → YouTube
+                </a>
+                , OR click <em>Repin to current channel</em> if you intentionally
+                switched channels.
+              </div>
+              <button
+                onClick={handleRepin}
+                disabled={refreshing}
+                className="px-3 py-1.5 text-xs rounded-md bg-stone-800 text-white hover:bg-stone-700 disabled:opacity-50"
+              >
+                {refreshing ? 'Working…' : 'Repin to current channel'}
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-stone-500">Channel:</span>
+              <strong className="text-stone-800">{ch?.title || '(no title)'}</strong>
+              <span className="text-stone-400 font-mono text-[10px]">
+                {ch?.channel_id}
+              </span>
+              {data.pinned_channel_id && ch?.channel_id === data.pinned_channel_id && (
+                <span className="text-emerald-700 text-[10px] uppercase tracking-wider">
+                  ✓ pinned
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryTile
           label="Subscribers"
