@@ -1092,35 +1092,9 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
     arabic = arabic_full
     translation = vd["translation"] or ""
 
-    # All word positions to highlight — V7 evidence tokens plus any
-    # morphological siblings (same lemma OR same person/number
-    # features for verbs/pronouns).
-    word_positions = _grammar_highlight_positions(conn, chapter, verse, insight)
     base_marker = _CATEGORY_TO_MARKER.get(insight.get("category", ""), "default")
 
-    # Group positions into chunks (parallel clauses, etc.) so each
-    # gets its own color. For 1:5 this splits 1,2,3,4 into [[1,2],
-    # [3,4]] on the وَ in word 3.
-    chunks = _chunk_word_positions(conn, chapter, verse, word_positions)
-
-    # Map each word_pos to (chunk_idx, marker) so the highlight
-    # construction can read it without re-walking chunks.
-    pos_to_chunk: dict[int, tuple[int, str]] = {}
-    for ci, chunk in enumerate(chunks):
-        chunk_marker = _chunk_marker(ci, base_marker)
-        for p in chunk:
-            pos_to_chunk[p] = (ci, chunk_marker)
-
-    # English-side highlights. Two sources, in priority order:
-    #   1. Script's `english_emphases` — phrase-level spans the LLM
-    #      picked while writing the script (e.g. ["You alone we
-    #      serve", "You alone we seek help from"]). Richer than
-    #      per-word gloss because they capture the contextual
-    #      framing of the grammatical move.
-    #   2. Per-word glosses for each highlighted word_pos. Falls
-    #      out from ai_word_meanings / word_glosses lookups.
-    # The renderer will find ALL occurrences of each substring, so
-    # repeated tokens (إيَّاكَ × 2 → "you" × 2) light up everywhere.
+    # Collect the script's English emphasis phrases.
     en_emphasis_strings: list[str] = []
     raw_emphases = script.get("english_emphases")
     if isinstance(raw_emphases, list):
@@ -1128,33 +1102,57 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
             if isinstance(s, str) and s.strip():
                 en_emphasis_strings.append(s.strip())
 
-    # Pair each emphasis with a chunk's marker, by index. Extra
-    # emphases (more than chunks) reuse the last chunk's color.
     en_emphases: list[dict] = []
-    if en_emphasis_strings and chunks:
-        chunk_markers = [_chunk_marker(i, base_marker) for i in range(len(chunks))]
-        for i, phrase in enumerate(en_emphasis_strings):
-            marker = chunk_markers[min(i, len(chunk_markers) - 1)]
-            en_emphases.append({"phrase": phrase, "marker": marker})
-    elif en_emphasis_strings:
-        # No Arabic chunks but emphases exist — use the base marker.
-        for phrase in en_emphasis_strings:
-            en_emphases.append({"phrase": phrase, "marker": base_marker})
-
     highlights: list[dict] = []
-    if word_positions:
+
+    if en_emphasis_strings:
+        # EMPHASIS-DRIVEN highlighting (operator feedback on 5:1: the
+        # Arabic highlights were "all over the place"). The OLD logic
+        # derived Arabic highlights from the V7 grammar-evidence
+        # positions and the English bolds from script.english_emphases
+        # — two INDEPENDENT sources — then color-paired them by array
+        # index. Result: the yellow English phrase "has been made
+        # permissible" lit up أَوْفُوا (fulfill), and "judges as He
+        # intends" lit up يُتْلَىٰ (recited). Nonsense.
+        #
+        # New approach: each emphasis phrase IS the unit. Map the
+        # phrase to its Arabic word span via _align_emphasis_to_positions
+        # (combined word_glosses + ai_word_meanings, gap-bridging,
+        # Ollama fallback), assign emphasis i a distinct color, and
+        # highlight BOTH the English phrase and its mapped Arabic
+        # words in that SAME color. Now يَحْكُمُ مَا يُرِيدُ and
+        # "judges as He intends" share a color, as they should.
+        used_positions: set[int] = set()
+        for i, phrase in enumerate(en_emphasis_strings):
+            marker = _chunk_marker(i, base_marker)
+            en_emphases.append({"phrase": phrase, "marker": marker})
+            positions = _align_emphasis_to_positions(conn, chapter, verse, phrase)
+            for p in positions:
+                if p in used_positions:
+                    # A word already claimed by an earlier emphasis
+                    # keeps its first color (avoid flicker / overlap).
+                    continue
+                used_positions.add(p)
+                highlights.append({"wordIndex": p, "marker": marker})
+        highlights.sort(key=lambda h: h["wordIndex"])
+    else:
+        # FALLBACK — no script emphases (older rows). Keep the
+        # V7-evidence behavior: highlight the grammar-evidence tokens,
+        # color-chunked by parallel clause, with per-word glosses as
+        # the English side.
+        word_positions = _grammar_highlight_positions(conn, chapter, verse, insight)
+        chunks = _chunk_word_positions(conn, chapter, verse, word_positions)
+        pos_to_chunk: dict[int, tuple[int, str]] = {}
+        for ci, chunk in enumerate(chunks):
+            chunk_marker = _chunk_marker(ci, base_marker)
+            for p in chunk:
+                pos_to_chunk[p] = (ci, chunk_marker)
         for pos in word_positions:
-            chunk_idx, marker = pos_to_chunk[pos]
+            _, marker = pos_to_chunk[pos]
             h: dict = {"wordIndex": pos, "marker": marker}
-            # Per-word gloss — used only when the script didn't
-            # provide explicit phrase emphases. When emphases ARE
-            # present, the slide-level `englishEmphases` field
-            # carries the English highlights and these per-highlight
-            # `translationSubstring`s are skipped entirely.
-            if not en_emphases:
-                gloss = _word_gloss(conn, chapter, verse, pos)
-                if gloss:
-                    h["translationSubstring"] = gloss
+            gloss = _word_gloss(conn, chapter, verse, pos)
+            if gloss:
+                h["translationSubstring"] = gloss
             highlights.append(h)
 
     # Per-slide narration. We use the script's 4 beats:
@@ -1484,24 +1482,42 @@ def _arabic_indices_for_english_phrase(
     p_tokens = _th_tokenize(phrase)
     if not p_tokens:
         return []
+    # Union word_glosses with ai_word_meanings (preferred_translation +
+    # meaning_short). The conventional gloss often uses a different word
+    # than the script (5:1: gloss says "decrees/wills" but the script +
+    # ai_word_meanings say "judges/intends"), so glosses-only matching
+    # misses the span entirely. ai_word_meanings.preferred_translation
+    # is the same text the script tends to use.
     rows = conn.execute(
-        "SELECT word_pos, translation_en FROM word_glosses "
-        "WHERE chapter = ? AND verse = ? "
-        "ORDER BY word_pos",
+        "SELECT g.word_pos, g.translation_en AS gloss, "
+        "       a.preferred_translation AS pref, a.meaning_short AS meaning_short "
+        "FROM word_glosses g "
+        "LEFT JOIN ai_word_meanings a "
+        "  ON a.chapter = g.chapter AND a.verse = g.verse "
+        "     AND a.word_pos = g.word_pos "
+        "WHERE g.chapter = ? AND g.verse = ? "
+        "ORDER BY g.word_pos",
         (chapter, verse),
     ).fetchall()
     matches: list[int] = []
     for r in rows:
-        g_tokens = _th_tokenize(r["translation_en"] or "")
-        if not g_tokens:
-            continue
-        overlap = p_tokens & g_tokens
-        # ≥50% of the gloss's significant tokens must appear in the
-        # phrase. This filters incidental "will" / "they" overlaps —
-        # a gloss "they will reach" has tokens {they, will, reach};
-        # phrase "what struck them will be striking her" overlaps
-        # only on "will" (1/3 = 33%), so the word isn't picked up.
-        if len(overlap) / max(1, len(g_tokens)) >= 0.5:
+        g_tokens = _th_tokenize(r["gloss"] or "")
+        ai_tokens = _th_tokenize(r["pref"] or "") | _th_tokenize(r["meaning_short"] or "")
+        # Match if EITHER source clears the ≥50% bar. We check each
+        # source independently (rather than unioning the token sets)
+        # so a long ai_meaning_short doesn't dilute the gloss's
+        # overlap fraction below the threshold.
+        hit = False
+        for tokset in (g_tokens, ai_tokens):
+            if not tokset:
+                continue
+            overlap = p_tokens & tokset
+            # ≥50% of THIS source's significant tokens must appear in
+            # the phrase. Filters incidental "will"/"they" overlaps.
+            if overlap and len(overlap) / max(1, len(tokset)) >= 0.5:
+                hit = True
+                break
+        if hit:
             matches.append(r["word_pos"])
     return matches
 
@@ -1996,6 +2012,148 @@ def _resolve_artifact_via_ollama(
     except Exception as e:
         print(f"[translation-hides] artifact resolver crashed: {e}")
         return None
+
+
+def _positions_for_arabic_span(conn, chapter: int, verse: int, arabic_text: str) -> list[int]:
+    """Given an Arabic phrase (e.g. from Ollama), return the morphology
+    word positions whose surface form sits inside it (diacritics
+    stripped). Used to map an LLM-aligned Arabic span back to word
+    indices for highlighting."""
+    span_norm = _normalize_arabic_for_match(arabic_text or "")
+    if not span_norm:
+        return []
+    out: list[int] = []
+    for pos, full in _morphology_word_forms(conn, chapter, verse):
+        wn = _normalize_arabic_for_match(full)
+        if wn and wn in span_norm:
+            out.append(pos)
+    return sorted(out)
+
+
+def _align_emphasis_to_positions(
+    conn, chapter: int, verse: int, phrase: str, *, use_ollama: bool = True
+) -> list[int]:
+    """Map an English emphasis phrase to the Arabic word positions it
+    corresponds to, for COLOR-COORDINATED highlighting on the
+    grammar / translation verse slides.
+
+    Same scoring engine as _resolve_artifact_via_glosses (union of
+    word_glosses + ai_word_meanings, n+n² weighting, content-word
+    anchor, fa-/sa- clause guard) but with two differences tuned for
+    highlighting:
+      - returns the POSITION list, not joined Arabic text
+      - BRIDGES single-word gaps so a connector with no token overlap
+        (e.g. مَا = "as"/"what" between "judges" and "intends") doesn't
+        split the highlight. Operator feedback on 5:1: "judges as He
+        intends" must light up يَحْكُمُ مَا يُرِيدُ as one span.
+
+    Falls back to the Ollama artifact resolver (then maps its Arabic
+    span back to positions) when token scoring finds nothing — covers
+    pure synonym-gap phrases the glosses can't bridge.
+    """
+    phrase_toks = _th_tokenize(phrase)
+    if not phrase_toks:
+        return []
+
+    rows = conn.execute(
+        "SELECT g.word_pos, g.translation_en AS gloss, "
+        "       a.preferred_translation AS pref, "
+        "       a.meaning_short AS meaning_short "
+        "FROM word_glosses g "
+        "LEFT JOIN ai_word_meanings a "
+        "  ON a.chapter = g.chapter AND a.verse = g.verse "
+        "     AND a.word_pos = g.word_pos "
+        "WHERE g.chapter = ? AND g.verse = ? "
+        "ORDER BY g.word_pos",
+        (chapter, verse),
+    ).fetchall()
+
+    scores: dict[int, float] = {}
+    for r in rows:
+        toks = (
+            _th_tokenize(r["gloss"] or "")
+            | _th_tokenize(r["pref"] or "")
+            | _th_tokenize(r["meaning_short"] or "")
+        )
+        if not toks:
+            continue
+        overlap = toks & phrase_toks
+        if not overlap:
+            continue
+        n = len(overlap)
+        scores[int(r["word_pos"])] = n * (1 + n)
+
+    if not scores:
+        # Glosses found nothing — synonym gap. Try Ollama (returns an
+        # Arabic span), then map that span back to positions.
+        if use_ollama:
+            vd = _verse_data(conn, chapter, verse)
+            if vd and vd.get("arabic"):
+                span = _resolve_artifact_via_ollama(
+                    conn, chapter, verse, vd["arabic"],
+                    vd.get("translation") or "", phrase,
+                )
+                if span:
+                    return _positions_for_arabic_span(conn, chapter, verse, span)
+        return []
+
+    # Content-word anchor (don't seed on a bare particle).
+    content_positions: set[int] = set()
+    try:
+        for m in conn.execute(
+            "SELECT word_pos, tag FROM morphology WHERE chapter = ? AND verse = ?",
+            (chapter, verse),
+        ).fetchall():
+            if (m["tag"] or "").upper() in ("V", "N", "PN", "ADJ"):
+                content_positions.add(int(m["word_pos"]))
+    except Exception:
+        content_positions = set(scores.keys())
+    anchor_scores = {p: s for p, s in scores.items() if p in content_positions} or scores
+    anchor = max(anchor_scores, key=anchor_scores.get)
+
+    # fa-/sa- clause-starter guard (don't cross a new clause).
+    clause_starters: set[int] = set()
+    try:
+        for r in conn.execute(
+            "SELECT word_pos, MIN(segment), tag, form_arabic FROM morphology "
+            "WHERE chapter = ? AND verse = ? GROUP BY word_pos",
+            (chapter, verse),
+        ).fetchall():
+            if (r["tag"] or "").upper() != "PREFIX":
+                continue
+            if _normalize_arabic_for_match(r["form_arabic"] or "") in ("ف", "س"):
+                clause_starters.add(int(r["word_pos"]))
+    except Exception:
+        pass
+
+    def _can_step(p: int) -> bool:
+        return p not in clause_starters
+
+    # Extend with single-gap bridging. A neighbor with overlap extends
+    # the span; a single gap is bridged only when the word TWO away
+    # has overlap (so connectors like مَا join "judges ... intends"),
+    # never across a clause-starter.
+    lo = anchor
+    while True:
+        if (lo - 1) in scores and _can_step(lo - 1):
+            lo -= 1
+        elif (lo - 2) in scores and _can_step(lo - 1) and _can_step(lo - 2):
+            lo -= 2
+        else:
+            break
+    hi = anchor
+    while True:
+        if (hi + 1) in scores and _can_step(hi + 1):
+            hi += 1
+        elif (hi + 2) in scores and _can_step(hi + 1) and _can_step(hi + 2):
+            hi += 2
+        else:
+            break
+
+    # Return every position in [lo..hi] that's a real word (the bridged
+    # gap IS included so the highlight is visually contiguous).
+    valid = {p for p, _ in _morphology_word_forms(conn, chapter, verse)}
+    return [p for p in range(lo, hi + 1) if p in valid]
 
 
 def _resolve_artifact_via_glosses(
