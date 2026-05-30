@@ -104,7 +104,7 @@ export default function RelatedVerses({ surah, ayah, onNavigate, forceCollapse }
                   <p
                     dir="rtl"
                     lang="ar"
-                    className="font-arabic text-lg text-stone-800 leading-relaxed line-clamp-2 mb-1"
+                    className="font-arabic text-lg text-stone-800 leading-[2.2] line-clamp-2 mb-1"
                   >
                     {v.text_uthmani}
                   </p>

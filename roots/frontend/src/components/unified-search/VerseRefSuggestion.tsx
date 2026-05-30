@@ -53,7 +53,7 @@ export default memo(function VerseRefSuggestion({
             <p
               dir="rtl"
               lang="ar"
-              className="mt-1 font-arabic text-base leading-relaxed text-stone-600 truncate"
+              className="mt-1 font-arabic text-base leading-[2.2] text-stone-600 truncate"
             >
               {preview.text_uthmani}
             </p>

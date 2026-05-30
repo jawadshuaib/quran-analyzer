@@ -92,7 +92,7 @@ export default function SurroundingContext({ surah, ayah, onNavigate }: Props) {
                     <p
                       dir="rtl"
                       lang="ar"
-                      className="font-arabic text-lg text-stone-800 leading-relaxed mt-1 mb-1"
+                      className="font-arabic text-lg text-stone-800 leading-[2.2] mt-1 mb-1"
                     >
                       {v.text_uthmani}
                     </p>
