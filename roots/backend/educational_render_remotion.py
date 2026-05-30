@@ -1123,15 +1123,23 @@ def build_grammar_insights_payload(conn, rd: dict, script: dict) -> dict:
         # words in that SAME color. Now يَحْكُمُ مَا يُرِيدُ and
         # "judges as He intends" share a color, as they should.
         used_positions: set[int] = set()
-        for i, phrase in enumerate(en_emphasis_strings):
-            marker = _chunk_marker(i, base_marker)
-            en_emphases.append({"phrase": phrase, "marker": marker})
+        color_idx = 0
+        for phrase in en_emphasis_strings:
             positions = _align_emphasis_to_positions(conn, chapter, verse, phrase)
-            for p in positions:
-                if p in used_positions:
-                    # A word already claimed by an earlier emphasis
-                    # keeps its first color (avoid flicker / overlap).
-                    continue
+            # Only claim words not already colored by an earlier emphasis.
+            new_positions = [p for p in positions if p not in used_positions]
+            if not new_positions:
+                # Couldn't map this phrase to any (unclaimed) Arabic word.
+                # Skip it: emitting a colored English bold with no matching
+                # Arabic word leaves an orphan color and makes the
+                # color-coding meaningless. The color index only advances
+                # on success, so the palette stays contiguous (no skipped
+                # colors between linked English/Arabic pairs).
+                continue
+            marker = _chunk_marker(color_idx, base_marker)
+            color_idx += 1
+            en_emphases.append({"phrase": phrase, "marker": marker})
+            for p in new_positions:
                 used_positions.add(p)
                 highlights.append({"wordIndex": p, "marker": marker})
         highlights.sort(key=lambda h: h["wordIndex"])
@@ -1463,6 +1471,27 @@ def _th_tokenize(text: str) -> set[str]:
         if len(t) >= 3 and t not in _TH_STOPWORDS
     ]
     return {_th_crude_stem(t) for t in raw}
+
+
+# Pronoun / function tokens that are too COMMON to anchor a match on.
+# A possessive enclitic shows up in dozens of per-word glosses ("His
+# permission", "His Seat", "His slaves", "their hands"...), so an
+# emphasis like "his sins" would tie at the same score across every
+# "His-X" word and the content-word anchor would land on whichever
+# came first — not the one the phrase is really about. These tokens
+# still participate in span EXTENSION (so "the sins of His servants"
+# stays one contiguous highlight) but never seed the anchor or count
+# as a confident match on their own. Stored post-stem so they line up
+# with _th_tokenize output. (Used by _align_emphasis_to_positions.)
+_WEAK_MATCH_TOKENS = frozenset(
+    _th_crude_stem(t)
+    for t in (
+        "his", "him", "her", "hers", "its", "she",
+        "you", "your", "yours",
+        "they", "them", "their", "theirs",
+        "our", "ours", "who", "whom", "whose",
+    )
+)
 
 
 def _arabic_indices_for_english_phrase(
@@ -2069,6 +2098,7 @@ def _align_emphasis_to_positions(
     ).fetchall()
 
     scores: dict[int, float] = {}
+    strong_positions: set[int] = set()
     for r in rows:
         toks = (
             _th_tokenize(r["gloss"] or "")
@@ -2081,7 +2111,13 @@ def _align_emphasis_to_positions(
         if not overlap:
             continue
         n = len(overlap)
-        scores[int(r["word_pos"])] = n * (1 + n)
+        pos = int(r["word_pos"])
+        scores[pos] = n * (1 + n)
+        # A "strong" overlap shares at least one CONTENT token, not just
+        # a bare pronoun. Only strong positions are allowed to anchor —
+        # see _WEAK_MATCH_TOKENS for why.
+        if overlap - _WEAK_MATCH_TOKENS:
+            strong_positions.add(pos)
 
     if not scores:
         # Glosses found nothing — synonym gap. Try Ollama (returns an
@@ -2097,7 +2133,15 @@ def _align_emphasis_to_positions(
                     return _positions_for_arabic_span(conn, chapter, verse, span)
         return []
 
-    # Content-word anchor (don't seed on a bare particle).
+    if not strong_positions:
+        # Every overlap was a bare pronoun/function token — not a
+        # confident alignment. Return [] so the caller skips the color
+        # rather than lighting up an arbitrary "His-X" word (operator
+        # feedback on 5:1: highlights were "all over the place").
+        return []
+
+    # Content-word anchor (don't seed on a bare particle), restricted to
+    # the positions that had a STRONG (content-token) overlap.
     content_positions: set[int] = set()
     try:
         for m in conn.execute(
@@ -2108,8 +2152,8 @@ def _align_emphasis_to_positions(
                 content_positions.add(int(m["word_pos"]))
     except Exception:
         content_positions = set(scores.keys())
-    anchor_scores = {p: s for p, s in scores.items() if p in content_positions} or scores
-    anchor = max(anchor_scores, key=anchor_scores.get)
+    anchor_pool = (strong_positions & content_positions) or strong_positions
+    anchor = max(anchor_pool, key=lambda p: scores[p])
 
     # fa-/sa- clause-starter guard (don't cross a new clause).
     clause_starters: set[int] = set()
