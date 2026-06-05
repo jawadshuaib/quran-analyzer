@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { askClaudeDirect, askClaudeProxy, FREE_MODEL_TAG, type PageType } from '../api/claude';
 import { saveQA, fetchHistory, fetchUsage, type QAEntry } from '../api/assistant';
 import { getApiKey, getModel, getSessionId } from '../utils/assistant-storage';
-import { wrapArabicRuns } from '../utils/arabic-runs';
+import VerseRefText from './VerseRefText';
 
 interface Props {
   pageType: PageType;
@@ -363,24 +363,13 @@ export default function AskAssistant({
   // verse/word being asked about in Arabic), so we wrap those runs
   // in font-arabic — otherwise they'd inherit the surrounding
   // sans-serif and the Uthmani diacritics render poorly.
+  // Render inline prose through the same linkifier the translation notes use:
+  // verse references open the verse in a new tab (with a hover preview),
+  // spaced Arabic root letters (e.g. "ق و م") link to the root page +
+  // dictionary, and inline Arabic glyphs get the Amiri font treatment. This
+  // keeps Ask-the-Quran answers consistent with the rest of the site.
   function renderText(text: string) {
-    const parts = text.split(/(\b\d{1,3}:\d{1,3}\b)/g);
-    return parts.map((part, i) => {
-      const match = part.match(/^(\d{1,3}):(\d{1,3})$/);
-      if (match) {
-        const s = parseInt(match[1], 10);
-        const a = parseInt(match[2], 10);
-        if (s >= 1 && s <= 114 && a >= 1 && a <= 286) {
-          return (
-            <a key={i} href={`/verse/${part}`} target="_blank" rel="noopener noreferrer"
-              className="text-indigo-600 hover:text-indigo-800 font-medium hover:underline">
-              {part}
-            </a>
-          );
-        }
-      }
-      return <span key={i}>{wrapArabicRuns(part)}</span>;
-    });
+    return <VerseRefText text={text} />;
   }
 
   function renderFormatted(text: string) {
@@ -415,10 +404,15 @@ export default function AskAssistant({
   }
 
   function renderBold(text: string) {
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    // Handle **bold** and *italic* (the ** alternative is listed first so it
+    // wins over single *). Anything else flows to the verse/root linkifier.
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={i} className="font-semibold text-stone-900">{renderText(part.slice(2, -2))}</strong>;
+      }
+      if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+        return <em key={i} className="italic">{renderText(part.slice(1, -1))}</em>;
       }
       return <span key={i}>{renderText(part)}</span>;
     });
