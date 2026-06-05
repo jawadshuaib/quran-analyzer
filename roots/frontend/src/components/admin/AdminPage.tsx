@@ -34,6 +34,7 @@ import AdminPipelines from './AdminPipelines';
 import AdminVerseOfTheDay from './AdminVerseOfTheDay';
 import StatsPage from './StatsPage';
 import JudgeLessonsPage from './JudgeLessonsPage';
+import AdminAssistantQA from './AdminAssistantQA';
 
 type AdminRoute =
   | 'dashboard' | 'settings' | 'scheduler'
@@ -48,7 +49,8 @@ type AdminRoute =
   | 'verse-settings'
   | 'verse-of-the-day'
   | 'stats'
-  | 'judge-lessons';
+  | 'judge-lessons'
+  | 'assistant-qa';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -82,6 +84,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/verse-of-the-day\/?$/.test(path)) return 'verse-of-the-day';
   if (/^\/admin\/stats\/?$/.test(path)) return 'stats';
   if (/^\/admin\/judge-lessons\/?$/.test(path)) return 'judge-lessons';
+  if (/^\/admin\/qa\/?$/.test(path)) return 'assistant-qa';
   return 'dashboard';
 }
 
@@ -138,6 +141,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Judge Lessons',
     description: 'Performance-driven refinements to the interestingness judge — what YouTube engagement is teaching the pipeline.',
     matches: (r) => r === 'judge-lessons',
+  },
+  {
+    href: '/admin/qa',
+    label: 'Ask the Quran',
+    description: 'Review, correct, hide, or remove the saved Q&A the assistant shows on each verse.',
+    matches: (r) => r === 'assistant-qa',
   },
   {
     href: '/admin/verse-settings',
@@ -324,6 +333,7 @@ export default function AdminPage() {
         {route === 'verse-of-the-day' && <AdminVerseOfTheDay />}
         {route === 'stats' && <StatsPage />}
         {route === 'judge-lessons' && <JudgeLessonsPage />}
+        {route === 'assistant-qa' && <AdminAssistantQA />}
       </div>
     </div>
   );
@@ -769,6 +779,19 @@ const SECTION_STYLES: SectionStyle[] = [
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
         <path d="M4 6h12M4 12h16M4 18h8" />
         <circle cx="18" cy="6" r="2" /><circle cx="14" cy="18" r="2" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/qa',
+    label: 'Ask the Quran',
+    description: 'Review and moderate the saved Q&A the assistant shows on each verse.',
+    accent: 'bg-violet-50 text-violet-700 ring-violet-100',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z" />
+        <path d="M9.6 9.4a2.4 2.4 0 1 1 3.1 2.4c-.7.3-1.2.9-1.2 1.6" />
+        <path d="M11.5 16.3h.01" />
       </svg>
     ),
   },

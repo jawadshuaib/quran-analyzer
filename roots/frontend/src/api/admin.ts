@@ -2336,3 +2336,103 @@ export async function refreshYoutubeStats(): Promise<YoutubeRefreshResult> {
   if (!res.ok) throw new Error(data.error || 'Refresh failed');
   return data as YoutubeRefreshResult;
 }
+
+// --------------- Ask the Quran — Q&A moderation ---------------
+
+/** One saved "Ask the Quran" thread (a synthesized question + its latest
+ *  answer), anchored to a verse/word/root page. Shown publicly until an
+ *  admin hides or deletes it. */
+export interface AdminQAItem {
+  id: number;
+  page_type: string;       // 'verse' | 'word' | 'root' | …
+  page_key: string;        // e.g. '2:255' for a verse
+  question: string;
+  answer: string;
+  context_summary: string | null;
+  context_range: string | null;   // 'S:V1-V2' when asked from a reader window
+  model_used: string | null;
+  response_time_ms: number | null;
+  created_at: string;      // UTC, no 'Z' suffix
+  edited_at: string | null;
+  hidden: boolean;
+  session_short: string;   // first 8 chars of the asker's session id
+}
+
+export interface AdminQAListResponse {
+  items: AdminQAItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminQAStats {
+  total: number;
+  visible: number;
+  hidden: number;
+  edited: number;
+  pages: number;
+  sessions: number;
+  last_7_days: number;
+  last_24_hours: number;
+  by_type: { page_type: string; count: number }[];
+  by_model: { model: string; count: number }[];
+  top_pages: { page_type: string; page_key: string; count: number }[];
+}
+
+export type AdminQAStatus = 'all' | 'visible' | 'hidden';
+export type AdminQASort = 'recent' | 'oldest' | 'slowest' | 'longest';
+
+export interface AdminQAQuery {
+  q?: string;
+  page_type?: string;
+  model?: string;
+  status?: AdminQAStatus;
+  sort?: AdminQASort;
+  limit?: number;
+  offset?: number;
+}
+
+export async function getAdminQA(query: AdminQAQuery = {}): Promise<AdminQAListResponse> {
+  const params = new URLSearchParams();
+  if (query.q) params.set('q', query.q);
+  if (query.page_type) params.set('page_type', query.page_type);
+  if (query.model) params.set('model', query.model);
+  if (query.status && query.status !== 'all') params.set('status', query.status);
+  if (query.sort) params.set('sort', query.sort);
+  params.set('limit', String(query.limit ?? 25));
+  params.set('offset', String(query.offset ?? 0));
+  const res = await authFetch(`${BASE}/assistant/qa?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load Q&A');
+  return data as AdminQAListResponse;
+}
+
+export async function getAdminQAStats(): Promise<AdminQAStats> {
+  const res = await authFetch(`${BASE}/assistant/qa/stats`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load Q&A stats');
+  return data as AdminQAStats;
+}
+
+/** Hide/unhide, or correct the stored question/answer. Returns the fresh row. */
+export async function updateAdminQA(
+  id: number,
+  patch: { hidden?: boolean; answer?: string; question?: string },
+): Promise<AdminQAItem> {
+  const res = await authFetch(`${BASE}/assistant/qa/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Update failed');
+  return data.item as AdminQAItem;
+}
+
+/** Permanent delete. Prefer updateAdminQA({hidden:true}) for reversible removal. */
+export async function deleteAdminQA(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/assistant/qa/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Delete failed');
+  }
+}

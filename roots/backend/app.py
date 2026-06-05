@@ -696,6 +696,18 @@ def _ensure_assistant_conversations_table():
                 conn.execute(
                     "ALTER TABLE assistant_conversations ADD COLUMN context_range TEXT"
                 )
+            # Admin moderation columns. `hidden`=1 removes a Q&A from the
+            # public per-verse history without deleting it (reversible from
+            # the admin "Ask the Quran" section). `edited_at` is stamped
+            # when an admin corrects the stored question/answer.
+            if "hidden" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN hidden INTEGER DEFAULT 0"
+                )
+            if "edited_at" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN edited_at TEXT"
+                )
             conn.commit()
             conn.close()
             return
@@ -2501,12 +2513,16 @@ def get_assistant_history():
         # The migration runs at startup, but we degrade cleanly anyway.
         cols = [r[1] for r in conn.execute("PRAGMA table_info(assistant_conversations)")]
         has_range = "context_range" in cols
+        has_hidden = "hidden" in cols
         sql = (
             "SELECT id, question, answer, model_used, created_at"
             + (", context_range" if has_range else "")
             + " FROM assistant_conversations "
             "WHERE page_type = ? AND page_key = ? "
-            "ORDER BY created_at DESC LIMIT ?"
+            # Admin-hidden Q&A are withheld from the public per-verse list
+            # (degrade cleanly on legacy DBs that pre-date the column).
+            + ("  AND COALESCE(hidden, 0) = 0 " if has_hidden else "")
+            + "ORDER BY created_at DESC LIMIT ?"
         )
         rows = conn.execute(sql, (page_type, page_key, limit)).fetchall()
         return jsonify({
@@ -5997,6 +6013,239 @@ def admin_required(f):
         request.admin_user = payload
         return f(*args, **kwargs)
     return decorated
+
+
+# ---------------------------------------------------------------------------
+# Ask the Quran — admin moderation of the shared Q&A
+#
+# Every answer the assistant gives is saved to assistant_conversations and
+# then shown to all later visitors of that verse/word/root. These endpoints
+# let an admin review what's been asked and answered across the whole site,
+# correct or hide low-quality answers, and purge spam. Defined right after
+# admin_required so the decorator exists at import time.
+# ---------------------------------------------------------------------------
+
+# Whitelisted sort modes -> ORDER BY fragment. User input is mapped through
+# this dict, never interpolated into SQL. "slowest" pushes NULL response
+# times last without relying on the (newer) NULLS LAST syntax.
+_QA_SORT_SQL = {
+    "recent": "created_at DESC, id DESC",
+    "oldest": "created_at ASC, id ASC",
+    "slowest": "(response_time_ms IS NULL) ASC, response_time_ms DESC, created_at DESC",
+    "longest": "LENGTH(answer) DESC, created_at DESC",
+}
+
+
+def _qa_row_to_dict(row):
+    """Shape a DB row for the admin client: drop the raw session id (only a
+    short prefix is surfaced as a rough 'same person' hint), coerce hidden
+    to a real bool."""
+    d = dict(row)
+    sid = d.pop("session_id", "") or ""
+    d["session_short"] = sid[:8]
+    d["hidden"] = bool(d.get("hidden"))
+    return d
+
+
+_QA_ADMIN_COLUMNS = (
+    "id, session_id, page_type, page_key, question, answer, "
+    "context_summary, model_used, response_time_ms, created_at, "
+    "context_range, COALESCE(hidden, 0) AS hidden, edited_at"
+)
+
+
+@app.route("/api/admin/assistant/qa", methods=["GET"])
+@admin_required
+def admin_list_assistant_qa():
+    """Paginated, searchable, filterable list of saved Q&A threads."""
+    q = (request.args.get("q") or "").strip()
+    page_type = (request.args.get("page_type") or "").strip()
+    model = (request.args.get("model") or "").strip()
+    status = (request.args.get("status") or "all").strip()
+    sort = (request.args.get("sort") or "recent").strip()
+    order_by = _QA_SORT_SQL.get(sort, _QA_SORT_SQL["recent"])
+
+    try:
+        limit = min(max(int(request.args.get("limit", 25)), 1), 100)
+    except (ValueError, TypeError):
+        limit = 25
+    try:
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (ValueError, TypeError):
+        offset = 0
+
+    where, params = [], []
+    if q:
+        where.append("(question LIKE ? OR answer LIKE ?)")
+        like = f"%{q}%"
+        params.extend([like, like])
+    if page_type:
+        where.append("page_type = ?")
+        params.append(page_type)
+    if model:
+        where.append("model_used = ?")
+        params.append(model)
+    if status == "visible":
+        where.append("COALESCE(hidden, 0) = 0")
+    elif status == "hidden":
+        where.append("COALESCE(hidden, 0) = 1")
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    conn = get_db()
+    try:
+        total = conn.execute(
+            f"SELECT COUNT(*) AS c FROM assistant_conversations {where_sql}",
+            params,
+        ).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT {_QA_ADMIN_COLUMNS} FROM assistant_conversations "
+            f"{where_sql} ORDER BY {order_by} LIMIT ? OFFSET ?",
+            params + [limit, offset],
+        ).fetchall()
+        return jsonify({
+            "items": [_qa_row_to_dict(r) for r in rows],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/assistant/qa/stats", methods=["GET"])
+@admin_required
+def admin_assistant_qa_stats():
+    """At-a-glance totals for the Ask-the-Quran admin section."""
+    conn = get_db()
+    try:
+        def scalar(sql):
+            return conn.execute(sql).fetchone()["c"]
+
+        total = scalar("SELECT COUNT(*) AS c FROM assistant_conversations")
+        hidden = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE COALESCE(hidden, 0) = 1"
+        )
+        pages = scalar(
+            "SELECT COUNT(DISTINCT page_type || '|' || page_key) AS c "
+            "FROM assistant_conversations"
+        )
+        sessions = scalar(
+            "SELECT COUNT(DISTINCT session_id) AS c FROM assistant_conversations"
+        )
+        last7 = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE created_at > datetime('now', '-7 days')"
+        )
+        last24 = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE created_at > datetime('now', '-1 day')"
+        )
+        edited = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE edited_at IS NOT NULL"
+        )
+        by_type = [dict(r) for r in conn.execute(
+            "SELECT page_type, COUNT(*) AS count FROM assistant_conversations "
+            "GROUP BY page_type ORDER BY count DESC"
+        ).fetchall()]
+        by_model = [dict(r) for r in conn.execute(
+            "SELECT COALESCE(NULLIF(model_used, ''), 'unknown') AS model, "
+            "       COUNT(*) AS count FROM assistant_conversations "
+            "GROUP BY model ORDER BY count DESC"
+        ).fetchall()]
+        top_pages = [dict(r) for r in conn.execute(
+            "SELECT page_type, page_key, COUNT(*) AS count "
+            "FROM assistant_conversations "
+            "GROUP BY page_type, page_key "
+            "ORDER BY count DESC, MAX(created_at) DESC LIMIT 10"
+        ).fetchall()]
+        return jsonify({
+            "total": total,
+            "hidden": hidden,
+            "visible": total - hidden,
+            "edited": edited,
+            "pages": pages,
+            "sessions": sessions,
+            "last_7_days": last7,
+            "last_24_hours": last24,
+            "by_type": by_type,
+            "by_model": by_model,
+            "top_pages": top_pages,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/assistant/qa/<int:qa_id>", methods=["PATCH"])
+@admin_required
+def admin_update_assistant_qa(qa_id):
+    """Hide/unhide, or correct the stored question/answer of one Q&A."""
+    data = request.get_json(force=True) or {}
+    sets, params, edited = [], [], False
+
+    if "hidden" in data:
+        sets.append("hidden = ?")
+        params.append(1 if data.get("hidden") else 0)
+
+    if "answer" in data:
+        answer = data.get("answer")
+        if not isinstance(answer, str) or not answer.strip():
+            return jsonify({"error": "answer must be a non-empty string"}), 400
+        sets.append("answer = ?")
+        params.append(answer.strip()[:50000])
+        edited = True
+
+    if "question" in data:
+        question = data.get("question")
+        if not isinstance(question, str) or not question.strip():
+            return jsonify({"error": "question must be a non-empty string"}), 400
+        # Same injection scrub the public save path applies.
+        question = re.sub(r"<[^>]*>", "", question)
+        question = re.sub(r"javascript\s*:", "", question, flags=re.IGNORECASE)
+        question = re.sub(r"on\w+\s*=", "", question, flags=re.IGNORECASE)
+        sets.append("question = ?")
+        params.append(question.strip()[:500])
+        edited = True
+
+    if not sets:
+        return jsonify({"error": "No updatable fields provided"}), 400
+    if edited:
+        sets.append("edited_at = datetime('now')")
+
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            f"UPDATE assistant_conversations SET {', '.join(sets)} WHERE id = ?",
+            params + [qa_id],
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Q&A not found"}), 404
+        row = conn.execute(
+            f"SELECT {_QA_ADMIN_COLUMNS} FROM assistant_conversations WHERE id = ?",
+            (qa_id,),
+        ).fetchone()
+        return jsonify({"ok": True, "item": _qa_row_to_dict(row)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/assistant/qa/<int:qa_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_assistant_qa(qa_id):
+    """Permanently remove one saved Q&A (use hide for reversible removal)."""
+    conn = get_db()
+    try:
+        cur = conn.execute(
+            "DELETE FROM assistant_conversations WHERE id = ?", (qa_id,)
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Q&A not found"}), 404
+        return jsonify({"ok": True, "deleted": qa_id})
+    finally:
+        conn.close()
 
 
 def _ensure_admin_media_tables():
