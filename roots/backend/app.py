@@ -708,6 +708,33 @@ def _ensure_assistant_conversations_table():
                 conn.execute(
                     "ALTER TABLE assistant_conversations ADD COLUMN edited_at TEXT"
                 )
+            # AI-pre-generated Q&A (pre-populating "Ask the Quran" with
+            # insightful, Quran-internal questions). `source` distinguishes
+            # user-asked from AI-drafted rows; `review_status` gates AI drafts
+            # (pending -> approved/rejected) so nothing AI-authored reaches the
+            # public verse until an admin approves it. category = question
+            # archetype (grammar/root/cross-ref/...), quality_score and
+            # generation_meta (JSON) aid the admin review queue.
+            if "source" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN source TEXT DEFAULT 'user'"
+                )
+            if "review_status" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN review_status TEXT"
+                )
+            if "category" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN category TEXT"
+                )
+            if "quality_score" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN quality_score REAL"
+                )
+            if "generation_meta" not in cols:
+                conn.execute(
+                    "ALTER TABLE assistant_conversations ADD COLUMN generation_meta TEXT"
+                )
             conn.commit()
             conn.close()
             return
@@ -2514,6 +2541,7 @@ def get_assistant_history():
         cols = [r[1] for r in conn.execute("PRAGMA table_info(assistant_conversations)")]
         has_range = "context_range" in cols
         has_hidden = "hidden" in cols
+        has_review = "review_status" in cols
         sql = (
             "SELECT id, question, answer, model_used, created_at"
             + (", context_range" if has_range else "")
@@ -2522,6 +2550,9 @@ def get_assistant_history():
             # Admin-hidden Q&A are withheld from the public per-verse list
             # (degrade cleanly on legacy DBs that pre-date the column).
             + ("  AND COALESCE(hidden, 0) = 0 " if has_hidden else "")
+            # AI-drafted rows are public only once approved; user-asked rows
+            # (source NULL/'user') are unaffected.
+            + ("  AND (COALESCE(source, 'user') = 'user' OR review_status = 'approved') " if has_review else "")
             + "ORDER BY created_at DESC LIMIT ?"
         )
         rows = conn.execute(sql, (page_type, page_key, limit)).fetchall()
@@ -6044,13 +6075,24 @@ def _qa_row_to_dict(row):
     sid = d.pop("session_id", "") or ""
     d["session_short"] = sid[:8]
     d["hidden"] = bool(d.get("hidden"))
+    # generation_meta is stored as a JSON string on AI drafts; hand the client
+    # a parsed object (source_notes, cited_refs, flags) when present.
+    gm = d.get("generation_meta")
+    if gm:
+        try:
+            import json as _json
+            d["generation_meta"] = _json.loads(gm)
+        except Exception:
+            pass
     return d
 
 
 _QA_ADMIN_COLUMNS = (
     "id, session_id, page_type, page_key, question, answer, "
     "context_summary, model_used, response_time_ms, created_at, "
-    "context_range, COALESCE(hidden, 0) AS hidden, edited_at"
+    "context_range, COALESCE(hidden, 0) AS hidden, edited_at, "
+    "COALESCE(source, 'user') AS source, review_status, category, "
+    "quality_score, generation_meta"
 )
 
 
@@ -6061,6 +6103,8 @@ def admin_list_assistant_qa():
     q = (request.args.get("q") or "").strip()
     page_type = (request.args.get("page_type") or "").strip()
     model = (request.args.get("model") or "").strip()
+    source = (request.args.get("source") or "").strip()           # 'user' | 'ai'
+    review_status = (request.args.get("review_status") or "").strip()  # pending|approved|rejected
     status = (request.args.get("status") or "all").strip()
     sort = (request.args.get("sort") or "recent").strip()
     order_by = _QA_SORT_SQL.get(sort, _QA_SORT_SQL["recent"])
@@ -6085,6 +6129,12 @@ def admin_list_assistant_qa():
     if model:
         where.append("model_used = ?")
         params.append(model)
+    if source:
+        where.append("COALESCE(source, 'user') = ?")
+        params.append(source)
+    if review_status:
+        where.append("review_status = ?")
+        params.append(review_status)
     if status == "visible":
         where.append("COALESCE(hidden, 0) = 0")
     elif status == "hidden":
@@ -6145,6 +6195,22 @@ def admin_assistant_qa_stats():
             "SELECT COUNT(*) AS c FROM assistant_conversations "
             "WHERE edited_at IS NOT NULL"
         )
+        ai_total = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE COALESCE(source, 'user') = 'ai'"
+        )
+        ai_pending = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE source = 'ai' AND review_status = 'pending'"
+        )
+        ai_approved = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE source = 'ai' AND review_status = 'approved'"
+        )
+        ai_rejected = scalar(
+            "SELECT COUNT(*) AS c FROM assistant_conversations "
+            "WHERE source = 'ai' AND review_status = 'rejected'"
+        )
         by_type = [dict(r) for r in conn.execute(
             "SELECT page_type, COUNT(*) AS count FROM assistant_conversations "
             "GROUP BY page_type ORDER BY count DESC"
@@ -6165,6 +6231,10 @@ def admin_assistant_qa_stats():
             "hidden": hidden,
             "visible": total - hidden,
             "edited": edited,
+            "ai_total": ai_total,
+            "ai_pending": ai_pending,
+            "ai_approved": ai_approved,
+            "ai_rejected": ai_rejected,
             "pages": pages,
             "sessions": sessions,
             "last_7_days": last7,
@@ -6187,6 +6257,13 @@ def admin_update_assistant_qa(qa_id):
     if "hidden" in data:
         sets.append("hidden = ?")
         params.append(1 if data.get("hidden") else 0)
+
+    if "review_status" in data:
+        rs = data.get("review_status")
+        if rs not in ("pending", "approved", "rejected", None):
+            return jsonify({"error": "review_status must be pending/approved/rejected"}), 400
+        sets.append("review_status = ?")
+        params.append(rs)
 
     if "answer" in data:
         answer = data.get("answer")
@@ -6244,6 +6321,43 @@ def admin_delete_assistant_qa(qa_id):
         if cur.rowcount == 0:
             return jsonify({"error": "Q&A not found"}), 404
         return jsonify({"ok": True, "deleted": qa_id})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/assistant/qa/bulk", methods=["POST"])
+@admin_required
+def admin_bulk_assistant_qa():
+    """Bulk moderation for the review queue: approve / reject / pending /
+    hide / unhide / delete many rows in one call."""
+    data = request.get_json(force=True) or {}
+    raw_ids = data.get("ids")
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return jsonify({"error": "ids must be a non-empty list"}), 400
+    ids = [int(i) for i in raw_ids if str(i).isdigit()][:500]
+    if not ids:
+        return jsonify({"error": "no valid ids"}), 400
+    op = (data.get("op") or "").strip()
+    placeholders = ",".join("?" * len(ids))
+
+    conn = get_db()
+    try:
+        if op == "delete":
+            cur = conn.execute(
+                f"DELETE FROM assistant_conversations WHERE id IN ({placeholders})", ids)
+        elif op in ("approve", "reject", "pending"):
+            rs = {"approve": "approved", "reject": "rejected", "pending": "pending"}[op]
+            cur = conn.execute(
+                f"UPDATE assistant_conversations SET review_status = ? "
+                f"WHERE id IN ({placeholders})", [rs] + ids)
+        elif op in ("hide", "unhide"):
+            cur = conn.execute(
+                f"UPDATE assistant_conversations SET hidden = ? "
+                f"WHERE id IN ({placeholders})", [1 if op == "hide" else 0] + ids)
+        else:
+            return jsonify({"error": "op must be approve/reject/pending/hide/unhide/delete"}), 400
+        conn.commit()
+        return jsonify({"ok": True, "op": op, "affected": cur.rowcount})
     finally:
         conn.close()
 

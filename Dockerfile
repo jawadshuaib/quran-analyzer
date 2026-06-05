@@ -57,8 +57,16 @@ COPY roots/backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Pre-download sentence-transformer model so first search is fast
-RUN python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+# Pre-download sentence-transformer model so first search is fast. HuggingFace
+# is intermittently unreachable mid-build (this exact step has failed a deploy
+# with a transient "couldn't connect to huggingface.co"), so retry with backoff
+# instead of letting one network blip kill the whole build.
+RUN for i in 1 2 3 4 5; do \
+        python3 -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')" && exit 0; \
+        echo "[build] HF model download attempt $i failed; retrying in $((i*15))s"; \
+        sleep $((i*15)); \
+    done; \
+    echo "[build] sentence-transformer model download failed after 5 attempts" >&2; exit 1
 
 # Copy application code — all backend Python modules.
 # app.py is the entry point; the rest are CLI scripts and helpers that

@@ -2356,6 +2356,13 @@ export interface AdminQAItem {
   edited_at: string | null;
   hidden: boolean;
   session_short: string;   // first 8 chars of the asker's session id
+  // AI-drafted Q&A (pre-populated via the /loop generator); 'user' on
+  // user-asked rows.
+  source: string;          // 'user' | 'ai'
+  review_status: string | null;   // 'pending' | 'approved' | 'rejected'
+  category: string | null;        // question archetype
+  quality_score: number | null;   // 1–5 generator confidence
+  generation_meta: { source_notes?: string; cited_refs?: string[]; flags?: string[] } | null;
 }
 
 export interface AdminQAListResponse {
@@ -2370,6 +2377,10 @@ export interface AdminQAStats {
   visible: number;
   hidden: number;
   edited: number;
+  ai_total: number;
+  ai_pending: number;
+  ai_approved: number;
+  ai_rejected: number;
   pages: number;
   sessions: number;
   last_7_days: number;
@@ -2386,6 +2397,8 @@ export interface AdminQAQuery {
   q?: string;
   page_type?: string;
   model?: string;
+  source?: string;          // 'user' | 'ai'
+  review_status?: string;   // 'pending' | 'approved' | 'rejected'
   status?: AdminQAStatus;
   sort?: AdminQASort;
   limit?: number;
@@ -2397,6 +2410,8 @@ export async function getAdminQA(query: AdminQAQuery = {}): Promise<AdminQAListR
   if (query.q) params.set('q', query.q);
   if (query.page_type) params.set('page_type', query.page_type);
   if (query.model) params.set('model', query.model);
+  if (query.source) params.set('source', query.source);
+  if (query.review_status) params.set('review_status', query.review_status);
   if (query.status && query.status !== 'all') params.set('status', query.status);
   if (query.sort) params.set('sort', query.sort);
   params.set('limit', String(query.limit ?? 25));
@@ -2417,7 +2432,7 @@ export async function getAdminQAStats(): Promise<AdminQAStats> {
 /** Hide/unhide, or correct the stored question/answer. Returns the fresh row. */
 export async function updateAdminQA(
   id: number,
-  patch: { hidden?: boolean; answer?: string; question?: string },
+  patch: { hidden?: boolean; answer?: string; question?: string; review_status?: string },
 ): Promise<AdminQAItem> {
   const res = await authFetch(`${BASE}/assistant/qa/${id}`, {
     method: 'PATCH',
@@ -2435,4 +2450,17 @@ export async function deleteAdminQA(id: number): Promise<void> {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || 'Delete failed');
   }
+}
+
+export type AdminQABulkOp = 'approve' | 'reject' | 'pending' | 'hide' | 'unhide' | 'delete';
+
+/** Apply one moderation op to many rows at once (review-queue triage). */
+export async function bulkAdminQA(ids: number[], op: AdminQABulkOp): Promise<{ affected: number }> {
+  const res = await authFetch(`${BASE}/assistant/qa/bulk`, {
+    method: 'POST',
+    body: JSON.stringify({ ids, op }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Bulk action failed');
+  return data;
 }

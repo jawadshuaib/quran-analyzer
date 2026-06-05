@@ -1,17 +1,21 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import {
-  getAdminQA, getAdminQAStats, updateAdminQA, deleteAdminQA,
+  getAdminQA, getAdminQAStats, updateAdminQA, deleteAdminQA, bulkAdminQA,
   type AdminQAItem, type AdminQAStats, type AdminQAStatus, type AdminQASort,
 } from '../../api/admin';
 
 const LIMIT = 25;
 
+type SingleOp = 'hide' | 'unhide' | 'delete' | 'approve' | 'reject';
+type BulkOp = 'approve' | 'reject' | 'delete';
+type PendingAction =
+  | { scope: 'single'; op: SingleOp; item: AdminQAItem }
+  | { scope: 'bulk'; op: BulkOp; ids: number[] };
+
 /* ---------------------------------------------------------------- */
 /*  Helpers                                                          */
 /* ---------------------------------------------------------------- */
 
-/** Deep-link to the public page a Q&A is anchored to, when we know the
- *  URL shape. Verse is the common case the admin actually wants to open. */
 function pageHref(item: AdminQAItem): string | null {
   if (item.page_type === 'verse') return `/verse/${item.page_key}`;
   if (item.page_type === 'word') return `/word/${item.page_key}`;
@@ -46,10 +50,38 @@ function relTime(ts: string): string {
   return d.toLocaleDateString();
 }
 
-/** Trim noisy model tags to something scannable in a badge. */
 function shortModel(model: string | null): string {
   if (!model) return 'unknown';
   return model.replace(/^anthropic\//, '').replace(/-\d{8}$/, '');
+}
+
+function confirmCopy(p: PendingAction): { title: string; body: string; confirm: string; tone: 'amber' | 'emerald' | 'danger' } {
+  const n = p.scope === 'bulk' ? p.ids.length : 1;
+  const it = n === 1 ? 'it' : 'them';
+  switch (p.op) {
+    case 'approve':
+      return {
+        title: n === 1 ? 'Publish this answer?' : `Publish ${n} answers?`,
+        body: `Approving makes ${n === 1 ? 'this Q&A' : `these ${n} Q&A`} public on the verse. You can move ${it} back to pending or reject ${it} later.`,
+        confirm: n === 1 ? 'Approve & publish' : `Approve ${n}`, tone: 'emerald',
+      };
+    case 'reject':
+      return {
+        title: n === 1 ? 'Reject this draft?' : `Reject ${n} drafts?`,
+        body: `${n === 1 ? 'This draft' : `These ${n} drafts`} will be kept on record but never shown publicly. You can restore ${it} to pending later.`,
+        confirm: n === 1 ? 'Reject' : `Reject ${n}`, tone: 'amber',
+      };
+    case 'delete':
+      return {
+        title: n === 1 ? 'Delete this Q&A permanently?' : `Delete ${n} Q&A permanently?`,
+        body: `This removes ${n === 1 ? 'this Q&A' : `these ${n} Q&A`} for good and cannot be undone. To take ${it} off the public page reversibly, reject or hide instead.`,
+        confirm: n === 1 ? 'Delete permanently' : `Delete ${n}`, tone: 'danger',
+      };
+    case 'hide':
+      return { title: 'Hide this answer?', body: 'It will immediately stop showing to visitors on this verse. Nothing is deleted — you can unhide it again at any time.', confirm: 'Hide', tone: 'amber' };
+    case 'unhide':
+      return { title: 'Make this answer public again?', body: 'It will be shown to visitors on this verse the next time they open the assistant.', confirm: 'Unhide', tone: 'emerald' };
+  }
 }
 
 /* ---------------------------------------------------------------- */
@@ -68,6 +100,8 @@ export default function AdminAssistantQA() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pageType, setPageType] = useState('');
   const [model, setModel] = useState('');
+  const [source, setSource] = useState('');             // '' | 'user' | 'ai'
+  const [reviewStatus, setReviewStatus] = useState(''); // '' | pending | approved | rejected
   const [status, setStatus] = useState<AdminQAStatus>('all');
   const [sort, setSort] = useState<AdminQASort>('recent');
   const [offset, setOffset] = useState(0);
@@ -79,21 +113,24 @@ export default function AdminAssistantQA() {
   const [editAnswer, setEditAnswer] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  // Confirmation dialog for consequential one-click actions (hide / unhide /
-  // delete). Each changes what the public sees, so none of them fire until
-  // the admin confirms in the dialog.
-  const [pending, setPending] = useState<{ kind: 'hide' | 'unhide' | 'delete'; item: AdminQAItem } | null>(null);
+  // Bulk selection
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+
+  // Confirmation dialog for consequential actions (single or bulk).
+  const [pending, setPending] = useState<PendingAction | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
   const [actionError, setActionError] = useState('');
 
-  // Debounce the search box
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
 
-  // Any filter change resets us to the first page
-  useEffect(() => { setOffset(0); }, [debouncedSearch, pageType, model, status, sort]);
+  // Any filter change resets to the first page and clears selection.
+  useEffect(() => {
+    setOffset(0);
+    setSelected(new Set());
+  }, [debouncedSearch, pageType, model, source, reviewStatus, status, sort]);
 
   const loadStats = useCallback(async () => {
     try { setStats(await getAdminQAStats()); } catch { /* non-fatal */ }
@@ -104,8 +141,8 @@ export default function AdminAssistantQA() {
     setError('');
     try {
       const res = await getAdminQA({
-        q: debouncedSearch, page_type: pageType, model, status, sort,
-        limit: LIMIT, offset,
+        q: debouncedSearch, page_type: pageType, model, source,
+        review_status: reviewStatus, status, sort, limit: LIMIT, offset,
       });
       setItems(res.items);
       setTotal(res.total);
@@ -114,28 +151,35 @@ export default function AdminAssistantQA() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageType, model, status, sort, offset]);
+  }, [debouncedSearch, pageType, model, source, reviewStatus, status, sort, offset]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadList(); }, [loadList]);
 
   /* --- actions --- */
 
-  // Runs the action the admin confirmed in the dialog. Hide/unhide/delete
-  // all flow through here so there's a single confirmed-write path.
   async function runPending() {
     if (!pending) return;
-    const { kind, item } = pending;
     setActionBusy(true);
     setActionError('');
     try {
-      if (kind === 'delete') {
-        await deleteAdminQA(item.id);
-        setItems((prev) => prev.filter((i) => i.id !== item.id));
-        setTotal((t) => Math.max(0, t - 1));
+      if (pending.scope === 'bulk') {
+        await bulkAdminQA(pending.ids, pending.op);
+        setSelected(new Set());
+        await loadList();
       } else {
-        const updated = await updateAdminQA(item.id, { hidden: kind === 'hide' });
-        applyUpdate(updated);
+        const { op, item } = pending;
+        if (op === 'delete') {
+          await deleteAdminQA(item.id);
+          setItems((prev) => prev.filter((i) => i.id !== item.id));
+          setTotal((t) => Math.max(0, t - 1));
+        } else if (op === 'approve' || op === 'reject') {
+          const updated = await updateAdminQA(item.id, { review_status: op === 'approve' ? 'approved' : 'rejected' });
+          applyUpdate(updated);
+        } else {
+          const updated = await updateAdminQA(item.id, { hidden: op === 'hide' });
+          applyUpdate(updated);
+        }
       }
       loadStats();
       setPending(null);
@@ -179,9 +223,31 @@ export default function AdminAssistantQA() {
     setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
   }
 
-  const hasActiveFilters = !!(debouncedSearch || pageType || model || status !== 'all');
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  const allOnPageSelected = items.length > 0 && items.every((i) => selected.has(i.id));
+  function toggleSelectPage() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allOnPageSelected) items.forEach((i) => next.delete(i.id));
+      else items.forEach((i) => next.add(i.id));
+      return next;
+    });
+  }
+
+  const hasActiveFilters = !!(debouncedSearch || pageType || model || source || reviewStatus || status !== 'all');
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + LIMIT, total);
+
+  function clearFilters() {
+    setSearch(''); setPageType(''); setModel(''); setSource(''); setReviewStatus(''); setStatus('all');
+  }
 
   return (
     <div>
@@ -190,8 +256,8 @@ export default function AdminAssistantQA() {
         <div>
           <h1 className="font-serif text-2xl font-medium text-stone-800">Ask the Quran</h1>
           <p className="text-sm text-stone-500 mt-1 max-w-2xl">
-            Every answer the assistant gives is saved and shown to the next visitor of
-            that verse. Review what's being asked, fix or hide weak answers, and remove spam.
+            Q&A the assistant shows on each verse — both what visitors ask and the
+            AI-drafted questions awaiting review. Approve, reject, fix, hide, or remove.
           </p>
         </div>
         <button
@@ -205,10 +271,26 @@ export default function AdminAssistantQA() {
       {/* Stats strip */}
       <StatsStrip stats={stats} />
 
+      {/* AI review banner */}
+      {stats && stats.ai_total > 0 && (
+        <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3 mb-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-sm text-violet-900">
+            <span className="font-semibold">{stats.ai_total.toLocaleString()} AI-drafted Q&A</span>
+            <span className="text-violet-700"> · {stats.ai_pending} pending · {stats.ai_approved} approved · {stats.ai_rejected} rejected</span>
+          </div>
+          <button
+            onClick={() => { clearFilters(); setSource('ai'); setReviewStatus('pending'); }}
+            className="text-xs font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 cursor-pointer shrink-0"
+          >
+            Open review queue ({stats.ai_pending}) →
+          </button>
+        </div>
+      )}
+
       {/* Insights: most-asked verses + model mix */}
       {stats && (stats.top_pages.length > 0 || stats.by_model.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
-          <TopPagesPanel stats={stats} onPick={(pt, pk) => { setPageType(pt); setSearch(''); setSearch(pk); }} />
+          <TopPagesPanel stats={stats} onPick={(pt, pk) => { clearFilters(); setPageType(pt); setSearch(pk); }} />
           <ModelMixPanel stats={stats} />
         </div>
       )}
@@ -229,6 +311,19 @@ export default function AdminAssistantQA() {
             />
           </div>
 
+          <Select value={source} onChange={setSource} title="Source">
+            <option value="">All sources</option>
+            <option value="user">User-asked</option>
+            <option value="ai">AI-drafted</option>
+          </Select>
+
+          <Select value={reviewStatus} onChange={setReviewStatus} title="Review status">
+            <option value="">Any review</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </Select>
+
           <Select value={pageType} onChange={setPageType} title="Page type">
             <option value="">All types</option>
             {(stats?.by_type ?? []).map((t) => (
@@ -236,15 +331,8 @@ export default function AdminAssistantQA() {
             ))}
           </Select>
 
-          <Select value={model} onChange={setModel} title="Model">
-            <option value="">All models</option>
-            {(stats?.by_model ?? []).filter((m) => m.model !== 'unknown').map((m) => (
-              <option key={m.model} value={m.model}>{shortModel(m.model)} ({m.count})</option>
-            ))}
-          </Select>
-
           <Select value={status} onChange={(v) => setStatus(v as AdminQAStatus)} title="Visibility">
-            <option value="all">All</option>
+            <option value="all">All visibility</option>
             <option value="visible">Visible</option>
             <option value="hidden">Hidden</option>
           </Select>
@@ -259,17 +347,23 @@ export default function AdminAssistantQA() {
       </div>
 
       {/* Results meta */}
-      <div className="flex items-center justify-between mb-2 px-1">
-        <p className="text-xs text-stone-500">
-          {loading ? 'Loading…' : total === 0
-            ? (hasActiveFilters ? 'No Q&A match these filters' : 'No questions have been asked yet')
-            : `Showing ${from}–${to} of ${total.toLocaleString()}`}
-        </p>
+      <div className="flex items-center justify-between mb-2 px-1 gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          {items.length > 0 && (
+            <label className="flex items-center gap-1.5 text-xs text-stone-500 cursor-pointer select-none">
+              <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectPage}
+                className="rounded border-stone-300 text-violet-600 focus:ring-violet-400 cursor-pointer" />
+              Select page
+            </label>
+          )}
+          <p className="text-xs text-stone-500">
+            {loading ? 'Loading…' : total === 0
+              ? (hasActiveFilters ? 'No Q&A match these filters' : 'No questions yet')
+              : `Showing ${from}–${to} of ${total.toLocaleString()}`}
+          </p>
+        </div>
         {hasActiveFilters && (
-          <button
-            onClick={() => { setSearch(''); setPageType(''); setModel(''); setStatus('all'); }}
-            className="text-xs text-violet-600 hover:text-violet-800 cursor-pointer"
-          >
+          <button onClick={clearFilters} className="text-xs text-violet-600 hover:text-violet-800 cursor-pointer">
             Clear filters
           </button>
         )}
@@ -288,7 +382,7 @@ export default function AdminAssistantQA() {
         <div className="rounded-xl border border-dashed border-stone-300 bg-stone-50/40 p-10 text-center text-sm text-stone-500">
           {hasActiveFilters
             ? 'Nothing matches. Try clearing the filters.'
-            : 'When visitors ask the assistant about a verse, their Q&A will appear here.'}
+            : 'When visitors ask the assistant — or the /loop generator drafts questions — they appear here.'}
         </div>
       ) : (
         <div className={`space-y-3 ${loading ? 'opacity-60 pointer-events-none' : ''}`}>
@@ -296,21 +390,41 @@ export default function AdminAssistantQA() {
             <QACard
               key={item.id}
               item={item}
+              selected={selected.has(item.id)}
               expanded={expandedId === item.id}
               editing={editingId === item.id}
               busy={busyId === item.id}
               editQuestion={editQuestion}
               editAnswer={editAnswer}
+              onToggleSelect={() => toggleSelect(item.id)}
               onToggleExpand={() => setExpandedId(expandedId === item.id ? null : item.id)}
-              onRequestToggleHidden={() => setPending({ kind: item.hidden ? 'unhide' : 'hide', item })}
+              onRequestToggleHidden={() => setPending({ scope: 'single', op: item.hidden ? 'unhide' : 'hide', item })}
+              onRequestApprove={() => setPending({ scope: 'single', op: 'approve', item })}
+              onRequestReject={() => setPending({ scope: 'single', op: 'reject', item })}
               onStartEdit={() => startEdit(item)}
               onChangeQuestion={setEditQuestion}
               onChangeAnswer={setEditAnswer}
               onSaveEdit={() => saveEdit(item)}
               onCancelEdit={() => setEditingId(null)}
-              onRequestDelete={() => setPending({ kind: 'delete', item })}
+              onRequestDelete={() => setPending({ scope: 'single', op: 'delete', item })}
             />
           ))}
+        </div>
+      )}
+
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="sticky bottom-4 z-20 mt-4 flex items-center gap-2 rounded-xl bg-stone-900 text-white px-4 py-2.5 shadow-lg flex-wrap">
+          <span className="text-sm font-medium">{selected.size} selected</span>
+          <span className="flex-1" />
+          <button onClick={() => setPending({ scope: 'bulk', op: 'approve', ids: [...selected] })}
+            className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 cursor-pointer">Approve</button>
+          <button onClick={() => setPending({ scope: 'bulk', op: 'reject', ids: [...selected] })}
+            className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 cursor-pointer">Reject</button>
+          <button onClick={() => setPending({ scope: 'bulk', op: 'delete', ids: [...selected] })}
+            className="text-xs px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 cursor-pointer">Delete</button>
+          <button onClick={() => setSelected(new Set())}
+            className="text-xs px-3 py-1.5 rounded-lg border border-white/30 hover:bg-white/10 cursor-pointer">Clear</button>
         </div>
       )}
 
@@ -355,9 +469,9 @@ function StatsStrip({ stats }: { stats: AdminQAStats | null }) {
     { label: 'Total Q&A', value: stats.total.toLocaleString() },
     { label: 'Visible', value: stats.visible.toLocaleString() },
     { label: 'Hidden', value: stats.hidden.toLocaleString(), tone: stats.hidden > 0 ? 'amber' : undefined },
+    { label: 'AI pending', value: stats.ai_pending.toLocaleString(), tone: stats.ai_pending > 0 ? 'violet' : undefined },
     { label: 'Verses & pages', value: stats.pages.toLocaleString() },
     { label: 'Last 7 days', value: stats.last_7_days.toLocaleString() },
-    { label: 'Askers', value: stats.sessions.toLocaleString() },
   ] : [];
 
   return (
@@ -366,7 +480,9 @@ function StatsStrip({ stats }: { stats: AdminQAStats | null }) {
         <div
           key={i}
           className={`rounded-xl border px-4 py-3 ${
-            t?.tone === 'amber' ? 'border-amber-200 bg-amber-50/40' : 'border-stone-200 bg-white'
+            t?.tone === 'amber' ? 'border-amber-200 bg-amber-50/40'
+              : t?.tone === 'violet' ? 'border-violet-200 bg-violet-50/40'
+              : 'border-stone-200 bg-white'
           }`}
         >
           {t ? (
@@ -394,9 +510,7 @@ function TopPagesPanel({ stats, onPick }: { stats: AdminQAStats; onPick: (pageTy
       <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Most asked</h2>
       <ul className="space-y-1.5">
         {stats.top_pages.map((p) => {
-          const label = p.page_type === 'verse'
-            ? p.page_key
-            : `${p.page_type} ${p.page_key}`;
+          const label = p.page_type === 'verse' ? p.page_key : `${p.page_type} ${p.page_key}`;
           return (
             <li key={`${p.page_type}:${p.page_key}`}>
               <button
@@ -454,15 +568,23 @@ function Select({ value, onChange, title, children }: {
   );
 }
 
-function Badge({ children, tone = 'stone' }: { children: ReactNode; tone?: 'stone' | 'violet' | 'amber' | 'sky' | 'emerald' }) {
+function Badge({ children, tone = 'stone' }: { children: ReactNode; tone?: 'stone' | 'violet' | 'amber' | 'sky' | 'emerald' | 'rose' }) {
   const cls = {
     stone: 'bg-stone-100 text-stone-600 border-stone-200',
     violet: 'bg-violet-50 text-violet-700 border-violet-200',
     amber: 'bg-amber-50 text-amber-700 border-amber-200',
     sky: 'bg-sky-50 text-sky-700 border-sky-200',
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    rose: 'bg-rose-50 text-rose-700 border-rose-200',
   }[tone];
   return <span className={`inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium ${cls}`}>{children}</span>;
+}
+
+function ReviewBadge({ item }: { item: AdminQAItem }) {
+  if (item.source !== 'ai') return null;
+  if (item.review_status === 'approved') return <Badge tone="emerald">Approved</Badge>;
+  if (item.review_status === 'rejected') return <Badge tone="rose">Rejected</Badge>;
+  return <Badge tone="amber">Pending</Badge>;
 }
 
 /* ---------------------------------------------------------------- */
@@ -471,13 +593,17 @@ function Badge({ children, tone = 'stone' }: { children: ReactNode; tone?: 'ston
 
 interface QACardProps {
   item: AdminQAItem;
+  selected: boolean;
   expanded: boolean;
   editing: boolean;
   busy: boolean;
   editQuestion: string;
   editAnswer: string;
+  onToggleSelect: () => void;
   onToggleExpand: () => void;
   onRequestToggleHidden: () => void;
+  onRequestApprove: () => void;
+  onRequestReject: () => void;
   onStartEdit: () => void;
   onChangeQuestion: (v: string) => void;
   onChangeAnswer: (v: string) => void;
@@ -489,30 +615,46 @@ interface QACardProps {
 function QACard(p: QACardProps) {
   const { item } = p;
   const href = pageHref(item);
+  const isAI = item.source === 'ai';
+  const flags = item.generation_meta?.flags ?? [];
+
+  const cardBorder = item.hidden
+    ? 'border-amber-200 bg-amber-50/20'
+    : isAI && item.review_status === 'pending'
+      ? 'border-violet-200 bg-violet-50/20'
+      : 'border-stone-200';
 
   return (
-    <div className={`rounded-xl border bg-white transition-colors ${item.hidden ? 'border-amber-200 bg-amber-50/20' : 'border-stone-200'}`}>
+    <div className={`rounded-xl border bg-white transition-colors ${cardBorder}`}>
       <div className="p-4">
         {/* Top meta row */}
-        <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <input
+              type="checkbox"
+              checked={p.selected}
+              onChange={p.onToggleSelect}
+              className="rounded border-stone-300 text-violet-600 focus:ring-violet-400 cursor-pointer"
+              title="Select for bulk action"
+            />
             {href ? (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
+              <a href={href} target="_blank" rel="noopener noreferrer"
                 className="text-sm font-semibold text-violet-700 hover:text-violet-900 hover:underline whitespace-nowrap"
-                title="Open the public page in a new tab"
-              >
+                title="Open the public page in a new tab">
                 {pageLabel(item)} ↗
               </a>
             ) : (
               <span className="text-sm font-semibold text-stone-700">{pageLabel(item)}</span>
             )}
             <Badge tone="sky">{item.page_type}</Badge>
+            {isAI && <Badge tone="violet">AI</Badge>}
+            <ReviewBadge item={item} />
+            {item.category && <Badge tone="stone">{item.category}</Badge>}
+            {item.quality_score != null && <Badge tone="stone">★ {item.quality_score}</Badge>}
             {item.context_range && <Badge tone="stone">range {item.context_range}</Badge>}
             {item.hidden && <Badge tone="amber">Hidden</Badge>}
             {item.edited_at && <Badge tone="violet">Edited</Badge>}
+            {flags.length > 0 && <Badge tone="rose">⚑ {flags.length}</Badge>}
           </div>
           <div className="flex items-center gap-2 text-xs text-stone-400 shrink-0">
             <span title={shortModel(item.model_used)} className="max-w-[140px] truncate">{shortModel(item.model_used)}</span>
@@ -540,18 +682,12 @@ function QACard(p: QACardProps) {
               className="w-full rounded-lg border border-stone-300 px-3 py-2 text-sm font-mono leading-relaxed focus:border-violet-400 focus:ring-1 focus:ring-violet-400 outline-none"
             />
             <div className="flex items-center gap-2">
-              <button
-                onClick={p.onSaveEdit}
-                disabled={p.busy}
-                className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 cursor-pointer"
-              >
+              <button onClick={p.onSaveEdit} disabled={p.busy}
+                className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 disabled:opacity-50 cursor-pointer">
                 {p.busy ? 'Saving…' : 'Save changes'}
               </button>
-              <button
-                onClick={p.onCancelEdit}
-                disabled={p.busy}
-                className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-sm hover:border-stone-300 cursor-pointer"
-              >
+              <button onClick={p.onCancelEdit} disabled={p.busy}
+                className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-sm hover:border-stone-300 cursor-pointer">
                 Cancel
               </button>
             </div>
@@ -573,7 +709,21 @@ function QACard(p: QACardProps) {
               </button>
             )}
 
-            {p.expanded && (item.context_summary || item.session_short) && (
+            {p.expanded && isAI && item.generation_meta && (
+              <div className="mt-3 pt-3 border-t border-stone-100 text-[11px] text-stone-500 space-y-1">
+                {item.generation_meta.source_notes && (
+                  <p><span className="font-medium text-stone-600">Drawn from:</span> {item.generation_meta.source_notes}</p>
+                )}
+                {item.generation_meta.cited_refs && item.generation_meta.cited_refs.length > 0 && (
+                  <p><span className="font-medium text-stone-600">Cites:</span> {item.generation_meta.cited_refs.join(', ')}</p>
+                )}
+                {flags.length > 0 && (
+                  <p className="text-rose-600"><span className="font-medium">Flags:</span> {flags.join('; ')}</p>
+                )}
+              </div>
+            )}
+
+            {p.expanded && !isAI && (item.context_summary || item.session_short) && (
               <div className="mt-3 pt-3 border-t border-stone-100 text-[11px] text-stone-400 space-y-1">
                 {item.context_summary && (
                   <p><span className="font-medium text-stone-500">Context:</span> {item.context_summary}</p>
@@ -588,38 +738,44 @@ function QACard(p: QACardProps) {
             {/* Actions */}
             <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-stone-100 flex-wrap">
               {href && (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs px-2.5 py-1 rounded-md border border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50 cursor-pointer"
-                >
+                <a href={href} target="_blank" rel="noopener noreferrer"
+                  className="text-xs px-2.5 py-1 rounded-md border border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50 cursor-pointer">
                   Open verse
                 </a>
               )}
-              <button
-                onClick={p.onRequestToggleHidden}
-                disabled={p.busy}
-                className={`text-xs px-2.5 py-1 rounded-md border cursor-pointer disabled:opacity-50 ${
-                  item.hidden
-                    ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
-                    : 'border-amber-200 text-amber-700 hover:bg-amber-50'
-                }`}
-              >
-                {item.hidden ? 'Unhide' : 'Hide'}
-              </button>
-              <button
-                onClick={p.onStartEdit}
-                disabled={p.busy}
-                className="text-xs px-2.5 py-1 rounded-md border border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50 cursor-pointer disabled:opacity-50"
-              >
+
+              {isAI ? (
+                <>
+                  {item.review_status !== 'approved' && (
+                    <button onClick={p.onRequestApprove} disabled={p.busy}
+                      className="text-xs px-2.5 py-1 rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50 cursor-pointer disabled:opacity-50">
+                      Approve
+                    </button>
+                  )}
+                  {item.review_status !== 'rejected' && (
+                    <button onClick={p.onRequestReject} disabled={p.busy}
+                      className="text-xs px-2.5 py-1 rounded-md border border-amber-200 text-amber-700 hover:bg-amber-50 cursor-pointer disabled:opacity-50">
+                      Reject
+                    </button>
+                  )}
+                </>
+              ) : (
+                <button onClick={p.onRequestToggleHidden} disabled={p.busy}
+                  className={`text-xs px-2.5 py-1 rounded-md border cursor-pointer disabled:opacity-50 ${
+                    item.hidden
+                      ? 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                      : 'border-amber-200 text-amber-700 hover:bg-amber-50'
+                  }`}>
+                  {item.hidden ? 'Unhide' : 'Hide'}
+                </button>
+              )}
+
+              <button onClick={p.onStartEdit} disabled={p.busy}
+                className="text-xs px-2.5 py-1 rounded-md border border-stone-200 text-stone-600 hover:border-stone-300 hover:bg-stone-50 cursor-pointer disabled:opacity-50">
                 Edit
               </button>
-              <button
-                onClick={p.onRequestDelete}
-                disabled={p.busy}
-                className="text-xs px-2.5 py-1 rounded-md border border-stone-200 text-red-500 hover:border-red-200 hover:bg-red-50 cursor-pointer ml-auto disabled:opacity-50"
-              >
+              <button onClick={p.onRequestDelete} disabled={p.busy}
+                className="text-xs px-2.5 py-1 rounded-md border border-stone-200 text-red-500 hover:border-red-200 hover:bg-red-50 cursor-pointer ml-auto disabled:opacity-50">
                 Delete
               </button>
             </div>
@@ -631,32 +787,11 @@ function QACard(p: QACardProps) {
 }
 
 /* ---------------------------------------------------------------- */
-/*  Confirmation dialog                                             */
+/*  Confirmation dialog (single + bulk)                             */
 /* ---------------------------------------------------------------- */
 
-const CONFIRM_COPY = {
-  hide: {
-    title: 'Hide this answer?',
-    body: 'It will immediately stop showing to visitors on this verse. Nothing is deleted — you can unhide it again at any time.',
-    confirm: 'Hide',
-    tone: 'amber' as const,
-  },
-  unhide: {
-    title: 'Make this answer public again?',
-    body: 'It will be shown to visitors on this verse the next time they open the assistant.',
-    confirm: 'Unhide',
-    tone: 'emerald' as const,
-  },
-  delete: {
-    title: 'Delete this Q&A permanently?',
-    body: 'This removes the question and answer for good and cannot be undone. If you only want to take it off the public page, use Hide instead.',
-    confirm: 'Delete permanently',
-    tone: 'danger' as const,
-  },
-};
-
 function ConfirmDialog({ pending, busy, error, onConfirm, onCancel }: {
-  pending: { kind: 'hide' | 'unhide' | 'delete'; item: AdminQAItem } | null;
+  pending: PendingAction | null;
   busy: boolean;
   error: string;
   onConfirm: () => void;
@@ -672,7 +807,7 @@ function ConfirmDialog({ pending, busy, error, onConfirm, onCancel }: {
   }, [pending, busy, onCancel]);
 
   if (!pending) return null;
-  const copy = CONFIRM_COPY[pending.kind];
+  const copy = confirmCopy(pending);
   const confirmCls = {
     amber: 'bg-amber-600 hover:bg-amber-700',
     emerald: 'bg-emerald-600 hover:bg-emerald-700',
@@ -686,16 +821,19 @@ function ConfirmDialog({ pending, busy, error, onConfirm, onCancel }: {
       role="dialog"
       aria-modal="true"
     >
-      <div
-        className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-stone-200 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-stone-200 p-5" onClick={(e) => e.stopPropagation()}>
         <h3 className="text-base font-semibold text-stone-900">{copy.title}</h3>
         <p className="text-sm text-stone-600 mt-2 leading-relaxed">{copy.body}</p>
 
         <div className="mt-3 rounded-lg bg-stone-50 border border-stone-100 px-3 py-2">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-stone-400">{pageLabel(pending.item)}</p>
-          <p className="text-sm text-stone-700 line-clamp-2">{pending.item.question}</p>
+          {pending.scope === 'single' ? (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-stone-400">{pageLabel(pending.item)}</p>
+              <p className="text-sm text-stone-700 line-clamp-2">{pending.item.question}</p>
+            </>
+          ) : (
+            <p className="text-sm text-stone-700">{pending.ids.length} Q&A selected</p>
+          )}
         </div>
 
         {error && (
@@ -703,18 +841,12 @@ function ConfirmDialog({ pending, busy, error, onConfirm, onCancel }: {
         )}
 
         <div className="flex items-center justify-end gap-2 mt-5">
-          <button
-            onClick={onCancel}
-            disabled={busy}
-            className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-sm hover:border-stone-300 cursor-pointer disabled:opacity-50"
-          >
+          <button onClick={onCancel} disabled={busy}
+            className="px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 text-sm hover:border-stone-300 cursor-pointer disabled:opacity-50">
             Cancel
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={busy}
-            className={`px-3 py-1.5 rounded-lg text-white text-sm font-medium cursor-pointer disabled:opacity-60 ${confirmCls}`}
-          >
+          <button onClick={onConfirm} disabled={busy}
+            className={`px-3 py-1.5 rounded-lg text-white text-sm font-medium cursor-pointer disabled:opacity-60 ${confirmCls}`}>
             {busy ? 'Working…' : copy.confirm}
           </button>
         </div>
