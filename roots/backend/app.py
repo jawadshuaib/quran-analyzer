@@ -15,6 +15,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 import uuid
 from collections import OrderedDict, defaultdict
 from urllib.parse import quote
@@ -1491,10 +1492,32 @@ _BISMILLAH = _conn.execute(
 _conn.close()
 
 
+_BISMILLAH_SKELETON = [c for c in _BISMILLAH if not unicodedata.combining(c) and not c.isspace()]
+
+
 def _strip_bismillah(text, surah, ayah):
-    """Strip the Bismillah prefix from verse 1 display text (except 1:1 where it IS the verse)."""
-    if ayah == 1 and surah != 1 and text.startswith(_BISMILLAH):
+    """Strip the Bismillah prefix from verse 1 display text (except 1:1 where it IS the verse).
+
+    Matches by letter skeleton (diacritics ignored) because some surahs carry
+    variant pointing on the basmala — e.g. 95:1 and 97:1 write its ba' with a
+    shadda — which an exact prefix match misses."""
+    if ayah != 1 or surah == 1:
+        return text
+    if text.startswith(_BISMILLAH):
         return text[len(_BISMILLAH):].strip()
+    ti = 0
+    for i, ch in enumerate(text):
+        if unicodedata.combining(ch) or ch.isspace():
+            continue
+        if ti < len(_BISMILLAH_SKELETON) and ch == _BISMILLAH_SKELETON[ti]:
+            ti += 1
+            if ti == len(_BISMILLAH_SKELETON):
+                j = i + 1
+                while j < len(text) and unicodedata.combining(text[j]):
+                    j += 1
+                return text[j:].strip()
+        else:
+            return text
     return text
 
 
@@ -5938,6 +5961,11 @@ def search_roots():
 
 _ADMIN_JWT_EXP_HOURS = 24
 
+# "Remember me" token lifetime. When the operator ticks the box on the
+# login form, we issue a long-lived token instead of the 24h default so
+# the session survives browser restarts and isn't dropped after a day.
+_ADMIN_JWT_REMEMBER_DAYS = 30
+
 # Simple in-memory rate limiter for login attempts
 _login_attempts: dict[str, list[float]] = {}
 _LOGIN_MAX_ATTEMPTS = 5
@@ -6622,12 +6650,17 @@ def admin_verse_of_the_day_delete(pool_id: int):
     return jsonify({"id": pool_id, "deleted": True})
 
 
-def _create_admin_token(user_id: int, username: str, pw_changed_at: int = 0) -> str:
+def _create_admin_token(
+    user_id: int, username: str, pw_changed_at: int = 0, remember: bool = False
+) -> str:
     now = int(datetime.now(timezone.utc).timestamp())
+    ttl_seconds = (
+        _ADMIN_JWT_REMEMBER_DAYS * 24 * 3600 if remember else _ADMIN_JWT_EXP_HOURS * 3600
+    )
     payload = {
         "sub": str(user_id),
         "username": username,
-        "exp": now + _ADMIN_JWT_EXP_HOURS * 3600,
+        "exp": now + ttl_seconds,
         "iat": now,
         "pwc": pw_changed_at,  # invalidated when password changes
     }
@@ -6808,6 +6841,7 @@ def admin_login():
     body = request.get_json(silent=True) or {}
     username = body.get("username", "").strip()
     password = body.get("password", "")
+    remember = bool(body.get("remember"))
 
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
@@ -6831,7 +6865,9 @@ def admin_login():
         except Exception as e:
             print(f"WARNING: _record_admin_ip failed: {e}")
 
-        token = _create_admin_token(row["id"], row["username"], row["pw_changed_at"])
+        token = _create_admin_token(
+            row["id"], row["username"], row["pw_changed_at"], remember=remember
+        )
         return jsonify({"token": token, "username": row["username"]})
     finally:
         conn.close()

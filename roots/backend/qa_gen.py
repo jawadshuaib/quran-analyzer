@@ -201,6 +201,32 @@ def _cross_refs(conn, ch, v, words, max_roots=6, examples=3):
     return lines
 
 
+def _strip_bismillah_prefix(conn, text, ch, v):
+    """Drop the embedded basmala from verse-1 display text (except 1:1), matching
+    by letter skeleton so diacritic variants (e.g. 95:1, 97:1) still strip."""
+    import unicodedata
+    if v != 1 or ch == 1:
+        return text
+    bis = conn.execute(
+        "SELECT text_uthmani FROM verses WHERE chapter=1 AND verse=1"
+    ).fetchone()["text_uthmani"]
+    skel = [c for c in bis if not unicodedata.combining(c) and not c.isspace()]
+    ti = 0
+    for i, chr_ in enumerate(text):
+        if unicodedata.combining(chr_) or chr_.isspace():
+            continue
+        if ti < len(skel) and chr_ == skel[ti]:
+            ti += 1
+            if ti == len(skel):
+                j = i + 1
+                while j < len(text) and unicodedata.combining(text[j]):
+                    j += 1
+                return text[j:].strip()
+        else:
+            return text
+    return text
+
+
 def build_context(conn, ch, v):
     ref = f"{ch}:{v}"
     row = conn.execute(
@@ -208,7 +234,7 @@ def build_context(conn, ch, v):
     ).fetchone()
     if not row:
         return None
-    uthmani = row["text_uthmani"]
+    uthmani = _strip_bismillah_prefix(conn, row["text_uthmani"], ch, v)
     tr = conn.execute(
         "SELECT text_en FROM translations WHERE chapter=? AND verse=?", (ch, v)
     ).fetchone()
@@ -404,6 +430,7 @@ def cmd_add(conn, args):
             "source_notes": it.get("source_notes", ""),
             "cited_refs": valid_refs,
             "flags": flags,
+            "voice": "v2",  # written under the teacher/triangulate answer voice
         }
         cur = conn.execute(
             "INSERT INTO assistant_conversations "
@@ -428,6 +455,139 @@ def cmd_add(conn, args):
     )
     conn.commit()
     print(json.dumps({"verse": ref, "stored": stored, "skipped": skipped}, ensure_ascii=False))
+    return 0
+
+
+def cmd_revise(conn, args):
+    """Rewrite an existing AI draft in place (e.g. to apply a new answer
+    voice). Re-runs the same validation as `add` so flags stay accurate,
+    preserves category/score when the payload omits them, and stamps
+    edited_at. Payload is a single object (or one-element list) with at
+    least `answer`; `question`, `category`, `score`, `source_notes` are
+    optional overrides."""
+    row = conn.execute(
+        "SELECT id, page_key, question, category, quality_score, generation_meta "
+        "FROM assistant_conversations WHERE id=? AND source='ai'",
+        (args.id,),
+    ).fetchone()
+    if not row:
+        print(json.dumps({"error": f"no AI draft with id {args.id}"})); return 1
+
+    items = _load_payload(args)
+    if not items:
+        print(json.dumps({"error": "empty payload"})); return 1
+    it = items[0]
+
+    q = (it.get("question") or row["question"] or "").strip()
+    a = (it.get("answer") or "").strip()
+    if not a:
+        print(json.dumps({"error": "revise payload must include a non-empty answer"})); return 1
+    cat = (it.get("category") or row["category"] or "other").strip().lower()
+    if cat not in ALLOWED_CATEGORIES:
+        cat = "other"
+    score = it.get("score", row["quality_score"])
+
+    flags = []
+    bad = _banned_hits(q + " " + a)
+    if bad:
+        flags.append("post_quranic_terms:" + ",".join(bad))
+    valid_refs, invalid_refs = _find_refs(conn, q + " " + a)
+    if invalid_refs:
+        flags.append("invalid_refs:" + ",".join(invalid_refs))
+
+    try:
+        meta = json.loads(row["generation_meta"]) if row["generation_meta"] else {}
+    except Exception:
+        meta = {}
+    if "source_notes" in it:
+        meta["source_notes"] = it.get("source_notes", "")
+    meta["cited_refs"] = valid_refs
+    meta["flags"] = flags
+    meta["voice"] = "v2"               # revising IS the voice fix → now new-voice
+    meta.pop("needs_voice_revision", None)  # clear the backlog flag
+
+    conn.execute(
+        "UPDATE assistant_conversations SET question=?, answer=?, category=?, "
+        "quality_score=?, generation_meta=?, edited_at=? WHERE id=?",
+        (q[:500], a[:50000], cat,
+         float(score) if score is not None else None,
+         json.dumps(meta, ensure_ascii=False), now_iso(), args.id),
+    )
+    conn.commit()
+    print(json.dumps(
+        {"id": args.id, "verse": row["page_key"], "category": cat, "score": score, "flags": flags},
+        ensure_ascii=False,
+    ))
+    return 0
+
+
+def cmd_revise_queue(conn, args):
+    """The voice-revision backlog: drafts written in the old verdict-first
+    voice, flagged for a later rephrasing pass. The discovered evidence
+    already lives in each row's source_notes, so the later pass is
+    *rephrasing*, not re-research. New/revised drafts carry meta.voice ==
+    'v2' and are excluded automatically.
+
+      --mark-all  one-time: flag every old-voice (non-v2) AI draft.
+      --stats     how many remain flagged, by category.
+      (default)   list the next N flagged drafts WITH their current
+                  question/answer/source_notes — everything the pass needs
+                  to rephrase in one call. Pending first, then by score.
+    """
+    if args.mark_all:
+        marked = 0
+        for r in conn.execute(
+            "SELECT id, generation_meta FROM assistant_conversations WHERE source='ai'"
+        ).fetchall():
+            try:
+                meta = json.loads(r["generation_meta"]) if r["generation_meta"] else {}
+            except Exception:
+                meta = {}
+            if meta.get("voice") == "v2" or meta.get("needs_voice_revision"):
+                continue  # already new-voice, or already flagged
+            meta["needs_voice_revision"] = True
+            conn.execute(
+                "UPDATE assistant_conversations SET generation_meta=? WHERE id=?",
+                (json.dumps(meta, ensure_ascii=False), r["id"]),
+            )
+            marked += 1
+        conn.commit()
+        print(json.dumps({"marked_needs_voice_revision": marked}, ensure_ascii=False))
+        return 0
+
+    rows = conn.execute(
+        "SELECT id, page_key, category, quality_score, review_status, question, answer, generation_meta "
+        "FROM assistant_conversations WHERE source='ai' "
+        "ORDER BY (review_status='pending') DESC, quality_score DESC, id ASC"
+    ).fetchall()
+    flagged, by_cat = [], {}
+    for r in rows:
+        try:
+            meta = json.loads(r["generation_meta"]) if r["generation_meta"] else {}
+        except Exception:
+            meta = {}
+        if not meta.get("needs_voice_revision"):
+            continue
+        by_cat[r["category"]] = by_cat.get(r["category"], 0) + 1
+        if args.category and r["category"] != args.category:
+            continue
+        flagged.append((r, meta))
+
+    if args.stats:
+        print(json.dumps(
+            {"remaining_by_category": by_cat, "remaining_total": sum(by_cat.values())},
+            ensure_ascii=False))
+        return 0
+
+    out = [{
+        "id": r["id"], "ref": r["page_key"], "category": r["category"],
+        "score": r["quality_score"], "review_status": r["review_status"],
+        "question": r["question"], "answer": r["answer"],
+        "source_notes": meta.get("source_notes", ""),
+    } for r, meta in flagged[:args.count]]
+    print(json.dumps(
+        {"items": out, "shown": len(out), "remaining_total": sum(by_cat.values())},
+        ensure_ascii=False, indent=2))
     return 0
 
 
@@ -507,6 +667,17 @@ def main():
     ps.add_argument("--reason", default="")
     ps.add_argument("--model", default=DEFAULT_MODEL)
 
+    prv = sub.add_parser("revise", help="Rewrite an existing AI draft by id (re-validates, stamps edited_at)")
+    prv.add_argument("--id", type=int, required=True)
+    prv.add_argument("--file")
+    prv.add_argument("--json")
+
+    prq = sub.add_parser("revise-queue", help="Voice-revision backlog: --mark-all flags old-voice drafts; default lists next N with full payload; --stats counts")
+    prq.add_argument("--count", type=int, default=5)
+    prq.add_argument("--category")
+    prq.add_argument("--mark-all", action="store_true", help="One-time: flag every old-voice (non-v2) AI draft for later revision")
+    prq.add_argument("--stats", action="store_true", help="Show how many remain flagged, by category")
+
     sub.add_parser("stats", help="Progress + review-queue summary")
 
     args = p.parse_args()
@@ -524,6 +695,10 @@ def main():
             return cmd_add(conn, args)
         elif args.cmd == "skip":
             return cmd_skip(conn, args)
+        elif args.cmd == "revise":
+            return cmd_revise(conn, args)
+        elif args.cmd == "revise-queue":
+            return cmd_revise_queue(conn, args)
         elif args.cmd == "stats":
             cmd_stats(conn, args)
     finally:
