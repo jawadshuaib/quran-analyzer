@@ -1,0 +1,34 @@
+{
+  "qa_id": 1247,
+  "anchor_ref": "14:7",
+  "title": "Why are 'ungrateful' and 'denying God' the same word in the Qur'an?",
+  "theme": "gratitude-and-denial",
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "In the Qur'an, being ungrateful and denying God are the very same word. Why would those be one word?"
+    },
+    {
+      "kind": "set",
+      "narration": "This verse makes a promise: be grateful, and you'll be given more. But the word it uses for the opposite of grateful is the same one it uses for denying God — one root, *kufr*, meaning to cover something over.",
+      "verse": {
+        "ref": "14:7",
+        "highlight_phrase_en": "cover [it in ingratitude]",
+        "highlight_words_ar": ["كَفَرْتُمْ"]
+      }
+    },
+    {
+      "kind": "turn",
+      "narration": "Here's where it gets interesting: the Qur'an places the two side by side — 'be grateful to Me, and do not cover Me over.' The same word that means denying God is the word for shrugging off a gift.",
+      "verse": {
+        "ref": "2:152",
+        "highlight_phrase_en": "do not be ungrateful toward Me",
+        "highlight_words_ar": ["تَكْفُرُونِ"]
+      }
+    },
+    {
+      "kind": "land",
+      "narration": "So ingratitude isn't treated as a small thing. Covering over a gift is the same motion as covering over the one who gave it — and a gift you've hidden from yourself is one you can no longer enjoy."
+    }
+  ]
+}

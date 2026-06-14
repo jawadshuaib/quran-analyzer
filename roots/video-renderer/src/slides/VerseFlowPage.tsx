@@ -2,6 +2,7 @@ import { AbsoluteFill, useCurrentFrame, interpolate, Easing } from 'remotion';
 import type { VerseFlowSlideT } from '../types';
 import { COLORS, ARABIC_FONT, SYSTEM_FONT, ENTRY_FRAMES } from './shared';
 import { wrapArabicRuns } from './arabic-runs';
+import { splitArabicWords, resolveHighlightSet, findEnglishSpan } from './highlight.mjs';
 
 // Slide B — full verse with the target word highlighted in soft yellow.
 //
@@ -56,24 +57,19 @@ export function VerseFlowPage({ slide }: { slide: VerseFlowSlideT }) {
   // against per word — works for one word OR a contiguous phrase
   // ("what struck them will be striking her" spans words 21-23 on
   // verse 11:81, and all three need to light up together).
-  const words = slide.arabicText.split(/\s+/);
-  const highlightSet = new Set<number>();
-  if (Array.isArray(slide.highlightWordIndices)) {
-    for (const i of slide.highlightWordIndices) {
-      if (Number.isInteger(i) && i > 0) highlightSet.add(i - 1);
-    }
-  }
-  if (Number.isInteger(slide.highlightWordIndex) && (slide.highlightWordIndex ?? 0) > 0) {
-    highlightSet.add((slide.highlightWordIndex as number) - 1);
-  }
+  //
+  // The split + set + English-span logic lives in the shared
+  // ./highlight.mjs resolver so the Q&A match-gate's verifier
+  // (scripts/verify.mjs) computes the painted words from the EXACT
+  // same code that renders here — no drift between validation and
+  // pixels.
+  const words = splitArabicWords(slide.arabicText);
+  const highlightSet = resolveHighlightSet(slide);
 
   // Find the highlighted English phrase (case-insensitive).
-  const englishHighlight = slide.highlightTranslationText?.trim() ?? '';
-  const translationLower = slide.translation.toLowerCase();
-  const enMatchStart = englishHighlight
-    ? translationLower.indexOf(englishHighlight.toLowerCase())
-    : -1;
-  const enMatchEnd = enMatchStart >= 0 ? enMatchStart + englishHighlight.length : -1;
+  const enSpan = findEnglishSpan(slide.translation, slide.highlightTranslationText);
+  const enMatchStart = enSpan.start;
+  const enMatchEnd = enSpan.end;
 
   // Auto-scale the translation font by length. Short, punchy
   // translations get bigger so they feel like the payoff line; long

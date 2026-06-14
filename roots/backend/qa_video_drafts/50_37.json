@@ -1,0 +1,34 @@
+{
+  "qa_id": 4519,
+  "anchor_ref": "50:37",
+  "title": "The Qur'an says its message is 'for whoever has a heart.' But doesn't everyone?",
+  "theme": "the-heart",
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "The Qur'an says its message is 'for whoever has a heart.' But doesn't everyone already have one?"
+    },
+    {
+      "kind": "set",
+      "narration": "The verse offers its reminder 'for whoever has a heart' — *qalb*. Which is strange, since everyone has one. So notice what it isn't saying: it isn't talking about the organ beating in your chest.",
+      "verse": {
+        "ref": "50:37",
+        "highlight_phrase_en": "for whoever has a heart",
+        "highlight_words_ar": ["قَلْبٌ"]
+      }
+    },
+    {
+      "kind": "turn",
+      "narration": "Here's where it gets interesting: elsewhere the Qur'an says it is not the eyes that go blind, but the hearts — the ones inside the chest. A heart, here, means the capacity to actually take something in.",
+      "verse": {
+        "ref": "22:46",
+        "highlight_phrase_en": "but the hearts that go blind",
+        "highlight_words_ar": ["الْقُلُوبُ"]
+      }
+    },
+    {
+      "kind": "land",
+      "narration": "So 'whoever has a heart' isn't everyone — it's whoever keeps that capacity awake. The reminder is offered to all, but it only lands where a heart is still open enough to receive it."
+    }
+  ]
+}

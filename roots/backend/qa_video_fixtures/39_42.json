@@ -1,0 +1,34 @@
+{
+  "qa_id": 3913,
+  "anchor_ref": "39:42",
+  "title": "Why does the Qur'an use the death-verb for sleep?",
+  "theme": "death-and-sleep",
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "One Arabic verb — yatawaffā, to take in full — does two jobs in this verse: dying, and falling asleep. Why the same word for both?"
+    },
+    {
+      "kind": "set",
+      "narration": "Notice what it doesn't say: not that sleep resembles death, but that one verb performs both. Then it forks — He holds one self back, and sends the other on until an appointed term.",
+      "verse": {
+        "ref": "39:42",
+        "highlight_phrase_en": "fully takes",
+        "highlight_words_ar": ["يَتَوَفَّى"]
+      }
+    },
+    {
+      "kind": "turn",
+      "narration": "Okay — here's where it gets interesting. 6:60 runs the same scene with a bolder verb: baʿatha, the resurrection word, used for waking up in the morning.",
+      "verse": {
+        "ref": "6:60",
+        "highlight_phrase_en": "raises you up",
+        "highlight_words_ar": ["يَبْعَثُكُمْ"]
+      }
+    },
+    {
+      "kind": "land",
+      "narration": "So sleep is spoken of in the language of death, and waking in the language of resurrection. The most we can fairly say is this: the proof offered for being raised again isn't exotic — it's last night."
+    }
+  ]
+}
