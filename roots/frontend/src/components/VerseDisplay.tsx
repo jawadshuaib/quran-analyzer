@@ -1,12 +1,11 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData } from '../types';
 import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis } from '../api/quran';
-import FormattedText from './FormattedText';
+import FormattedText, { FormattedInline } from './FormattedText';
 import { TranslationWithChips, type WordContext } from './TermChip';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
 import SelectionHeader from './SelectionHeader';
-import VerseRefText from './VerseRefText';
 import MethodologyTooltip from './MethodologyTooltip';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
@@ -569,7 +568,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           <div className="text-sm text-violet-800 leading-relaxed">
             {splitDepartureNotes(aiTranslation.departure_notes).map((line, i) => (
               <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-                <VerseRefText text={line} />
+                <FormattedInline text={line} />
               </p>
             ))}
           </div>

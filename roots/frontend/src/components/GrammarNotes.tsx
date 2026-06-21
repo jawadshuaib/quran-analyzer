@@ -137,6 +137,24 @@ export function NotesBody({ markdown, terms }: { markdown: string; terms: Record
   );
 }
 
+// Apply **bold** / *italic* markdown to a plain-text run, keeping inline
+// Arabic glyph runs wrapped in the Arabic font. Mirrors FormattedText's
+// inline emphasis so grammar notes style transliterations/emphasis (e.g.
+// *idha*, *does*) the same way the exegesis does, instead of showing the
+// literal asterisks. (** wins over a single * — listed first in the split.)
+function renderEmphasis(text: string, keyBase: number): React.ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g).map((part, i) => {
+    const k = `${keyBase}-${i}`;
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={k} className="font-semibold">{wrapArabicRuns(part.slice(2, -2))}</strong>;
+    }
+    if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+      return <em key={k} className="italic">{wrapArabicRuns(part.slice(1, -1))}</em>;
+    }
+    return <span key={k}>{wrapArabicRuns(part)}</span>;
+  });
+}
+
 function renderWithMarkers(text: string, terms: Record<string, GrammarTerm>) {
   const nodes: React.ReactNode[] = [];
   const regex = /\[\[([^\]]+)\]\]/g;
@@ -146,7 +164,7 @@ function renderWithMarkers(text: string, terms: Record<string, GrammarTerm>) {
 
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIdx) {
-      nodes.push(<span key={key++}>{wrapArabicRuns(text.slice(lastIdx, match.index))}</span>);
+      nodes.push(<span key={key++}>{renderEmphasis(text.slice(lastIdx, match.index), key)}</span>);
     }
     const raw = match[1].trim();
     const lookup = raw.toLowerCase();
@@ -160,7 +178,7 @@ function renderWithMarkers(text: string, terms: Record<string, GrammarTerm>) {
     lastIdx = regex.lastIndex;
   }
   if (lastIdx < text.length) {
-    nodes.push(<span key={key++}>{wrapArabicRuns(text.slice(lastIdx))}</span>);
+    nodes.push(<span key={key++}>{renderEmphasis(text.slice(lastIdx), key)}</span>);
   }
   return nodes;
 }

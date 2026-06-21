@@ -13,8 +13,7 @@ import {
   setReaderNotesVisible,
   subscribeToReaderPrefs,
 } from '../../utils/reader-prefs';
-import VerseRefText from '../VerseRefText';
-import FormattedText from '../FormattedText';
+import FormattedText, { FormattedInline } from '../FormattedText';
 import { NotesBody } from '../GrammarNotes';
 import { splitDepartureNotes } from '../../utils/departure-notes';
 import { TranslationWithChips } from '../TermChip';
@@ -467,14 +466,14 @@ function VerseNotesPanel({
           <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
             Translation Notes
           </h4>
-          {/* VerseRefText auto-links verse refs (2:155), Arabic root refs
-              (ر ح م), and italicizes quoted strings — same hover-preview
-              behavior as the research view, so notes feel consistent
-              across both surfaces. */}
+          {/* FormattedInline applies *italic* / **bold** emphasis AND auto-links
+              verse refs (2:155) + transliterated/Arabic roots — same inline
+              rendering as the research view, so notes feel consistent across
+              both surfaces. */}
           <div className="text-sm leading-relaxed text-ink-secondary">
             {splitDepartureNotes(translation.departure_notes).map((line, i) => (
               <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-                <VerseRefText text={line} />
+                <FormattedInline text={line} />
               </p>
             ))}
           </div>
