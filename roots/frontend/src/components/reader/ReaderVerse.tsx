@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useState } from 'react';
-import type { SurahVerse, AITranslationData, GrammarNotesData } from '../../types';
+import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData } from '../../types';
 import { toggleSavedItem, isSaved } from '../../utils/saved-items';
 import {
   notifySavedItemsChanged,
@@ -7,8 +7,14 @@ import {
 } from '../SavedItemsPanel';
 import { getNote, setNote, subscribeToNotes } from '../../utils/user-notes';
 import { getSurahName } from '../../utils/surah-names';
-import { fetchAITranslation, fetchGrammarNotes } from '../../api/quran';
+import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis } from '../../api/quran';
+import {
+  isReaderNotesVisible,
+  setReaderNotesVisible,
+  subscribeToReaderPrefs,
+} from '../../utils/reader-prefs';
 import VerseRefText from '../VerseRefText';
+import FormattedText from '../FormattedText';
 import { NotesBody } from '../GrammarNotes';
 import { splitDepartureNotes } from '../../utils/departure-notes';
 import { TranslationWithChips } from '../TermChip';
@@ -64,7 +70,11 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   const verseKey = `${surah}:${verse.verse}`;
   const [note, setNoteState] = useState<string>(() => getNote(surah, verse.verse));
   const [saved, setSaved] = useState<boolean>(() => isSaved('verse', verseKey));
-  const [activePanel, setActivePanel] = useState<'note' | 'verse-notes' | null>(null);
+  // Personal-note editor is per-verse; the translation/grammar/exegesis notes
+  // are a GLOBAL toggle (one click shows them under every verse), remembered
+  // in localStorage and synced across verses via the reader-prefs event.
+  const [activePanel, setActivePanel] = useState<'note' | null>(null);
+  const [notesVisible, setNotesVisibleState] = useState<boolean>(() => isReaderNotesVisible());
   const [highlightFlash, setHighlightFlash] = useState(highlighted);
   // Track which word position is hovered (or focus-active) for the
   // morphology tooltip. -1 = no hover.
@@ -76,6 +86,12 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
     update();
     return subscribeVerseAudio(update);
   }, [verseKey]);
+
+  // Keep the global notes-visibility toggle in sync across every verse.
+  useEffect(
+    () => subscribeToReaderPrefs(() => setNotesVisibleState(isReaderNotesVisible())),
+    [],
+  );
 
   // Per-word Arabic for the word-by-word display. We split the verse's
   // Uthmani text on whitespace — same approach /verse/<ref> uses —
@@ -127,7 +143,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }
 
   const hasNote = !!note.trim();
-  const hasVerseNotes = verse.has_translation_note || verse.has_grammar_note;
+  const hasVerseNotes = verse.has_translation_note || verse.has_grammar_note || !!verse.has_exegesis;
 
   return (
     <article
@@ -174,15 +190,9 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
         <div className="flex flex-col items-center gap-1.5 mt-1">
           {hasVerseNotes && (
             <GutterIcon
-              label={
-                verse.has_translation_note && verse.has_grammar_note
-                  ? 'Translation + grammar notes'
-                  : verse.has_translation_note
-                    ? 'Translation notes'
-                    : 'Grammar notes'
-              }
-              active={activePanel === 'verse-notes'}
-              onClick={() => setActivePanel(activePanel === 'verse-notes' ? null : 'verse-notes')}
+              label={notesVisible ? 'Hide notes' : 'Show notes for all verses'}
+              active={notesVisible}
+              onClick={() => setReaderNotesVisible(!notesVisible)}
             >
               <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
                 <path d="M8 1a1 1 0 011 1v.5h2A1.5 1.5 0 0112.5 4v9A1.5 1.5 0 0111 14.5H5A1.5 1.5 0 013.5 13V4A1.5 1.5 0 015 2.5h2V2a1 1 0 011-1zm0 1.6V3h-1.5V2.6a.4.4 0 01.4-.4h.7a.4.4 0 01.4.4zM6 7h4a.5.5 0 010 1H6a.5.5 0 010-1zm0 2h4a.5.5 0 010 1H6a.5.5 0 010-1z" />
@@ -317,12 +327,13 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             />
           </div>
         )}
-        {activePanel === 'verse-notes' && (
+        {notesVisible && hasVerseNotes && (
           <VerseNotesPanel
             surah={surah}
             verse={verse.verse}
             hasTranslation={verse.has_translation_note}
             hasGrammar={verse.has_grammar_note}
+            hasExegesis={!!verse.has_exegesis}
           />
         )}
       </div>
@@ -397,14 +408,17 @@ function VerseNotesPanel({
   verse,
   hasTranslation,
   hasGrammar,
+  hasExegesis,
 }: {
   surah: number;
   verse: number;
   hasTranslation: boolean;
   hasGrammar: boolean;
+  hasExegesis: boolean;
 }) {
   const [translation, setTranslation] = useState<AITranslationData | null>(null);
   const [grammar, setGrammar] = useState<GrammarNotesData | null>(null);
+  const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -415,15 +429,17 @@ function VerseNotesPanel({
     Promise.all([
       hasTranslation ? fetchAITranslation(surah, verse).catch(() => null) : Promise.resolve(null),
       hasGrammar ? fetchGrammarNotes(surah, verse).catch(() => null) : Promise.resolve(null),
-    ]).then(([t, g]) => {
+      hasExegesis ? fetchVerseExegesis(surah, verse).catch(() => null) : Promise.resolve(null),
+    ]).then(([t, g, ex]) => {
       if (cancelled) return;
       setTranslation(t);
       setGrammar(g);
+      setExegesis(ex);
       setLoading(false);
-      if (!t && !g) setError('No notes available for this verse.');
+      if (!t && !g && !ex) setError('No notes available for this verse.');
     });
     return () => { cancelled = true; };
-  }, [surah, verse, hasTranslation, hasGrammar]);
+  }, [surah, verse, hasTranslation, hasGrammar, hasExegesis]);
 
   if (loading) {
     return (
@@ -473,6 +489,18 @@ function VerseNotesPanel({
               chips with hover-popover definition cards used on /verse/<ref>. */}
           <div className="text-sm leading-relaxed text-ink-secondary">
             <NotesBody markdown={grammar.notes_markdown} terms={grammar.terms} />
+          </div>
+        </div>
+      )}
+      {exegesis?.exegesis_markdown && (
+        <div className={(translation?.departure_notes || grammar?.notes_markdown) ? 'pt-3 border-t border-card-border/70' : ''}>
+          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
+            Exegesis
+          </h4>
+          {/* FormattedText linkifies verse refs and transliterated roots
+              (e.g. f-l-q) with the same hover tooltips as the research view. */}
+          <div className="text-sm leading-relaxed text-ink-secondary">
+            <FormattedText text={exegesis.exegesis_markdown} />
           </div>
         </div>
       )}

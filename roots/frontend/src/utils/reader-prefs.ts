@@ -1,5 +1,7 @@
 /**
- * Reader-mode preferences. Currently just the word-by-word toggle.
+ * Reader-mode preferences: the word-by-word toggle and the notes-visibility
+ * toggle (translation / grammar / exegesis notes shown inline under every
+ * verse).
  *
  * Same defensive persistence rules as user-notes / last-read:
  *   - Stable namespaced key (we keep the EXISTING quranExplorer.wordToWord
@@ -11,6 +13,7 @@
  */
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
+const NOTES_VISIBLE_KEY = 'quranExplorer.readerNotesVisible';
 const CHANGE_EVENT = 'quranExplorer:reader-prefs-changed';
 
 export function isWordByWordEnabled(): boolean {
@@ -30,10 +33,29 @@ export function setWordByWordEnabled(enabled: boolean): void {
   }
 }
 
+/** Whether the reader shows translation/grammar/exegesis notes inline under
+ *  every verse. Toggled from any verse's Notes icon; remembered per browser. */
+export function isReaderNotesVisible(): boolean {
+  try {
+    return localStorage.getItem(NOTES_VISIBLE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setReaderNotesVisible(enabled: boolean): void {
+  try {
+    localStorage.setItem(NOTES_VISIBLE_KEY, enabled ? '1' : '0');
+    window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  } catch {
+    /* silent */
+  }
+}
+
 export function subscribeToReaderPrefs(cb: () => void): () => void {
   const onCustom = () => cb();
   const onStorage = (e: StorageEvent) => {
-    if (e.key === WORD_TO_WORD_KEY) cb();
+    if (e.key === WORD_TO_WORD_KEY || e.key === NOTES_VISIBLE_KEY) cb();
   };
   window.addEventListener(CHANGE_EVENT, onCustom);
   window.addEventListener('storage', onStorage);

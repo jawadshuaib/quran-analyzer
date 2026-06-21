@@ -99,6 +99,8 @@ export interface SurahVerse {
   translation: string;
   has_translation_note: boolean;
   has_grammar_note: boolean;
+  /** True when an approved, non-hidden exegesis note exists for this verse. */
+  has_exegesis?: boolean;
   /** Present when /api/surah/<n>?include=words was requested. */
   words?: SurahVerseWord[];
   /** Present when ?include=surveyed_roots was requested. Subset of roots

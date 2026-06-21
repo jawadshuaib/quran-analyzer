@@ -3193,6 +3193,18 @@ def get_surah(surah: int):
         ).fetchall()
         has_grammar = {r["verse"] for r in gn_rows}
 
+        # Exegesis-note presence (approved + non-hidden only — same gate as
+        # the public /api/verse/<>/exegesis endpoint), so the reader's Notes
+        # icon appears whenever a publicly-visible exegesis note exists.
+        _ensure_exegesis_table(conn)
+        exeg_rows = conn.execute(
+            "SELECT verse FROM verse_exegesis "
+            "WHERE chapter = ? AND review_status = 'approved' "
+            "  AND COALESCE(hidden, 0) = 0",
+            (surah,),
+        ).fetchall()
+        has_exegesis = {r["verse"] for r in exeg_rows}
+
         # Optional: per-word data (full segments + translation). Grouped
         # by word_pos so prefixes/suffixes/content all live under one
         # word entry — earlier we only kept ONE segment per word_pos
@@ -3358,6 +3370,7 @@ def get_surah(surah: int):
                 "translation": tr.get("translation", ""),
                 "has_translation_note": bool(tr.get("has_translation_note")),
                 "has_grammar_note": v in has_grammar,
+                "has_exegesis": v in has_exegesis,
             }
             if include_words:
                 entry["words"] = words_by_verse.get(v, [])
