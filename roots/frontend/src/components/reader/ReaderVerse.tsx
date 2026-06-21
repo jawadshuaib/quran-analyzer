@@ -480,20 +480,8 @@ function VerseNotesPanel({
           </div>
         </div>
       )}
-      {grammar?.notes_markdown && (
-        <div className={translation?.departure_notes ? 'pt-3 border-t border-card-border/70' : ''}>
-          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
-            Grammar Notes
-          </h4>
-          {/* NotesBody renders [[term]] markers as the same wavy-underline
-              chips with hover-popover definition cards used on /verse/<ref>. */}
-          <div className="text-sm leading-relaxed text-ink-secondary">
-            <NotesBody markdown={grammar.notes_markdown} terms={grammar.terms} />
-          </div>
-        </div>
-      )}
       {exegesis?.exegesis_markdown && (
-        <div className={(translation?.departure_notes || grammar?.notes_markdown) ? 'pt-3 border-t border-card-border/70' : ''}>
+        <div className={translation?.departure_notes ? 'pt-3 border-t border-card-border/70' : ''}>
           <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
             Exegesis
           </h4>
@@ -501,6 +489,18 @@ function VerseNotesPanel({
               (e.g. f-l-q) with the same hover tooltips as the research view. */}
           <div className="text-sm leading-relaxed text-ink-secondary">
             <FormattedText text={exegesis.exegesis_markdown} />
+          </div>
+        </div>
+      )}
+      {grammar?.notes_markdown && (
+        <div className={(translation?.departure_notes || exegesis?.exegesis_markdown) ? 'pt-3 border-t border-card-border/70' : ''}>
+          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
+            Grammar Notes
+          </h4>
+          {/* NotesBody renders [[term]] markers as the same wavy-underline
+              chips with hover-popover definition cards used on /verse/<ref>. */}
+          <div className="text-sm leading-relaxed text-ink-secondary">
+            <NotesBody markdown={grammar.notes_markdown} terms={grammar.terms} />
           </div>
         </div>
       )}
