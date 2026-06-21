@@ -36,11 +36,15 @@ async function authFetch(url: string, options: RequestInit = {}): Promise<Respon
   return res;
 }
 
-export async function login(username: string, password: string): Promise<{ token: string; username: string }> {
+export async function login(
+  username: string,
+  password: string,
+  remember = false,
+): Promise<{ token: string; username: string }> {
   const res = await fetch(`${BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, remember }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Login failed');
@@ -2387,6 +2391,7 @@ export interface AdminQAStats {
   last_24_hours: number;
   by_type: { page_type: string; count: number }[];
   by_model: { model: string; count: number }[];
+  by_score: { score: number; count: number }[];
   top_pages: { page_type: string; page_key: string; count: number }[];
 }
 
@@ -2399,6 +2404,7 @@ export interface AdminQAQuery {
   model?: string;
   source?: string;          // 'user' | 'ai'
   review_status?: string;   // 'pending' | 'approved' | 'rejected'
+  score?: string;           // '1'–'5' quality grade
   status?: AdminQAStatus;
   sort?: AdminQASort;
   limit?: number;
@@ -2412,6 +2418,7 @@ export async function getAdminQA(query: AdminQAQuery = {}): Promise<AdminQAListR
   if (query.model) params.set('model', query.model);
   if (query.source) params.set('source', query.source);
   if (query.review_status) params.set('review_status', query.review_status);
+  if (query.score) params.set('score', query.score);
   if (query.status && query.status !== 'all') params.set('status', query.status);
   if (query.sort) params.set('sort', query.sort);
   params.set('limit', String(query.limit ?? 25));
@@ -2457,6 +2464,109 @@ export type AdminQABulkOp = 'approve' | 'reject' | 'pending' | 'hide' | 'unhide'
 /** Apply one moderation op to many rows at once (review-queue triage). */
 export async function bulkAdminQA(ids: number[], op: AdminQABulkOp): Promise<{ affected: number }> {
   const res = await authFetch(`${BASE}/assistant/qa/bulk`, {
+    method: 'POST',
+    body: JSON.stringify({ ids, op }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Bulk action failed');
+  return data;
+}
+
+/* ---------------------------------------------------------------- */
+/*  Verse exegesis — teacher-voice commentary distilled from Q&A    */
+/* ---------------------------------------------------------------- */
+
+export interface AdminExegesisItem {
+  id: number;
+  chapter: number;
+  verse: number;
+  page_key: string;               // 'C:V'
+  exegesis_markdown: string;
+  source_gem_ids: number[] | null;
+  source_scores: number[] | null;
+  model_used: string | null;
+  review_status: string | null;   // 'pending' | 'approved' | 'rejected'
+  hidden: boolean;
+  template_version: string | null;
+  generation_meta: { source_notes?: string; flags?: string[]; [k: string]: unknown } | null;
+  created_at: string;
+  edited_at: string | null;
+}
+
+export interface AdminExegesisStats {
+  total: number;
+  visible: number;
+  hidden: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  verses: number;
+  edited: number;
+}
+
+export type AdminExegesisSort = 'recent' | 'oldest' | 'verse' | 'longest';
+export type AdminExegesisBulkOp = AdminQABulkOp;
+
+export interface AdminExegesisQuery {
+  q?: string;
+  review_status?: string;
+  status?: AdminQAStatus;
+  sort?: AdminExegesisSort;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminExegesisListResponse {
+  items: AdminExegesisItem[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export async function getAdminExegesis(query: AdminExegesisQuery = {}): Promise<AdminExegesisListResponse> {
+  const params = new URLSearchParams();
+  if (query.q) params.set('q', query.q);
+  if (query.review_status) params.set('review_status', query.review_status);
+  if (query.status && query.status !== 'all') params.set('status', query.status);
+  if (query.sort) params.set('sort', query.sort);
+  params.set('limit', String(query.limit ?? 25));
+  params.set('offset', String(query.offset ?? 0));
+  const res = await authFetch(`${BASE}/exegesis?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load exegesis');
+  return data as AdminExegesisListResponse;
+}
+
+export async function getAdminExegesisStats(): Promise<AdminExegesisStats> {
+  const res = await authFetch(`${BASE}/exegesis/stats`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load exegesis stats');
+  return data as AdminExegesisStats;
+}
+
+export async function updateAdminExegesis(
+  id: number,
+  patch: { hidden?: boolean; exegesis_markdown?: string; review_status?: string },
+): Promise<AdminExegesisItem> {
+  const res = await authFetch(`${BASE}/exegesis/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Update failed');
+  return data.item as AdminExegesisItem;
+}
+
+export async function deleteAdminExegesis(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/exegesis/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Delete failed');
+  }
+}
+
+export async function bulkAdminExegesis(ids: number[], op: AdminExegesisBulkOp): Promise<{ affected: number }> {
+  const res = await authFetch(`${BASE}/exegesis/bulk`, {
     method: 'POST',
     body: JSON.stringify({ ids, op }),
   });

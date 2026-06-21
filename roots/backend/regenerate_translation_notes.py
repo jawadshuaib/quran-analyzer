@@ -22,7 +22,7 @@ import requests
 
 from app import get_db, _get_claude_api_key
 
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
 PROMPT_TEMPLATE = """\

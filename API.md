@@ -75,6 +75,8 @@ The primary endpoint. Returns verse text, translation, word-by-word data, and ro
 | `thematic-context` | Passage theme, surah role, and Quran-wide thematic links |
 | `surah-context` | Narrative progression up to this verse within the surah |
 | `grammar` | Morphosyntactic grammar insights |
+| `grammar-notes` | Prose grammar commentary with an inline `[[term]]` glossary |
+| `exegesis` | Approved teacher-voice exegesis note (raw markdown), when one exists |
 | `all` | Shorthand for every field above |
 
 **Example — basic:**
@@ -139,7 +141,7 @@ curl "https://al-nuqta.com/api/v1/verses/67:1"
 curl "https://al-nuqta.com/api/v1/verses/2:255?fields=all"
 ```
 
-Returns all of the above plus `ai_translation`, `word_meanings`, `related_verses`, `context_verses`, `thematic_context`, `surah_context`, and `grammar_insights` — all in a single response.
+Returns all of the above plus `ai_translation`, `word_meanings`, `related_verses`, `context_verses`, `thematic_context`, `surah_context`, `grammar_insights`, `grammar_notes`, and `exegesis` — all in a single response.
 
 ---
 
@@ -157,8 +159,38 @@ Each field is also available as its own endpoint:
 | `GET /api/v1/verses/{s}:{a}/thematic-context` | Passage theme & Quran-wide links |
 | `GET /api/v1/verses/{s}:{a}/surah-context` | Narrative progression in surah |
 | `GET /api/v1/verses/{s}:{a}/grammar` | Grammar insights |
+| `GET /api/v1/verses/{s}:{a}/grammar-notes` | Prose grammar commentary + `[[term]]` glossary |
+| `GET /api/v1/verses/{s}:{a}/exegesis` | Approved teacher-voice exegesis note (markdown) |
 
 Each returns `VERSE_NOT_FOUND` (404) if the verse doesn't exist, or `NO_DATA` (404) if the verse exists but the specific analysis hasn't been generated.
+
+---
+
+#### `GET /api/v1/verses/{s}:{a}/exegesis`
+
+A short teacher-voice exegesis note for a verse: a 2–3 paragraph reflection distilled from the verse's highest-signal Q&A and anchored in cross-references elsewhere in the Quran. Each note is editorially reviewed; **only approved, non-hidden notes are served** — pending and rejected notes return `NO_DATA` (404), so not every verse has one. The note is also available on the composite endpoint via `?fields=exegesis`.
+
+The `exegesis_markdown` body is raw markdown. Verse references appear as plain `surah:ayah` (e.g. `16:53`) and transliterated Arabic terms are wrapped in `*italics*` — render it directly or strip the markers with a simple regex.
+
+**Example:**
+
+```bash
+curl "https://al-nuqta.com/api/v1/verses/86:2/exegesis"
+```
+
+```json
+{
+  "ok": true,
+  "data": {
+    "exegesis_markdown": "The formula *wa mā adrāka mā…*, “and what could make you know…,” is rationed across the text to its heaviest words...",
+    "source_scores": [4],
+    "model": { "model_used": "opus-4.8-exegesis", "template_version": "v1" },
+    "created_at": "2026-06-15 17:25:25",
+    "edited_at": null
+  },
+  "meta": {}
+}
+```
 
 ---
 

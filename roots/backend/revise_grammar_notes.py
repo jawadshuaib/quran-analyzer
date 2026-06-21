@@ -35,7 +35,7 @@ import requests
 from app import get_db, _get_claude_api_key
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 
 # Conventional English terms that signal narrowing for each root,
 # paired with the root's Buckwalter form.

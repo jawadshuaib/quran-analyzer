@@ -7,10 +7,10 @@ const API_KEY_KEY = 'quranExplorer.claudeApiKey';
 const SESSION_KEY = 'quranExplorer.sessionId';
 const MODEL_KEY = 'quranExplorer.claudeModel';
 
-export const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+export const DEFAULT_MODEL = 'claude-sonnet-4-6';
 export const AVAILABLE_MODELS = [
-  { id: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (recommended)' },
-  { id: 'claude-opus-4-20250514', label: 'Claude Opus 4 (strongest, more expensive)' },
+  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (recommended)' },
+  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8 (strongest, more expensive)' },
 ];
 
 export function getApiKey(): string | null {

@@ -220,7 +220,7 @@ export default function ApiPage() {
             path="/api/v1/verses/{surah}:{ayah}"
             description="Retrieve a verse with its Arabic text, translation, word-by-word breakdown, and root summary. Use the fields parameter to include additional analysis in one request."
             params={[
-              { name: 'fields', description: 'Comma-separated: morphology, word-meanings, roots, related, context, ai-translation, thematic-context, surah-context, grammar, grammar-notes, or all' },
+              { name: 'fields', description: 'Comma-separated: morphology, word-meanings, roots, related, context, ai-translation, thematic-context, surah-context, grammar, grammar-notes, exegesis, or all' },
               { name: 'related_limit', description: 'Max related verses to return (1–25, default 10)' },
               { name: 'context_size', description: 'Surrounding verses per side (1–6, default 3)' },
             ]}
@@ -294,6 +294,22 @@ export default function ApiPage() {
       }
     },
     "model": { "config_name": "grammar-notes-cloud-v1", "model_name": "qwen3.5:397b-cloud", "prompt_version": "v1", "created_at": "..." }
+  }
+}`}
+          />
+          <Endpoint
+            method="GET"
+            path="/api/v1/verses/{s}:{a}/exegesis"
+            description={`Short teacher-voice exegesis for a verse — a 2–3 paragraph reflection distilled from the verse's highest-signal Q&A and anchored in cross-references elsewhere in the Quran. Only editorially approved notes are returned (404 otherwise), so not every verse has one yet. The exegesis_markdown body is raw markdown: verse references like 16:53 and transliterated Arabic terms in *italics*; render it directly or strip the markers as needed.`}
+            example="/api/v1/verses/86:2/exegesis"
+            response={`{
+  "ok": true,
+  "data": {
+    "exegesis_markdown": "The formula *wa mā adrāka mā…*, “and what could make you know…,” is rationed across the text to its heaviest words...",
+    "source_scores": [4],
+    "model": { "model_used": "opus-4.8-exegesis", "template_version": "v1" },
+    "created_at": "...",
+    "edited_at": null
   }
 }`}
           />

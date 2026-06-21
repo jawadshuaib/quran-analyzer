@@ -26,6 +26,40 @@ const VERSE_REF_RE = /(\d{1,3}:\d{1,3}(?:[–\-]\d{1,3})?)/g;
 // The boundary check in the matching loop ensures these aren't part of full Arabic words.
 const ARABIC_ROOT_RE = /([\u0621-\u064A][ \-][\u0621-\u064A](?:[ \-][\u0621-\u064A]){0,3})/g;
 
+// Latin/transliterated triliteral roots written hyphenated, e.g. "f-l-q",
+// "kh-sh-\u02BF", "\u02BE-m-n", "\u1E6D-gh-y". The exegesis notes name roots this way, whereas
+// the grammar/translation notes use spaced Arabic letters (ARABIC_ROOT_RE).
+// Each unit is a consonant (or alif "a" / hamza "\u02BE"); 3\u20134 units joined by "-".
+// Requiring every unit to be a consonant cleanly excludes the vowel-bearing
+// Arabic fragments the notes also hyphenate ("wa-m\u0101", "bi-l", "fa-l\u0101", "a-fa").
+const TRANSLIT_UNIT = '(?:th|kh|dh|sh|gh|\u1E25|\u1E63|\u1E0D|\u1E6D|\u1E93|\u02BF|\u02BE|a|[btjdrzsfqklmnhwy])';
+const LATIN_ROOT_RE = new RegExp(`${TRANSLIT_UNIT}(?:-${TRANSLIT_UNIT}){2,3}`, 'g');
+// A char that, adjacent to a candidate, marks it as part of a larger Latin word
+// (so not an isolated root): Latin letters incl. macrons/dots, the hamza/\u02BFayn
+// modifier letters, and the hyphen.
+const TRANSLIT_BOUNDARY_RE = /[A-Za-z\u00C0-\u024F\u1E00-\u1EFF\u02BE\u02BF-]/;
+// Transliteration unit \u2192 normalized Buckwalter. Mirrors arabicRootToBuckwalter:
+// hamza "\u02BE" and alif "a" both normalize to "A"; \u02BFayn \u2192 E; emphatics \u2192 caps;
+// digraphs th/kh/dh/sh/gh \u2192 v/x/*/$/g.
+const TRANSLIT_TO_BW: Record<string, string> = {
+  th: 'v', kh: 'x', dh: '*', sh: '$', gh: 'g',
+  '\u1E25': 'H', '\u1E63': 'S', '\u1E0D': 'D', '\u1E6D': 'T', '\u1E93': 'Z', '\u02BF': 'E', '\u02BE': 'A', a: 'A',
+  b: 'b', t: 't', j: 'j', d: 'd', r: 'r', z: 'z', s: 's',
+  f: 'f', q: 'q', k: 'k', l: 'l', m: 'm', n: 'n', h: 'h', w: 'w', y: 'y',
+};
+
+/** Map a hyphenated transliterated root ("f-l-q") to normalized Buckwalter
+ * ("flq"), or null if any unit isn't a known consonant (so it isn't a root). */
+function translitRootToBuckwalter(token: string): string | null {
+  let bw = '';
+  for (const unit of token.split('-')) {
+    const c = TRANSLIT_TO_BW[unit];
+    if (c === undefined) return null;
+    bw += c;
+  }
+  return bw;
+}
+
 // Matches quoted strings: "..." or \u201C...\u201D (curly quotes)
 const QUOTED_RE = /["\u201C][^"\u201D]+["\u201D]/g;
 
@@ -215,7 +249,7 @@ function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disab
 // Shared cache for root data so repeated hovers don't re-fetch
 const rootCache = new Map<string, RootDetailData>();
 
-function RootRefLink({ rootText }: { rootText: string }) {
+function RootRefLink({ rootText, buckwalter, latin = false }: { rootText: string; buckwalter?: string; latin?: boolean }) {
   const [tooltip, setTooltip] = useState<{
     loading: boolean;
     data: RootDetailData | null;
@@ -223,9 +257,10 @@ function RootRefLink({ rootText }: { rootText: string }) {
   } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Convert spaced/dashed Arabic letters to normalized Buckwalter for root lookup
+  // Arabic roots: convert spaced/dashed letters to normalized Buckwalter.
+  // Transliterated roots (e.g. "f-l-q") arrive with their Buckwalter precomputed.
   const letters = rootText.replace(/[ \-]/g, '');
-  const bw = arabicRootToBuckwalter(letters);
+  const bw = buckwalter ?? arabicRootToBuckwalter(letters);
   const url = `/root/${encodeURIComponent(bw)}`;
 
   const clearTimer = useCallback(() => {
@@ -264,10 +299,8 @@ function RootRefLink({ rootText }: { rootText: string }) {
   return (
     <span className="relative inline">
       <span
-        dir="rtl"
-        lang="ar"
-        className="font-arabic text-emerald-700 underline decoration-emerald-300 underline-offset-2 cursor-pointer
-                   hover:text-emerald-900 hover:decoration-emerald-500 transition-colors"
+        {...(latin ? {} : { dir: 'rtl', lang: 'ar' })}
+        className={`${latin ? '' : 'font-arabic '}text-emerald-700 underline decoration-emerald-300 underline-offset-2 cursor-pointer hover:text-emerald-900 hover:decoration-emerald-500 transition-colors`}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={(e) => { e.preventDefault(); window.location.href = url; }}
@@ -372,7 +405,7 @@ export default function VerseRefText({ text, className, disableVerseNavigation =
   if (!text) return null;
 
   // Collect all matches (verse refs, root refs, quoted text) with their types
-  const matches: { index: number; length: number; type: 'ref' | 'root' | 'quoted'; value: string }[] = [];
+  const matches: { index: number; length: number; type: 'ref' | 'root' | 'quoted'; value: string; bw?: string; latin?: boolean }[] = [];
 
   VERSE_REF_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -400,6 +433,27 @@ export default function VerseRefText({ text, className, disableVerseNavigation =
     }
   }
 
+  // Transliterated roots (e.g. "f-l-q") — link to the root page with a tooltip,
+  // just like the spaced-Arabic roots above. These appear in the exegesis notes.
+  LATIN_ROOT_RE.lastIndex = 0;
+  while ((m = LATIN_ROOT_RE.exec(text)) !== null) {
+    // Boundary check: skip if adjacent to other Latin letters/hyphens, so we
+    // only catch isolated root tokens (not pieces of a longer word).
+    const charBefore = m.index > 0 ? text[m.index - 1] : '';
+    const charAfter = text[m.index + m[0].length] ?? '';
+    if (TRANSLIT_BOUNDARY_RE.test(charBefore) || TRANSLIT_BOUNDARY_RE.test(charAfter)) {
+      continue;
+    }
+    const bw = translitRootToBuckwalter(m[0]);
+    if (!bw) continue;
+    const overlaps = matches.some(
+      (prev) => m!.index < prev.index + prev.length && m!.index + m![0].length > prev.index,
+    );
+    if (!overlaps) {
+      matches.push({ index: m.index, length: m[0].length, type: 'root', value: m[0], bw, latin: true });
+    }
+  }
+
   QUOTED_RE.lastIndex = 0;
   while ((m = QUOTED_RE.exec(text)) !== null) {
     const overlaps = matches.some(
@@ -421,14 +475,14 @@ export default function VerseRefText({ text, className, disableVerseNavigation =
   }
 
   // Build segments
-  const parts: { type: 'text' | 'ref' | 'root' | 'quoted'; value: string }[] = [];
+  const parts: { type: 'text' | 'ref' | 'root' | 'quoted'; value: string; bw?: string; latin?: boolean }[] = [];
   let lastIndex = 0;
 
   for (const match of matches) {
     if (match.index > lastIndex) {
       parts.push({ type: 'text', value: text.slice(lastIndex, match.index) });
     }
-    parts.push({ type: match.type, value: match.value });
+    parts.push({ type: match.type, value: match.value, bw: match.bw, latin: match.latin });
     lastIndex = match.index + match.length;
   }
 
@@ -442,7 +496,7 @@ export default function VerseRefText({ text, className, disableVerseNavigation =
         part.type === 'ref' ? (
           <VerseRefLink key={i} verseRef={part.value} disableNavigation={disableVerseNavigation} />
         ) : part.type === 'root' ? (
-          <RootRefLink key={i} rootText={part.value} />
+          <RootRefLink key={i} rootText={part.value} buckwalter={part.bw} latin={part.latin} />
         ) : part.type === 'quoted' ? (
           // Quoted strings can themselves contain inline Arabic (the
           // AI sometimes embeds Arabic words inside a quoted English

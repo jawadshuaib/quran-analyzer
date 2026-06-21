@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData } from '../types';
-import { searchWordsCount, fetchWordMeanings, fetchAITranslation } from '../api/quran';
+import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData } from '../types';
+import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis } from '../api/quran';
+import FormattedText from './FormattedText';
 import { TranslationWithChips, type WordContext } from './TermChip';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
@@ -48,6 +49,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const [resultCount, setResultCount] = useState<number | null>(null);
   const [wordMeanings, setWordMeanings] = useState<Record<string, WordMeaningBrief>>({});
   const [aiTranslation, setAiTranslation] = useState<AITranslationData | null>(null);
+  const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
   const [wordToWordEnabled, setWordToWordEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(WORD_TO_WORD_KEY) === '1';
@@ -140,6 +142,16 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     fetchAITranslation(data.surah, data.ayah).then((result) => {
       if (!cancelled) setAiTranslation(result);
     });
+    return () => { cancelled = true; };
+  }, [data.surah, data.ayah]);
+
+  // Fetch the approved teacher-voice exegesis (if any) for this verse
+  useEffect(() => {
+    let cancelled = false;
+    setExegesis(null);
+    fetchVerseExegesis(data.surah, data.ayah).then((result) => {
+      if (!cancelled) setExegesis(result);
+    }).catch(() => { if (!cancelled) setExegesis(null); });
     return () => { cancelled = true; };
   }, [data.surah, data.ayah]);
 
@@ -561,6 +573,30 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
               </p>
             ))}
           </div>
+
+          {exegesis && (
+            <div className="mt-3 pt-3 border-t border-violet-200/70">
+              <div className="text-xs font-medium text-violet-600 mb-1.5">Exegesis</div>
+              <FormattedText
+                text={exegesis.exegesis_markdown}
+                className="text-sm text-violet-900/90 leading-relaxed"
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Exegesis can stand on its own when a verse has no departure notes yet */}
+      {exegesis && !aiTranslation?.departure_notes && (
+        <div className="mt-4 rounded-lg bg-violet-50 border border-violet-100 p-3">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="text-xs font-medium text-violet-600">Exegesis</span>
+            <MethodologyTooltip />
+          </div>
+          <FormattedText
+            text={exegesis.exegesis_markdown}
+            className="text-sm text-violet-900/90 leading-relaxed"
+          />
         </div>
       )}
 

@@ -16,7 +16,7 @@ Usage:
     python term_survey.py --root Slw
     python term_survey.py --root Slw --force
     python term_survey.py --root Slw --dry-run
-    python term_survey.py --root Slw --model claude-opus-4-20250514
+    python term_survey.py --root Slw --model claude-opus-4-8
 
 Requires CLAUDE_API_KEY in env or stored in admin_preferences.
 """
@@ -38,7 +38,7 @@ from app import get_db, _get_claude_api_key
 # ------------------------------------------------------------------------
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-DEFAULT_MODEL = "claude-opus-4-20250514"
+DEFAULT_MODEL = "claude-opus-4-8"
 DEFAULT_PROMPT_VERSION = "v1"
 MAX_TOKENS = 4000
 MAX_ATTEMPTS = 3
@@ -255,7 +255,8 @@ def call_claude(model: str, system: str, user: str, api_key: str) -> tuple[str, 
                 json={
                     "model": model,
                     "max_tokens": MAX_TOKENS,
-                    "temperature": 0.2,
+                    # Opus 4.8 (the default model here) rejects temperature/top_p/
+                    # top_k with a 400 — steer via the prompt instead.
                     "system": system,
                     "messages": [{"role": "user", "content": user}],
                 },

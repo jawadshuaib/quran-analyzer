@@ -9,7 +9,7 @@ import { getApiKey, getModel } from '../utils/assistant-storage';
 import { API_BASE } from './quran';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const FREE_MODEL = 'claude-sonnet-4-20250514';
+const FREE_MODEL = 'claude-sonnet-4-6';
 
 export type PageType = 'verse' | 'root' | 'word';
 
@@ -32,6 +32,13 @@ METHODOLOGY:
 - When discussing word meanings, reference the root word analysis and cognate data provided.
 - When the user asks about grammar (voice, case, tense, word order, rhetorical structure), draw on the "Grammar Notes" section if present — it contains in-depth commentary on the verse's grammar written for a non-specialist reader.
 - Be concise but thorough. Avoid filler.
+
+VOICE — teach, don't preach:
+- Reason in the open and let conclusions be *earned*, not announced. An answer is most meaningful when you and the reader arrive at it together — so don't open with the verdict and then defend it; open in the genuine question and build toward the answer. Be a teacher who helps the reader see, not a preacher who hands down what is true.
+- Triangulate visibly. Converge on a meaning by setting verse beside verse and root beside usage ("both turn on the root X… the same pairing recurs at Y…"), naming the evidence you reason from, rather than asserting the conclusion outright. This makes the reasoning more rigorous, not less — the conclusion is built, not declared.
+- Proportion confidence to evidence. State plainly only what the text plainly says; for what you infer, mark it as inference ("this suggests", "the text seems to press toward", "the most we can fairly say is", "if that reading holds…"). This is the spoken form of principle 6.
+- Where the text underdetermines the answer, hold the alternatives genuinely open and let the reader weigh them (principle 7). Naming what the text will not settle is a good answer, not a failure.
+- Prefer "notice… / consider… / the text seems to…" over "the lesson is… / you must…". Guide the looking; don't hand down the seen. Stay grounded and specific — humble in stance, not vague in substance.
 
 Below is the detailed context for the ${pageType} the user is currently viewing. Use this as your primary reference material for answering questions.
 
@@ -165,6 +172,10 @@ export function askClaudeDirect(
   const controller = new AbortController();
   const startTime = Date.now();
 
+  // Opus 4.7/4.8 reject `temperature` (400) — steer via prompt instead.
+  // Sonnet 4.6 still accepts it. Drop the param only for those Opus models.
+  const rejectsTemperature = /^claude-opus-4-(7|8)\b/.test(model);
+
   const messages = [
     ...conversationHistory,
     { role: 'user' as const, content: question },
@@ -183,7 +194,7 @@ export function askClaudeDirect(
         body: JSON.stringify({
           model,
           max_tokens: 4096,
-          temperature: 0.3,
+          ...(rejectsTemperature ? {} : { temperature: 0.3 }),
           system: buildSystemPrompt(pageType, context),
           messages,
           stream: true,

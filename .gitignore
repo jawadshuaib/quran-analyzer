@@ -58,6 +58,17 @@ Thumbs.db
 id_rsa
 id_rsa.pub
 
+# Generated media, logs & scratch (not part of the deployed app)
+roots/backend/data/educational_videos/
+roots/backend/data/educational_outro_audio/
+roots/backend/data/music/
+roots/backend/logs/
+roots/backend/reviews/
+roots/backend/data/snapshots/
+*.db-shm
+*.db-wal
+ui-prototype/
+
 # Claude
 CLAUDE.md
 .claude/

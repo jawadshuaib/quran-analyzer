@@ -649,7 +649,7 @@ export default function AskAssistant({
                     className="border border-stone-200 rounded-lg p-3 cursor-pointer hover:border-stone-300 transition-colors"
                     onClick={() => setExpandedHistoryId(isExpanded ? null : entry.id)}>
                     <div className="flex items-start justify-between mb-1.5">
-                      <span className="text-sm font-medium text-stone-700">{entry.question}</span>
+                      <span className="text-sm font-medium text-stone-700">{renderBold(entry.question)}</span>
                       <span className="text-xs text-stone-400 shrink-0 ml-2">
                         {new Date(entry.created_at + 'Z').toLocaleDateString()}
                       </span>

@@ -418,6 +418,56 @@ export default function MethodologyPage() {
             </div>
           </Example>
         </Section>
+
+        {/* ─── 7. Verse exegesis ─── */}
+        <Section
+          id="exegesis"
+          number="7"
+          title="Verse exegesis"
+          subtitle="A short reflection on each verse, built only from the Quran's own cross-references."
+        >
+          <p>
+            Beneath the translation, departure, and grammar notes, many verses
+            carry a short <em>exegesis note</em> — two or three paragraphs in a
+            teacher's voice that take the verse's most substantive insight and
+            develop it carefully, opening on a concrete feature of the wording
+            and arriving at a single earned observation.
+          </p>
+          <p>
+            These notes follow the same discipline as the rest of the site:
+            every claim is grounded in the Quran's own usage. The reflection is
+            earned through cross-references to other verses — never imported from
+            outside the text, and never resting on external narratives or
+            sectarian commentary. Each note is editorially reviewed before it
+            appears, and the roots and verse references inside it are themselves
+            links, so you can follow every step of the reasoning.
+          </p>
+
+          <Example label="Example">
+            <p className="text-sm text-ink-secondary">
+              On <a href="/verse/113:1" className="text-gold-hover hover:text-gold font-medium underline underline-offset-2">verse 113:1</a>,
+              the note traces the title "Lord of the daybreak" to the root{' '}
+              <span className="italic">f-l-q</span> — a forceful <em>cleaving</em>, not
+              the gentle morning — and weighs it against the verses that follow.
+              Hover the root or any verse reference in the note to look it up
+              without leaving the page.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <a
+                href="/verse/113:1"
+                className="text-xs text-gold-hover hover:text-gold font-medium underline underline-offset-2"
+              >
+                Try verse 113:1 →
+              </a>
+              <a
+                href="/verse/112:1"
+                className="text-xs text-gold-hover hover:text-gold font-medium underline underline-offset-2"
+              >
+                Try verse 112:1 →
+              </a>
+            </div>
+          </Example>
+        </Section>
       </div>
 
       {/* Closing */}

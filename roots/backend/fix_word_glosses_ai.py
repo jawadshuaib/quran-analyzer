@@ -31,7 +31,7 @@ from translate_ai import call_model
 # --------------- Configuration ---------------
 
 DEFAULT_OLLAMA_MODEL = "minimax-m2.5:cloud"
-CLAUDE_ESCALATION_MODEL = "claude-sonnet-4-20250514"
+CLAUDE_ESCALATION_MODEL = "claude-sonnet-4-6"
 
 # Confidence thresholds
 CONF_AUTO_APPLY = 0.75      # >= this: apply directly

@@ -28,7 +28,7 @@ import requests
 from app import get_db, _get_claude_api_key
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_TRANSLATION_CONFIG = "gpt5.1-batch-v2"
 
 SYSTEM_PROMPT = """\

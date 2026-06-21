@@ -53,7 +53,7 @@ from anthropic_batch import (
     get_batch_status,
 )
 
-DEFAULT_MODEL = "claude-sonnet-4-20250514"
+DEFAULT_MODEL = "claude-sonnet-4-6"
 LABEL_PREFIX = "word_meanings"
 
 

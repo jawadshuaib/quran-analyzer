@@ -391,6 +391,15 @@ export interface AITranslationData {
   created_at: string;
 }
 
+export interface VerseExegesisData {
+  surah: number;
+  ayah: number;
+  exegesis_markdown: string;
+  source_scores: number[] | null;
+  created_at: string;
+  edited_at: string | null;
+}
+
 export interface GrammarTerm {
   term_english: string;
   term_arabic: string | null;

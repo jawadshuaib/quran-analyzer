@@ -1677,8 +1677,8 @@ def _get_cognate(conn, bw_root: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 _FREE_QUESTION_LIMIT = 3
-_PROXY_MODEL = "claude-sonnet-4-20250514"
-_MODERATION_MODEL = "claude-haiku-4-20250414"
+_PROXY_MODEL = "claude-sonnet-4-6"
+_MODERATION_MODEL = "claude-haiku-4-5"
 _CLAUDE_API_KEY_ENV = os.environ.get("CLAUDE_API_KEY", "")
 _CLAUDE_API_KEY = _CLAUDE_API_KEY_ENV  # backward-compat alias for CLI scripts
 
@@ -6133,6 +6133,7 @@ def admin_list_assistant_qa():
     model = (request.args.get("model") or "").strip()
     source = (request.args.get("source") or "").strip()           # 'user' | 'ai'
     review_status = (request.args.get("review_status") or "").strip()  # pending|approved|rejected
+    score = (request.args.get("score") or "").strip()             # 1-5 quality grade
     status = (request.args.get("status") or "all").strip()
     sort = (request.args.get("sort") or "recent").strip()
     order_by = _QA_SORT_SQL.get(sort, _QA_SORT_SQL["recent"])
@@ -6163,6 +6164,12 @@ def admin_list_assistant_qa():
     if review_status:
         where.append("review_status = ?")
         params.append(review_status)
+    if score:
+        try:
+            where.append("CAST(quality_score AS INT) = ?")
+            params.append(int(score))
+        except (ValueError, TypeError):
+            pass
     if status == "visible":
         where.append("COALESCE(hidden, 0) = 0")
     elif status == "hidden":
@@ -6248,6 +6255,14 @@ def admin_assistant_qa_stats():
             "       COUNT(*) AS count FROM assistant_conversations "
             "GROUP BY model ORDER BY count DESC"
         ).fetchall()]
+        # Quality-score distribution across the AI-drafted Q&A (the only rows
+        # that carry a 1–5 grade). Bucketed by integer score.
+        by_score = [dict(r) for r in conn.execute(
+            "SELECT CAST(quality_score AS INT) AS score, COUNT(*) AS count "
+            "FROM assistant_conversations "
+            "WHERE source = 'ai' AND quality_score IS NOT NULL "
+            "GROUP BY score ORDER BY score"
+        ).fetchall()]
         top_pages = [dict(r) for r in conn.execute(
             "SELECT page_type, page_key, COUNT(*) AS count "
             "FROM assistant_conversations "
@@ -6269,6 +6284,7 @@ def admin_assistant_qa_stats():
             "last_24_hours": last24,
             "by_type": by_type,
             "by_model": by_model,
+            "by_score": by_score,
             "top_pages": top_pages,
         })
     finally:
@@ -6382,6 +6398,273 @@ def admin_bulk_assistant_qa():
             cur = conn.execute(
                 f"UPDATE assistant_conversations SET hidden = ? "
                 f"WHERE id IN ({placeholders})", [1 if op == "hide" else 0] + ids)
+        else:
+            return jsonify({"error": "op must be approve/reject/pending/hide/unhide/delete"}), 400
+        conn.commit()
+        return jsonify({"ok": True, "op": op, "affected": cur.rowcount})
+    finally:
+        conn.close()
+
+
+# ----------------------------------------------------------------------------
+# Verse exegesis — teacher-voice commentary distilled from grade-3/4 Q&A,
+# shown at the bottom of a verse's translation notes. Admin-reviewed
+# (pending -> approved/rejected) before anything reaches the public verse.
+# ----------------------------------------------------------------------------
+
+def _ensure_exegesis_table(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS verse_exegesis (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chapter INTEGER NOT NULL,
+            verse INTEGER NOT NULL,
+            page_key TEXT NOT NULL,
+            exegesis_markdown TEXT NOT NULL,
+            source_gem_ids TEXT,
+            source_scores TEXT,
+            model_used TEXT,
+            review_status TEXT DEFAULT 'pending',
+            hidden INTEGER DEFAULT 0,
+            template_version TEXT,
+            generation_meta TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            edited_at TEXT,
+            UNIQUE(chapter, verse)
+        )
+    """)
+    conn.commit()
+
+
+_EXEG_SORT_SQL = {
+    "recent": "created_at DESC, id DESC",
+    "oldest": "created_at ASC, id ASC",
+    "verse": "chapter ASC, verse ASC",
+    "longest": "LENGTH(exegesis_markdown) DESC, created_at DESC",
+}
+
+_EXEG_COLUMNS = (
+    "id, chapter, verse, page_key, exegesis_markdown, source_gem_ids, "
+    "source_scores, model_used, review_status, COALESCE(hidden, 0) AS hidden, "
+    "template_version, generation_meta, created_at, edited_at"
+)
+
+
+def _exeg_row_to_dict(row):
+    d = dict(row)
+    d["hidden"] = bool(d.get("hidden"))
+    for k in ("source_gem_ids", "source_scores", "generation_meta"):
+        v = d.get(k)
+        if v:
+            try:
+                d[k] = json.loads(v)
+            except Exception:
+                pass
+    return d
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/exegesis")
+def get_verse_exegesis(surah: int, ayah: int):
+    """Public: the approved, non-hidden exegesis note for a verse, or 404.
+
+    Only review_status='approved' rows that aren't hidden reach the public
+    verse page; everything else stays gated in /admin/exegesis. The body is
+    raw markdown — the client linkifies verse refs / roots / Arabic exactly
+    as it does for the Ask-the-Quran answers (FormattedText / VerseRefText).
+    """
+    conn = get_db()
+    try:
+        _ensure_exegesis_table(conn)
+        row = conn.execute(
+            "SELECT exegesis_markdown, source_scores, created_at, edited_at "
+            "FROM verse_exegesis "
+            "WHERE chapter = ? AND verse = ? "
+            "  AND review_status = 'approved' AND COALESCE(hidden, 0) = 0 "
+            "LIMIT 1",
+            (surah, ayah),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "No exegesis available"}), 404
+        scores = row["source_scores"]
+        if scores:
+            try:
+                scores = json.loads(scores)
+            except Exception:
+                scores = None
+        return jsonify({
+            "surah": surah,
+            "ayah": ayah,
+            "exegesis_markdown": row["exegesis_markdown"],
+            "source_scores": scores,
+            "created_at": row["created_at"],
+            "edited_at": row["edited_at"],
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/exegesis", methods=["GET"])
+@admin_required
+def admin_list_exegesis():
+    """Paginated, filterable list of verse exegesis notes."""
+    q = (request.args.get("q") or "").strip()
+    review_status = (request.args.get("review_status") or "").strip()
+    status = (request.args.get("status") or "all").strip()
+    sort = (request.args.get("sort") or "recent").strip()
+    order_by = _EXEG_SORT_SQL.get(sort, _EXEG_SORT_SQL["recent"])
+    try:
+        limit = min(max(int(request.args.get("limit", 25)), 1), 100)
+    except (ValueError, TypeError):
+        limit = 25
+    try:
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (ValueError, TypeError):
+        offset = 0
+
+    where, params = [], []
+    if q:
+        where.append("(exegesis_markdown LIKE ? OR page_key LIKE ?)")
+        like = f"%{q}%"
+        params.extend([like, like])
+    if review_status:
+        where.append("review_status = ?")
+        params.append(review_status)
+    if status == "visible":
+        where.append("COALESCE(hidden, 0) = 0")
+    elif status == "hidden":
+        where.append("COALESCE(hidden, 0) = 1")
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    conn = get_db()
+    try:
+        _ensure_exegesis_table(conn)
+        total = conn.execute(
+            f"SELECT COUNT(*) AS c FROM verse_exegesis {where_sql}", params
+        ).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT {_EXEG_COLUMNS} FROM verse_exegesis "
+            f"{where_sql} ORDER BY {order_by} LIMIT ? OFFSET ?",
+            params + [limit, offset],
+        ).fetchall()
+        return jsonify({
+            "items": [_exeg_row_to_dict(r) for r in rows],
+            "total": total, "limit": limit, "offset": offset,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/exegesis/stats", methods=["GET"])
+@admin_required
+def admin_exegesis_stats():
+    conn = get_db()
+    try:
+        _ensure_exegesis_table(conn)
+
+        def scalar(sql):
+            return conn.execute(sql).fetchone()["c"]
+
+        total = scalar("SELECT COUNT(*) AS c FROM verse_exegesis")
+        return jsonify({
+            "total": total,
+            "visible": scalar("SELECT COUNT(*) AS c FROM verse_exegesis WHERE COALESCE(hidden,0)=0"),
+            "hidden": scalar("SELECT COUNT(*) AS c FROM verse_exegesis WHERE COALESCE(hidden,0)=1"),
+            "pending": scalar("SELECT COUNT(*) AS c FROM verse_exegesis WHERE review_status='pending'"),
+            "approved": scalar("SELECT COUNT(*) AS c FROM verse_exegesis WHERE review_status='approved'"),
+            "rejected": scalar("SELECT COUNT(*) AS c FROM verse_exegesis WHERE review_status='rejected'"),
+            "verses": scalar("SELECT COUNT(DISTINCT chapter || ':' || verse) AS c FROM verse_exegesis"),
+            "edited": scalar("SELECT COUNT(*) AS c FROM verse_exegesis WHERE edited_at IS NOT NULL"),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/exegesis/<int:exeg_id>", methods=["PATCH"])
+@admin_required
+def admin_update_exegesis(exeg_id):
+    """Hide/unhide, approve/reject, or correct the exegesis text."""
+    data = request.get_json(force=True) or {}
+    sets, params, edited = [], [], False
+    if "hidden" in data:
+        sets.append("hidden = ?")
+        params.append(1 if data.get("hidden") else 0)
+    if "review_status" in data:
+        rs = data.get("review_status")
+        if rs not in ("pending", "approved", "rejected", None):
+            return jsonify({"error": "review_status must be pending/approved/rejected"}), 400
+        sets.append("review_status = ?")
+        params.append(rs)
+    if "exegesis_markdown" in data:
+        md = data.get("exegesis_markdown")
+        if not isinstance(md, str) or not md.strip():
+            return jsonify({"error": "exegesis_markdown must be a non-empty string"}), 400
+        sets.append("exegesis_markdown = ?")
+        params.append(md.strip()[:50000])
+        edited = True
+    if not sets:
+        return jsonify({"error": "No updatable fields provided"}), 400
+    if edited:
+        sets.append("edited_at = datetime('now')")
+
+    conn = get_db()
+    try:
+        _ensure_exegesis_table(conn)
+        cur = conn.execute(
+            f"UPDATE verse_exegesis SET {', '.join(sets)} WHERE id = ?",
+            params + [exeg_id],
+        )
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Exegesis not found"}), 404
+        row = conn.execute(
+            f"SELECT {_EXEG_COLUMNS} FROM verse_exegesis WHERE id = ?", (exeg_id,)
+        ).fetchone()
+        return jsonify({"ok": True, "item": _exeg_row_to_dict(row)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/exegesis/<int:exeg_id>", methods=["DELETE"])
+@admin_required
+def admin_delete_exegesis(exeg_id):
+    conn = get_db()
+    try:
+        _ensure_exegesis_table(conn)
+        cur = conn.execute("DELETE FROM verse_exegesis WHERE id = ?", (exeg_id,))
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Exegesis not found"}), 404
+        return jsonify({"ok": True, "deleted": exeg_id})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/exegesis/bulk", methods=["POST"])
+@admin_required
+def admin_bulk_exegesis():
+    data = request.get_json(force=True) or {}
+    raw_ids = data.get("ids")
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return jsonify({"error": "ids must be a non-empty list"}), 400
+    ids = [int(i) for i in raw_ids if str(i).isdigit()][:500]
+    if not ids:
+        return jsonify({"error": "no valid ids"}), 400
+    op = (data.get("op") or "").strip()
+    placeholders = ",".join("?" * len(ids))
+    conn = get_db()
+    try:
+        _ensure_exegesis_table(conn)
+        if op == "delete":
+            cur = conn.execute(
+                f"DELETE FROM verse_exegesis WHERE id IN ({placeholders})", ids)
+        elif op in ("approve", "reject", "pending"):
+            rs = {"approve": "approved", "reject": "rejected", "pending": "pending"}[op]
+            cur = conn.execute(
+                f"UPDATE verse_exegesis SET review_status = ? WHERE id IN ({placeholders})",
+                [rs] + ids)
+        elif op in ("hide", "unhide"):
+            cur = conn.execute(
+                f"UPDATE verse_exegesis SET hidden = ? WHERE id IN ({placeholders})",
+                [1 if op == "hide" else 0] + ids)
         else:
             return jsonify({"error": "op must be approve/reject/pending/hide/unhide/delete"}), 400
         conn.commit()
@@ -7635,8 +7918,8 @@ def admin_save_preferences():
 # per-row revert. Reuses the same logic the CLI scripts use.
 # =========================================================================
 
-VOCAB_OPUS_MODEL = "claude-opus-4-20250514"
-VOCAB_SONNET_MODEL = "claude-sonnet-4-20250514"
+VOCAB_OPUS_MODEL = "claude-opus-4-8"
+VOCAB_SONNET_MODEL = "claude-sonnet-4-6"
 
 
 def _vocab_get_state(conn, root_bw: str) -> dict | None:
@@ -7833,7 +8116,7 @@ def admin_vocab_state(root_bw: str):
 @admin_required
 def admin_vocab_run_survey(root_bw: str):
     """Run a Claude Opus Stage-0 survey for this root. Body may include:
-        { "model": "claude-opus-4-20250514", "extra_constraint": "...", "force": false }
+        { "model": "claude-opus-4-8", "extra_constraint": "...", "force": false }
     Writes the result to term_surveys (creates or overwrites)."""
     body = request.get_json(silent=True) or {}
     model = body.get("model") or VOCAB_OPUS_MODEL
@@ -13967,7 +14250,7 @@ def admin_moving_verse_suggestion():
                 "anthropic-version": "2023-06-01",
             },
             json={
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-sonnet-4-6",
                 "max_tokens": 4096,
                 "temperature": 0.7,
                 "system": _MOVING_VERSES_SYSTEM_PROMPT,
@@ -15631,7 +15914,7 @@ def _pipeline_generate_task(video_id):
                     "anthropic-version": "2023-06-01",
                 },
                 json={
-                    "model": "claude-sonnet-4-20250514",
+                    "model": "claude-sonnet-4-6",
                     "max_tokens": 500,
                     "messages": [{"role": "user", "content": select_prompt}],
                 },
@@ -15856,7 +16139,7 @@ def _pipeline_generate_task(video_id):
                 "anthropic-version": "2023-06-01",
             },
             json={
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-sonnet-4-6",
                 "max_tokens": 2000,
                 "messages": [{"role": "user", "content": polish_prompt}],
             },
@@ -16029,7 +16312,7 @@ def _pipeline_generate_task(video_id):
                                 "anthropic-version": "2023-06-01",
                             },
                             json={
-                                "model": "claude-sonnet-4-20250514",
+                                "model": "claude-sonnet-4-6",
                                 "max_tokens": 200,
                                 "messages": [{"role": "user", "content": decide_prompt}],
                             },
@@ -16104,7 +16387,7 @@ def _pipeline_generate_task(video_id):
                                 "anthropic-version": "2023-06-01",
                             },
                             json={
-                                "model": "claude-sonnet-4-20250514",
+                                "model": "claude-sonnet-4-6",
                                 "max_tokens": 500,
                                 "messages": [{"role": "user", "content": polish_ext_prompt}],
                             },

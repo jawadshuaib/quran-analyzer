@@ -8,6 +8,7 @@ interface Props {
 export default function AdminLogin({ onLogin }: Props) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -16,7 +17,7 @@ export default function AdminLogin({ onLogin }: Props) {
     setError('');
     setLoading(true);
     try {
-      await login(username, password);
+      await login(username, password, remember);
       onLogin();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
@@ -75,6 +76,18 @@ export default function AdminLogin({ onLogin }: Props) {
               required
             />
           </div>
+
+          <label htmlFor="remember" className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              id="remember"
+              type="checkbox"
+              checked={remember}
+              onChange={(e) => setRemember(e.target.checked)}
+              className="h-4 w-4 rounded border-stone-300 text-stone-800
+                         focus:ring-2 focus:ring-stone-400 cursor-pointer"
+            />
+            <span className="text-sm text-stone-600">Remember me for 30 days</span>
+          </label>
 
           <button
             type="submit"

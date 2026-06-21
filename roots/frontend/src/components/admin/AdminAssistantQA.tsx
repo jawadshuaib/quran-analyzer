@@ -3,6 +3,7 @@ import {
   getAdminQA, getAdminQAStats, updateAdminQA, deleteAdminQA, bulkAdminQA,
   type AdminQAItem, type AdminQAStats, type AdminQAStatus, type AdminQASort,
 } from '../../api/admin';
+import { FormattedText, FormattedInline } from '../FormattedText';
 
 const LIMIT = 25;
 
@@ -100,8 +101,12 @@ export default function AdminAssistantQA() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [pageType, setPageType] = useState('');
   const [model, setModel] = useState('');
-  const [source, setSource] = useState('');             // '' | 'user' | 'ai'
+  // Source acts as the primary tab: 'user' (default) vs 'ai'. AI-drafted Q&A
+  // have been folded into the verse exegesis, so they're tucked into their own
+  // tab and hidden by default — still one click away when we want them.
+  const [source, setSource] = useState('user');         // 'user' | 'ai'  (tab)
   const [reviewStatus, setReviewStatus] = useState(''); // '' | pending | approved | rejected
+  const [score, setScore] = useState('');               // '' | '1'..'5'
   const [status, setStatus] = useState<AdminQAStatus>('all');
   const [sort, setSort] = useState<AdminQASort>('recent');
   const [offset, setOffset] = useState(0);
@@ -130,7 +135,7 @@ export default function AdminAssistantQA() {
   useEffect(() => {
     setOffset(0);
     setSelected(new Set());
-  }, [debouncedSearch, pageType, model, source, reviewStatus, status, sort]);
+  }, [debouncedSearch, pageType, model, source, reviewStatus, score, status, sort]);
 
   const loadStats = useCallback(async () => {
     try { setStats(await getAdminQAStats()); } catch { /* non-fatal */ }
@@ -142,7 +147,7 @@ export default function AdminAssistantQA() {
     try {
       const res = await getAdminQA({
         q: debouncedSearch, page_type: pageType, model, source,
-        review_status: reviewStatus, status, sort, limit: LIMIT, offset,
+        review_status: reviewStatus, score, status, sort, limit: LIMIT, offset,
       });
       setItems(res.items);
       setTotal(res.total);
@@ -151,7 +156,7 @@ export default function AdminAssistantQA() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, pageType, model, source, reviewStatus, status, sort, offset]);
+  }, [debouncedSearch, pageType, model, source, reviewStatus, score, status, sort, offset]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadList(); }, [loadList]);
@@ -241,12 +246,15 @@ export default function AdminAssistantQA() {
     });
   }
 
-  const hasActiveFilters = !!(debouncedSearch || pageType || model || source || reviewStatus || status !== 'all');
+  // `source` is the tab, not a filter, so it doesn't count toward "active filters".
+  const hasActiveFilters = !!(debouncedSearch || pageType || model || reviewStatus || score || status !== 'all');
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + LIMIT, total);
 
   function clearFilters() {
-    setSearch(''); setPageType(''); setModel(''); setSource(''); setReviewStatus(''); setStatus('all');
+    // Preserve the active tab (source) — clearing filters shouldn't yank you
+    // to a different dataset. Callers that want a specific tab set it after.
+    setSearch(''); setPageType(''); setModel(''); setReviewStatus(''); setScore(''); setStatus('all');
   }
 
   return (
@@ -291,9 +299,49 @@ export default function AdminAssistantQA() {
       {stats && (stats.top_pages.length > 0 || stats.by_model.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-6">
           <TopPagesPanel stats={stats} onPick={(pt, pk) => { clearFilters(); setPageType(pt); setSearch(pk); }} />
-          <ModelMixPanel stats={stats} />
+          <ModelMixPanel
+            stats={stats}
+            activeScore={score}
+            onPickScore={(s) => {
+              const wasActive = s === score;
+              clearFilters();                 // also resets score to ''
+              if (!wasActive) { setSource('ai'); setScore(s); }  // scores live only on AI rows
+            }}
+          />
         </div>
       )}
+
+      {/* Tabs: user-asked questions (default) vs AI drafts. The AI drafts have
+          been folded into the verse exegesis, so they live in their own tab and
+          stay out of the default view. */}
+      <div className="flex items-center gap-1 mb-4 border-b border-stone-200">
+        {([
+          { key: 'user', label: 'User questions' },
+          { key: 'ai', label: 'AI drafts', count: stats?.ai_total },
+        ] as { key: 'user' | 'ai'; label: string; count?: number }[]).map((t) => {
+          const active = source === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setSource(t.key)}
+              className={`relative -mb-px px-4 py-2 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
+                active
+                  ? 'border-violet-500 text-violet-700'
+                  : 'border-transparent text-stone-500 hover:text-stone-800'
+              }`}
+            >
+              {t.label}
+              {typeof t.count === 'number' && t.count > 0 && (
+                <span className={`ml-2 rounded-full px-1.5 py-0.5 text-xs ${
+                  active ? 'bg-violet-100 text-violet-700' : 'bg-stone-100 text-stone-500'
+                }`}>
+                  {t.count.toLocaleString()}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Toolbar */}
       <div className="rounded-xl border border-stone-200 bg-white p-3 mb-4">
@@ -310,12 +358,6 @@ export default function AdminAssistantQA() {
               className="w-full rounded-lg border border-stone-300 pl-9 pr-3 py-2 text-sm focus:border-violet-400 focus:ring-1 focus:ring-violet-400 outline-none"
             />
           </div>
-
-          <Select value={source} onChange={setSource} title="Source">
-            <option value="">All sources</option>
-            <option value="user">User-asked</option>
-            <option value="ai">AI-drafted</option>
-          </Select>
 
           <Select value={reviewStatus} onChange={setReviewStatus} title="Review status">
             <option value="">Any review</option>
@@ -532,19 +574,93 @@ function TopPagesPanel({ stats, onPick }: { stats: AdminQAStats; onPick: (pageTy
   );
 }
 
-function ModelMixPanel({ stats }: { stats: AdminQAStats }) {
-  if (stats.by_model.length === 0) return null;
+function ModelMixPanel({ stats, activeScore, onPickScore }: {
+  stats: AdminQAStats; activeScore: string; onPickScore: (score: string) => void;
+}) {
+  const byScore = stats.by_score ?? [];
+  if (stats.by_model.length === 0 && byScore.length === 0) return null;
   return (
     <div className="rounded-xl border border-stone-200 bg-white p-4">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Models used</h2>
-      <div className="flex flex-wrap gap-1.5">
-        {stats.by_model.map((m) => (
-          <span key={m.model} className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs text-stone-600">
-            {shortModel(m.model)}
-            <span className="font-semibold text-stone-800 tabular-nums">{m.count}</span>
-          </span>
-        ))}
+      {stats.by_model.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {stats.by_model.map((m) => (
+            <span key={m.model} className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs text-stone-600">
+              {shortModel(m.model)}
+              <span className="font-semibold text-stone-800 tabular-nums">{m.count}</span>
+            </span>
+          ))}
+        </div>
+      )}
+      <ScoreDistribution byScore={byScore} activeScore={activeScore} onPick={onPickScore} />
+    </div>
+  );
+}
+
+/** Bar-graph distribution of AI quality scores (1–5) with totals.
+ *  Each bar is a button that filters the list to that grade (toggle). */
+function ScoreDistribution({ byScore, activeScore, onPick }: {
+  byScore: { score: number; count: number }[];
+  activeScore: string;
+  onPick: (score: string) => void;
+}) {
+  if (byScore.length === 0) return null;
+  const counts: Record<number, number> = {};
+  for (const r of byScore) counts[r.score] = (counts[r.score] ?? 0) + r.count;
+  const rows = [5, 4, 3, 2, 1].map((s) => ({ score: s, count: counts[s] ?? 0 }));
+  const total = rows.reduce((n, r) => n + r.count, 0);
+  const max = Math.max(...rows.map((r) => r.count), 1);
+  // warm-to-cool ramp: 5 strongest, 1 weakest
+  const barTone: Record<number, string> = {
+    5: 'bg-emerald-400', 4: 'bg-violet-400', 3: 'bg-amber-300', 2: 'bg-orange-300', 1: 'bg-rose-300',
+  };
+  const hasActive = activeScore !== '';
+  return (
+    <div className="mt-4 pt-3 border-t border-stone-100">
+      <div className="flex items-baseline justify-between mb-2">
+        <h3 className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Score distribution</h3>
+        <span className="text-[11px] text-stone-400 tabular-nums">{total.toLocaleString()} graded</span>
       </div>
+      <ul className="space-y-1">
+        {rows.map((r) => {
+          const pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
+          const isActive = activeScore === String(r.score);
+          const dimmed = hasActive && !isActive;
+          return (
+            <li key={r.score}>
+              <button
+                type="button"
+                onClick={() => onPick(String(r.score))}
+                disabled={r.count === 0 && !isActive}
+                aria-pressed={isActive}
+                title={`${r.count.toLocaleString()} Q&A scored ${r.score} (${pct}%) — click to ${isActive ? 'clear filter' : 'show only these'}`}
+                className={`w-full group flex items-center gap-2 rounded-md px-1 py-1 -mx-1 text-left transition-colors
+                  ${r.count === 0 && !isActive ? 'cursor-default opacity-50' : 'cursor-pointer hover:bg-stone-50'}
+                  ${isActive ? 'bg-stone-50 ring-1 ring-inset ring-violet-300' : ''}
+                  ${dimmed ? 'opacity-55' : ''}`}
+              >
+                <span className="w-9 shrink-0 flex items-center gap-0.5 text-xs font-medium text-stone-700 tabular-nums">
+                  {r.score}<span className="text-amber-400">★</span>
+                </span>
+                <span className="flex-1 h-2.5 rounded-full bg-stone-100 overflow-hidden">
+                  <span className={`block h-full rounded-full ${barTone[r.score]} ${dimmed ? 'opacity-60' : ''} group-hover:brightness-105 transition-all`} style={{ width: `${(r.count / max) * 100}%` }} />
+                </span>
+                <span className="w-10 shrink-0 text-right text-xs text-stone-600 tabular-nums">{r.count.toLocaleString()}</span>
+                <span className="w-9 shrink-0 text-right text-[11px] text-stone-400 tabular-nums">{pct}%</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {hasActive && (
+        <button
+          type="button"
+          onClick={() => onPick(activeScore)}
+          className="mt-2 text-[11px] text-violet-700 hover:text-violet-900 cursor-pointer"
+        >
+          Showing {activeScore}★ only · clear
+        </button>
+      )}
     </div>
   );
 }
@@ -695,13 +811,15 @@ function QACard(p: QACardProps) {
         ) : (
           /* --- View mode --- */
           <>
-            <p className="text-sm font-semibold text-stone-800 mb-1">{item.question}</p>
+            <p className="text-sm font-semibold text-stone-800 mb-1">
+              <FormattedInline text={item.question} />
+            </p>
             <div
               onClick={p.onToggleExpand}
-              className={`text-sm text-stone-600 leading-relaxed whitespace-pre-wrap cursor-pointer ${p.expanded ? '' : 'line-clamp-3'}`}
+              className={`text-sm text-stone-600 leading-relaxed cursor-pointer ${p.expanded ? '' : 'max-h-16 overflow-hidden'}`}
               title={p.expanded ? 'Click to collapse' : 'Click to expand'}
             >
-              {item.answer}
+              <FormattedText text={item.answer} />
             </div>
             {!p.expanded && item.answer.length > 220 && (
               <button onClick={p.onToggleExpand} className="text-xs text-violet-500 hover:text-violet-700 mt-1 cursor-pointer">
@@ -829,7 +947,7 @@ function ConfirmDialog({ pending, busy, error, onConfirm, onCancel }: {
           {pending.scope === 'single' ? (
             <>
               <p className="text-[11px] font-medium uppercase tracking-wider text-stone-400">{pageLabel(pending.item)}</p>
-              <p className="text-sm text-stone-700 line-clamp-2">{pending.item.question}</p>
+              <p className="text-sm text-stone-700 line-clamp-2"><FormattedInline text={pending.item.question} /></p>
             </>
           ) : (
             <p className="text-sm text-stone-700">{pending.ids.length} Q&A selected</p>

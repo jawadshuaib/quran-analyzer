@@ -31,6 +31,15 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
         }
       }
 
+      // Exegesis note — the approved teacher-voice synthesis distilled from
+      // this verse's highest-signal Q&A, anchored in Quran-internal cross-refs.
+      // It rides along in the ?fields=all envelope (review_status='approved'
+      // only); surfaced here so the assistant can draw on its findings.
+      if (d.exegesis?.exegesis_markdown) {
+        sections.push('\n## Exegesis Note');
+        sections.push(String(d.exegesis.exegesis_markdown));
+      }
+
       // Words with morphology
       if (d.words?.length) {
         sections.push('\n## Word-by-Word Analysis');

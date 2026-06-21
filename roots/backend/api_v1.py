@@ -23,7 +23,7 @@ v1_bp = Blueprint("v1", __name__, url_prefix="/api/v1")
 VALID_FIELDS = {
     "morphology", "word-meanings", "roots", "related", "context",
     "ai-translation", "thematic-context", "surah-context", "grammar",
-    "grammar-notes", "all",
+    "grammar-notes", "exegesis", "all",
 }
 
 
@@ -153,6 +153,10 @@ def get_verse(surah: int, ayah: int):
         if "grammar-notes" in fields:
             included.append("grammar-notes")
             data["grammar_notes"] = _fetch_grammar_notes(mod, conn, surah, ayah)
+
+        if "exegesis" in fields:
+            included.append("exegesis")
+            data["exegesis"] = _fetch_exegesis(mod, conn, surah, ayah)
 
         elapsed = round((time.monotonic() - t0) * 1000)
         return _envelope(data, meta={"fields_included": included, "response_time_ms": elapsed})
@@ -300,6 +304,21 @@ def get_verse_grammar_notes(surah: int, ayah: int):
         result = _fetch_grammar_notes(mod, conn, surah, ayah)
         if not result:
             return _error("NO_DATA", f"No grammar notes for {surah}:{ayah}", 404)
+        return _envelope(result)
+    finally:
+        conn.close()
+
+
+@v1_bp.route("/verses/<int:surah>:<int:ayah>/exegesis")
+def get_verse_exegesis_v1(surah: int, ayah: int):
+    mod = _app()
+    conn = mod.get_db()
+    try:
+        if not _verse_exists(conn, surah, ayah):
+            return _error("VERSE_NOT_FOUND", f"Verse {surah}:{ayah} does not exist", 404)
+        result = _fetch_exegesis(mod, conn, surah, ayah)
+        if not result:
+            return _error("NO_DATA", f"No exegesis for {surah}:{ayah}", 404)
         return _envelope(result)
     finally:
         conn.close()
@@ -1641,6 +1660,45 @@ def _fetch_grammar_notes(mod, conn, surah, ayah):
             "prompt_version": row["prompt_version"],
             "created_at": row["created_at"],
         },
+    }
+
+
+def _fetch_exegesis(mod, conn, surah, ayah):
+    """Return the approved, public exegesis note for a verse, or None.
+
+    Teacher-voice commentary distilled from high-signal Q&A, shown at the bottom
+    of a verse's translation notes. Only review_status='approved' and non-hidden
+    notes are exposed here — pending, rejected, or hidden notes stay gated behind
+    the admin surface. The body is raw markdown: verse references like "16:53"
+    and transliterated Arabic terms in *italics*. Consumers can render it
+    directly or strip the markdown as needed.
+
+    Returns None if no approved note exists for this verse.
+    """
+    try:
+        mod._ensure_exegesis_table(conn)
+    except Exception:
+        pass
+    row = conn.execute(
+        "SELECT exegesis_markdown, source_scores, model_used, template_version, "
+        "       created_at, edited_at "
+        "FROM verse_exegesis "
+        "WHERE chapter = ? AND verse = ? "
+        "  AND review_status = 'approved' AND COALESCE(hidden, 0) = 0 "
+        "LIMIT 1",
+        (surah, ayah),
+    ).fetchone()
+    if not row:
+        return None
+    return {
+        "exegesis_markdown": row["exegesis_markdown"],
+        "source_scores": _safe_json(row["source_scores"], None),
+        "model": {
+            "model_used": row["model_used"],
+            "template_version": row["template_version"],
+        },
+        "created_at": row["created_at"],
+        "edited_at": row["edited_at"],
     }
 
 
