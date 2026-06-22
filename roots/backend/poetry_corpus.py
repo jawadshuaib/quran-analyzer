@@ -210,6 +210,8 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     have = {r[1] for r in conn.execute("PRAGMA table_info(poetry_poems)")}
     if "tags" not in have:
         conn.execute("ALTER TABLE poetry_poems ADD COLUMN tags TEXT")
+    if "title_en" not in have:
+        conn.execute("ALTER TABLE poetry_poems ADD COLUMN title_en TEXT")
     have_l = {r[1] for r in conn.execute("PRAGMA table_info(poetry_lines)")}
     if "translation_en" not in have_l:
         conn.execute("ALTER TABLE poetry_lines ADD COLUMN translation_en TEXT")

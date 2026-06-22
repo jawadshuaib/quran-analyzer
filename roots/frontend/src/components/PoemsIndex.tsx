@@ -51,7 +51,12 @@ export default function PoemsIndex() {
         <div className="space-y-7">
           {byPoet.map(([poet, list]) => (
             <section key={poet}>
-              <h2 dir="rtl" lang="ar" className="font-arabic text-xl text-stone-700 mb-2">{poet}</h2>
+              <h2 className="mb-2 flex flex-wrap items-baseline gap-x-2.5">
+                <span dir="rtl" lang="ar" className="font-arabic text-xl text-stone-700">{poet}</span>
+                {list[0]?.poet_latin && (
+                  <span className="text-sm text-stone-400">{list[0].poet_latin}</span>
+                )}
+              </h2>
               <ul className="space-y-2">
                 {list.map((p) => (
                   <li key={p.id}>
@@ -65,6 +70,9 @@ export default function PoemsIndex() {
                         </span>
                         <span className="shrink-0 text-[11px] text-stone-400">{p.line_count} lines</span>
                       </div>
+                      {p.title_en && (
+                        <p className="mt-0.5 text-sm text-stone-500 italic truncate">{p.title_en}</p>
+                      )}
                       <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
                         {p.meter && <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-500">{p.meter}</span>}
                         {p.translated_count >= p.line_count ? (

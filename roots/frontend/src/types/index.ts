@@ -101,6 +101,8 @@ export interface SurahVerse {
   has_grammar_note: boolean;
   /** True when an approved, non-hidden exegesis note exists for this verse. */
   has_exegesis?: boolean;
+  /** True when an approved, non-hidden pre-Islamic poetry note exists. */
+  has_poetry_note?: boolean;
   /** Present when /api/surah/<n>?include=words was requested. */
   words?: SurahVerseWord[];
   /** Present when ?include=surveyed_roots was requested. Subset of roots
@@ -406,13 +408,19 @@ export interface VerseExegesisData {
 export interface PoetryQuotedLine {
   line_root_id: number;
   poet?: string;
-  /** 'A' (Muʿallaqāt) | 'B' (major poets) | 'C' (broad scrape, illustration). */
+  /** 'A' (Muʿallaqāt) | 'B' (major poets) | 'C' (broad scrape, illustration).
+   *  Stripped before serving to the public (readers never see tiers); present
+   *  only on admin payloads. */
   auth_tier?: string;
   arabic?: string;
   surface_word?: string;
   english?: string;
   translit?: string;
   note?: string;
+  /** Where this line lives in the poem library — lets an inline quote link to
+   *  /poem/<poem_id>#line-<line_no>. */
+  poem_id?: number;
+  line_no?: number;
 }
 
 /** Root-level comparison shown in the "In Pre-Islamic Poetry" section. */
@@ -449,6 +457,7 @@ export interface PoemData {
   poet: string;
   poet_latin?: string | null;
   title?: string | null;
+  title_en?: string | null;
   meter?: string | null;
   rhyme?: string | null;
   era?: string | null;
@@ -463,6 +472,7 @@ export interface PoemSummary {
   poet: string;
   poet_latin?: string | null;
   title?: string | null;
+  title_en?: string | null;
   meter?: string | null;
   era?: string | null;
   line_count: number;

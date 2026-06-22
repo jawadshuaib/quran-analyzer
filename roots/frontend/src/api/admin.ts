@@ -2574,3 +2574,119 @@ export async function bulkAdminExegesis(ids: number[], op: AdminExegesisBulkOp):
   if (!res.ok) throw new Error(data.error || 'Bulk action failed');
   return data;
 }
+
+/* ---------------------------------------------------------------- */
+/*  Pre-Islamic poetry — root comparisons + verse notes review      */
+/* ---------------------------------------------------------------- */
+
+export type PoetryKind = 'root' | 'verse';
+
+export interface AdminPoetryItem {
+  id: number;
+  kind: PoetryKind;
+  label: string;                  // 'ك ف ر' (root) or '45:24' (verse)
+  link: string;                   // '/root/kfr' or '/verse/45:24'
+  markdown: string;
+  verdict: string | null;         // 'continuity' | shift_type | 'contrast'
+  continuity: boolean;
+  confidence: number | null;
+  auth_tier_max: string | null;
+  quoted_count: number;
+  review_status: string | null;   // 'pending' | 'approved' | 'rejected'
+  hidden: boolean;
+  created_at: string;
+  edited_at: string | null;
+}
+
+export interface AdminPoetryKindStats {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  hidden: number;
+}
+
+export interface AdminPoetryStats extends AdminPoetryKindStats {
+  roots: number;
+  verses: number;
+  root: AdminPoetryKindStats;
+  verse: AdminPoetryKindStats;
+}
+
+export type AdminPoetrySort = 'recent' | 'oldest' | 'longest';
+
+export interface AdminPoetryQuery {
+  kind: PoetryKind;
+  q?: string;
+  review_status?: string;
+  status?: AdminQAStatus;
+  sort?: AdminPoetrySort;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AdminPoetryListResponse {
+  items: AdminPoetryItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  kind: PoetryKind;
+}
+
+export async function getAdminPoetry(query: AdminPoetryQuery): Promise<AdminPoetryListResponse> {
+  const params = new URLSearchParams();
+  params.set('kind', query.kind);
+  if (query.q) params.set('q', query.q);
+  if (query.review_status) params.set('review_status', query.review_status);
+  if (query.status && query.status !== 'all') params.set('status', query.status);
+  if (query.sort) params.set('sort', query.sort);
+  params.set('limit', String(query.limit ?? 25));
+  params.set('offset', String(query.offset ?? 0));
+  const res = await authFetch(`${BASE}/poetry?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load poetry');
+  return data as AdminPoetryListResponse;
+}
+
+export async function getAdminPoetryStats(): Promise<AdminPoetryStats> {
+  const res = await authFetch(`${BASE}/poetry/stats`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load poetry stats');
+  return data as AdminPoetryStats;
+}
+
+export async function updateAdminPoetry(
+  kind: PoetryKind,
+  id: number,
+  patch: { hidden?: boolean; markdown?: string; review_status?: string },
+): Promise<AdminPoetryItem> {
+  const res = await authFetch(`${BASE}/poetry/${kind}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Update failed');
+  return data.item as AdminPoetryItem;
+}
+
+export async function deleteAdminPoetry(kind: PoetryKind, id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/poetry/${kind}/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Delete failed');
+  }
+}
+
+export async function bulkAdminPoetry(
+  kind: PoetryKind,
+  ids: number[],
+  op: AdminExegesisBulkOp,
+): Promise<{ affected: number }> {
+  const res = await authFetch(`${BASE}/poetry/bulk`, {
+    method: 'POST',
+    body: JSON.stringify({ kind, ids, op }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Bulk action failed');
+  return data;
+}

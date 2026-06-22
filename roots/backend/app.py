@@ -3205,6 +3205,18 @@ def get_surah(surah: int):
         ).fetchall()
         has_exegesis = {r["verse"] for r in exeg_rows}
 
+        # Pre-Islamic poetry-note presence (same approved + non-hidden gate as
+        # the public /api/verse/<>/poetry endpoint), so the reader's Notes icon
+        # also lights up when a verse has a poetry note.
+        _ensure_poetry_serve_tables(conn)
+        poetry_rows = conn.execute(
+            "SELECT verse FROM verse_poetry_notes "
+            "WHERE chapter = ? AND review_status = 'approved' "
+            "  AND COALESCE(hidden, 0) = 0",
+            (surah,),
+        ).fetchall()
+        has_poetry = {r["verse"] for r in poetry_rows}
+
         # Optional: per-word data (full segments + translation). Grouped
         # by word_pos so prefixes/suffixes/content all live under one
         # word entry — earlier we only kept ONE segment per word_pos
@@ -3371,6 +3383,7 @@ def get_surah(surah: int):
                 "has_translation_note": bool(tr.get("has_translation_note")),
                 "has_grammar_note": v in has_grammar,
                 "has_exegesis": v in has_exegesis,
+                "has_poetry_note": v in has_poetry,
             }
             if include_words:
                 entry["words"] = words_by_verse.get(v, [])
@@ -6618,7 +6631,7 @@ def list_poems():
             return jsonify({"poems": []})
         qmarks = ",".join("?" * len(pids))
         rows = conn.execute(
-            f"""SELECT pp.id, pp.poet, pp.poet_latin, pp.title, pp.meter, pp.era,
+            f"""SELECT pp.id, pp.poet, pp.poet_latin, pp.title, pp.title_en, pp.meter, pp.era,
                    (SELECT COUNT(*) FROM poetry_lines WHERE poem_id = pp.id) AS line_count,
                    (SELECT COUNT(*) FROM poetry_lines WHERE poem_id = pp.id
                       AND translation_en IS NOT NULL AND translation_en != '') AS translated_count
@@ -6637,7 +6650,7 @@ def get_poem(poem_id: int):
     try:
         _ensure_poetry_serve_tables(conn)
         p = conn.execute(
-            "SELECT id, poet, poet_latin, title, meter, rhyme, era "
+            "SELECT id, poet, poet_latin, title, title_en, meter, rhyme, era "
             "FROM poetry_poems WHERE id = ?", (poem_id,)).fetchone()
         if not p:
             return jsonify({"error": "Poem not found"}), 404
@@ -6655,7 +6668,8 @@ def get_poem(poem_id: int):
                 quoted_line_nos.add(r["line_no"])
         return jsonify({
             "id": p["id"], "poet": p["poet"], "poet_latin": p["poet_latin"],
-            "title": p["title"], "meter": p["meter"], "rhyme": p["rhyme"], "era": p["era"],
+            "title": p["title"], "title_en": p["title_en"],
+            "meter": p["meter"], "rhyme": p["rhyme"], "era": p["era"],
             "line_count": len(lines),
             "translated_count": sum(1 for ln in lines if (ln["translation_en"] or "").strip()),
             "lines": [{
@@ -6735,6 +6749,232 @@ def get_verse_poetry(surah: int, ayah: int):
             "auth_tier_max": row["auth_tier_max"],
             "created_at": row["created_at"],
         })
+    finally:
+        conn.close()
+
+
+# ---- Admin: pre-Islamic poetry review (root comparisons + verse notes) -----
+# Two tables share one review surface, switched by a `kind` param. Mirrors the
+# exegesis admin endpoints below.
+_POETRY_ADMIN = {
+    "root": {"table": "root_poetry_comparisons", "md": "comparison_markdown",
+             "search": ("comparison_markdown", "root_buckwalter", "root_arabic")},
+    "verse": {"table": "verse_poetry_notes", "md": "note_markdown",
+              "search": ("note_markdown", "page_key")},
+}
+
+
+def _poetry_admin_row(kind, row):
+    """Unify a root/verse row into the shape the admin queue renders."""
+    d = dict(row)
+    cfg = _POETRY_ADMIN[kind]
+    d["kind"] = kind
+    d["hidden"] = bool(d.get("hidden"))
+    d["continuity"] = bool(d.get("continuity"))
+    d["markdown"] = d.pop(cfg["md"], None)
+    ql = d.pop("quoted_lines_json", None)
+    try:
+        d["quoted_count"] = len(json.loads(ql)) if ql else 0
+    except Exception:
+        d["quoted_count"] = 0
+    # drop heavy / internal columns from the payload
+    for k in ("raw_response", "adversarial_report", "counter_search_json",
+              "collocations_json", "config_id", "quran_usage_summary",
+              "poetry_usage_summary"):
+        d.pop(k, None)
+    if kind == "root":
+        d["label"] = d.get("root_arabic") or d.get("root_buckwalter")
+        d["link"] = "/root/%s" % d.get("root_buckwalter")
+        d["verdict"] = "continuity" if d["continuity"] else d.get("shift_type")
+    else:
+        key = d.get("page_key") or ("%s:%s" % (d.get("chapter"), d.get("verse")))
+        d["label"] = key
+        d["link"] = "/verse/%s" % key
+        d["verdict"] = "continuity" if d["continuity"] else "contrast"
+    return d
+
+
+@app.route("/api/admin/poetry", methods=["GET"])
+@admin_required
+def admin_list_poetry():
+    kind = (request.args.get("kind") or "root").strip()
+    if kind not in _POETRY_ADMIN:
+        return jsonify({"error": "kind must be root|verse"}), 400
+    cfg = _POETRY_ADMIN[kind]
+    md, table = cfg["md"], cfg["table"]
+    q = (request.args.get("q") or "").strip()
+    review_status = (request.args.get("review_status") or "").strip()
+    status = (request.args.get("status") or "all").strip()
+    sort = (request.args.get("sort") or "recent").strip()
+    sort_sql = {
+        "recent": "created_at DESC, id DESC",
+        "oldest": "created_at ASC, id ASC",
+        "longest": "LENGTH(%s) DESC, created_at DESC" % md,
+    }.get(sort, "created_at DESC, id DESC")
+    try:
+        limit = min(max(int(request.args.get("limit", 25)), 1), 100)
+    except (ValueError, TypeError):
+        limit = 25
+    try:
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (ValueError, TypeError):
+        offset = 0
+
+    where, params = [], []
+    if q:
+        where.append("(" + " OR ".join("%s LIKE ?" % c for c in cfg["search"]) + ")")
+        params.extend(["%%%s%%" % q] * len(cfg["search"]))
+    if review_status:
+        where.append("review_status = ?")
+        params.append(review_status)
+    if status == "visible":
+        where.append("COALESCE(hidden, 0) = 0")
+    elif status == "hidden":
+        where.append("COALESCE(hidden, 0) = 1")
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    conn = get_db()
+    try:
+        _ensure_poetry_serve_tables(conn)
+        total = conn.execute(
+            "SELECT COUNT(*) AS c FROM %s %s" % (table, where_sql), params
+        ).fetchone()["c"]
+        rows = conn.execute(
+            "SELECT * FROM %s %s ORDER BY %s LIMIT ? OFFSET ?" % (table, where_sql, sort_sql),
+            params + [limit, offset],
+        ).fetchall()
+        return jsonify({
+            "items": [_poetry_admin_row(kind, r) for r in rows],
+            "total": total, "limit": limit, "offset": offset, "kind": kind,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/poetry/stats", methods=["GET"])
+@admin_required
+def admin_poetry_stats():
+    conn = get_db()
+    try:
+        _ensure_poetry_serve_tables(conn)
+
+        def per(table):
+            s = lambda w: conn.execute(  # noqa: E731
+                "SELECT COUNT(*) AS c FROM %s %s" % (table, w)).fetchone()["c"]
+            return {
+                "total": s(""),
+                "pending": s("WHERE review_status='pending'"),
+                "approved": s("WHERE review_status='approved'"),
+                "rejected": s("WHERE review_status='rejected'"),
+                "hidden": s("WHERE COALESCE(hidden,0)=1"),
+            }
+        root = per("root_poetry_comparisons")
+        verse = per("verse_poetry_notes")
+        comb = {k: root[k] + verse[k] for k in root}
+        comb["roots"] = root["total"]
+        comb["verses"] = verse["total"]
+        return jsonify({"root": root, "verse": verse, **comb})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/poetry/<kind>/<int:pid>", methods=["PATCH"])
+@admin_required
+def admin_update_poetry(kind, pid):
+    if kind not in _POETRY_ADMIN:
+        return jsonify({"error": "kind must be root|verse"}), 400
+    cfg = _POETRY_ADMIN[kind]
+    md, table = cfg["md"], cfg["table"]
+    data = request.get_json(force=True) or {}
+    sets, params, edited = [], [], False
+    if "hidden" in data:
+        sets.append("hidden = ?")
+        params.append(1 if data.get("hidden") else 0)
+    if "review_status" in data:
+        rs = data.get("review_status")
+        if rs not in ("pending", "approved", "rejected", None):
+            return jsonify({"error": "review_status must be pending/approved/rejected"}), 400
+        sets.append("review_status = ?")
+        params.append(rs)
+    if "markdown" in data:
+        m = data.get("markdown")
+        if not isinstance(m, str) or not m.strip():
+            return jsonify({"error": "markdown must be a non-empty string"}), 400
+        sets.append("%s = ?" % md)
+        params.append(m.strip()[:50000])
+        edited = True
+    if not sets:
+        return jsonify({"error": "No updatable fields provided"}), 400
+    if edited:
+        sets.append("edited_at = datetime('now')")
+
+    conn = get_db()
+    try:
+        _ensure_poetry_serve_tables(conn)
+        cur = conn.execute(
+            "UPDATE %s SET %s WHERE id = ?" % (table, ", ".join(sets)), params + [pid])
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Not found"}), 404
+        row = conn.execute("SELECT * FROM %s WHERE id = ?" % table, (pid,)).fetchone()
+        return jsonify({"ok": True, "item": _poetry_admin_row(kind, row)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/poetry/<kind>/<int:pid>", methods=["DELETE"])
+@admin_required
+def admin_delete_poetry(kind, pid):
+    if kind not in _POETRY_ADMIN:
+        return jsonify({"error": "kind must be root|verse"}), 400
+    table = _POETRY_ADMIN[kind]["table"]
+    conn = get_db()
+    try:
+        _ensure_poetry_serve_tables(conn)
+        cur = conn.execute("DELETE FROM %s WHERE id = ?" % table, (pid,))
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Not found"}), 404
+        return jsonify({"ok": True, "deleted": pid})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/poetry/bulk", methods=["POST"])
+@admin_required
+def admin_bulk_poetry():
+    data = request.get_json(force=True) or {}
+    kind = (data.get("kind") or "root").strip()
+    if kind not in _POETRY_ADMIN:
+        return jsonify({"error": "kind must be root|verse"}), 400
+    table = _POETRY_ADMIN[kind]["table"]
+    raw_ids = data.get("ids")
+    if not isinstance(raw_ids, list) or not raw_ids:
+        return jsonify({"error": "ids must be a non-empty list"}), 400
+    ids = [int(i) for i in raw_ids if str(i).isdigit()][:500]
+    if not ids:
+        return jsonify({"error": "no valid ids"}), 400
+    op = (data.get("op") or "").strip()
+    placeholders = ",".join("?" * len(ids))
+    conn = get_db()
+    try:
+        _ensure_poetry_serve_tables(conn)
+        if op == "delete":
+            cur = conn.execute(
+                "DELETE FROM %s WHERE id IN (%s)" % (table, placeholders), ids)
+        elif op in ("approve", "reject", "pending"):
+            rs = {"approve": "approved", "reject": "rejected", "pending": "pending"}[op]
+            cur = conn.execute(
+                "UPDATE %s SET review_status = ? WHERE id IN (%s)" % (table, placeholders),
+                [rs] + ids)
+        elif op in ("hide", "unhide"):
+            cur = conn.execute(
+                "UPDATE %s SET hidden = ? WHERE id IN (%s)" % (table, placeholders),
+                [1 if op == "hide" else 0] + ids)
+        else:
+            return jsonify({"error": "op must be approve/reject/pending/hide/unhide/delete"}), 400
+        conn.commit()
+        return jsonify({"ok": True, "op": op, "affected": cur.rowcount})
     finally:
         conn.close()
 

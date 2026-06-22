@@ -36,6 +36,7 @@ import StatsPage from './StatsPage';
 import JudgeLessonsPage from './JudgeLessonsPage';
 import AdminAssistantQA from './AdminAssistantQA';
 import AdminExegesis from './AdminExegesis';
+import AdminPoetry from './AdminPoetry';
 
 type AdminRoute =
   | 'dashboard' | 'settings' | 'scheduler'
@@ -52,7 +53,8 @@ type AdminRoute =
   | 'stats'
   | 'judge-lessons'
   | 'assistant-qa'
-  | 'exegesis';
+  | 'exegesis'
+  | 'poetry';
 
 function getAdminRoute(): AdminRoute {
   const path = window.location.pathname;
@@ -88,6 +90,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/judge-lessons\/?$/.test(path)) return 'judge-lessons';
   if (/^\/admin\/qa\/?$/.test(path)) return 'assistant-qa';
   if (/^\/admin\/exegesis\/?$/.test(path)) return 'exegesis';
+  if (/^\/admin\/poetry\/?$/.test(path)) return 'poetry';
   return 'dashboard';
 }
 
@@ -156,6 +159,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Exegesis',
     description: 'Teacher-voice commentary distilled from the verse Q&A, shown beneath the translation notes.',
     matches: (r) => r === 'exegesis',
+  },
+  {
+    href: '/admin/poetry',
+    label: 'Pre-Islamic Poetry',
+    description: 'Root comparisons and verse notes setting the Qurʾān beside the Jahilī poets. Review, fix, hide, or remove.',
+    matches: (r) => r === 'poetry',
   },
   {
     href: '/admin/verse-settings',
@@ -344,6 +353,7 @@ export default function AdminPage() {
         {route === 'judge-lessons' && <JudgeLessonsPage />}
         {route === 'assistant-qa' && <AdminAssistantQA />}
         {route === 'exegesis' && <AdminExegesis />}
+        {route === 'poetry' && <AdminPoetry />}
       </div>
     </div>
   );

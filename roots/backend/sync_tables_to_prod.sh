@@ -61,6 +61,7 @@ fi
 TABLES=("$@")
 TS="$(date -u +%Y%m%d_%H%M%S)"
 LOCAL_SQL="/tmp/db_sync_${TS}.sql"
+LOCAL_COUNT_PY="/tmp/db_count_${TS}.py"
 
 echo "[sync] === Building $LOCAL_SQL from local DB for tables: ${TABLES[*]} ==="
 
@@ -125,8 +126,32 @@ if [ "${DRY_RUN:-0}" = "1" ]; then
   exit 0
 fi
 
-echo "[sync] === Copying $LOCAL_SQL to $PROD_HOST:/tmp/ ==="
-scp "$LOCAL_SQL" "$PROD_HOST:$LOCAL_SQL"
+# Small helper that runs INSIDE the prod container to print row counts.
+# We ship it as a *file* (scp → docker cp) and invoke it with the table
+# names as plain argv. Earlier this list was interpolated as a JSON array
+# into a remote `python3 -c "..."`, but the JSON's double-quotes were
+# stripped passing through the ssh → docker exec → python quoting layers,
+# so the remote Python saw `for t in [verse_exegesis]:` (a bare name) and
+# died with NameError — aborting the whole script before the apply step.
+# Table names are simple identifiers, so plain argv survives cleanly.
+cat > "$LOCAL_COUNT_PY" <<'PYEOF'
+import sqlite3, sys
+
+db_path = sys.argv[1]
+label = sys.argv[2]
+tables = sys.argv[3:]
+
+conn = sqlite3.connect(db_path)
+for t in tables:
+    try:
+        n = conn.execute('SELECT COUNT(*) FROM ' + t).fetchone()[0]
+        print('  ' + t + ': ' + str(n) + ' rows ' + label)
+    except Exception as e:
+        print('  ' + t + ': error (' + str(e) + ')')
+PYEOF
+
+echo "[sync] === Copying $LOCAL_SQL + count helper to $PROD_HOST:/tmp/ ==="
+scp "$LOCAL_SQL" "$LOCAL_COUNT_PY" "$PROD_HOST:/tmp/"
 echo
 
 echo "[sync] === Taking safety backup of prod DB ==="
@@ -141,16 +166,11 @@ ssh -o ConnectTimeout=10 "$PROD_HOST" "
 echo
 
 echo "[sync] === Reading prod BEFORE counts ==="
-ssh -o ConnectTimeout=10 "$PROD_HOST" "docker exec $PROD_CONTAINER python3 -c \"
-import sqlite3
-conn = sqlite3.connect('$PROD_DB_PATH')
-for t in $(printf '%s\n' "${TABLES[@]}" | python3 -c 'import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))'):
-    try:
-        n = conn.execute('SELECT COUNT(*) FROM ' + t).fetchone()[0]
-        print('  ' + t + ': ' + str(n) + ' rows BEFORE')
-    except Exception as e:
-        print('  ' + t + ': table missing (' + str(e) + ')')
-\""
+ssh -o ConnectTimeout=10 "$PROD_HOST" "
+  set -e
+  docker cp $LOCAL_COUNT_PY $PROD_CONTAINER:$LOCAL_COUNT_PY
+  docker exec $PROD_CONTAINER python3 $LOCAL_COUNT_PY $PROD_DB_PATH BEFORE ${TABLES[*]}
+"
 echo
 
 echo "[sync] === Copying SQL file into the container & applying ==="
@@ -169,16 +189,11 @@ print('[sync] script applied OK')
 echo
 
 echo "[sync] === Reading prod AFTER counts ==="
-ssh -o ConnectTimeout=10 "$PROD_HOST" "docker exec $PROD_CONTAINER python3 -c \"
-import sqlite3
-conn = sqlite3.connect('$PROD_DB_PATH')
-for t in $(printf '%s\n' "${TABLES[@]}" | python3 -c 'import sys,json; print(json.dumps([l.strip() for l in sys.stdin if l.strip()]))'):
-    try:
-        n = conn.execute('SELECT COUNT(*) FROM ' + t).fetchone()[0]
-        print('  ' + t + ': ' + str(n) + ' rows AFTER')
-    except Exception as e:
-        print('  ' + t + ': error (' + str(e) + ')')
-\""
+ssh -o ConnectTimeout=10 "$PROD_HOST" "
+  set -e
+  docker cp $LOCAL_COUNT_PY $PROD_CONTAINER:$LOCAL_COUNT_PY
+  docker exec $PROD_CONTAINER python3 $LOCAL_COUNT_PY $PROD_DB_PATH AFTER ${TABLES[*]}
+"
 
 echo
 echo "[sync] DONE. Backup on prod at ${PROD_DB_PATH}.before-tablesync-$TS"

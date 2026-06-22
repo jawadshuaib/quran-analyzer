@@ -10,6 +10,9 @@ import { API_BASE } from '../api/quran';
  */
 export async function buildVerseContext(surah: number, ayah: number): Promise<string> {
   const sections: string[] = [];
+  // Roots present in this verse — collected here so the poetry block below can
+  // pull each root's "In Pre-Islamic Poetry" comparison.
+  const rootBws: string[] = [];
 
   // Fetch the comprehensive verse data
   try {
@@ -65,6 +68,7 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
       if (d.roots_summary?.length) {
         sections.push('\n## Root Analysis');
         for (const r of d.roots_summary) {
+          if (r.root_buckwalter) rootBws.push(r.root_buckwalter);
           let line = `${r.root_arabic} (${r.root_buckwalter}): ${r.meaning || 'no gloss'}`;
           if (r.cognate?.concept) line += ` — Semitic cognate: "${r.cognate.concept}"`;
           if (r.cognate?.derivatives?.length) {
@@ -126,6 +130,46 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
     }
   } catch {
     // ignore — grammar notes are optional
+  }
+
+  // Pre-Islamic poetry — the verse-level note (how this verse reshapes a word
+  // the Jahilī poets used) plus, for each root in the verse, the root-level
+  // comparison. Lets the assistant reason about the Qurʾān-vs-poetry contrast.
+  // `[[q:ID|arabic]]` quote markers are stripped to the bare Arabic for Claude.
+  const stripQ = (s: string) => String(s).replace(/\[\[q:\d+\|([^\]]+)\]\]/g, '$1');
+  try {
+    const res = await fetch(`${API_BASE}/api/verse/${surah}:${ayah}/poetry`);
+    if (res.ok) {
+      const p = await res.json();
+      if (p?.note_markdown) {
+        sections.push('\n## In Pre-Islamic Poetry (verse note)');
+        sections.push(stripQ(p.note_markdown));
+        if (Array.isArray(p.quoted_lines) && p.quoted_lines.length) {
+          sections.push('Lines quoted:');
+          for (const q of p.quoted_lines) {
+            sections.push(`- ${q.poet || 'unknown'}: ${q.arabic || ''}${q.english ? ` — "${q.english}"` : ''}`);
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore — verse may have no poetry note
+  }
+  // Root-level comparisons for the verse's roots (deduped, capped).
+  for (const bw of [...new Set(rootBws)].slice(0, 6)) {
+    try {
+      const res = await fetch(`${API_BASE}/api/root/${bw}/poetry`);
+      if (res.ok) {
+        const p = await res.json();
+        if (p?.comparison_markdown) {
+          const verdict = p.continuity ? 'continuity' : p.shift_type;
+          sections.push(`\n## In Pre-Islamic Poetry — root ${p.root_arabic || bw}${verdict ? ` (${verdict})` : ''}`);
+          sections.push(stripQ(p.comparison_markdown));
+        }
+      }
+    } catch {
+      // ignore — root may have no comparison
+    }
   }
 
   return sections.join('\n');

@@ -48,9 +48,11 @@ export default function PoetryComparison({ rootBw }: { rootBw: string }) {
           </span>
         </div>
 
-        {/* the comparison prose — poetic lines are linked inline (see FormattedText) */}
+        {/* the comparison prose — poetic lines are linked inline (the [[q:…]]
+            markers resolve against quoted_lines into hover-tooltip links) */}
         <FormattedText
           text={data.comparison_markdown}
+          quotes={data.quoted_lines}
           className="text-sm text-stone-700 leading-relaxed"
         />
 
@@ -82,7 +84,8 @@ export default function PoetryComparison({ rootBw }: { rootBw: string }) {
 
         <p className="mt-3 text-[11px] text-stone-400 leading-snug">
           Drawn from the most reliably transmitted pre-Islamic poetry (the Muʿallaqāt and major
-          dīwāns). Tap a highlighted line to read the full poem.
+          dīwāns). Hover a highlighted line for the poet and translation; tap it to read the
+          full poem.
         </p>
       </div>
     </section>

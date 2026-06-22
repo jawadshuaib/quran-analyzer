@@ -618,6 +618,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           <div className="text-xs font-medium text-amber-700 mb-1.5">In Pre-Islamic Poetry</div>
           <FormattedText
             text={poetry.note_markdown}
+            quotes={poetry.quoted_lines}
             className="text-sm text-amber-900/90 leading-relaxed"
           />
         </div>

@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useState } from 'react';
-import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData } from '../../types';
+import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote } from '../../types';
 import { toggleSavedItem, isSaved } from '../../utils/saved-items';
 import {
   notifySavedItemsChanged,
@@ -7,7 +7,7 @@ import {
 } from '../SavedItemsPanel';
 import { getNote, setNote, subscribeToNotes } from '../../utils/user-notes';
 import { getSurahName } from '../../utils/surah-names';
-import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis } from '../../api/quran';
+import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry } from '../../api/quran';
 import {
   isReaderNotesVisible,
   setReaderNotesVisible,
@@ -142,7 +142,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }
 
   const hasNote = !!note.trim();
-  const hasVerseNotes = verse.has_translation_note || verse.has_grammar_note || !!verse.has_exegesis;
+  const hasVerseNotes = verse.has_translation_note || verse.has_grammar_note || !!verse.has_exegesis || !!verse.has_poetry_note;
 
   return (
     <article
@@ -333,6 +333,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             hasTranslation={verse.has_translation_note}
             hasGrammar={verse.has_grammar_note}
             hasExegesis={!!verse.has_exegesis}
+            hasPoetry={!!verse.has_poetry_note}
           />
         )}
       </div>
@@ -408,16 +409,19 @@ function VerseNotesPanel({
   hasTranslation,
   hasGrammar,
   hasExegesis,
+  hasPoetry,
 }: {
   surah: number;
   verse: number;
   hasTranslation: boolean;
   hasGrammar: boolean;
   hasExegesis: boolean;
+  hasPoetry: boolean;
 }) {
   const [translation, setTranslation] = useState<AITranslationData | null>(null);
   const [grammar, setGrammar] = useState<GrammarNotesData | null>(null);
   const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
+  const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -429,16 +433,18 @@ function VerseNotesPanel({
       hasTranslation ? fetchAITranslation(surah, verse).catch(() => null) : Promise.resolve(null),
       hasGrammar ? fetchGrammarNotes(surah, verse).catch(() => null) : Promise.resolve(null),
       hasExegesis ? fetchVerseExegesis(surah, verse).catch(() => null) : Promise.resolve(null),
-    ]).then(([t, g, ex]) => {
+      hasPoetry ? fetchVersePoetry(surah, verse).catch(() => null) : Promise.resolve(null),
+    ]).then(([t, g, ex, p]) => {
       if (cancelled) return;
       setTranslation(t);
       setGrammar(g);
       setExegesis(ex);
+      setPoetry(p);
       setLoading(false);
-      if (!t && !g && !ex) setError('No notes available for this verse.');
+      if (!t && !g && !ex && !p) setError('No notes available for this verse.');
     });
     return () => { cancelled = true; };
-  }, [surah, verse, hasTranslation, hasGrammar, hasExegesis]);
+  }, [surah, verse, hasTranslation, hasGrammar, hasExegesis, hasPoetry]);
 
   if (loading) {
     return (
@@ -491,8 +497,20 @@ function VerseNotesPanel({
           </div>
         </div>
       )}
-      {grammar?.notes_markdown && (
+      {poetry?.note_markdown && (
         <div className={(translation?.departure_notes || exegesis?.exegesis_markdown) ? 'pt-3 border-t border-card-border/70' : ''}>
+          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
+            In Pre-Islamic Poetry
+          </h4>
+          {/* FormattedText resolves the [[q:…]] markers against quoted_lines
+              into the same hover-tooltip quote links the research view uses. */}
+          <div className="text-sm leading-relaxed text-ink-secondary">
+            <FormattedText text={poetry.note_markdown} quotes={poetry.quoted_lines} />
+          </div>
+        </div>
+      )}
+      {grammar?.notes_markdown && (
+        <div className={(translation?.departure_notes || exegesis?.exegesis_markdown || poetry?.note_markdown) ? 'pt-3 border-t border-card-border/70' : ''}>
           <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
             Grammar Notes
           </h4>

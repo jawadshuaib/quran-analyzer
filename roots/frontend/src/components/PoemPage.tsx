@@ -49,6 +49,9 @@ export default function PoemPage({ poemId }: { poemId: number }) {
         {poem.title && (
           <p dir="rtl" lang="ar" className="font-arabic text-lg text-stone-500 mt-1">{poem.title}</p>
         )}
+        {poem.title_en && (
+          <p className="text-sm text-stone-400 italic mt-0.5">{poem.title_en}</p>
+        )}
         <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
           {poem.meter && <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">metre: {poem.meter}</span>}
           <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">{poem.line_count} lines</span>
