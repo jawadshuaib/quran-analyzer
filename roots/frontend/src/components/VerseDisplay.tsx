@@ -610,7 +610,9 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
         </div>
       )}
 
-      {/* Pre-Islamic poetry note — sits below the exegesis; auto-hides when none */}
+      {/* Pre-Islamic poetry note — sits below the exegesis; auto-hides when none.
+          Poetic lines are linked inline within the prose (not listed as blocks,
+          so a reader can't mistake them for Qurʾān); no tier labels shown. */}
       {poetry && (
         <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
           <div className="text-xs font-medium text-amber-700 mb-1.5">In Pre-Islamic Poetry</div>
@@ -618,30 +620,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
             text={poetry.note_markdown}
             className="text-sm text-amber-900/90 leading-relaxed"
           />
-          {poetry.quoted_lines?.length > 0 && (
-            <div className="mt-2.5 space-y-2">
-              {poetry.quoted_lines.map((q) => (
-                <div key={q.line_root_id} className="rounded bg-white/60 border border-amber-100 p-2">
-                  <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
-                    {q.poet && (
-                      <span dir="rtl" lang="ar" className="font-arabic text-xs text-stone-600">{q.poet}</span>
-                    )}
-                    {q.auth_tier && (
-                      <span className="text-[9px] font-medium uppercase tracking-wide px-1 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                        Tier {q.auth_tier}
-                      </span>
-                    )}
-                  </div>
-                  {q.arabic && (
-                    <p dir="rtl" lang="ar" className="font-arabic text-base leading-loose text-stone-800">{q.arabic}</p>
-                  )}
-                  {q.english && (
-                    <p className="text-[11px] text-stone-500 italic">&ldquo;{q.english}&rdquo;</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 

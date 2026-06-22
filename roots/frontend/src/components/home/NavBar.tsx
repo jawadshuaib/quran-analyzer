@@ -32,6 +32,7 @@ interface Props {
 
 const STATIC_LINKS = [
   { label: 'Learn', href: '/learning' },
+  { label: 'Poetry', href: '/poems' },
   { label: 'Methodology', href: '/methodology' },
   { label: 'Settings', href: '/settings' },
 ];

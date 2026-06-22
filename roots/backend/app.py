@@ -6551,13 +6551,123 @@ def _ensure_poetry_serve_tables(conn):
     conn.commit()
 
 
-def _poetry_quoted(raw):
+def _poetry_quoted(conn, raw):
+    """Parse a quoted_lines_json blob and enrich each entry with poem_id +
+    line_no (so the client can deep-link to /poem/<id>). Tier labels are
+    intentionally NOT surfaced to readers."""
     if not raw:
         return []
     try:
-        return json.loads(raw)
+        items = json.loads(raw)
     except Exception:
         return []
+    for q in items:
+        q.pop("auth_tier", None)  # never expose tier to readers
+        lrid = q.get("line_root_id")
+        if lrid:
+            loc = conn.execute(
+                "SELECT pl.poem_id, pl.line_no FROM poetry_line_roots plr "
+                "JOIN poetry_lines pl ON pl.id = plr.line_id WHERE plr.id = ?",
+                (lrid,)).fetchone()
+            if loc:
+                q["poem_id"] = loc["poem_id"]
+                q["line_no"] = loc["line_no"]
+    return items
+
+
+def _approved_quoted_lrids(conn) -> set:
+    """line_root_ids quoted by any APPROVED comparison/note."""
+    lrids = set()
+    for tbl in ("root_poetry_comparisons", "verse_poetry_notes"):
+        try:
+            for r in conn.execute(
+                    f"SELECT quoted_lines_json FROM {tbl} "
+                    "WHERE review_status='approved' AND quoted_lines_json IS NOT NULL"):
+                try:
+                    for q in json.loads(r["quoted_lines_json"]):
+                        if q.get("line_root_id"):
+                            lrids.add(q["line_root_id"])
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    return lrids
+
+
+def _quoted_poem_ids(conn) -> set:
+    """Poem ids referenced by any quoted line in approved comparisons/notes."""
+    lrids = _approved_quoted_lrids(conn)
+    if not lrids:
+        return set()
+    qmarks = ",".join("?" * len(lrids))
+    rows = conn.execute(
+        f"""SELECT DISTINCT pl.poem_id FROM poetry_line_roots plr
+            JOIN poetry_lines pl ON pl.id = plr.line_id
+            WHERE plr.id IN ({qmarks})""", list(lrids)).fetchall()
+    return {r["poem_id"] for r in rows}
+
+
+@app.route("/api/poems")
+def list_poems():
+    """The browsable library: every poem our approved comparisons draw on."""
+    conn = get_db()
+    try:
+        _ensure_poetry_serve_tables(conn)
+        pids = _quoted_poem_ids(conn)
+        if not pids:
+            return jsonify({"poems": []})
+        qmarks = ",".join("?" * len(pids))
+        rows = conn.execute(
+            f"""SELECT pp.id, pp.poet, pp.poet_latin, pp.title, pp.meter, pp.era,
+                   (SELECT COUNT(*) FROM poetry_lines WHERE poem_id = pp.id) AS line_count,
+                   (SELECT COUNT(*) FROM poetry_lines WHERE poem_id = pp.id
+                      AND translation_en IS NOT NULL AND translation_en != '') AS translated_count
+                FROM poetry_poems pp WHERE pp.id IN ({qmarks})
+                ORDER BY pp.poet, pp.id""", list(pids)).fetchall()
+        return jsonify({"poems": [dict(r) for r in rows]})
+    finally:
+        conn.close()
+
+
+@app.route("/api/poem/<int:poem_id>")
+def get_poem(poem_id: int):
+    """A single poem: metadata + every line (Arabic + English as available),
+    with the lines our notes quote flagged for highlighting."""
+    conn = get_db()
+    try:
+        _ensure_poetry_serve_tables(conn)
+        p = conn.execute(
+            "SELECT id, poet, poet_latin, title, meter, rhyme, era "
+            "FROM poetry_poems WHERE id = ?", (poem_id,)).fetchone()
+        if not p:
+            return jsonify({"error": "Poem not found"}), 404
+        lines = conn.execute(
+            "SELECT line_no, hemistich1, hemistich2, text_plain, translation_en "
+            "FROM poetry_lines WHERE poem_id = ? ORDER BY line_no", (poem_id,)).fetchall()
+        quoted_line_nos = set()
+        lrids = _approved_quoted_lrids(conn)
+        if lrids:
+            qmarks = ",".join("?" * len(lrids))
+            for r in conn.execute(
+                    f"SELECT pl.line_no FROM poetry_line_roots plr "
+                    "JOIN poetry_lines pl ON pl.id = plr.line_id "
+                    f"WHERE plr.id IN ({qmarks}) AND pl.poem_id = ?", (*lrids, poem_id)):
+                quoted_line_nos.add(r["line_no"])
+        return jsonify({
+            "id": p["id"], "poet": p["poet"], "poet_latin": p["poet_latin"],
+            "title": p["title"], "meter": p["meter"], "rhyme": p["rhyme"], "era": p["era"],
+            "line_count": len(lines),
+            "translated_count": sum(1 for ln in lines if (ln["translation_en"] or "").strip()),
+            "lines": [{
+                "line_no": ln["line_no"],
+                "arabic": ln["text_plain"] or " ".join(
+                    x for x in [ln["hemistich1"], ln["hemistich2"]] if x),
+                "english": ln["translation_en"],
+                "quoted": ln["line_no"] in quoted_line_nos,
+            } for ln in lines],
+        })
+    finally:
+        conn.close()
 
 
 @app.route("/api/root/<root_bw>/poetry")
@@ -6589,7 +6699,7 @@ def get_root_poetry(root_bw: str):
             "comparison_markdown": row["comparison_markdown"],
             "quran_usage_summary": row["quran_usage_summary"],
             "poetry_usage_summary": row["poetry_usage_summary"],
-            "quoted_lines": _poetry_quoted(row["quoted_lines_json"]),
+            "quoted_lines": _poetry_quoted(conn, row["quoted_lines_json"]),
             "collocations": collocations,
             "continuity": bool(row["continuity"]),
             "confidence": row["confidence"],
@@ -6619,7 +6729,7 @@ def get_verse_poetry(surah: int, ayah: int):
             "surah": surah, "ayah": ayah,
             "focus_root_buckwalter": row["focus_root_buckwalter"],
             "note_markdown": row["note_markdown"],
-            "quoted_lines": _poetry_quoted(row["quoted_lines_json"]),
+            "quoted_lines": _poetry_quoted(conn, row["quoted_lines_json"]),
             "continuity": bool(row["continuity"]),
             "confidence": row["confidence"],
             "auth_tier_max": row["auth_tier_max"],

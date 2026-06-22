@@ -434,6 +434,41 @@ export interface RootPoetryComparison {
   created_at?: string | null;
 }
 
+/** One line (bayt) of a pre-Islamic poem on the poem page. */
+export interface PoemLine {
+  line_no: number;
+  arabic: string;
+  english?: string | null;
+  /** True when one of our comparisons quotes this line (highlighted). */
+  quoted: boolean;
+}
+
+/** A full pre-Islamic poem (the /poem/<id> page). */
+export interface PoemData {
+  id: number;
+  poet: string;
+  poet_latin?: string | null;
+  title?: string | null;
+  meter?: string | null;
+  rhyme?: string | null;
+  era?: string | null;
+  line_count: number;
+  translated_count: number;
+  lines: PoemLine[];
+}
+
+/** A row in the /poems library index. */
+export interface PoemSummary {
+  id: number;
+  poet: string;
+  poet_latin?: string | null;
+  title?: string | null;
+  meter?: string | null;
+  era?: string | null;
+  line_count: number;
+  translated_count: number;
+}
+
 /** Verse-level poetry note shown below the exegesis. */
 export interface VersePoetryNote {
   surah: number;

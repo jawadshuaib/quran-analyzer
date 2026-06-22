@@ -15,6 +15,8 @@ import WordSearchResults from './components/WordSearchResults';
 import SemanticSearchResults from './components/SemanticSearchResults';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
+import PoemPage from './components/PoemPage';
+import PoemsIndex from './components/PoemsIndex';
 import NotFound from './components/NotFound';
 import BadGateway from './components/BadGateway';
 import ApiPage from './components/ApiPage';
@@ -47,6 +49,11 @@ function getVerseFromPath(): { surah: number; ayah: number } | null {
 function getRootFromPath(): string | null {
   const match = window.location.pathname.match(/^\/root\/(.+)$/);
   return match ? decodeURIComponent(match[1]) : null;
+}
+
+function getPoemFromPath(): number | null {
+  const m = window.location.pathname.match(/^\/poem\/(\d+)\/?$/);
+  return m ? parseInt(m[1]) : null;
 }
 
 function getWordFromPath(): { surah: number; ayah: number; pos: number } | null {
@@ -317,6 +324,33 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <RootPage rootBw={rootBw} />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  const poemId = getPoemFromPath();
+  if (poemId != null) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1"><PoemPage poemId={poemId} /></div>
+        <SiteFooter />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  if (/^\/poems\/?$/.test(currentPath)) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1"><PoemsIndex /></div>
+        <SiteFooter />
         <SavedItemsPanel />
       </div>
     );

@@ -210,6 +210,9 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     have = {r[1] for r in conn.execute("PRAGMA table_info(poetry_poems)")}
     if "tags" not in have:
         conn.execute("ALTER TABLE poetry_poems ADD COLUMN tags TEXT")
+    have_l = {r[1] for r in conn.execute("PRAGMA table_info(poetry_lines)")}
+    if "translation_en" not in have_l:
+        conn.execute("ALTER TABLE poetry_lines ADD COLUMN translation_en TEXT")
     conn.commit()
 
 
@@ -938,6 +941,103 @@ def cmd_stats(args) -> int:
 # main
 # ------------------------------------------------------------------------
 
+# ------------------------------------------------------------------------
+# Full-poem translation (Phase 3) — only the poems quoted by an approved
+# comparison/note get translated. Agent-driven loop, no API.
+# ------------------------------------------------------------------------
+
+def quoted_poem_ids(conn) -> set:
+    """Poem ids referenced by any quoted line in the approved comparisons/notes."""
+    lrids = set()
+    for tbl in ("root_poetry_comparisons", "verse_poetry_notes"):
+        try:
+            for r in conn.execute(f"SELECT quoted_lines_json FROM {tbl} "
+                                  "WHERE quoted_lines_json IS NOT NULL"):
+                try:
+                    for q in json.loads(r["quoted_lines_json"]):
+                        if q.get("line_root_id"):
+                            lrids.add(q["line_root_id"])
+                except Exception:
+                    pass
+        except sqlite3.OperationalError:
+            pass  # table not present yet
+    if not lrids:
+        return set()
+    qmarks = ",".join("?" * len(lrids))
+    rows = conn.execute(
+        f"""SELECT DISTINCT pl.poem_id FROM poetry_line_roots plr
+            JOIN poetry_lines pl ON pl.id = plr.line_id
+            WHERE plr.id IN ({qmarks})""", list(lrids)).fetchall()
+    return {r["poem_id"] for r in rows}
+
+
+def cmd_trans_next(args) -> int:
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        todo = []
+        for pid in sorted(quoted_poem_ids(conn)):
+            tot = conn.execute("SELECT COUNT(*) n FROM poetry_lines WHERE poem_id=?",
+                               (pid,)).fetchone()["n"]
+            done = conn.execute("SELECT COUNT(*) n FROM poetry_lines WHERE poem_id=? "
+                                "AND translation_en IS NOT NULL AND translation_en!=''",
+                                (pid,)).fetchone()["n"]
+            if done < tot:
+                poet = conn.execute("SELECT poet FROM poetry_poems WHERE id=?",
+                                    (pid,)).fetchone()["poet"]
+                todo.append({"poem_id": pid, "poet": poet, "lines": tot, "translated": done})
+        print(json.dumps({
+            "poems_remaining": len(todo),
+            "lines_remaining": sum(t["lines"] - t["translated"] for t in todo),
+            "poems": todo[: args.count],
+        }, ensure_ascii=False, indent=2))
+    finally:
+        conn.close()
+    return 0
+
+
+def cmd_trans_context(args) -> int:
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        pid = int(args.poem)
+        p = conn.execute("SELECT poet, title, meter, rhyme, era FROM poetry_poems WHERE id=?",
+                         (pid,)).fetchone()
+        lines = conn.execute(
+            "SELECT id, line_no, hemistich1, hemistich2, text_plain, translation_en "
+            "FROM poetry_lines WHERE poem_id=? ORDER BY line_no", (pid,)).fetchall()
+        untrans = [ln for ln in lines if not ln["translation_en"]]
+        L = [f"# Poem {pid} — {p['poet']} · {p['title'] or ''}  (meter {p['meter'] or '?'}, "
+             f"rhyme {p['rhyme'] or '?'})",
+             f"Untranslated lines: {len(untrans)} of {len(lines)} (showing up to {args.limit}).",
+             "Translate each line into clear, faithful, readable English — one English line per "
+             "bayt. Keep the line_id.", ""]
+        for ln in untrans[: args.limit]:
+            arabic = ln["text_plain"] or " / ".join(x for x in [ln["hemistich1"], ln["hemistich2"]] if x)
+            L.append(f"[{ln['id']}] (bayt {ln['line_no']}) {arabic}")
+        print("\n".join(L))
+    finally:
+        conn.close()
+    return 0
+
+
+def cmd_trans_add(args) -> int:
+    with open(args.file, encoding="utf-8") as f:
+        payload = json.load(f)
+    items = payload.get("translations") if isinstance(payload, dict) else payload
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        n = 0
+        for it in (items or []):
+            lid, en = it.get("line_id"), (it.get("english") or "").strip()
+            if lid and en:
+                conn.execute("UPDATE poetry_lines SET translation_en=? WHERE id=?", (en, lid))
+                n += 1
+        conn.commit()
+        print(f"trans-add: stored {n} line translation(s).")
+    finally:
+        conn.close()
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1000,6 +1100,15 @@ def main() -> int:
 
     sub.add_parser("stats", help="corpus + index coverage")
 
+    sp = sub.add_parser("trans-next", help="next quoted poem(s) needing full translation")
+    sp.add_argument("--count", type=int, default=1)
+    sp = sub.add_parser("trans-context", help="a poem's untranslated lines, for the loop to translate")
+    sp.add_argument("poem", help="poem_id")
+    sp.add_argument("--limit", type=int, default=40, help="max lines per batch (long poems chunk)")
+    sp = sub.add_parser("trans-add", help="store per-line English translations")
+    sp.add_argument("poem", help="poem_id (for logging)")
+    sp.add_argument("--file", required=True)
+
     args = p.parse_args()
 
     if args.cmd == "init":
@@ -1015,6 +1124,9 @@ def main() -> int:
         "index-add": cmd_index_add,
         "verify-root": cmd_verify_root,
         "stats": cmd_stats,
+        "trans-next": cmd_trans_next,
+        "trans-context": cmd_trans_context,
+        "trans-add": cmd_trans_add,
     }[args.cmd](args)
 
 

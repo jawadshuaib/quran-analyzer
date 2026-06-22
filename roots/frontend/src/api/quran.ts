@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -169,6 +169,20 @@ export async function fetchRootPoetry(
   const res = await fetch(`${BASE}/root/${encodeURIComponent(rootBw)}/poetry`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to load poetry comparison');
+  return res.json();
+}
+
+/** The browsable library of every pre-Islamic poem our notes draw on. */
+export async function fetchPoems(): Promise<PoemSummary[]> {
+  const res = await fetch(`${BASE}/poems`);
+  if (!res.ok) throw new Error('Failed to load poems');
+  return (await res.json()).poems;
+}
+
+/** A single full poem (Arabic + English as available) for /poem/<id>. */
+export async function fetchPoem(id: number): Promise<PoemData> {
+  const res = await fetch(`${BASE}/poem/${id}`);
+  if (!res.ok) throw new Error('Failed to load poem');
   return res.json();
 }
 
