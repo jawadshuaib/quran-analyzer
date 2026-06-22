@@ -32,6 +32,25 @@ except Exception:  # pragma: no cover
 
 PILOT_ROOTS = ["kfr", "wqy", "dhr", "krm", "jnn"]
 
+# Phase 1b — the load-bearing verses where each pilot root's comparison is
+# sharpest, and a note BELOW the exegesis adds something specific. Curated;
+# the verse note is pointed (this verse's use) where the root note is the
+# abstract overview.
+VERSE_ANCHORS = {
+    "kfr": ["57:20", "14:7"],     # kuffār=tillers (the bridge); gratitude vs kufr
+    "wqy": ["2:197", "2:24"],     # taqwā=best provision (cf al-Mutalammis); the shield-image
+    "dhr": ["45:24", "76:1"],     # the dahr creed quoted & overturned; dahr as neutral duration
+    "krm": ["49:13"],             # akram = atqā
+    "jnn": ["6:76", "58:16", "53:32"],  # 'night covered him'; oaths as a junna; ajinna in wombs
+}
+VERSE_TO_ROOT = {v: r for r, vs in VERSE_ANCHORS.items() for v in vs}
+ALL_ANCHOR_VERSES = [v for vs in VERSE_ANCHORS.values() for v in vs]
+
+
+def parse_ref(ref: str) -> tuple[int, int]:
+    c, v = ref.split(":")
+    return int(c), int(v)
+
 SHIFT_TYPES = {
     "continuity",          # no real shift — the Qurʾān uses it as the poets did
     "narrowing", "widening",
@@ -172,6 +191,15 @@ def poetry_occurrences(conn, root_bw: str) -> list[dict]:
 def cmd_next(args) -> int:
     conn = get_conn(); ensure_compare_schema(conn)
     try:
+        if args.track == "verse":
+            done = {f"{r['chapter']}:{r['verse']}" for r in conn.execute(
+                "SELECT chapter, verse FROM verse_poetry_notes")}
+            todo = [v for v in ALL_ANCHOR_VERSES if v not in done]
+            batch = todo[: args.count]
+            out = {"track": "verse", "remaining": len(todo),
+                   "verses": [{"ref": v, "focus_root": VERSE_TO_ROOT[v]} for v in batch]}
+            print(json.dumps(out, ensure_ascii=False, indent=2))
+            return 0
         done = {r["root_buckwalter"] for r in conn.execute(
             "SELECT root_buckwalter FROM root_poetry_comparisons")}
         todo = [r for r in PILOT_ROOTS if r not in done]
@@ -189,7 +217,51 @@ def cmd_next(args) -> int:
 # context  (the drafting brief)
 # ------------------------------------------------------------------------
 
+def _context_verse(args) -> int:
+    """Brief for a verse-level note: the verse + the approved root verdict +
+    the authenticated (A/B) poetic lines for the focus root, to quote from."""
+    conn = get_conn(); ensure_compare_schema(conn)
+    try:
+        ref = args.root
+        chap, vs = parse_ref(ref)
+        root_bw = VERSE_TO_ROOT.get(ref)
+        vt = conn.execute("SELECT text_uthmani FROM verses WHERE chapter=? AND verse=?",
+                          (chap, vs)).fetchone()
+        tr = conn.execute("SELECT text_en FROM translations WHERE chapter=? AND verse=?",
+                          (chap, vs)).fetchone()
+        rc = conn.execute(
+            """SELECT shift_type, continuity, quran_usage_summary, poetry_usage_summary
+               FROM root_poetry_comparisons WHERE root_buckwalter=?""", (root_bw,)).fetchone()
+        occ = [o for o in poetry_occurrences(conn, root_bw) if o["auth_tier"] in ("A", "B")]
+        L = [f"# Verse-note brief — {ref}  (focus root {root_arabic_for(conn, root_bw)} / {root_bw})\n"]
+        L.append("## This verse")
+        if vt:
+            L.append(f"Arabic: {vt['text_uthmani']}")
+        if tr:
+            L.append(f"Translation: {tr['text_en']}")
+        L.append(f"\n## Approved root-level verdict for {root_bw} (be consistent; the verse note is MORE SPECIFIC)")
+        if rc:
+            verdict = "continuity" if rc["continuity"] else rc["shift_type"]
+            L.append(f"Verdict: {verdict}")
+            L.append(f"Qurʾān usage: {rc['quran_usage_summary']}")
+            L.append(f"Poetry usage: {rc['poetry_usage_summary']}")
+        L.append(f"\n## Authenticated (Tier A/B) poetic lines for {root_bw} — quote ONLY by line_root_id, "
+                 "pick the 1–2 most relevant to THIS verse")
+        cur = None
+        for o in occ:
+            if o["auth_tier"] != cur:
+                cur = o["auth_tier"]; L.append(f"\n-- Tier {cur} --")
+            L.append(f"  [lr:{o['line_root_id']}] «{o['surface_word']}» "
+                     f"({o.get('sense_hint')}) — {o['poet']}: {o['text_plain']}")
+        print("\n".join(L))
+    finally:
+        conn.close()
+    return 0
+
+
 def cmd_context(args) -> int:
+    if ":" in args.root:           # the positional doubles as a verse ref
+        return _context_verse(args)
     conn = get_conn(); ensure_compare_schema(conn)
     try:
         root_bw = args.root
@@ -238,7 +310,80 @@ def cmd_context(args) -> int:
 # add  (store a pending draft + validate)
 # ------------------------------------------------------------------------
 
+def _enrich_quotes(conn, root_bw, quoted_in):
+    """Validate quoted line_root_ids against the index for this root and return
+    (enriched_list, auth_tier_max). Raises ValueError on an unknown id."""
+    enriched, tiers = [], []
+    for q in quoted_in:
+        lrid = q.get("line_root_id")
+        row = conn.execute(
+            """SELECT plr.id, plr.surface_word, pp.poet, pp.auth_tier,
+                      pl.text_plain
+               FROM poetry_line_roots plr
+               JOIN poetry_lines pl ON pl.id=plr.line_id
+               JOIN poetry_poems pp ON pp.id=pl.poem_id
+               WHERE plr.id=? AND plr.root_buckwalter=?""", (lrid, root_bw)).fetchone()
+        if not row:
+            raise ValueError(f"quoted line_root_id {lrid} not found for root {root_bw}")
+        tiers.append(row["auth_tier"])
+        enriched.append({"line_root_id": lrid, "poet": row["poet"],
+                         "auth_tier": row["auth_tier"], "arabic": row["text_plain"],
+                         "surface_word": row["surface_word"], "english": q.get("english"),
+                         "translit": q.get("translit"), "note": q.get("note")})
+    rank = {"A": 3, "B": 2, "C": 1, "D": 0}
+    auth_tier_max = max(tiers, key=lambda t: rank.get(t, 0)) if tiers else None
+    return enriched, auth_tier_max
+
+
+def _add_verse(args) -> int:
+    with open(args.file, encoding="utf-8") as f:
+        payload = json.load(f)
+    conn = get_conn(); ensure_compare_schema(conn)
+    try:
+        ref = args.root
+        chap, vs = parse_ref(ref)
+        focus_root = payload.get("focus_root") or VERSE_TO_ROOT.get(ref)
+        md = (payload.get("note_markdown") or "").strip()
+        if len(md) < 60:
+            print("ERROR: note_markdown too short / missing.", file=sys.stderr)
+            return 1
+        continuity = 1 if payload.get("continuity") else 0
+        try:
+            enriched, auth_tier_max = _enrich_quotes(conn, focus_root, payload.get("quoted_lines") or [])
+        except ValueError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 1
+        lexical_basis = (payload.get("lexical_basis") or "").strip()
+        if not continuity and auth_tier_max not in ("A", "B") and not lexical_basis:
+            print("ERROR: a contrast verse-note needs a Tier-A/B quote or a lexical_basis.",
+                  file=sys.stderr)
+            return 1
+        flags = [f"post_quranic_terms: {h}" for h in
+                 [[w for w in POST_QURANIC if w in md.lower()]] if h]
+
+        conn.execute("DELETE FROM verse_poetry_notes WHERE chapter=? AND verse=?", (chap, vs))
+        conn.execute(
+            """INSERT INTO verse_poetry_notes
+               (chapter, verse, page_key, focus_root_buckwalter, note_markdown,
+                quoted_lines_json, continuity, confidence, auth_tier_max,
+                adversarial_report, review_status, raw_response)
+               VALUES (?,?,?,?,?,?,?,?,?,?,'pending',?)""",
+            (chap, vs, ref, focus_root, md,
+             json.dumps(enriched, ensure_ascii=False), continuity,
+             float(payload.get("confidence") or 0.0), auth_tier_max,
+             payload.get("adversarial_report"), json.dumps(payload, ensure_ascii=False)))
+        conn.commit()
+        print(f"add {ref}: stored pending verse-note (focus {focus_root}, "
+              f"{'continuity' if continuity else 'contrast'}, {len(enriched)} quoted, "
+              f"tier_max={auth_tier_max})." + (f"  FLAGS: {flags}" if flags else ""))
+    finally:
+        conn.close()
+    return 0
+
+
 def cmd_add(args) -> int:
+    if ":" in args.root:
+        return _add_verse(args)
     with open(args.file, encoding="utf-8") as f:
         payload = json.load(f)
     conn = get_conn(); ensure_compare_schema(conn)
@@ -337,6 +482,17 @@ def cmd_add(args) -> int:
 def cmd_skip(args) -> int:
     conn = get_conn(); ensure_compare_schema(conn)
     try:
+        if ":" in args.root:
+            chap, vs = parse_ref(args.root)
+            conn.execute("DELETE FROM verse_poetry_notes WHERE chapter=? AND verse=?", (chap, vs))
+            conn.execute(
+                """INSERT INTO verse_poetry_notes
+                   (chapter, verse, page_key, focus_root_buckwalter, note_markdown, review_status)
+                   VALUES (?,?,?,?,?,'skipped')""",
+                (chap, vs, args.root, VERSE_TO_ROOT.get(args.root), f"SKIPPED: {args.reason}"))
+            conn.commit()
+            print(f"skip {args.root}: {args.reason}")
+            return 0
         root_ar = root_arabic_for(conn, args.root)
         conn.execute("DELETE FROM root_poetry_comparisons WHERE root_buckwalter=?", (args.root,))
         conn.execute(
@@ -371,6 +527,12 @@ def cmd_stats(args) -> int:
             "SELECT review_status, COUNT(*) n FROM root_poetry_comparisons GROUP BY review_status"
         ).fetchall()
         print("\nreview queue:", {r["review_status"]: r["n"] for r in q})
+
+        print("\n━━━━━ verse notes (Phase 1b) ━━━━━")
+        vdone = {f"{r['chapter']}:{r['verse']}": r["review_status"] for r in conn.execute(
+            "SELECT chapter, verse, review_status FROM verse_poetry_notes")}
+        for ref in ALL_ANCHOR_VERSES:
+            print(f"  {ref:<8} ({VERSE_TO_ROOT[ref]}) — {vdone.get(ref, 'NOT DRAFTED')}")
     finally:
         conn.close()
     return 0
