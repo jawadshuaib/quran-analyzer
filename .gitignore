@@ -69,6 +69,13 @@ roots/backend/data/snapshots/
 *.db-wal
 ui-prototype/
 
+# Pre-Islamic poetry corpus: raw scraped datasets are large & licensed
+# (Kaggle) — keep them out of git. The hand-curated, public-domain
+# Muʿallaqāt seed (muallaqat.json) IS committed.
+roots/backend/data/poetry/*.csv
+roots/backend/data/poetry/*.tsv
+roots/backend/data/poetry/raw/
+
 # Claude
 CLAUDE.md
 .claude/

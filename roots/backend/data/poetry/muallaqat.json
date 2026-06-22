@@ -1,0 +1,70 @@
+{
+  "_comment": "Hand-curated, PUBLIC-DOMAIN Tier-A seed for the Qurʾān↔poetry comparison feature. Source: Arabic Wikisource (classical, pre-modern verse — public domain). This is a STARTER anchor, not the full corpus: the bulk of the Jahilī material comes from the Kaggle scrape (Tier C) promoted by `poetry_corpus.py tiers`. Expand this file from a critical edition over time. Tatweel/kashida is stripped on load (and was stripped here).",
+  "poems": [
+    {
+      "poet": "امرؤ القيس",
+      "poet_latin": "Imruʾ al-Qays",
+      "era": "jahili",
+      "title": "معلقة امرئ القيس",
+      "meter": "الطويل",
+      "rhyme": "ل",
+      "auth_tier": "A",
+      "source": "muallaqat",
+      "source_ref": "Muʿallaqa of Imruʾ al-Qays — Arabic Wikisource",
+      "notes": "The most famous opening in Arabic poetry; the nasīb / aṭlāl (weeping at the abandoned campsite). Anchors the motif-inversion examples (cf. Q 27:52).",
+      "lines": [
+        {"line_no": 1, "hemistich1": "قِفَا نَبْكِ مِنْ ذِكْرَى حَبِيبٍ ومَنْزِلِ", "hemistich2": "بِسِقْطِ اللِّوَى بَيْنَ الدَّخُول فَحَوْملِ"},
+        {"line_no": 2, "hemistich1": "فَتُوْضِحَ فَالمِقْراةِ لمْ يَعْفُ رَسْمُها", "hemistich2": "لِمَا نَسَجَتْهَا مِنْ جَنُوبٍ وشَمْألِ"},
+        {"line_no": 3, "hemistich1": "تَرَى بَعَرَ الأرْآمِ فِي عَرَصَاتِهَا", "hemistich2": "وَقِيْعَانِهَا كَأنَّهُ حَبُّ فُلْفُلِ"},
+        {"line_no": 4, "hemistich1": "كَأنِّي غَدَاةَ البَيْنِ يَوْمَ تَحَمَّلُوا", "hemistich2": "لَدَى سَمُرَاتِ الحَيِّ نَاقِفُ حَنْظَلِ"},
+        {"line_no": 5, "hemistich1": "وُقُوْفاً بِهَا صَحْبِي عَلَّي مَطِيَّهُمُ", "hemistich2": "يَقُوْلُوْنَ لاَ تَهْلِكْ أَسَىً وَتَجَمَّلِ"},
+        {"line_no": 6, "hemistich1": "وإِنَّ شِفائِي عَبْرَةٌ مُهْرَاقَةٌ", "hemistich2": "فَهَلْ عِنْدَ رَسْمٍ دَارِسٍ مِنْ مُعَوَّلِ"},
+        {"line_no": 7, "hemistich1": "كَدَأْبِكَ مِنْ أُمِّ الحُوَيْرِثِ قَبْلَهَا", "hemistich2": "وَجَارَتِهَا أُمِّ الرَّبَابِ بِمَأْسَلِ"},
+        {"line_no": 8, "hemistich1": "إِذَا قَامَتَا تَضَوَّعَ المِسْكُ مِنْهُمَا", "hemistich2": "نَسِيْمَ الصَّبَا جَاءَتْ بِرَيَّا القَرَنْفُلِ"},
+        {"line_no": 9, "hemistich1": "فَفَاضَتْ دُمُوْعُ العَيْنِ مِنِّي صَبَابَةً", "hemistich2": "عَلَى النَّحْرِ حَتَّى بَلَّ دَمْعِي مِحْمَلِي"},
+        {"line_no": 10, "hemistich1": "ألاَ رُبَّ يَوْمٍ لَكَ مِنْهُنَّ صَالِحٍ", "hemistich2": "وَلاَ سِيَّمَا يَوْمٌ بِدَارَةِ جُلْجُلِ"},
+        {"line_no": 11, "hemistich1": "ويَوْمَ عَقَرْتُ لِلْعَذَارَى مَطِيَّتِي", "hemistich2": "فَيَا عَجَباً مِنْ كورها المُتَحَمَّلِ"},
+        {"line_no": 12, "hemistich1": "فَظَلَّ العَذَارَى يَرْتَمِيْنَ بِلَحْمِهَا", "hemistich2": "وشَحْمٍ كَهُدَّابِ الدِّمَقْسِ المُفَتَّلِ"}
+      ]
+    },
+    {
+      "poet": "لبيد بن ربيعة",
+      "poet_latin": "Labīd ibn Rabīʿa",
+      "era": "jahili",
+      "title": "معلقة لبيد بن ربيعة",
+      "meter": "الكامل",
+      "rhyme": "م",
+      "auth_tier": "A",
+      "source": "muallaqat",
+      "source_ref": "Muʿallaqa of Labīd ibn Rabīʿa — Arabic Wikisource",
+      "notes": "Labīd is the bridge poet (he later embraced Islam). Opening is the aṭlāl. Line 4 uses the root ر-ز-ق (rizq).",
+      "lines": [
+        {"line_no": 1, "hemistich1": "عفتِ الديارُ محلُّها فمُقامُهَا", "hemistich2": "بمنًى تأبَّدَ غَوْلُها فَرِجَامُهَا"},
+        {"line_no": 2, "hemistich1": "فمدافعُ الرَّيَّانِ عرِّيَ رسْمُها", "hemistich2": "خلقاً كما ضَمِنَ الوُحِيَّ سِلامُها"},
+        {"line_no": 3, "hemistich1": "دمِنٌ تَجَرَّمَ بعدَ عَهْدِ أنِيسِهَا", "hemistich2": "حِجَجٌ خَلَوْنَ حَلالُهَا وحَرَامُها"},
+        {"line_no": 4, "hemistich1": "رزقَتْ مرابيعَ النُّجومِ وصابَهَا", "hemistich2": "ودقُ الرواعدِ جوْدُهَا فرهامُها"},
+        {"line_no": 5, "hemistich1": "منْ كلِّ سَارِيَةٍ وغادٍ مُدْجِنٍ", "hemistich2": "وعشيَّةٍ متجاوبٍ إرْزامُهَا"},
+        {"line_no": 6, "hemistich1": "فَعَلا فُرُوعُ الأيْهُقَانِ وَأطْفَلَتْ", "hemistich2": "بالجلهتين ظباؤها ونعامُها"},
+        {"line_no": 7, "hemistich1": "والعينُ ساكِنةٌ على أطْلائِها", "hemistich2": "عُوذاً تَأجَّلُ بالفضَاءِ بِهَامُها"},
+        {"line_no": 8, "hemistich1": "وجَلا السُّيولُ عن الطّلُولِ كأنّها", "hemistich2": "زبرٌ تجِدُّ متونَها أقْلامُها"},
+        {"line_no": 9, "hemistich1": "أوْ رَجْعُ واشِمةٍ أُسِفَّ نَؤورُهَا", "hemistich2": "كففاً تعرَّضَ فوقَهنَّ وشامُها"},
+        {"line_no": 10, "hemistich1": "فوقفتُ أسْألُهَا وكيفَ سُؤالُنَا", "hemistich2": "صُمّاً خوالدَ ما يُبينُ كلامُها"}
+      ]
+    },
+    {
+      "poet": "لبيد بن ربيعة",
+      "poet_latin": "Labīd ibn Rabīʿa",
+      "era": "jahili",
+      "title": "بيت لبيد المفرد (ألا كل شيء)",
+      "meter": "الطويل",
+      "rhyme": "ل",
+      "auth_tier": "A",
+      "source": "famous_line",
+      "source_ref": "Labīd — first hemistich cited in Ṣaḥīḥ al-Bukhārī 6403 as the truest line a poet ever spoke",
+      "notes": "The CONTINUITY anchor (research doc §4.5): a pre-Islamic poet voicing near-tawḥīd. The Prophet praised the first hemistich. Used to prove the feature surfaces agreement, not only contrast.",
+      "lines": [
+        {"line_no": 1, "hemistich1": "أَلَا كُلُّ شَيْءٍ مَا خَلَا اللَّهَ بَاطِلُ", "hemistich2": "وَكُلُّ نَعِيمٍ لَا مَحَالَةَ زَائِلُ"}
+      ]
+    }
+  ]
+}
