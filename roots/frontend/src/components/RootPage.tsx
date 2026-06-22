@@ -9,6 +9,7 @@ import { buildRootContext } from '../utils/context-builders';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
+import PoetryComparison from './PoetryComparison';
 
 interface Props {
   rootBw: string;
@@ -271,6 +272,9 @@ export default function RootPage({ rootBw }: Props) {
           </div>
         </section>
       )}
+
+      {/* In Pre-Islamic Poetry — auto-hides when the root has no approved comparison */}
+      <PoetryComparison rootBw={rootBw} />
 
       {/* Sample verses */}
       {data.sample_verses.length > 0 && (

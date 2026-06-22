@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -159,6 +159,27 @@ export async function fetchVerseExegesis(
   const res = await fetch(`${BASE}/verse/${surah}:${ayah}/exegesis`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to load exegesis');
+  return res.json();
+}
+
+/** The approved root-level pre-Islamic poetry comparison, or null if none. */
+export async function fetchRootPoetry(
+  rootBw: string,
+): Promise<RootPoetryComparison | null> {
+  const res = await fetch(`${BASE}/root/${encodeURIComponent(rootBw)}/poetry`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load poetry comparison');
+  return res.json();
+}
+
+/** The approved verse-level poetry note (shown below exegesis), or null. */
+export async function fetchVersePoetry(
+  surah: number,
+  ayah: number,
+): Promise<VersePoetryNote | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/poetry`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load poetry note');
   return res.json();
 }
 

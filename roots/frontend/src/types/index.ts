@@ -402,6 +402,51 @@ export interface VerseExegesisData {
   edited_at: string | null;
 }
 
+/** One authenticated pre-Islamic poetry line quoted in a comparison. */
+export interface PoetryQuotedLine {
+  line_root_id: number;
+  poet?: string;
+  /** 'A' (Muʿallaqāt) | 'B' (major poets) | 'C' (broad scrape, illustration). */
+  auth_tier?: string;
+  arabic?: string;
+  surface_word?: string;
+  english?: string;
+  translit?: string;
+  note?: string;
+}
+
+/** Root-level comparison shown in the "In Pre-Islamic Poetry" section. */
+export interface RootPoetryComparison {
+  root_buckwalter: string;
+  root_arabic: string;
+  /** continuity | narrowing | widening | elevation | theologization |
+   *  moralization | referential_transfer | reassignment */
+  shift_type: string;
+  comparison_markdown: string;
+  quran_usage_summary?: string | null;
+  poetry_usage_summary?: string | null;
+  quoted_lines: PoetryQuotedLine[];
+  collocations?: { quran?: string[]; poetry?: string[] } | null;
+  /** True when the verdict is agreement, not contrast. */
+  continuity: boolean;
+  confidence?: number | null;
+  auth_tier_max?: string | null;
+  created_at?: string | null;
+}
+
+/** Verse-level poetry note shown below the exegesis. */
+export interface VersePoetryNote {
+  surah: number;
+  ayah: number;
+  focus_root_buckwalter?: string | null;
+  note_markdown: string;
+  quoted_lines: PoetryQuotedLine[];
+  continuity: boolean;
+  confidence?: number | null;
+  auth_tier_max?: string | null;
+  created_at?: string | null;
+}
+
 export interface GrammarTerm {
   term_english: string;
   term_arabic: string | null;

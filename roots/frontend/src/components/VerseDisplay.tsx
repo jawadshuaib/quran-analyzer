@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData } from '../types';
-import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis } from '../api/quran';
+import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote } from '../types';
+import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry } from '../api/quran';
 import FormattedText, { FormattedInline } from './FormattedText';
 import { TranslationWithChips, type WordContext } from './TermChip';
 import WordTooltip from './WordTooltip';
@@ -49,6 +49,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const [wordMeanings, setWordMeanings] = useState<Record<string, WordMeaningBrief>>({});
   const [aiTranslation, setAiTranslation] = useState<AITranslationData | null>(null);
   const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
+  const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
   const [wordToWordEnabled, setWordToWordEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(WORD_TO_WORD_KEY) === '1';
@@ -151,6 +152,16 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     fetchVerseExegesis(data.surah, data.ayah).then((result) => {
       if (!cancelled) setExegesis(result);
     }).catch(() => { if (!cancelled) setExegesis(null); });
+    return () => { cancelled = true; };
+  }, [data.surah, data.ayah]);
+
+  // Fetch the approved pre-Islamic poetry note (if any) — shown below exegesis
+  useEffect(() => {
+    let cancelled = false;
+    setPoetry(null);
+    fetchVersePoetry(data.surah, data.ayah).then((result) => {
+      if (!cancelled) setPoetry(result);
+    }).catch(() => { if (!cancelled) setPoetry(null); });
     return () => { cancelled = true; };
   }, [data.surah, data.ayah]);
 
@@ -596,6 +607,41 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
             text={exegesis.exegesis_markdown}
             className="text-sm text-violet-900/90 leading-relaxed"
           />
+        </div>
+      )}
+
+      {/* Pre-Islamic poetry note — sits below the exegesis; auto-hides when none */}
+      {poetry && (
+        <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
+          <div className="text-xs font-medium text-amber-700 mb-1.5">In Pre-Islamic Poetry</div>
+          <FormattedText
+            text={poetry.note_markdown}
+            className="text-sm text-amber-900/90 leading-relaxed"
+          />
+          {poetry.quoted_lines?.length > 0 && (
+            <div className="mt-2.5 space-y-2">
+              {poetry.quoted_lines.map((q) => (
+                <div key={q.line_root_id} className="rounded bg-white/60 border border-amber-100 p-2">
+                  <div className="flex flex-wrap items-center gap-1.5 mb-0.5">
+                    {q.poet && (
+                      <span dir="rtl" lang="ar" className="font-arabic text-xs text-stone-600">{q.poet}</span>
+                    )}
+                    {q.auth_tier && (
+                      <span className="text-[9px] font-medium uppercase tracking-wide px-1 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                        Tier {q.auth_tier}
+                      </span>
+                    )}
+                  </div>
+                  {q.arabic && (
+                    <p dir="rtl" lang="ar" className="font-arabic text-base leading-loose text-stone-800">{q.arabic}</p>
+                  )}
+                  {q.english && (
+                    <p className="text-[11px] text-stone-500 italic">&ldquo;{q.english}&rdquo;</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
