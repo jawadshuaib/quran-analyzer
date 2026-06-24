@@ -6562,6 +6562,7 @@ def _ensure_poetry_serve_tables(conn):
         );
     """)
     conn.commit()
+    _ensure_lexicon_table(conn)
 
 
 def _poetry_quoted(conn, raw):
@@ -6753,6 +6754,114 @@ def get_verse_poetry(surah: int, ayah: int):
         conn.close()
 
 
+def _ensure_lexicon_table(conn):
+    """Idempotent: the read table for the per-root contemporaneous-attestation
+    lexicon (what a Qur'anic root is attested to mean in authenticated 6th-c.
+    poetry). Quran-only meaning: shows the evidence, never imports a codified
+    definition."""
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS root_poetic_lexicon (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            root_buckwalter      TEXT UNIQUE NOT NULL,
+            root_arabic          TEXT,
+            attested_senses_json TEXT,
+            poetry_occurrences   INTEGER DEFAULT 0,
+            poetry_tier_max      TEXT,
+            attestation_strength TEXT,
+            quran_internal_summary TEXT,
+            quran_occurrences    INTEGER DEFAULT 0,
+            lexicon_markdown     TEXT,
+            relation_to_quran    TEXT,
+            quoted_lines_json    TEXT,
+            lexical_basis        TEXT,
+            counter_search       TEXT,
+            adversarial_report   TEXT,
+            confidence           REAL,
+            review_status        TEXT DEFAULT 'pending',
+            hidden               INTEGER DEFAULT 0,
+            raw_response         TEXT,
+            created_at           TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at           TEXT,
+            edited_at            TEXT
+        );
+    """)
+    conn.commit()
+
+
+def _lexicon_public(conn, row):
+    """Reader-facing shape of a lexicon entry. Tier labels stay internal."""
+    try:
+        senses = json.loads(row["attested_senses_json"] or "[]")
+    except Exception:
+        senses = []
+    for s in senses:
+        s.pop("tier_max", None)  # evidence strength is summarised, not tiered to readers
+    return {
+        "root_arabic": row["root_arabic"],
+        "attested_senses": senses,
+        "attestation_strength": row["attestation_strength"],
+        "poetry_occurrences": row["poetry_occurrences"],
+        "quran_internal_summary": row["quran_internal_summary"],
+        "lexicon_markdown": row["lexicon_markdown"],
+        "relation_to_quran": row["relation_to_quran"],
+        "quoted_lines": _poetry_quoted(conn, row["quoted_lines_json"]),
+        "confidence": row["confidence"],
+    }
+
+
+@app.route("/api/root/<root_bw>/lexicon")
+def get_root_lexicon(root_bw: str):
+    """Public: the approved contemporaneous-attestation lexicon entry, or 404."""
+    conn = get_db()
+    try:
+        _ensure_lexicon_table(conn)
+        row = conn.execute(
+            "SELECT * FROM root_poetic_lexicon WHERE root_buckwalter = ? "
+            "AND review_status = 'approved' AND COALESCE(hidden,0) = 0 LIMIT 1",
+            (root_bw,)).fetchone()
+        if not row:
+            return jsonify({"error": "No lexicon entry"}), 404
+        out = _lexicon_public(conn, row)
+        out["root_buckwalter"] = root_bw
+        return jsonify(out)
+    finally:
+        conn.close()
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/root-lexicon")
+def get_verse_root_lexicon(surah: int, ayah: int):
+    """Public: for each content word of the verse, its root and (if approved)
+    the contemporaneous-attestation lexicon entry — so a Qur'an-only reader can
+    see, word by word, what each root is attested to mean in 6th-century usage."""
+    conn = get_db()
+    try:
+        _ensure_lexicon_table(conn)
+        words = conn.execute(
+            "SELECT word_pos, MAX(form_arabic) AS form_arabic, "
+            "root_buckwalter, root_arabic "
+            "FROM morphology WHERE chapter = ? AND verse = ? "
+            "AND root_buckwalter IS NOT NULL AND root_buckwalter <> '' "
+            "GROUP BY word_pos, root_buckwalter ORDER BY word_pos",
+            (surah, ayah)).fetchall()
+        out = []
+        for w in words:
+            rb = w["root_buckwalter"]
+            lex = conn.execute(
+                "SELECT * FROM root_poetic_lexicon WHERE root_buckwalter = ? "
+                "AND review_status = 'approved' AND COALESCE(hidden,0) = 0 LIMIT 1",
+                (rb,)).fetchone()
+            out.append({
+                "word_pos": w["word_pos"],
+                "word_arabic": w["form_arabic"],
+                "root_buckwalter": rb,
+                "root_arabic": w["root_arabic"],
+                "lexicon": _lexicon_public(conn, lex) if lex else None,
+            })
+        return jsonify({"surah": surah, "ayah": ayah, "words": out})
+    finally:
+        conn.close()
+
+
 # ---- Admin: pre-Islamic poetry review (root comparisons + verse notes) -----
 # Two tables share one review surface, switched by a `kind` param. Mirrors the
 # exegesis admin endpoints below.
@@ -6761,6 +6870,9 @@ _POETRY_ADMIN = {
              "search": ("comparison_markdown", "root_buckwalter", "root_arabic")},
     "verse": {"table": "verse_poetry_notes", "md": "note_markdown",
               "search": ("note_markdown", "page_key")},
+    "lexicon": {"table": "root_poetic_lexicon", "md": "lexicon_markdown",
+                "search": ("lexicon_markdown", "root_buckwalter", "root_arabic",
+                           "quran_internal_summary")},
 }
 
 
@@ -6777,15 +6889,26 @@ def _poetry_admin_row(kind, row):
         d["quoted_count"] = len(json.loads(ql)) if ql else 0
     except Exception:
         d["quoted_count"] = 0
+    # lexicon-specific fields (surfaced before the heavy columns are dropped)
+    if kind == "lexicon":
+        try:
+            d["sense_count"] = len(json.loads(d.get("attested_senses_json") or "[]"))
+        except Exception:
+            d["sense_count"] = 0
     # drop heavy / internal columns from the payload
     for k in ("raw_response", "adversarial_report", "counter_search_json",
-              "collocations_json", "config_id", "quran_usage_summary",
-              "poetry_usage_summary"):
+              "counter_search", "collocations_json", "config_id", "quran_usage_summary",
+              "poetry_usage_summary", "attested_senses_json", "quran_internal_summary",
+              "lexical_basis"):
         d.pop(k, None)
     if kind == "root":
         d["label"] = d.get("root_arabic") or d.get("root_buckwalter")
         d["link"] = "/root/%s" % d.get("root_buckwalter")
         d["verdict"] = "continuity" if d["continuity"] else d.get("shift_type")
+    elif kind == "lexicon":
+        d["label"] = d.get("root_arabic") or d.get("root_buckwalter")
+        d["link"] = "/root/%s" % d.get("root_buckwalter")
+        d["verdict"] = d.get("relation_to_quran")
     else:
         key = d.get("page_key") or ("%s:%s" % (d.get("chapter"), d.get("verse")))
         d["label"] = key
@@ -6799,7 +6922,7 @@ def _poetry_admin_row(kind, row):
 def admin_list_poetry():
     kind = (request.args.get("kind") or "root").strip()
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
     cfg = _POETRY_ADMIN[kind]
     md, table = cfg["md"], cfg["table"]
     q = (request.args.get("q") or "").strip()
@@ -6870,10 +6993,12 @@ def admin_poetry_stats():
             }
         root = per("root_poetry_comparisons")
         verse = per("verse_poetry_notes")
-        comb = {k: root[k] + verse[k] for k in root}
+        lexicon = per("root_poetic_lexicon")
+        comb = {k: root[k] + verse[k] + lexicon[k] for k in root}
         comb["roots"] = root["total"]
         comb["verses"] = verse["total"]
-        return jsonify({"root": root, "verse": verse, **comb})
+        comb["lexicons"] = lexicon["total"]
+        return jsonify({"root": root, "verse": verse, "lexicon": lexicon, **comb})
     finally:
         conn.close()
 
@@ -6882,7 +7007,7 @@ def admin_poetry_stats():
 @admin_required
 def admin_update_poetry(kind, pid):
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
     cfg = _POETRY_ADMIN[kind]
     md, table = cfg["md"], cfg["table"]
     data = request.get_json(force=True) or {}
@@ -6926,7 +7051,7 @@ def admin_update_poetry(kind, pid):
 @admin_required
 def admin_delete_poetry(kind, pid):
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
     table = _POETRY_ADMIN[kind]["table"]
     conn = get_db()
     try:
@@ -6946,7 +7071,7 @@ def admin_bulk_poetry():
     data = request.get_json(force=True) or {}
     kind = (data.get("kind") or "root").strip()
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
     table = _POETRY_ADMIN[kind]["table"]
     raw_ids = data.get("ids")
     if not isinstance(raw_ids, list) or not raw_ids:

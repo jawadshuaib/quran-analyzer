@@ -97,6 +97,7 @@ export default function AdminPoetry() {
   const tiles = useMemo(() => stats ? [
     { label: 'Root notes', value: stats.roots },
     { label: 'Verse notes', value: stats.verses },
+    { label: 'Lexicon', value: stats.lexicons },
     { label: 'Pending', value: stats.pending, tone: stats.pending > 0 ? 'amber' : '' },
     { label: 'Approved', value: stats.approved, tone: 'emerald' },
     { label: 'Rejected', value: stats.rejected, tone: stats.rejected > 0 ? 'rose' : '' },
@@ -111,9 +112,10 @@ export default function AdminPoetry() {
         <div>
           <h1 className="font-serif text-2xl font-medium text-stone-800">Pre-Islamic Poetry</h1>
           <p className="text-sm text-stone-500 mt-1 max-w-2xl">
-            The &ldquo;In Pre-Islamic Poetry&rdquo; comparisons (per root) and the verse-level notes that
-            set a Qurʾānic verse beside the Jahilī poets. Approve, reject, fix, hide, or remove before
-            they go public. Edits to the prose keep the inline <code className="text-[12px]">[[q:…]]</code> quote markers intact.
+            The &ldquo;In Pre-Islamic Poetry&rdquo; comparisons (per root), the verse-level notes that
+            set a Qurʾānic verse beside the Jahilī poets, and the <b>Lexicon</b> &mdash; what each root
+            is <i>attested</i> to mean in 6th-c. usage (Qurʾān-only). Approve, reject, fix, hide, or remove
+            before they go public. Edits to the prose keep the inline <code className="text-[12px]">[[q:…]]</code> quote markers intact.
           </p>
         </div>
         <button onClick={refresh} className="text-xs text-stone-500 hover:text-stone-800 border border-stone-200 rounded-lg px-3 py-1.5 hover:border-stone-300 cursor-pointer shrink-0">Refresh</button>
@@ -121,7 +123,7 @@ export default function AdminPoetry() {
 
       {/* Kind toggle */}
       <div className="inline-flex rounded-lg border border-stone-200 bg-white p-0.5 mb-5">
-        {(['root', 'verse'] as PoetryKind[]).map((k) => (
+        {(['root', 'verse', 'lexicon'] as PoetryKind[]).map((k) => (
           <button
             key={k}
             onClick={() => setKind(k)}
@@ -129,7 +131,7 @@ export default function AdminPoetry() {
               kind === k ? 'bg-amber-600 text-white' : 'text-stone-600 hover:bg-stone-50'
             }`}
           >
-            {k === 'root' ? 'Root comparisons' : 'Verse notes'}
+            {k === 'root' ? 'Root comparisons' : k === 'verse' ? 'Verse notes' : 'Lexicon'}
             {stats && <span className="ml-1.5 opacity-70 tabular-nums">{stats[k].total}</span>}
           </button>
         ))}
@@ -212,9 +214,12 @@ export default function AdminPoetry() {
                 <input type="checkbox" className="mt-1.5" checked={selected.has(item.id)} onChange={(e) => { const n = new Set(selected); if (e.target.checked) n.add(item.id); else n.delete(item.id); setSelected(n); }} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <a href={item.link} target="_blank" rel="noopener noreferrer" className={`text-sm font-semibold text-amber-700 hover:underline ${kind === 'root' ? 'font-arabic text-base' : 'font-mono'}`}>{item.label}</a>
+                    <a href={item.link} target="_blank" rel="noopener noreferrer" className={`text-sm font-semibold text-amber-700 hover:underline ${kind === 'verse' ? 'font-mono' : 'font-arabic text-base'}`}>{item.label}</a>
+                    {kind === 'lexicon' && <span className="font-mono text-xs text-stone-400">{item.link.replace('/root/', '')}</span>}
                     <ReviewBadge item={item} />
-                    {item.verdict && <Badge tone={item.continuity ? 'emerald' : 'amber'}>{item.verdict}</Badge>}
+                    {kind === 'lexicon' && item.attestation_strength && <Badge tone={item.attestation_strength === 'rich' ? 'emerald' : item.attestation_strength === 'moderate' ? 'amber' : 'stone'}>{item.attestation_strength}</Badge>}
+                    {item.verdict && <Badge tone={kind === 'lexicon' ? 'stone' : (item.continuity ? 'emerald' : 'amber')}>{item.verdict}</Badge>}
+                    {kind === 'lexicon' && typeof item.sense_count === 'number' && <Badge tone="stone">{item.sense_count} sense{item.sense_count === 1 ? '' : 's'}</Badge>}
                     {item.quoted_count > 0 && <Badge tone="stone">{item.quoted_count} quoted</Badge>}
                     {item.auth_tier_max && <Badge tone="stone">tier {item.auth_tier_max}</Badge>}
                     {item.hidden && <Badge tone="amber">Hidden</Badge>}

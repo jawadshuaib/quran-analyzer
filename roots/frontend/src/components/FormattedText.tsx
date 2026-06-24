@@ -39,16 +39,20 @@ export function renderInline(text: string, quotes?: PoetryQuotedLine[]) {
       return <VerseRefText key={i} text={inner} />;
     }
     if (part.startsWith('**') && part.endsWith('**')) {
+      // Recurse so an inline [[q:…]] marker (or *italic*) wrapped in bold still
+      // resolves instead of leaking its raw text into VerseRefText.
       return (
         <strong key={i} className="font-semibold text-stone-900">
-          <VerseRefText text={part.slice(2, -2)} />
+          {renderInline(part.slice(2, -2), quotes)}
         </strong>
       );
     }
     if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+      // Recurse for the same reason — handles `*[[q:ID|…]]*` (an emphasised
+      // poetry quote), which the split regex captures as a single italic run.
       return (
         <em key={i} className="italic">
-          <VerseRefText text={part.slice(1, -1)} />
+          {renderInline(part.slice(1, -1), quotes)}
         </em>
       );
     }

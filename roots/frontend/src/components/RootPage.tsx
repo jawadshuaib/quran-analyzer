@@ -10,6 +10,7 @@ import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
 import PoetryComparison from './PoetryComparison';
+import FormattedText, { FormattedInline } from './FormattedText';
 
 interface Props {
   rootBw: string;
@@ -146,30 +147,16 @@ export default function RootPage({ rootBw }: Props) {
         <section className="mb-8">
           <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
             <h2 className="text-lg font-semibold text-violet-900 mb-3">
-              {wrapArabicRuns(data.primary_meaning)}
+              <FormattedInline text={data.primary_meaning} />
             </h2>
             {data.detailed_meaning && (
-              <div className="text-sm text-stone-700 leading-relaxed whitespace-pre-line">
-                {data.detailed_meaning.split(/(\d+:\d+)/).map((part, i) => {
-                  const verseMatch = part.match(/^(\d+):(\d+)$/);
-                  if (verseMatch) {
-                    return (
-                      <a
-                        key={i}
-                        href={`/verse/${part}`}
-                        className="text-violet-600 hover:text-violet-800 font-medium hover:underline"
-                      >
-                        {part}
-                      </a>
-                    );
-                  }
-                  // The non-verse-reference prose can contain inline
-                  // Arabic glyphs (root, lemma, example word). Wrap
-                  // those runs in font-arabic so the diacritics
-                  // render with Amiri.
-                  return <span key={i}>{wrapArabicRuns(part)}</span>;
-                })}
-              </div>
+              // FormattedText renders the AI meaning's **bold**/*italic*,
+              // auto-links verse refs (2:255) and applies the Arabic font to
+              // inline glyphs — so markdown no longer leaks as raw text.
+              <FormattedText
+                text={data.detailed_meaning}
+                className="text-sm text-stone-700 leading-relaxed"
+              />
             )}
             {data.semantic_field && (
               <div className="mt-3 flex flex-wrap gap-1.5">

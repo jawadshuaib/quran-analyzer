@@ -2579,7 +2579,7 @@ export async function bulkAdminExegesis(ids: number[], op: AdminExegesisBulkOp):
 /*  Pre-Islamic poetry — root comparisons + verse notes review      */
 /* ---------------------------------------------------------------- */
 
-export type PoetryKind = 'root' | 'verse';
+export type PoetryKind = 'root' | 'verse' | 'lexicon';
 
 export interface AdminPoetryItem {
   id: number;
@@ -2587,7 +2587,7 @@ export interface AdminPoetryItem {
   label: string;                  // 'ك ف ر' (root) or '45:24' (verse)
   link: string;                   // '/root/kfr' or '/verse/45:24'
   markdown: string;
-  verdict: string | null;         // 'continuity' | shift_type | 'contrast'
+  verdict: string | null;         // 'continuity' | shift_type | 'contrast' | relation_to_quran
   continuity: boolean;
   confidence: number | null;
   auth_tier_max: string | null;
@@ -2596,6 +2596,11 @@ export interface AdminPoetryItem {
   hidden: boolean;
   created_at: string;
   edited_at: string | null;
+  // lexicon-only
+  attestation_strength?: string;  // rich | moderate | thin | unattested
+  sense_count?: number;
+  poetry_occurrences?: number;
+  relation_to_quran?: string | null;
 }
 
 export interface AdminPoetryKindStats {
@@ -2609,8 +2614,10 @@ export interface AdminPoetryKindStats {
 export interface AdminPoetryStats extends AdminPoetryKindStats {
   roots: number;
   verses: number;
+  lexicons: number;
   root: AdminPoetryKindStats;
   verse: AdminPoetryKindStats;
+  lexicon: AdminPoetryKindStats;
 }
 
 export type AdminPoetrySort = 'recent' | 'oldest' | 'longest';

@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, VerseRootLexicon } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -194,6 +194,17 @@ export async function fetchVersePoetry(
   const res = await fetch(`${BASE}/verse/${surah}:${ayah}/poetry`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to load poetry note');
+  return res.json();
+}
+
+/** Per-verse, word-by-word contemporaneous-attestation lexicon (Qurʾān-only:
+ *  what each root is attested to mean in 6th-c. poetry). */
+export async function fetchVerseRootLexicon(
+  surah: number,
+  ayah: number,
+): Promise<VerseRootLexicon | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/root-lexicon`);
+  if (!res.ok) return null;
   return res.json();
 }
 

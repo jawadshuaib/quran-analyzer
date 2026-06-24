@@ -492,6 +492,46 @@ export interface VersePoetryNote {
   created_at?: string | null;
 }
 
+/** One attested 6th-century sense of a root in the contemporaneous lexicon. */
+export interface RootLexiconSense {
+  sense: string;
+  gloss_en: string;
+  example_lr_ids: number[];
+  note?: string;
+}
+
+/** A per-root contemporaneous-attestation lexicon entry (Qurʾān-only: shows what
+ *  the root is *attested* to mean in 6th-c. poetry, never a codified definition). */
+export interface RootLexiconEntry {
+  root_buckwalter?: string;
+  root_arabic: string;
+  attested_senses: RootLexiconSense[];
+  /** rich | moderate | thin | unattested */
+  attestation_strength: string;
+  poetry_occurrences: number;
+  quran_internal_summary?: string | null;
+  lexicon_markdown?: string | null;
+  /** continuity | narrowing | widening | specialization | reassignment | divergence | unattested */
+  relation_to_quran?: string | null;
+  quoted_lines: PoetryQuotedLine[];
+  confidence?: number | null;
+}
+
+/** One content word of a verse paired with (optionally) its root's lexicon entry. */
+export interface VerseRootLexiconWord {
+  word_pos: number;
+  word_arabic: string;
+  root_buckwalter: string;
+  root_arabic: string;
+  lexicon: RootLexiconEntry | null;
+}
+
+export interface VerseRootLexicon {
+  surah: number;
+  ayah: number;
+  words: VerseRootLexiconWord[];
+}
+
 export interface GrammarTerm {
   term_english: string;
   term_arabic: string | null;
