@@ -95,8 +95,7 @@ export default function RootLexiconPanel({ data }: { data: VerseRootLexicon }) {
       </div>
       <p className="text-[11px] italic text-stone-500 mb-2">
         What each root is <span className="font-medium">attested</span> to mean in authenticated
-        pre-Islamic poetry — the contemporaneous witness for the Qurʾān&rsquo;s own usage, not a
-        later codified definition.
+        pre-Islamic poetry.
       </p>
       <div>
         {words.map((w) => (
