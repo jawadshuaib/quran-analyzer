@@ -829,6 +829,43 @@ const SECTION_STYLES: SectionStyle[] = [
     ),
   },
   {
+    href: '/admin/stats',
+    label: 'Stats',
+    description: 'Public-site analytics and YouTube performance with 7d/30d trends.',
+    accent: 'bg-sky-50 text-sky-700 ring-sky-100',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M4 19h16" />
+        <path d="M7 19v-5" /><path d="M12 19v-10" /><path d="M17 19v-3" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/judge-lessons',
+    label: 'Judge Lessons',
+    description: 'Performance-driven refinements to the interestingness judge — what YouTube engagement is teaching the pipeline.',
+    accent: 'bg-orange-50 text-orange-700 ring-orange-100',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M9 18h6" /><path d="M10 21h4" />
+        <path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5.9 1 .96 1.7L9.5 18h5l.04-1.5c.06-.7.36-1.2.96-1.7A6 6 0 0 0 12 3z" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/poetry',
+    label: 'Pre-Islamic Poetry',
+    description: 'Root comparisons and verse notes setting the Qurʾān beside the Jahilī poets. Review, fix, hide, or remove.',
+    accent: 'bg-purple-50 text-purple-700 ring-purple-100',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M20 4c-8 1-13 6-14 13l-1.5 3" />
+        <path d="M20 4c1 7-3 12-10 13" />
+        <path d="M6.5 14.5l4 4" />
+      </svg>
+    ),
+  },
+  {
     href: '/admin/settings',
     label: 'Settings',
     description: 'API keys, OAuth credentials, integrations.',
@@ -842,27 +879,46 @@ const SECTION_STYLES: SectionStyle[] = [
   },
 ];
 
+// Fallback visual for any ADMIN_SECTIONS entry without a SECTION_STYLES
+// match, so a new section always renders on the dashboard (never silently
+// drops off) even before someone gives it a bespoke icon.
+const DEFAULT_SECTION_VISUAL = {
+  accent: 'bg-stone-100 text-stone-700 ring-stone-200',
+  icon: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M4 10h16M10 4v16" />
+    </svg>
+  ),
+};
+
 function DashboardSections() {
+  // Iterate ADMIN_SECTIONS (the single source of truth that also drives the
+  // top nav) so the dashboard grid and the nav can never drift out of sync;
+  // SECTION_STYLES only supplies the per-section icon + accent.
   return (
     <div className="mb-10">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">Manage</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {SECTION_STYLES.map((s) => (
-          <a
-            key={s.href}
-            href={s.href}
-            className="group relative block rounded-xl border border-stone-200 bg-white px-5 py-4 hover:border-stone-400 hover:shadow-sm transition-all hover:-translate-y-0.5"
-          >
-            <div className={`inline-flex items-center justify-center h-9 w-9 rounded-lg ring-1 mb-3 ${s.accent}`}>
-              {s.icon}
-            </div>
-            <div className="font-semibold text-stone-800">{s.label}</div>
-            <div className="text-xs text-stone-500 mt-1 leading-relaxed">{s.description}</div>
-            <span className="absolute top-4 right-4 text-stone-300 group-hover:text-stone-500 transition-colors">
-              →
-            </span>
-          </a>
-        ))}
+        {ADMIN_SECTIONS.map((s) => {
+          const visual = SECTION_STYLES.find((v) => v.href === s.href) ?? DEFAULT_SECTION_VISUAL;
+          return (
+            <a
+              key={s.href}
+              href={s.href}
+              className="group relative block rounded-xl border border-stone-200 bg-white px-5 py-4 hover:border-stone-400 hover:shadow-sm transition-all hover:-translate-y-0.5"
+            >
+              <div className={`inline-flex items-center justify-center h-9 w-9 rounded-lg ring-1 mb-3 ${visual.accent}`}>
+                {visual.icon}
+              </div>
+              <div className="font-semibold text-stone-800">{s.label}</div>
+              <div className="text-xs text-stone-500 mt-1 leading-relaxed">{s.description}</div>
+              <span className="absolute top-4 right-4 text-stone-300 group-hover:text-stone-500 transition-colors">
+                →
+              </span>
+            </a>
+          );
+        })}
       </div>
     </div>
   );
