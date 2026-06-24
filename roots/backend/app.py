@@ -6577,15 +6577,20 @@ def _poetry_quoted(conn, raw):
         return []
     for q in items:
         q.pop("auth_tier", None)  # never expose tier to readers
-        lrid = q.get("line_root_id")
-        if lrid:
-            loc = conn.execute(
-                "SELECT pl.poem_id, pl.line_no FROM poetry_line_roots plr "
-                "JOIN poetry_lines pl ON pl.id = plr.line_id WHERE plr.id = ?",
-                (lrid,)).fetchone()
-            if loc:
-                q["poem_id"] = loc["poem_id"]
-                q["line_no"] = loc["line_no"]
+        # Prefer an embedded poem_id/line_no (self-contained data, like the
+        # lexicon's) so the deep-link never depends on poetry_line_roots being
+        # complete in this environment. Only fall back to a live lookup when
+        # the embedded values are missing.
+        if q.get("poem_id") is None:
+            lrid = q.get("line_root_id")
+            if lrid:
+                loc = conn.execute(
+                    "SELECT pl.poem_id, pl.line_no FROM poetry_line_roots plr "
+                    "JOIN poetry_lines pl ON pl.id = plr.line_id WHERE plr.id = ?",
+                    (lrid,)).fetchone()
+                if loc:
+                    q["poem_id"] = loc["poem_id"]
+                    q["line_no"] = loc["line_no"]
     return items
 
 
