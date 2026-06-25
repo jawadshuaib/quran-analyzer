@@ -1514,9 +1514,10 @@ def cmd_stats(args) -> int:
 # ------------------------------------------------------------------------
 
 def quoted_poem_ids(conn) -> set:
-    """Poem ids referenced by any quoted line in the approved comparisons/notes."""
+    """Poem ids referenced by any quoted line in the approved comparisons,
+    verse notes, or the contemporaneous lexicon."""
     lrids = set()
-    for tbl in ("root_poetry_comparisons", "verse_poetry_notes"):
+    for tbl in ("root_poetry_comparisons", "verse_poetry_notes", "root_poetic_lexicon"):
         try:
             for r in conn.execute(f"SELECT quoted_lines_json FROM {tbl} "
                                   "WHERE quoted_lines_json IS NOT NULL"):
