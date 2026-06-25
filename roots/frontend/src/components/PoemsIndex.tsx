@@ -75,9 +75,7 @@ export default function PoemsIndex() {
                       )}
                       <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
                         {p.meter && <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-500">{p.meter}</span>}
-                        {p.translated_count >= p.line_count ? (
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">translated</span>
-                        ) : (
+                        {p.translated_count < p.line_count && (
                           <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
                             {p.translated_count}/{p.line_count} translated
                           </span>
