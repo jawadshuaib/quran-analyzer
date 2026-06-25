@@ -6595,9 +6595,10 @@ def _poetry_quoted(conn, raw):
 
 
 def _approved_quoted_lrids(conn) -> set:
-    """line_root_ids quoted by any APPROVED comparison/note."""
+    """line_root_ids quoted by any APPROVED comparison, verse note, or lexicon
+    entry (used to flag which lines to highlight on a poem page)."""
     lrids = set()
-    for tbl in ("root_poetry_comparisons", "verse_poetry_notes"):
+    for tbl in ("root_poetry_comparisons", "verse_poetry_notes", "root_poetic_lexicon"):
         try:
             for r in conn.execute(
                     f"SELECT quoted_lines_json FROM {tbl} "
@@ -6614,16 +6615,34 @@ def _approved_quoted_lrids(conn) -> set:
 
 
 def _quoted_poem_ids(conn) -> set:
-    """Poem ids referenced by any quoted line in approved comparisons/notes."""
-    lrids = _approved_quoted_lrids(conn)
-    if not lrids:
-        return set()
-    qmarks = ",".join("?" * len(lrids))
-    rows = conn.execute(
-        f"""SELECT DISTINCT pl.poem_id FROM poetry_line_roots plr
-            JOIN poetry_lines pl ON pl.id = plr.line_id
-            WHERE plr.id IN ({qmarks})""", list(lrids)).fetchall()
-    return {r["poem_id"] for r in rows}
+    """Poem ids referenced by any approved comparison, verse note, or lexicon
+    quote. Prefers the embedded poem_id (self-contained) and falls back to a
+    poetry_line_roots lookup for any quote that lacks one."""
+    pids = set()
+    need_lrids = set()
+    for tbl in ("root_poetry_comparisons", "verse_poetry_notes", "root_poetic_lexicon"):
+        try:
+            for r in conn.execute(
+                    f"SELECT quoted_lines_json FROM {tbl} "
+                    "WHERE review_status='approved' AND quoted_lines_json IS NOT NULL"):
+                try:
+                    for q in json.loads(r["quoted_lines_json"]):
+                        if q.get("poem_id") is not None:
+                            pids.add(int(q["poem_id"]))
+                        elif q.get("line_root_id"):
+                            need_lrids.add(q["line_root_id"])
+                except Exception:
+                    pass
+        except Exception:
+            pass
+    if need_lrids:
+        qmarks = ",".join("?" * len(need_lrids))
+        for r in conn.execute(
+                f"""SELECT DISTINCT pl.poem_id FROM poetry_line_roots plr
+                    JOIN poetry_lines pl ON pl.id = plr.line_id
+                    WHERE plr.id IN ({qmarks})""", list(need_lrids)).fetchall():
+            pids.add(r["poem_id"])
+    return pids
 
 
 @app.route("/api/poems")
