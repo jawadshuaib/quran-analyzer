@@ -3,6 +3,7 @@ import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData
 import { toggleManualSave, isSaved } from '../../utils/saved-items';
 import { useVerseHighlights } from '../../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../../utils/verse-highlights';
+import { getCopyContext, openCopyModal, subscribeCopyContext } from '../../utils/copy-context';
 import HighlightCross from '../HighlightCross';
 import {
   notifySavedItemsChanged,
@@ -90,6 +91,12 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   const [hoverHl, setHoverHl] = useState<string | null>(null);
   // On touch devices there's no hover, so the × is shown on highlights always.
   const coarse = isCoarsePointer();
+  // Whether this verse is the active copy selection → show the pop-in copy icon.
+  const [copyActive, setCopyActive] = useState(() => getCopyContext()?.verseKey === verseKey);
+  useEffect(
+    () => subscribeCopyContext(() => setCopyActive(getCopyContext()?.verseKey === verseKey)),
+    [verseKey],
+  );
 
   useEffect(() => {
     const update = () => setAudioState(getVerseAudioStatus(verseKey));
@@ -213,6 +220,16 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
           {verse.verse}
         </span>
         <div className="flex flex-col items-center gap-1.5 mt-1">
+          {copyActive && (
+            <span data-copy-icon className="animate-chip-pop">
+              <GutterIcon label="Copy verse" active onClick={() => openCopyModal()}>
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                  <path d="M3.5 10.5H3A1.5 1.5 0 011.5 9V3A1.5 1.5 0 013 1.5h6A1.5 1.5 0 0110.5 3v.5" strokeLinecap="round" />
+                </svg>
+              </GutterIcon>
+            </span>
+          )}
           {hasVerseNotes && (
             <GutterIcon
               label={notesVisible ? 'Hide notes' : 'Show notes for all verses'}

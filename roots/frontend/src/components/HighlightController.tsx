@@ -10,6 +10,14 @@ import {
   type HighlightColor,
 } from '../utils/verse-highlights';
 import { isHighlightingEnabled } from '../utils/reader-prefs';
+import { getSurahName } from '../utils/surah-names';
+import {
+  setCopyContext,
+  clearCopyContext,
+  getCopyContext,
+  isCopyModalOpen,
+  subscribeCopyContext,
+} from '../utils/copy-context';
 
 /** A highlight just created by the current selection gesture. */
 interface ActiveRef {
@@ -45,9 +53,6 @@ export default function HighlightController() {
   const capture = useCallback(() => {
     // Defer so the browser has finalized the selection after mouseup/touchend.
     window.setTimeout(() => {
-      // Respect the Settings toggle: when highlighting is off we don't create
-      // NEW highlights (existing ones still render and stay removable).
-      if (!isHighlightingEnabled()) return;
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
 
@@ -89,6 +94,34 @@ export default function HighlightController() {
 
       if (byVerse.size === 0) return; // selection covered no Arabic tokens
 
+      // Offer to copy the selection — independent of the highlighting toggle.
+      // Anchor on the verse with the most selected words (the "primary" verse).
+      let primaryKey: string | null = null;
+      let primary: VerseHit | null = null;
+      byVerse.forEach((hit, vk) => {
+        const len = hit.max - hit.min + 1;
+        if (!primary || len > primary.max - primary.min + 1) {
+          primaryKey = vk;
+          primary = hit;
+        }
+      });
+      if (primaryKey && primary) {
+        const hit: VerseHit = primary;
+        const surah = parseInt((primaryKey as string).split(':')[0], 10);
+        setCopyContext({
+          verseKey: primaryKey,
+          startPos: hit.min,
+          endPos: hit.max,
+          arabic: hit.arabic || '',
+          translation: hit.translation || '',
+          surahName: getSurahName(surah),
+        });
+      }
+
+      // When highlighting is off we stop here: copy is offered, but no new
+      // highlight is created and the selection is left intact.
+      if (!isHighlightingEnabled()) return;
+
       // Read geometry BEFORE collapsing the selection.
       const r = sel.getRangeAt(0).getBoundingClientRect();
       const rect = { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
@@ -119,6 +152,36 @@ export default function HighlightController() {
       document.removeEventListener('touchend', capture);
     };
   }, [capture]);
+
+  // Deselect handling for the copy affordance: while a verse is the active copy
+  // context and the modal isn't open, clicking outside the copy icon / modal /
+  // color popover, or pressing Escape, clears it (the copy icon disappears).
+  const [copyActive, setCopyActive] = useState(() => !!getCopyContext() && !isCopyModalOpen());
+  useEffect(
+    () => subscribeCopyContext(() => setCopyActive(!!getCopyContext() && !isCopyModalOpen())),
+    [],
+  );
+  useEffect(() => {
+    if (!copyActive) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest('[data-copy-icon], [data-copy-modal], [aria-label="Highlight color"]')) return;
+      clearCopyContext();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') clearCopyContext(); };
+    // Defer attach so the gesture that set the context doesn't instantly clear it.
+    const t = window.setTimeout(() => {
+      document.addEventListener('mousedown', onDown);
+      document.addEventListener('touchstart', onDown);
+    }, 0);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [copyActive]);
 
   const close = useCallback(() => setPopover(null), []);
 

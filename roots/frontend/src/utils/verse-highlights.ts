@@ -44,6 +44,17 @@ export const HIGHLIGHT_BG: Record<HighlightColor, string> = {
   pink: 'bg-pink-200',
 };
 
+/** Hex of the highlight backgrounds (matches HIGHLIGHT_BG's bg-*-200) — used
+ *  for inline styles when copying a highlighted verse as rich HTML, so the
+ *  colors survive a paste into Docs / email. */
+export const HIGHLIGHT_HEX: Record<HighlightColor, string> = {
+  yellow: '#fef08a',
+  orange: '#fed7aa',
+  green: '#bbf7d0',
+  sky: '#bae6fd',
+  pink: '#fbcfe8',
+};
+
 /** Solid swatch used in the color-picker popover. */
 export const HIGHLIGHT_SWATCH: Record<HighlightColor, string> = {
   yellow: 'bg-yellow-300',

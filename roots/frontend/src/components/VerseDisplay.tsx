@@ -17,6 +17,7 @@ import { splitDepartureNotes } from '../utils/departure-notes';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { useVerseHighlights } from '../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../utils/verse-highlights';
+import { getCopyContext, openCopyModal, subscribeCopyContext } from '../utils/copy-context';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -67,6 +68,11 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const { posMap } = useVerseHighlights(verseKey);
   const [hoverHl, setHoverHl] = useState<string | null>(null);
   const coarse = isCoarsePointer();
+  const [copyActive, setCopyActive] = useState(() => getCopyContext()?.verseKey === verseKey);
+  useEffect(
+    () => subscribeCopyContext(() => setCopyActive(getCopyContext()?.verseKey === verseKey)),
+    [verseKey],
+  );
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
 
@@ -344,6 +350,22 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
         />
         <VersePlayButton surah={data.surah} ayah={data.ayah} />
         <NoteButton surah={data.surah} ayah={data.ayah} accent="violet" />
+        {copyActive && (
+          <span data-copy-icon className="animate-chip-pop">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); openCopyModal(); }}
+              aria-label="Copy verse"
+              title="Copy verse"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-stone-400 transition-colors hover:text-emerald-600"
+            >
+              <svg viewBox="0 0 16 16" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+                <path d="M3.5 10.5H3A1.5 1.5 0 011.5 9V3A1.5 1.5 0 013 1.5h6A1.5 1.5 0 0110.5 3v.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        )}
       </div>
       {hasSelection && (
         <SelectionHeader
