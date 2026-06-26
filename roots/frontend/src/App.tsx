@@ -17,6 +17,8 @@ import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 import PoemPage from './components/PoemPage';
 import PoemsIndex from './components/PoemsIndex';
+import MeterPage from './components/MeterPage';
+import MetersIndex from './components/MetersIndex';
 import NotFound from './components/NotFound';
 import BadGateway from './components/BadGateway';
 import ApiPage from './components/ApiPage';
@@ -54,6 +56,11 @@ function getRootFromPath(): string | null {
 function getPoemFromPath(): number | null {
   const m = window.location.pathname.match(/^\/poem\/(\d+)\/?$/);
   return m ? parseInt(m[1]) : null;
+}
+
+function getMeterFromPath(): string | null {
+  const m = window.location.pathname.match(/^\/meter\/([a-z]+)\/?$/);
+  return m ? m[1] : null;
 }
 
 function getWordFromPath(): { surah: number; ayah: number; pos: number } | null {
@@ -146,6 +153,8 @@ function isKnownRoute(): boolean {
   if (/^\/verse\/\d+:\d+$/.test(path)) return true;
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
+  if (/^\/meter\/[a-z]+\/?$/.test(path)) return true;
+  if (/^\/meters\/?$/.test(path)) return true;
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
   if (/^\/read\/\d+(:\d+(-\d+)?)?\/?$/.test(path)) return true;
   if (/^\/settings\/?$/.test(path)) return true;
@@ -350,6 +359,33 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <div className="flex-1"><PoemsIndex /></div>
+        <SiteFooter />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  const meterKey = getMeterFromPath();
+  if (meterKey != null) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1"><MeterPage meterKey={meterKey} /></div>
+        <SiteFooter />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  if (/^\/meters\/?$/.test(currentPath)) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1"><MetersIndex /></div>
         <SiteFooter />
         <SavedItemsPanel />
       </div>

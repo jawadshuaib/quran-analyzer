@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { PoemData } from '../types';
 import { fetchPoem } from '../api/quran';
+import { meterKeyForArabic } from '../utils/meters';
+import MeterBeatChip from './MeterBeatChip';
 
 /** /poem/<id> — a full pre-Islamic poem, Arabic + English line by line, with
  *  the lines our comparisons quote highlighted. Translations fill in as the
@@ -52,8 +54,15 @@ export default function PoemPage({ poemId }: { poemId: number }) {
         {poem.title_en && (
           <p className="text-sm text-stone-400 italic mt-0.5">{poem.title_en}</p>
         )}
-        <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
-          {poem.meter && <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">metre: {poem.meter}</span>}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+          {poem.meter && (() => {
+            const mk = poem.meter_key || meterKeyForArabic(poem.meter);
+            return mk ? (
+              <MeterBeatChip label={poem.meter} meterKey={mk} beat={poem.meter_beat} />
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">metre: {poem.meter}</span>
+            );
+          })()}
           <span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">{poem.line_count} lines</span>
           {partial && (
             <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">

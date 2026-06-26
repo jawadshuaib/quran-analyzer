@@ -1606,6 +1606,298 @@ def cmd_trans_add(args) -> int:
     return 0
 
 
+# ---- Meter (baḥr) teaching pages -------------------------------------------
+# Mirror of app.py's METER_REGISTRY: one page per base meter, variants folded in.
+# Kept in sync by hand (small, static). Order = teaching priority.
+METER_REGISTRY = [
+    {"key": "tawil", "ar": "الطويل", "en": "Ṭawīl", "meaning": "the long",
+     "variants": ["مجزوء الطويل"]},
+    {"key": "wafir", "ar": "الوافر", "en": "Wāfir", "meaning": "the abundant",
+     "variants": ["مجزوء الوافر"]},
+    {"key": "basit", "ar": "البسيط", "en": "Basīṭ", "meaning": "the outspread",
+     "variants": ["مجزوء البسيط", "مخلع البسيط"]},
+    {"key": "kamil", "ar": "الكامل", "en": "Kāmil", "meaning": "the complete",
+     "variants": ["مجزوء الكامل", "أحذ الكامل"]},
+    {"key": "mutaqarib", "ar": "المتقارب", "en": "Mutaqārib", "meaning": "the nearing",
+     "variants": []},
+    {"key": "khafif", "ar": "الخفيف", "en": "Khafīf", "meaning": "the light",
+     "variants": ["مجزوء الخفيف"]},
+    {"key": "rajaz", "ar": "الرجز", "en": "Rajaz", "meaning": "the quivering",
+     "variants": ["مجزوء الرجز", "مشطور الرجز"]},
+    {"key": "ramal", "ar": "الرمل", "en": "Ramal", "meaning": "the trotting",
+     "variants": ["مجزوء الرمل"]},
+    {"key": "sari", "ar": "السريع", "en": "Sarīʿ", "meaning": "the swift", "variants": []},
+    {"key": "munsarih", "ar": "المنسرح", "en": "Munsariḥ", "meaning": "the flowing",
+     "variants": []},
+    {"key": "madid", "ar": "المديد", "en": "Madīd", "meaning": "the outstretched",
+     "variants": []},
+    {"key": "hazaj", "ar": "الهزج", "en": "Hazaj", "meaning": "the lilting", "variants": []},
+    {"key": "mujtathth", "ar": "المجتث", "en": "Mujtathth", "meaning": "the uprooted",
+     "variants": []},
+]
+_METER_BY_KEY = {m["key"]: m for m in METER_REGISTRY}
+
+
+def _meter_values(entry):
+    return [entry["ar"], *entry["variants"]]
+
+
+def ensure_meter_table(conn: sqlite3.Connection) -> None:
+    """Idempotent: same shape app.py serves from."""
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS meter_articles (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            meter_key        TEXT UNIQUE NOT NULL,
+            meter_ar         TEXT,
+            name_en          TEXT,
+            name_meaning     TEXT,
+            tafil_ar         TEXT,
+            tafil_latin      TEXT,
+            syllable_pattern TEXT,
+            mnemonic_en      TEXT,
+            article_markdown TEXT,
+            showcase_json    TEXT,
+            variants_json    TEXT,
+            confidence       REAL,
+            qa_status        TEXT,
+            qa_notes         TEXT,
+            review_status    TEXT DEFAULT 'pending',
+            hidden           INTEGER DEFAULT 0,
+            raw_response     TEXT,
+            created_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+            edited_at        TEXT
+        );
+        """
+    )
+    conn.commit()
+
+
+def cmd_meter_next(args) -> int:
+    """List base meters that still need a teaching article (no row yet, or a
+    row flagged needs_fix by QA)."""
+    conn = get_conn(); ensure_schema(conn); ensure_meter_table(conn)
+    try:
+        counts = {}
+        for r in conn.execute("SELECT meter, COUNT(*) c FROM poetry_poems "
+                              "WHERE meter IS NOT NULL AND meter<>'' GROUP BY meter"):
+            counts[r["meter"]] = r["c"]
+        todo = []
+        for m in METER_REGISTRY:
+            row = conn.execute(
+                "SELECT qa_status, article_markdown FROM meter_articles WHERE meter_key=?",
+                (m["key"],)).fetchone()
+            needs = (row is None) or (row["qa_status"] == "needs_fix") \
+                or (not (row["article_markdown"] or "").strip())
+            if needs:
+                todo.append({"key": m["key"], "meter_ar": m["ar"], "name_en": m["en"],
+                             "name_meaning": m["meaning"],
+                             "poem_count": sum(counts.get(v, 0) for v in _meter_values(m))})
+        todo.sort(key=lambda x: x["poem_count"], reverse=True)
+        print(json.dumps({"meters_remaining": len(todo),
+                          "meters": todo[: args.count]}, ensure_ascii=False, indent=2))
+    finally:
+        conn.close()
+    return 0
+
+
+def cmd_meter_context(args) -> int:
+    """Print one meter's identity + variant strings + a pool of candidate
+    showcase lines (authentic, already-translated) for the agent to choose from."""
+    entry = _METER_BY_KEY.get((args.key or "").strip())
+    if not entry:
+        print(f"Unknown meter key: {args.key}", file=sys.stderr); return 2
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        values = _meter_values(entry)
+        counts = {}
+        for r in conn.execute("SELECT meter, COUNT(*) c FROM poetry_poems "
+                              "WHERE meter IN (%s) GROUP BY meter" % ",".join("?" * len(values)),
+                              values):
+            counts[r["meter"]] = r["c"]
+        L = [f"# Meter '{entry['key']}' — {entry['ar']} (\"{entry['en']}\", {entry['meaning']})",
+             f"Base value: {entry['ar']}  ({counts.get(entry['ar'], 0)} poems)"]
+        for v in entry["variants"]:
+            if counts.get(v, 0):
+                L.append(f"Variant: {v}  ({counts[v]} poems) — a clipped/halved form, folds into this page.")
+        L += ["",
+              "TASK: write a beginner-friendly English teaching page for this meter, then pick "
+              "2–4 of the candidate lines below as showcase verses. Provide for each chosen line a "
+              "read-aloud transliteration and a long/short scansion that matches the meter's tafāʿīl.",
+              "",
+              "Candidate showcase lines (authentic poems in this meter, already translated — "
+              "choose lines that scan cleanly):", ""]
+        # prefer authentic tiers + present translations; cap the pool
+        cand = conn.execute(
+            "SELECT pl.id, pl.line_no, pl.hemistich1, pl.hemistich2, pl.text_plain, "
+            "       pl.translation_en, pp.id AS poem_id, pp.poet, pp.poet_latin, pp.auth_tier "
+            "FROM poetry_lines pl JOIN poetry_poems pp ON pp.id = pl.poem_id "
+            "WHERE pp.meter IN (%s) AND pl.translation_en IS NOT NULL AND pl.translation_en<>'' "
+            "ORDER BY CASE pp.auth_tier WHEN 'A' THEN 0 WHEN 'B' THEN 1 ELSE 2 END, pl.id "
+            "LIMIT ?" % ",".join("?" * len(values)),
+            [*values, args.limit]).fetchall()
+        for c in cand:
+            arabic = c["text_plain"] or " / ".join(
+                x for x in [c["hemistich1"], c["hemistich2"]] if x)
+            poet = c["poet_latin"] or c["poet"] or "?"
+            L.append(f"[{c['id']}] (poem {c['poem_id']} · {poet} · tier {c['auth_tier']}) {arabic}")
+            L.append(f"     ↳ {c['translation_en']}")
+        print("\n".join(L))
+    finally:
+        conn.close()
+    return 0
+
+
+def cmd_meter_add(args) -> int:
+    """Upsert a meter article (review_status='pending'). Showcase Arabic/poet are
+    re-derived from the DB by line_id so the example text is always real; the
+    agent supplies transliteration, scansion and (optionally) a refined gloss."""
+    entry = _METER_BY_KEY.get((args.key or "").strip())
+    if not entry:
+        print(f"Unknown meter key: {args.key}", file=sys.stderr); return 2
+    with open(args.file, encoding="utf-8") as f:
+        payload = json.load(f)
+    conn = get_conn(); ensure_schema(conn); ensure_meter_table(conn)
+    try:
+        showcase = []
+        for it in (payload.get("showcase") or []):
+            lid = it.get("line_id")
+            if not lid:
+                continue
+            ln = conn.execute(
+                "SELECT pl.line_no, pl.hemistich1, pl.hemistich2, pl.text_plain, "
+                "pl.translation_en, pp.id AS poem_id, pp.poet, pp.poet_latin "
+                "FROM poetry_lines pl JOIN poetry_poems pp ON pp.id = pl.poem_id "
+                "WHERE pl.id = ?", (lid,)).fetchone()
+            if not ln:
+                continue
+            arabic = ln["text_plain"] or " / ".join(
+                x for x in [ln["hemistich1"], ln["hemistich2"]] if x)
+            showcase.append({
+                "line_id": lid, "poem_id": ln["poem_id"], "line_no": ln["line_no"],
+                "poet": ln["poet"], "poet_latin": ln["poet_latin"], "arabic": arabic,
+                "transliteration": (it.get("transliteration") or "").strip(),
+                "scansion": (it.get("scansion") or "").strip(),
+                "translation": (it.get("translation") or ln["translation_en"] or "").strip(),
+            })
+        cols = {
+            "meter_key": entry["key"],
+            "meter_ar": payload.get("meter_ar") or entry["ar"],
+            "name_en": payload.get("name_en") or entry["en"],
+            "name_meaning": payload.get("name_meaning") or entry["meaning"],
+            "tafil_ar": (payload.get("tafil_ar") or "").strip(),
+            "tafil_latin": (payload.get("tafil_latin") or "").strip(),
+            "syllable_pattern": (payload.get("syllable_pattern") or "").strip(),
+            "mnemonic_en": (payload.get("mnemonic_en") or "").strip(),
+            "article_markdown": (payload.get("article_markdown") or "").strip(),
+            "showcase_json": json.dumps(showcase, ensure_ascii=False),
+            "variants_json": json.dumps(
+                [{"meter_ar": v} for v in entry["variants"]], ensure_ascii=False),
+            "confidence": payload.get("confidence"),
+            "qa_status": payload.get("qa_status"),
+            "qa_notes": payload.get("qa_notes"),
+            "raw_response": payload.get("raw_response"),
+        }
+        keys = list(cols.keys())
+        conn.execute(
+            "INSERT INTO meter_articles (%s, edited_at) VALUES (%s, datetime('now')) "
+            "ON CONFLICT(meter_key) DO UPDATE SET %s, edited_at=datetime('now')" % (
+                ", ".join(keys), ", ".join("?" * len(keys)),
+                ", ".join(f"{k}=excluded.{k}" for k in keys if k != "meter_key")),
+            [cols[k] for k in keys])
+        conn.commit()
+        print(f"meter-add: stored '{entry['key']}' "
+              f"({len(showcase)} showcase line(s), qa={cols['qa_status'] or '—'}).")
+    finally:
+        conn.close()
+    return 0
+
+
+# ---- English poem titles + poet romanisation -------------------------------
+def cmd_poets_missing(args) -> int:
+    """Distinct poet names (Arabic) that have no Latin romanisation yet."""
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        rows = conn.execute(
+            "SELECT poet, COUNT(*) c FROM poetry_poems "
+            "WHERE poet IS NOT NULL AND poet<>'' AND (poet_latin IS NULL OR poet_latin='') "
+            "GROUP BY poet ORDER BY c DESC").fetchall()
+        print(json.dumps({"poets": [{"poet": r["poet"], "poems": r["c"]} for r in rows]},
+                         ensure_ascii=False, indent=2))
+    finally:
+        conn.close()
+    return 0
+
+
+def cmd_poets_add(args) -> int:
+    """Apply {poets:[{poet, poet_latin}]} to every row of each poet still missing it."""
+    payload = json.load(open(args.file, encoding="utf-8"))
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        n = 0
+        for it in (payload.get("poets") or []):
+            poet, latin = it.get("poet"), (it.get("poet_latin") or "").strip()
+            if poet and latin:
+                cur = conn.execute(
+                    "UPDATE poetry_poems SET poet_latin=? WHERE poet=? "
+                    "AND (poet_latin IS NULL OR poet_latin='')", (latin, poet))
+                n += cur.rowcount
+        conn.commit()
+        print(f"poets-add: romanised {n} poem row(s).")
+    finally:
+        conn.close()
+    return 0
+
+
+def cmd_titles_context(args) -> int:
+    """For each poem id: poet, Arabic title, and first line (Arabic + English if
+    translated) — enough for an agent to write a concise English title."""
+    ids = [int(x) for x in str(args.ids).split(",") if x.strip().isdigit()]
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        out = []
+        for pid in ids:
+            p = conn.execute("SELECT poet, poet_latin, title FROM poetry_poems WHERE id=?",
+                             (pid,)).fetchone()
+            if not p:
+                continue
+            l1 = conn.execute(
+                "SELECT hemistich1, hemistich2, text_plain, translation_en "
+                "FROM poetry_lines WHERE poem_id=? ORDER BY line_no LIMIT 1", (pid,)).fetchone()
+            l1_ar = None
+            if l1:
+                l1_ar = l1["text_plain"] or " ".join(
+                    x for x in [l1["hemistich1"], l1["hemistich2"]] if x)
+            out.append({
+                "poem_id": pid, "poet": p["poet"], "poet_latin": p["poet_latin"],
+                "title_ar": p["title"], "line1_ar": l1_ar,
+                "line1_en": l1["translation_en"] if l1 else None,
+            })
+        print(json.dumps({"poems": out}, ensure_ascii=False, indent=2))
+    finally:
+        conn.close()
+    return 0
+
+
+def cmd_titles_add(args) -> int:
+    """Apply {titles:[{poem_id, title_en}]} to poetry_poems."""
+    payload = json.load(open(args.file, encoding="utf-8"))
+    items = payload.get("titles") if isinstance(payload, dict) else payload
+    conn = get_conn(); ensure_schema(conn)
+    try:
+        n = 0
+        for it in (items or []):
+            pid, t = it.get("poem_id"), (it.get("title_en") or "").strip()
+            if pid and t:
+                conn.execute("UPDATE poetry_poems SET title_en=? WHERE id=?", (t[:200], pid))
+                n += 1
+        conn.commit()
+        print(f"titles-add: stored {n} English title(s).")
+    finally:
+        conn.close()
+    return 0
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1677,6 +1969,23 @@ def main() -> int:
     sp.add_argument("poem", help="poem_id (for logging)")
     sp.add_argument("--file", required=True)
 
+    sp = sub.add_parser("meter-next", help="base meters still needing a teaching article (JSON)")
+    sp.add_argument("--count", type=int, default=99)
+    sp = sub.add_parser("meter-context", help="a meter's identity + candidate showcase lines")
+    sp.add_argument("key", help="meter slug, e.g. tawil")
+    sp.add_argument("--limit", type=int, default=30, help="candidate lines to offer")
+    sp = sub.add_parser("meter-add", help="store/refresh a meter's teaching article (pending)")
+    sp.add_argument("key", help="meter slug, e.g. tawil")
+    sp.add_argument("--file", required=True)
+
+    sub.add_parser("poets-missing", help="distinct poets lacking a Latin romanisation (JSON)")
+    sp = sub.add_parser("poets-add", help="apply {poets:[{poet,poet_latin}]}")
+    sp.add_argument("--file", required=True)
+    sp = sub.add_parser("titles-context", help="poem title + first line context for an id batch")
+    sp.add_argument("--ids", required=True, help="comma-separated poem ids")
+    sp = sub.add_parser("titles-add", help="apply {titles:[{poem_id,title_en}]}")
+    sp.add_argument("--file", required=True)
+
     args = p.parse_args()
 
     if args.cmd == "init":
@@ -1695,6 +2004,13 @@ def main() -> int:
         "trans-next": cmd_trans_next,
         "trans-context": cmd_trans_context,
         "trans-add": cmd_trans_add,
+        "meter-next": cmd_meter_next,
+        "meter-context": cmd_meter_context,
+        "meter-add": cmd_meter_add,
+        "poets-missing": cmd_poets_missing,
+        "poets-add": cmd_poets_add,
+        "titles-context": cmd_titles_context,
+        "titles-add": cmd_titles_add,
     }[args.cmd](args)
 
 

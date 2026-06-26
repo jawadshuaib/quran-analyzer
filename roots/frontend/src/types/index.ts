@@ -452,6 +452,15 @@ export interface PoemLine {
 }
 
 /** A full pre-Islamic poem (the /poem/<id> page). */
+/** A metre's rhythm preview, for the hover beat-card on a poem page. */
+export interface MeterBeat {
+  name_en: string;
+  name_meaning?: string | null;
+  tafil_latin?: string | null;
+  syllable_pattern?: string | null;
+  mnemonic_en?: string | null;
+}
+
 export interface PoemData {
   id: number;
   poet: string;
@@ -459,6 +468,8 @@ export interface PoemData {
   title?: string | null;
   title_en?: string | null;
   meter?: string | null;
+  meter_key?: string | null;
+  meter_beat?: MeterBeat | null;
   rhyme?: string | null;
   era?: string | null;
   line_count: number;
@@ -477,6 +488,52 @@ export interface PoemSummary {
   era?: string | null;
   line_count: number;
   translated_count: number;
+}
+
+/** A row in the /meters index. */
+export interface MeterSummary {
+  key: string;
+  meter_ar: string;
+  name_en: string;
+  name_meaning: string;
+  poem_count: number;
+  has_article: boolean;
+}
+
+/** One showcase verse on a meter page. */
+export interface MeterShowcaseLine {
+  line_id: number;
+  poem_id: number;
+  line_no: number;
+  poet?: string | null;
+  poet_latin?: string | null;
+  arabic: string;
+  transliteration?: string | null;
+  scansion?: string | null;
+  translation?: string | null;
+}
+
+/** A meter (baḥr) variant present in the corpus. */
+export interface MeterVariant {
+  meter_ar: string;
+  poem_count: number;
+}
+
+/** The full teaching page for one base meter. */
+export interface MeterData {
+  key: string;
+  meter_ar: string;
+  name_en: string;
+  name_meaning: string;
+  tafil_ar?: string | null;
+  tafil_latin?: string | null;
+  syllable_pattern?: string | null;
+  mnemonic_en?: string | null;
+  article_markdown?: string | null;
+  showcase: MeterShowcaseLine[];
+  variants: MeterVariant[];
+  poem_count: number;
+  poems: PoemSummary[];
 }
 
 /** Verse-level poetry note shown below the exegesis. */

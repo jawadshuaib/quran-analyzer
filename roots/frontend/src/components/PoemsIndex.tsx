@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PoemSummary } from '../types';
 import { fetchPoems } from '../api/quran';
+import { meterKeyForArabic } from '../utils/meters';
 
 /** /poems — the browsable library of every pre-Islamic poem our comparisons
  *  draw on, grouped by poet. */
@@ -74,7 +75,22 @@ export default function PoemsIndex() {
                         <p className="mt-0.5 text-sm text-stone-500 italic truncate">{p.title_en}</p>
                       )}
                       <div className="mt-1 flex flex-wrap gap-1.5 text-[11px]">
-                        {p.meter && <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-500">{p.meter}</span>}
+                        {p.meter && (() => {
+                          const mk = meterKeyForArabic(p.meter);
+                          if (!mk) return <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-500">{p.meter}</span>;
+                          const go = () => { window.location.href = `/meter/${mk}`; };
+                          return (
+                            <span
+                              role="link"
+                              tabIndex={0}
+                              onClick={(e) => { e.preventDefault(); e.stopPropagation(); go(); }}
+                              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); go(); } }}
+                              className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer"
+                            >
+                              {p.meter}
+                            </span>
+                          );
+                        })()}
                         {p.translated_count < p.line_count && (
                           <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
                             {p.translated_count}/{p.line_count} translated

@@ -6535,6 +6535,94 @@ def get_verse_exegesis(surah: int, ayah: int):
 # Tables live in the same DB (synced to prod like verse_exegesis).
 # ----------------------------------------------------------------------------
 
+# ---- Meter (baḥr) registry --------------------------------------------------
+# The corpus stores meter as a raw Arabic string (poetry_poems.meter). Most
+# values are truncated variants (مجزوء = halved, أحذ/مخلع/مشطور = clipped) of a
+# small set of base meters. We surface ONE page per base meter, keyed by a Latin
+# slug; every variant string folds into its base. Order = teaching priority
+# (most frequent first). name_en/meaning here are sensible defaults; an approved
+# meter_articles row overrides them for display.
+METER_REGISTRY = [
+    {"key": "tawil", "ar": "الطويل", "en": "Ṭawīl", "meaning": "the long",
+     "variants": ["مجزوء الطويل"]},
+    {"key": "wafir", "ar": "الوافر", "en": "Wāfir", "meaning": "the abundant",
+     "variants": ["مجزوء الوافر"]},
+    {"key": "basit", "ar": "البسيط", "en": "Basīṭ", "meaning": "the outspread",
+     "variants": ["مجزوء البسيط", "مخلع البسيط"]},
+    {"key": "kamil", "ar": "الكامل", "en": "Kāmil", "meaning": "the complete",
+     "variants": ["مجزوء الكامل", "أحذ الكامل"]},
+    {"key": "mutaqarib", "ar": "المتقارب", "en": "Mutaqārib", "meaning": "the nearing",
+     "variants": []},
+    {"key": "khafif", "ar": "الخفيف", "en": "Khafīf", "meaning": "the light",
+     "variants": ["مجزوء الخفيف"]},
+    {"key": "rajaz", "ar": "الرجز", "en": "Rajaz", "meaning": "the quivering",
+     "variants": ["مجزوء الرجز", "مشطور الرجز"]},
+    {"key": "ramal", "ar": "الرمل", "en": "Ramal", "meaning": "the trotting",
+     "variants": ["مجزوء الرمل"]},
+    {"key": "sari", "ar": "السريع", "en": "Sarīʿ", "meaning": "the swift",
+     "variants": []},
+    {"key": "munsarih", "ar": "المنسرح", "en": "Munsariḥ", "meaning": "the flowing",
+     "variants": []},
+    {"key": "madid", "ar": "المديد", "en": "Madīd", "meaning": "the outstretched",
+     "variants": []},
+    {"key": "hazaj", "ar": "الهزج", "en": "Hazaj", "meaning": "the lilting",
+     "variants": []},
+    {"key": "mujtathth", "ar": "المجتث", "en": "Mujtathth", "meaning": "the uprooted",
+     "variants": []},
+]
+_METER_BY_KEY = {m["key"]: m for m in METER_REGISTRY}
+# Every raw meter string (base + variants) -> base entry.
+_METER_VALUE_TO_BASE = {}
+for _m in METER_REGISTRY:
+    _METER_VALUE_TO_BASE[_m["ar"]] = _m
+    for _v in _m["variants"]:
+        _METER_VALUE_TO_BASE[_v] = _m
+
+
+def _meter_base_for(meter_value):
+    """Map a raw poetry_poems.meter string to its base registry entry, or None."""
+    if not meter_value:
+        return None
+    return _METER_VALUE_TO_BASE.get(meter_value.strip())
+
+
+def _meter_all_values(entry):
+    """Every raw meter string that folds into this base (base name + variants)."""
+    return [entry["ar"], *entry["variants"]]
+
+
+def _ensure_meter_articles_table(conn):
+    """Idempotent: the read table for per-meter teaching pages. One row per base
+    meter (keyed by Latin slug). article_markdown holds the prose; the machine
+    fields (tafil/syllable_pattern/mnemonic) drive the rhythm player; showcase_json
+    holds chosen example lines with transliteration + scansion."""
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS meter_articles (
+            id               INTEGER PRIMARY KEY AUTOINCREMENT,
+            meter_key        TEXT UNIQUE NOT NULL,
+            meter_ar         TEXT,
+            name_en          TEXT,
+            name_meaning     TEXT,
+            tafil_ar         TEXT,
+            tafil_latin      TEXT,
+            syllable_pattern TEXT,
+            mnemonic_en      TEXT,
+            article_markdown TEXT,
+            showcase_json    TEXT,
+            variants_json    TEXT,
+            confidence       REAL,
+            qa_status        TEXT,
+            qa_notes         TEXT,
+            review_status    TEXT DEFAULT 'pending',
+            hidden           INTEGER DEFAULT 0,
+            raw_response     TEXT,
+            created_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+            edited_at        TEXT
+        );
+    """)
+    conn.commit()
+
+
 def _ensure_poetry_serve_tables(conn):
     """Idempotent: the read tables for the poetry comparison feature. No-op
     when poetry_gen.py / a prod sync already created them with their full
@@ -6563,6 +6651,7 @@ def _ensure_poetry_serve_tables(conn):
     """)
     conn.commit()
     _ensure_lexicon_table(conn)
+    _ensure_meter_articles_table(conn)
 
 
 def _poetry_quoted(conn, raw):
@@ -6691,10 +6780,29 @@ def get_poem(poem_id: int):
                     "JOIN poetry_lines pl ON pl.id = plr.line_id "
                     f"WHERE plr.id IN ({qmarks}) AND pl.poem_id = ?", (*lrids, poem_id)):
                 quoted_line_nos.add(r["line_no"])
+        # link the metre to its teaching page + a hover beat-preview, if approved
+        meter_key, meter_beat = None, None
+        base = _meter_base_for(p["meter"])
+        if base:
+            meter_key = base["key"]
+            _ensure_meter_articles_table(conn)
+            ma = conn.execute(
+                "SELECT name_en, name_meaning, tafil_latin, syllable_pattern, mnemonic_en "
+                "FROM meter_articles WHERE meter_key = ? AND review_status = 'approved' "
+                "AND COALESCE(hidden,0) = 0 LIMIT 1", (base["key"],)).fetchone()
+            if ma and (ma["syllable_pattern"] or "").strip():
+                meter_beat = {
+                    "name_en": ma["name_en"] or base["en"],
+                    "name_meaning": ma["name_meaning"] or base.get("meaning"),
+                    "tafil_latin": ma["tafil_latin"],
+                    "syllable_pattern": ma["syllable_pattern"],
+                    "mnemonic_en": ma["mnemonic_en"],
+                }
         return jsonify({
             "id": p["id"], "poet": p["poet"], "poet_latin": p["poet_latin"],
             "title": p["title"], "title_en": p["title_en"],
             "meter": p["meter"], "rhyme": p["rhyme"], "era": p["era"],
+            "meter_key": meter_key, "meter_beat": meter_beat,
             "line_count": len(lines),
             "translated_count": sum(1 for ln in lines if (ln["translation_en"] or "").strip()),
             "lines": [{
@@ -6886,6 +6994,101 @@ def get_verse_root_lexicon(surah: int, ayah: int):
         conn.close()
 
 
+def _meter_poem_counts(conn):
+    """Raw meter string -> poem count, across the whole corpus."""
+    counts = {}
+    for r in conn.execute(
+            "SELECT meter, COUNT(*) AS c FROM poetry_poems "
+            "WHERE meter IS NOT NULL AND meter <> '' GROUP BY meter"):
+        counts[r["meter"]] = r["c"]
+    return counts
+
+
+@app.route("/api/meters")
+def list_meters():
+    """Public: the base meters of the corpus, most-used first, each with its
+    poem count (base + variants folded in) and whether an approved teaching
+    article exists. Always lists every registry meter so the index is stable."""
+    conn = get_db()
+    try:
+        _ensure_meter_articles_table(conn)
+        counts = _meter_poem_counts(conn)
+        have = {
+            r["meter_key"] for r in conn.execute(
+                "SELECT meter_key FROM meter_articles "
+                "WHERE review_status = 'approved' AND COALESCE(hidden,0) = 0")
+        }
+        meters = []
+        for m in METER_REGISTRY:
+            poem_count = sum(counts.get(v, 0) for v in _meter_all_values(m))
+            meters.append({
+                "key": m["key"], "meter_ar": m["ar"], "name_en": m["en"],
+                "name_meaning": m["meaning"], "poem_count": poem_count,
+                "has_article": m["key"] in have,
+            })
+        meters.sort(key=lambda x: x["poem_count"], reverse=True)
+        return jsonify({"meters": meters})
+    finally:
+        conn.close()
+
+
+@app.route("/api/meter/<key>")
+def get_meter(key: str):
+    """Public: one meter's teaching page — the approved article + rhythm data,
+    chosen showcase lines (with transliteration + scansion), the corpus variants
+    that fold into it, and a sample of poems written in it. 404 if no approved
+    article yet (the meter still exists, but has nothing to teach with)."""
+    entry = _METER_BY_KEY.get((key or "").strip())
+    if not entry:
+        return jsonify({"error": "Unknown meter"}), 404
+    conn = get_db()
+    try:
+        _ensure_meter_articles_table(conn)
+        row = conn.execute(
+            "SELECT * FROM meter_articles WHERE meter_key = ? "
+            "AND review_status = 'approved' AND COALESCE(hidden,0) = 0 LIMIT 1",
+            (entry["key"],)).fetchone()
+        if not row:
+            return jsonify({"error": "No meter article"}), 404
+        try:
+            showcase = json.loads(row["showcase_json"] or "[]")
+        except Exception:
+            showcase = []
+        counts = _meter_poem_counts(conn)
+        values = _meter_all_values(entry)
+        # variants present in the corpus, with their counts
+        variants = [{"meter_ar": v, "poem_count": counts.get(v, 0)}
+                    for v in entry["variants"] if counts.get(v, 0)]
+        poem_count = sum(counts.get(v, 0) for v in values)
+        # a browsable sample of poems in this meter — translated/quoted first
+        qmarks = ",".join("?" * len(values))
+        poems = conn.execute(
+            f"""SELECT pp.id, pp.poet, pp.poet_latin, pp.title, pp.title_en, pp.meter, pp.era,
+                   (SELECT COUNT(*) FROM poetry_lines WHERE poem_id = pp.id) AS line_count,
+                   (SELECT COUNT(*) FROM poetry_lines WHERE poem_id = pp.id
+                      AND translation_en IS NOT NULL AND translation_en != '') AS translated_count
+                FROM poetry_poems pp WHERE pp.meter IN ({qmarks})
+                ORDER BY translated_count DESC, pp.id LIMIT 24""",
+            list(values)).fetchall()
+        return jsonify({
+            "key": entry["key"],
+            "meter_ar": row["meter_ar"] or entry["ar"],
+            "name_en": row["name_en"] or entry["en"],
+            "name_meaning": row["name_meaning"] or entry["meaning"],
+            "tafil_ar": row["tafil_ar"],
+            "tafil_latin": row["tafil_latin"],
+            "syllable_pattern": row["syllable_pattern"],
+            "mnemonic_en": row["mnemonic_en"],
+            "article_markdown": row["article_markdown"],
+            "showcase": showcase,
+            "variants": variants,
+            "poem_count": poem_count,
+            "poems": [dict(p) for p in poems],
+        })
+    finally:
+        conn.close()
+
+
 # ---- Admin: pre-Islamic poetry review (root comparisons + verse notes) -----
 # Two tables share one review surface, switched by a `kind` param. Mirrors the
 # exegesis admin endpoints below.
@@ -6897,6 +7100,8 @@ _POETRY_ADMIN = {
     "lexicon": {"table": "root_poetic_lexicon", "md": "lexicon_markdown",
                 "search": ("lexicon_markdown", "root_buckwalter", "root_arabic",
                            "quran_internal_summary")},
+    "meter": {"table": "meter_articles", "md": "article_markdown",
+              "search": ("article_markdown", "meter_key", "meter_ar", "name_en")},
 }
 
 
@@ -6919,11 +7124,16 @@ def _poetry_admin_row(kind, row):
             d["sense_count"] = len(json.loads(d.get("attested_senses_json") or "[]"))
         except Exception:
             d["sense_count"] = 0
+    if kind == "meter":
+        try:
+            d["showcase_count"] = len(json.loads(d.get("showcase_json") or "[]"))
+        except Exception:
+            d["showcase_count"] = 0
     # drop heavy / internal columns from the payload
     for k in ("raw_response", "adversarial_report", "counter_search_json",
               "counter_search", "collocations_json", "config_id", "quran_usage_summary",
               "poetry_usage_summary", "attested_senses_json", "quran_internal_summary",
-              "lexical_basis"):
+              "lexical_basis", "showcase_json", "variants_json"):
         d.pop(k, None)
     if kind == "root":
         d["label"] = d.get("root_arabic") or d.get("root_buckwalter")
@@ -6933,6 +7143,10 @@ def _poetry_admin_row(kind, row):
         d["label"] = d.get("root_arabic") or d.get("root_buckwalter")
         d["link"] = "/root/%s" % d.get("root_buckwalter")
         d["verdict"] = d.get("relation_to_quran")
+    elif kind == "meter":
+        d["label"] = d.get("name_en") or d.get("meter_ar") or d.get("meter_key")
+        d["link"] = "/meter/%s" % d.get("meter_key")
+        d["verdict"] = d.get("qa_status") or d.get("name_meaning")
     else:
         key = d.get("page_key") or ("%s:%s" % (d.get("chapter"), d.get("verse")))
         d["label"] = key
@@ -6946,7 +7160,7 @@ def _poetry_admin_row(kind, row):
 def admin_list_poetry():
     kind = (request.args.get("kind") or "root").strip()
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon|meter"}), 400
     cfg = _POETRY_ADMIN[kind]
     md, table = cfg["md"], cfg["table"]
     q = (request.args.get("q") or "").strip()
@@ -7018,11 +7232,14 @@ def admin_poetry_stats():
         root = per("root_poetry_comparisons")
         verse = per("verse_poetry_notes")
         lexicon = per("root_poetic_lexicon")
-        comb = {k: root[k] + verse[k] + lexicon[k] for k in root}
+        meter = per("meter_articles")
+        comb = {k: root[k] + verse[k] + lexicon[k] + meter[k] for k in root}
         comb["roots"] = root["total"]
         comb["verses"] = verse["total"]
         comb["lexicons"] = lexicon["total"]
-        return jsonify({"root": root, "verse": verse, "lexicon": lexicon, **comb})
+        comb["meters"] = meter["total"]
+        return jsonify({"root": root, "verse": verse, "lexicon": lexicon,
+                        "meter": meter, **comb})
     finally:
         conn.close()
 
@@ -7031,7 +7248,7 @@ def admin_poetry_stats():
 @admin_required
 def admin_update_poetry(kind, pid):
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon|meter"}), 400
     cfg = _POETRY_ADMIN[kind]
     md, table = cfg["md"], cfg["table"]
     data = request.get_json(force=True) or {}
@@ -7075,7 +7292,7 @@ def admin_update_poetry(kind, pid):
 @admin_required
 def admin_delete_poetry(kind, pid):
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon|meter"}), 400
     table = _POETRY_ADMIN[kind]["table"]
     conn = get_db()
     try:
@@ -7095,7 +7312,7 @@ def admin_bulk_poetry():
     data = request.get_json(force=True) or {}
     kind = (data.get("kind") or "root").strip()
     if kind not in _POETRY_ADMIN:
-        return jsonify({"error": "kind must be root|verse|lexicon"}), 400
+        return jsonify({"error": "kind must be root|verse|lexicon|meter"}), 400
     table = _POETRY_ADMIN[kind]["table"]
     raw_ids = data.get("ids")
     if not isinstance(raw_ids, list) or not raw_ids:

@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, VerseRootLexicon } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -183,6 +183,22 @@ export async function fetchPoems(): Promise<PoemSummary[]> {
 export async function fetchPoem(id: number): Promise<PoemData> {
   const res = await fetch(`${BASE}/poem/${id}`);
   if (!res.ok) throw new Error('Failed to load poem');
+  return res.json();
+}
+
+/** The base meters of the corpus, most-used first, for /meters. */
+export async function fetchMeters(): Promise<MeterSummary[]> {
+  const res = await fetch(`${BASE}/meters`);
+  if (!res.ok) throw new Error('Failed to load meters');
+  return (await res.json()).meters;
+}
+
+/** One meter's teaching page (article + rhythm + showcase), or null if no
+ *  approved article exists yet. */
+export async function fetchMeter(key: string): Promise<MeterData | null> {
+  const res = await fetch(`${BASE}/meter/${encodeURIComponent(key)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load meter');
   return res.json();
 }
 
