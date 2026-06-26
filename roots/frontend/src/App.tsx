@@ -33,6 +33,7 @@ import ReaderPage from './components/reader/ReaderPage';
 import SettingsPage from './components/SettingsPage';
 import AskAssistant from './components/AskAssistant';
 import SavedItemsPanel from './components/SavedItemsPanel';
+import HighlightController from './components/HighlightController';
 import AdminPage from './components/admin/AdminPage';
 import { buildVerseContext } from './utils/context-builders';
 import { getSurahMaxAyah } from './utils/surah-names';
@@ -305,6 +306,7 @@ export default function App() {
         </div>
         <SiteFooter />
         <SavedItemsPanel />
+        <HighlightController />
       </div>
     );
   }
@@ -772,6 +774,7 @@ export default function App() {
 
       <SiteFooter />
       <SavedItemsPanel />
+      <HighlightController />
     </div>
   );
 }

@@ -1,6 +1,9 @@
-import { forwardRef, useEffect, useState } from 'react';
+import { forwardRef, Fragment, useEffect, useState } from 'react';
 import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote } from '../../types';
-import { toggleSavedItem, isSaved } from '../../utils/saved-items';
+import { toggleManualSave, isSaved } from '../../utils/saved-items';
+import { useVerseHighlights } from '../../hooks/useVerseHighlights';
+import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../../utils/verse-highlights';
+import HighlightCross from '../HighlightCross';
 import {
   notifySavedItemsChanged,
   SAVED_ITEMS_CHANGED,
@@ -79,6 +82,14 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   // morphology tooltip. -1 = no hover.
   const [hoveredWord, setHoveredWord] = useState<number>(-1);
   const [audioState, setAudioState] = useState(() => getVerseAudioStatus(verseKey));
+  // User highlights for this verse (yellow by default; auto-saved). The
+  // posMap answers "is word N highlighted, in what color, is N its start?".
+  const { posMap } = useVerseHighlights(verseKey);
+  // Which highlight's delete-× is currently shown (set by hovering any word
+  // in that highlight; cleared when the pointer leaves the Arabic region).
+  const [hoverHl, setHoverHl] = useState<string | null>(null);
+  // On touch devices there's no hover, so the × is shown on highlights always.
+  const coarse = isCoarsePointer();
 
   useEffect(() => {
     const update = () => setAudioState(getVerseAudioStatus(verseKey));
@@ -125,12 +136,17 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }, [highlighted]);
 
   function handleSave() {
-    const isSavedNow = toggleSavedItem({
+    // toggleManualSave: unsaved → save; highlight-saved → promote to sticky
+    // manual; manual → remove. So pressing Save on a highlight-auto-saved
+    // verse makes it permanent rather than paradoxically unsaving it.
+    const isSavedNow = toggleManualSave({
       type: 'verse',
       key: verseKey,
       label: `${getSurahName(surah)} ${verseKey}`,
       href: `/verse/${verseKey}`,
       subtitle: verse.translation.slice(0, 80),
+      arabic: verse.text_uthmani,
+      translation: verse.translation,
     });
     setSaved(isSavedNow);
     notifySavedItemsChanged();
@@ -139,6 +155,16 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   function handleSaveNote(text: string) {
     setNote(surah, verse.verse, text);
     setNoteState(text);
+  }
+
+  // Delegated hover over the Arabic region: show the delete-× for whichever
+  // highlight the pointer is currently over (keeps the affordance alive while
+  // travelling along a multi-word highlight toward the × at its start).
+  function handleHighlightHover(e: React.MouseEvent) {
+    const el = (e.target as HTMLElement).closest('[data-word-pos]');
+    const pos = el ? parseInt(el.getAttribute('data-word-pos') || '', 10) : NaN;
+    const hl = Number.isFinite(pos) ? posMap.get(pos) : undefined;
+    setHoverHl(hl ? hl.id : null);
   }
 
   const hasNote = !!note.trim();
@@ -245,10 +271,18 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             lang="ar"
             dir="rtl"
             data-allow-no-font-arabic
+            data-arabic-region
+            data-verse-key={verseKey}
+            data-verse-text={verse.text_uthmani}
+            data-verse-translation={verse.translation}
+            onMouseOver={handleHighlightHover}
+            onMouseLeave={() => setHoverHl(null)}
           >
             {verse.words.map((w) => {
               const display = uthmaniWords[w.position - 1] ?? joinSegmentArabic(w.segments);
               const isActive = hoveredWord === w.position;
+              const hl = posMap.get(w.position);
+              const isHlStart = !!hl && w.position === hl.start;
               const wordObj: Word = {
                 position: w.position,
                 segments: w.segments as Segment[],
@@ -257,13 +291,22 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
               return (
                 <span
                   key={w.position}
-                  className="relative inline-flex flex-col items-center min-w-[3.5rem] max-w-[14rem] cursor-help"
+                  data-word-pos={w.position}
+                  className={`relative inline-flex flex-col items-center min-w-[3.5rem] max-w-[14rem] cursor-help ${
+                    hl ? `${HIGHLIGHT_BG[hl.color]} rounded` : ''
+                  }`}
                   onMouseEnter={() => setHoveredWord(w.position)}
                   onMouseLeave={() => setHoveredWord((p) => (p === w.position ? -1 : p))}
                   onFocus={() => setHoveredWord(w.position)}
                   onBlur={() => setHoveredWord((p) => (p === w.position ? -1 : p))}
                   tabIndex={0}
                 >
+                  {isHlStart && (
+                    <HighlightCross
+                      visible={hoverHl === hl!.id || coarse}
+                      onRemove={() => { removeHighlight(verseKey, hl!.id); setHoverHl(null); }}
+                    />
+                  )}
                   <span className="font-arabic text-2xl sm:text-3xl leading-tight text-ink">
                     {display}
                   </span>
@@ -302,8 +345,43 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             })}
           </div>
         ) : (
-          <div className="font-arabic text-2xl sm:text-3xl leading-[2.2] text-ink mb-3 text-right" lang="ar" dir="rtl">
-            {verse.text_uthmani}
+          // Plain reading: render each Arabic word as its own token span (with
+          // a stable data-word-pos) so highlighting has a target here too. The
+          // tokens flow inline separated by spaces, so it reads identically to
+          // the original single text node.
+          <div
+            className="font-arabic text-2xl sm:text-3xl leading-[2.2] text-ink mb-3 text-right"
+            lang="ar"
+            dir="rtl"
+            data-arabic-region
+            data-verse-key={verseKey}
+            data-verse-text={verse.text_uthmani}
+            data-verse-translation={verse.translation}
+            onMouseOver={handleHighlightHover}
+            onMouseLeave={() => setHoverHl(null)}
+          >
+            {uthmaniWords.map((word, idx) => {
+              const pos = idx + 1;
+              const hl = posMap.get(pos);
+              const isHlStart = !!hl && pos === hl.start;
+              return (
+                <Fragment key={pos}>
+                  <span
+                    data-word-pos={pos}
+                    className={`relative ${hl ? `${HIGHLIGHT_BG[hl.color]} rounded` : ''}`}
+                  >
+                    {isHlStart && (
+                      <HighlightCross
+                        visible={hoverHl === hl!.id || coarse}
+                        onRemove={() => { removeHighlight(verseKey, hl!.id); setHoverHl(null); }}
+                      />
+                    )}
+                    {word}
+                  </span>
+                  {idx < uthmaniWords.length - 1 ? ' ' : ''}
+                </Fragment>
+              );
+            })}
           </div>
         )}
         <div className="text-[15px] sm:text-base leading-relaxed text-ink-secondary">

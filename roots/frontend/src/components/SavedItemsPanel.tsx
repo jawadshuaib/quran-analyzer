@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react';
 import {
   getSavedItems,
   removeSavedItem,
   getSavedCount,
+  updateSavedItemContent,
   type SavedItem,
   type SavedItemType,
 } from '../utils/saved-items';
+import { useVerseHighlights } from '../hooks/useVerseHighlights';
+import { HIGHLIGHT_BG, clearVerseHighlights } from '../utils/verse-highlights';
 import {
   getAllNotes as userNotesGetAll,
   deleteNote as userNotesDelete,
@@ -170,6 +173,10 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
 
   const handleRemove = useCallback(
     (type: SavedItemType, key: string) => {
+      // Removing a verse from Saved also clears its highlights, so a verse is
+      // never left highlighted-but-unsaved (highlighting auto-saves; removing
+      // here is the user saying "drop this verse and its marks").
+      if (type === 'verse') clearVerseHighlights(key);
       removeSavedItem(type, key);
       notifySavedItemsChanged();
     },
@@ -436,6 +443,7 @@ function SavedItemRow({
   onNavigate: (href: string) => void;
   onRemove: (type: SavedItemType, key: string) => void;
 }) {
+  const isVerse = item.type === 'verse';
   return (
     <li className="group">
       <div className="flex items-start gap-3 px-4 py-3 hover:bg-stone-50 transition-colors">
@@ -449,13 +457,24 @@ function SavedItemRow({
           className="flex-1 text-left min-w-0"
           onClick={() => onNavigate(item.href)}
         >
-          <span className="text-sm font-medium text-stone-700 group-hover:text-stone-900 transition-colors line-clamp-1">
-            {wrapArabicRuns(item.label)}
-          </span>
-          {item.subtitle && (
-            <span className="block text-xs text-stone-400 mt-0.5 line-clamp-2 leading-relaxed">
-              {wrapArabicRuns(item.subtitle)}
-            </span>
+          {isVerse ? (
+            <>
+              <span className="block text-[11px] font-medium text-rose-600/80">
+                {item.label}
+              </span>
+              <SavedVerseContent item={item} />
+            </>
+          ) : (
+            <>
+              <span className="text-sm font-medium text-stone-700 group-hover:text-stone-900 transition-colors line-clamp-1">
+                {wrapArabicRuns(item.label)}
+              </span>
+              {item.subtitle && (
+                <span className="block text-xs text-stone-400 mt-0.5 line-clamp-2 leading-relaxed">
+                  {wrapArabicRuns(item.subtitle)}
+                </span>
+              )}
+            </>
           )}
         </button>
 
@@ -472,6 +491,66 @@ function SavedItemRow({
         </button>
       </div>
     </li>
+  );
+}
+
+/**
+ * Renders a saved verse inside the panel: the Arabic (word tokens, with any
+ * highlights drawn in their colors) and the translation. If the saved item
+ * predates the stored text fields, it lazily fetches the verse once and
+ * backfills the store so the next open is instant.
+ */
+function SavedVerseContent({ item }: { item: SavedItem }) {
+  const verseKey = item.key;
+  const { posMap } = useVerseHighlights(verseKey);
+  // Stored fields win; otherwise fall back to what we fetched. (Deriving from
+  // props avoids a props→state mirror effect.)
+  const [fetched, setFetched] = useState<{ arabic?: string; translation?: string } | null>(null);
+  const arabic = item.arabic ?? fetched?.arabic;
+  const translation = item.translation ?? fetched?.translation;
+
+  // Fallback for items saved before the arabic/translation fields existed.
+  useEffect(() => {
+    if (item.arabic) return;
+    let cancelled = false;
+    fetch(`/api/verse/${verseKey}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return;
+        setFetched({ arabic: d.text_uthmani, translation: d.translation });
+        updateSavedItemContent('verse', verseKey, {
+          arabic: d.text_uthmani,
+          translation: d.translation,
+        });
+      })
+      .catch(() => { /* offline / not found — just show what we have */ });
+    return () => { cancelled = true; };
+  }, [verseKey, item.arabic]);
+
+  const words = arabic ? arabic.split(/\s+/).filter(Boolean) : [];
+
+  return (
+    <span className="block">
+      {words.length > 0 && (
+        <span dir="rtl" lang="ar" className="block font-arabic text-lg leading-[1.9] text-stone-800 mt-0.5">
+          {words.map((w, idx) => {
+            const pos = idx + 1;
+            const hl = posMap.get(pos);
+            return (
+              <Fragment key={pos}>
+                <span className={hl ? `${HIGHLIGHT_BG[hl.color]} rounded` : ''}>{w}</span>
+                {idx < words.length - 1 ? ' ' : ''}
+              </Fragment>
+            );
+          })}
+        </span>
+      )}
+      {translation && (
+        <span className="block text-xs text-stone-500 italic mt-1 line-clamp-2 leading-relaxed">
+          {translation}
+        </span>
+      )}
+    </span>
   );
 }
 

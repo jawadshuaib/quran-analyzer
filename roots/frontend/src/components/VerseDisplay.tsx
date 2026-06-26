@@ -11,9 +11,12 @@ import MethodologyTooltip from './MethodologyTooltip';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
 import VersePlayButton from './VersePlayButton';
+import HighlightCross from './HighlightCross';
 import { notifySavedItemsChanged } from './SavedItemsPanel';
 import { splitDepartureNotes } from '../utils/departure-notes';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import { useVerseHighlights } from '../hooks/useVerseHighlights';
+import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../utils/verse-highlights';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -57,6 +60,13 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     return window.localStorage.getItem(WORD_TO_WORD_KEY) === '1';
   });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const verseKey = `${data.surah}:${data.ayah}`;
+  // User highlights for this verse (shared store → the same marks appear in
+  // reading mode). posMap answers per-word: highlighted? color? is it start?
+  const { posMap } = useVerseHighlights(verseKey);
+  const [hoverHl, setHoverHl] = useState<string | null>(null);
+  const coarse = isCoarsePointer();
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
 
@@ -298,6 +308,15 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     setSelectedRoots(new Set());
   }
 
+  // Delegated hover over the Arabic line: surface the delete-× for whichever
+  // highlight the pointer is over.
+  function handleHighlightHover(e: React.MouseEvent) {
+    const el = (e.target as HTMLElement).closest('[data-word-pos]');
+    const pos = el ? parseInt(el.getAttribute('data-word-pos') || '', 10) : NaN;
+    const hl = Number.isFinite(pos) ? posMap.get(pos) : undefined;
+    setHoverHl(hl ? hl.id : null);
+  }
+
   function getWordToWordLabel(pos: number, word: Word | undefined): string {
     const wm = wordMeanings[String(pos)];
     if (wm?.preferred_translation) return wm.preferred_translation;
@@ -319,6 +338,8 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           label={`Surah ${data.surah_name} ${data.surah}:${data.ayah}`}
           href={`/verse/${data.surah}:${data.ayah}`}
           subtitle={data.translation}
+          arabic={data.text_uthmani}
+          translation={data.translation}
           onToggle={() => notifySavedItemsChanged()}
         />
         <VersePlayButton surah={data.surah} ayah={data.ayah} />
@@ -433,6 +454,12 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
         dir="rtl"
         lang="ar"
         className="mb-4 text-3xl leading-[2.8] font-arabic text-stone-800 flex flex-wrap gap-x-2 gap-y-2"
+        data-arabic-region
+        data-verse-key={verseKey}
+        data-verse-text={data.text_uthmani}
+        data-verse-translation={data.translation}
+        onMouseOver={handleHighlightHover}
+        onMouseLeave={() => setHoverHl(null)}
       >
         {uthmaniWords.map((word, idx) => {
           const pos = idx + 1;
@@ -441,10 +468,15 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           const isHovered = !hasSelection && hoveredPos === pos;
           const isActive = isSelected || isHovered;
           const isRootHighlighted = highlightedByRoot?.has(pos) ?? false;
+          // Persistent user highlight (shows at rest; the transient
+          // selection/hover/root-match colors take over while interacting).
+          const hl = posMap.get(pos);
+          const isHlStart = !!hl && pos === hl.start;
 
           return (
             <span
               key={pos}
+              data-word-pos={pos}
               className={`relative inline-flex flex-col items-center cursor-pointer rounded-md px-1 transition-colors duration-150 ${
                 isSelected
                   ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-400'
@@ -452,7 +484,9 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                     ? 'bg-emerald-100 text-emerald-900'
                     : isRootHighlighted
                       ? 'bg-amber-100 text-amber-900'
-                      : 'hover:bg-stone-100'
+                      : hl
+                        ? HIGHLIGHT_BG[hl.color]
+                        : 'hover:bg-stone-100'
               }`}
               onMouseEnter={() => {
                 if (!hasSelection) setHoveredPos(pos);
@@ -462,6 +496,14 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
               }}
               onClick={(e) => {
                 e.stopPropagation();
+                // If this "click" is the tail of a drag text-selection on this
+                // word, it's a highlight gesture — don't also toggle morphology
+                // selection (which would pop the tooltip + SelectionHeader).
+                const sel = window.getSelection();
+                if (sel && !sel.isCollapsed && sel.rangeCount > 0 &&
+                    sel.getRangeAt(0).intersectsNode(e.currentTarget)) {
+                  return;
+                }
                 setSelectedPositions((prev) => {
                   const next = new Set(prev);
                   if (next.has(pos)) {
@@ -473,6 +515,12 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                 });
               }}
             >
+              {isHlStart && (
+                <HighlightCross
+                  visible={hoverHl === hl!.id || coarse}
+                  onRemove={() => { removeHighlight(verseKey, hl!.id); setHoverHl(null); }}
+                />
+              )}
               <span>{word}</span>
               {wordToWordEnabled && getWordToWordLabel(pos, wordData) && (
                 <span

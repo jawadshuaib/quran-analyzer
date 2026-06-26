@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   isSaved,
   toggleSavedItem,
+  toggleManualSave,
   type SavedItemType,
 } from '../utils/saved-items';
+import { SAVED_ITEMS_CHANGED } from './SavedItemsPanel';
 
 interface Props {
   type: SavedItemType;
@@ -11,6 +13,9 @@ interface Props {
   label: string;
   href: string;
   subtitle?: string;
+  /** Verse-only: stored so the Saved panel can show the verse + highlights. */
+  arabic?: string;
+  translation?: string;
   /** Called after toggle so parent can update counts */
   onToggle?: (nowSaved: boolean) => void;
 }
@@ -27,16 +32,37 @@ export default function SaveButton({
   label,
   href,
   subtitle,
+  arabic,
+  translation,
   onToggle,
 }: Props) {
   const [saved, setSaved] = useState(() => isSaved(type, itemKey));
   const [animating, setAnimating] = useState(false);
 
+  // Keep the icon in sync when the saved state changes elsewhere — notably
+  // when highlighting a verse auto-saves it (or clearing the last highlight
+  // auto-removes it). Other tabs sync via the storage event.
+  useEffect(() => {
+    const refresh = () => setSaved(isSaved(type, itemKey));
+    refresh();
+    window.addEventListener(SAVED_ITEMS_CHANGED, refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener(SAVED_ITEMS_CHANGED, refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, [type, itemKey]);
+
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      const nowSaved = toggleSavedItem({ type, key: itemKey, label, href, subtitle });
+      // Verses use the highlight-aware toggle (promote a highlight-save to a
+      // sticky manual save instead of unsaving it); other kinds toggle plainly.
+      const nowSaved =
+        type === 'verse'
+          ? toggleManualSave({ type, key: itemKey, label, href, subtitle, arabic, translation })
+          : toggleSavedItem({ type, key: itemKey, label, href, subtitle });
       setSaved(nowSaved);
       onToggle?.(nowSaved);
 
@@ -45,7 +71,7 @@ export default function SaveButton({
         setTimeout(() => setAnimating(false), 400);
       }
     },
-    [type, itemKey, label, href, subtitle, onToggle],
+    [type, itemKey, label, href, subtitle, arabic, translation, onToggle],
   );
 
   return (
