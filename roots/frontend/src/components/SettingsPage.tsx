@@ -11,6 +11,8 @@ import {
 import {
   isWordByWordEnabled,
   setWordByWordEnabled,
+  isHighlightingEnabled,
+  setHighlightingEnabled,
 } from '../utils/reader-prefs';
 
 export default function SettingsPage() {
@@ -18,6 +20,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [selectedModel, setSelectedModel] = useState(getModel());
   const [wordByWord, setWordByWord] = useState(isWordByWordEnabled());
+  const [highlighting, setHighlighting] = useState(isHighlightingEnabled());
   const hasKey = !!getApiKey();
 
   useSEO({
@@ -89,6 +92,30 @@ export default function SettingsPage() {
               Show a small English gloss directly under each Arabic word in the
               reader, in addition to the full sentence translation. Helpful for
               following along closely; turn it off for faster reading.
+            </p>
+          </div>
+        </label>
+
+        <label className="mt-3 flex items-start gap-3 cursor-pointer p-3 rounded-lg border border-stone-200 hover:border-stone-300 transition-colors">
+          <input
+            type="checkbox"
+            checked={highlighting}
+            onChange={(e) => {
+              const next = e.target.checked;
+              setHighlighting(next);
+              setHighlightingEnabled(next);
+            }}
+            className="mt-0.5 accent-amber-600 w-4 h-4"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-stone-800">
+              Verse highlighting
+            </div>
+            <p className="mt-0.5 text-xs text-stone-500 leading-relaxed">
+              Select part of a verse to highlight it (saved in your browser).
+              Turning this off stops new highlights from being created — verses
+              you've already highlighted stay highlighted, and you can still
+              remove them.
             </p>
           </div>
         </label>

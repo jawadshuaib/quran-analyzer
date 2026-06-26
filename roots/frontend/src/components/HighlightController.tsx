@@ -9,6 +9,7 @@ import {
   HIGHLIGHT_LABEL,
   type HighlightColor,
 } from '../utils/verse-highlights';
+import { isHighlightingEnabled } from '../utils/reader-prefs';
 
 /** A highlight just created by the current selection gesture. */
 interface ActiveRef {
@@ -44,6 +45,9 @@ export default function HighlightController() {
   const capture = useCallback(() => {
     // Defer so the browser has finalized the selection after mouseup/touchend.
     window.setTimeout(() => {
+      // Respect the Settings toggle: when highlighting is off we don't create
+      // NEW highlights (existing ones still render and stay removable).
+      if (!isHighlightingEnabled()) return;
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
 

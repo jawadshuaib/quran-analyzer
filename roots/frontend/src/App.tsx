@@ -402,6 +402,7 @@ export default function App() {
         <NavBar currentPath={currentPath} />
         <ExtensionPrivacyPage />
         <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -414,6 +415,7 @@ export default function App() {
         <NavBar currentPath={currentPath} />
         <PrivacyPage />
         <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -426,6 +428,7 @@ export default function App() {
         <NavBar currentPath={currentPath} />
         <TermsPage />
         <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -438,6 +441,7 @@ export default function App() {
         <NavBar currentPath={currentPath} />
         <GrammarGlossaryPage />
         <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -450,6 +454,7 @@ export default function App() {
         <NavBar currentPath={currentPath} />
         <QuranVocabularyPage />
         <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -487,6 +492,7 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <SettingsPage />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -498,6 +504,7 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <BadGateway />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -509,6 +516,7 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <NotFound />
+        <SavedItemsPanel />
       </div>
     );
   }

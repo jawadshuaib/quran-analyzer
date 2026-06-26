@@ -14,6 +14,7 @@
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 const NOTES_VISIBLE_KEY = 'quranExplorer.readerNotesVisible';
+const HIGHLIGHTING_KEY = 'quranExplorer.highlightingEnabled';
 const CHANGE_EVENT = 'quranExplorer:reader-prefs-changed';
 
 export function isWordByWordEnabled(): boolean {
@@ -52,10 +53,30 @@ export function setReaderNotesVisible(enabled: boolean): void {
   }
 }
 
+/** Whether drag-to-highlight is active. Defaults to ON — only an explicit '0'
+ *  turns it off. Turning it off disables creating NEW highlights; verses that
+ *  are already highlighted stay highlighted (and remain removable). */
+export function isHighlightingEnabled(): boolean {
+  try {
+    return localStorage.getItem(HIGHLIGHTING_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+export function setHighlightingEnabled(enabled: boolean): void {
+  try {
+    localStorage.setItem(HIGHLIGHTING_KEY, enabled ? '1' : '0');
+    window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  } catch {
+    /* silent */
+  }
+}
+
 export function subscribeToReaderPrefs(cb: () => void): () => void {
   const onCustom = () => cb();
   const onStorage = (e: StorageEvent) => {
-    if (e.key === WORD_TO_WORD_KEY || e.key === NOTES_VISIBLE_KEY) cb();
+    if (e.key === WORD_TO_WORD_KEY || e.key === NOTES_VISIBLE_KEY || e.key === HIGHLIGHTING_KEY) cb();
   };
   window.addEventListener(CHANGE_EVENT, onCustom);
   window.addEventListener('storage', onStorage);
