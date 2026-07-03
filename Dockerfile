@@ -68,6 +68,15 @@ RUN for i in 1 2 3 4 5; do \
     done; \
     echo "[build] sentence-transformer model download failed after 5 attempts" >&2; exit 1
 
+# The model is baked into the image above — never phone home at runtime.
+# Without this, huggingface_hub checks huggingface.co for newer revisions on
+# every cold model load; that check runs INSIDE the request path (semantic
+# search lazy-loads the model under a lock), so a hanging HF connection could
+# block a gunicorn request thread — and via the lock, every later semantic
+# search — indefinitely. Offline mode loads straight from the local cache.
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
+
 # Copy application code — all backend Python modules.
 # app.py is the entry point; the rest are CLI scripts and helpers that
 # various API endpoints lazy-import (vocab studio, bias pipeline, etc.).
@@ -172,4 +181,13 @@ ENV BUILD_GIT_SHA=$BUILD_GIT_SHA \
 EXPOSE 8000
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000", "--workers", "1", "--threads", "4", "--timeout", "300"]
+# 2 workers × 4 threads. With gthread workers, gunicorn's --timeout only
+# watches the worker's MAIN thread heartbeat — request threads blocked on
+# I/O are never killed. The 2026-07-02 outage was a single worker whose 4
+# request threads all wedged: the process stayed "alive" while every HTTP
+# request (including the healthcheck) hung forever. Two workers means a
+# wedged worker degrades capacity instead of taking the site down, and
+# --max-requests recycles workers periodically so slow thread leaks can't
+# accumulate for weeks. (The autoheal sidecar in docker-compose.prod.yml
+# is the backstop that restarts the container if it still goes unhealthy.)
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:8000", "--workers", "2", "--threads", "4", "--timeout", "300", "--max-requests", "1000", "--max-requests-jitter", "100"]

@@ -5,17 +5,35 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "8070:8000"
-    environment:
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-}
+      # Bind to the docker bridge gateway only: nginx (iv-nginx container)
+      # reaches the app via host.docker.internal → 172.17.0.1, but the
+      # internet cannot. Previously 0.0.0.0:8070 left gunicorn directly
+      # exposed (port scanners were probing it past the reverse proxy).
+      - "172.17.0.1:8070:8000"
     volumes:
       - quran-data:/app/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/surahs"]
+      test: ["CMD", "curl", "-f", "--max-time", "8", "http://localhost:8000/api/surahs"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 120s
+    labels:
+      - autoheal=true
+
+  # Watches Docker health status and restarts any container labeled
+  # autoheal=true once it turns unhealthy. Added after the 2026-07-02
+  # outage: the app sat "unhealthy" for days (all gunicorn request
+  # threads wedged) because nothing acted on the failing healthcheck.
+  autoheal:
+    image: willfarrell/autoheal:latest
+    container_name: quran-autoheal
+    restart: unless-stopped
+    environment:
+      - AUTOHEAL_CONTAINER_LABEL=autoheal
+      - AUTOHEAL_INTERVAL=30
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 volumes:
   quran-data:

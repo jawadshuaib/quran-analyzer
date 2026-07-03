@@ -438,7 +438,10 @@ def get_word(surah: int, ayah: int, position: int):
                     "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?",
                     (ch, v),
                 ).fetchone()
-                occ_glosses = mod._fetch_word_glosses(conn, ch, v)
+                # Cache-only: this loop runs up to 10 verses per request —
+                # firing sequential quran.com fetches here could hold a
+                # request thread for minutes on cold cache.
+                occ_glosses = mod._fetch_word_glosses(conn, ch, v, allow_fetch=False)
                 occ_gloss = occ_glosses.get(occ_positions[0], "") if occ_positions else ""
                 occ_ai = conn.execute(
                     "SELECT meaning_short FROM ai_word_meanings "

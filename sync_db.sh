@@ -12,7 +12,9 @@ SERVER=""
 CONTAINER="quran-root-analyzer"
 LOCAL_DB="roots/backend/data/quran.db"
 SEED_DB="assets/quran.db"
-HEALTH_URL="http://127.0.0.1:8070/api/surahs"
+# The app port is bound to the docker bridge gateway (172.17.0.1), not
+# 127.0.0.1 — see docker-compose.prod.yml. This URL is polled ON the server.
+HEALTH_URL="http://172.17.0.1:8070/api/surahs"
 HEALTH_TIMEOUT_SEC=120
 HEALTH_POLL_SEC=3
 PERSIST_SEED=0

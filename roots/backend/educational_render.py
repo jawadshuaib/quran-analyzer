@@ -142,6 +142,10 @@ def _probe_duration(path: str) -> float:
             path,
         ],
         text=True,
+        # Reachable from a request thread (outro-audio upload route) — a hung
+        # ffprobe must not pin it. TimeoutExpired is caught by the route's
+        # existing except and surfaces as a 400.
+        timeout=15,
     )
     return float(out.strip())
 

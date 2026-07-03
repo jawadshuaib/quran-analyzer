@@ -1446,15 +1446,29 @@ _load_embedding_matrix()
 
 
 def _get_embedding_model():
-    """Lazy-load the sentence transformer model (thread-safe)."""
+    """Lazy-load the sentence transformer model (thread-safe).
+
+    Returns None instead of blocking when the model is still loading in
+    another thread. This lock used to be a plain blocking `with`, and the
+    load inside it could touch the network (HuggingFace revision check) with
+    no timeout — one stalled load poisoned the lock and every subsequent
+    semantic-search request thread blocked on it forever. That is the prime
+    suspect for the 2026-07-02 outage where all gunicorn request threads
+    wedged. Now: callers time out after 10s and degrade (route returns 503);
+    the image also sets HF_HUB_OFFLINE=1 so the load can never phone home.
+    """
     global _embedding_model
     if _embedding_model is not None:
         return _embedding_model
-    with _embedding_model_lock:
+    if not _embedding_model_lock.acquire(timeout=10):
+        return None  # another thread is mid-load and slow — fail fast
+    try:
         if _embedding_model is None:
             from sentence_transformers import SentenceTransformer
             _embedding_model = SentenceTransformer(_SEMANTIC_MODEL_NAME)
-    return _embedding_model
+        return _embedding_model
+    finally:
+        _embedding_model_lock.release()
 
 
 def _semantic_search(query: str, limit: int = 10, threshold: float = 0.25):
@@ -1465,6 +1479,9 @@ def _semantic_search(query: str, limit: int = 10, threshold: float = 0.25):
     if _embedding_matrix is None or len(_embedding_keys) == 0:
         return []
     model = _get_embedding_model()
+    if model is None:
+        # Model still loading in another thread — degrade rather than block.
+        return []
     q_vec = model.encode([query], normalize_embeddings=True)  # (1, 384)
     # Cosine similarity (vectors are pre-normalised, so dot product = cosine)
     scores = _embedding_matrix @ q_vec.T  # (N, 1)
@@ -1538,8 +1555,13 @@ def _best_translation(conn, surah, ayah):
     return conv["text_en"] if conv else ""
 
 
-def _fetch_word_glosses(conn, surah, ayah):
-    """Get word-by-word English translations, fetching from Quran.com API v4 if not cached."""
+def _fetch_word_glosses(conn, surah, ayah, allow_fetch=True):
+    """Get word-by-word English translations, fetching from Quran.com API v4 if not cached.
+
+    allow_fetch=False makes this cache-only: callers that loop over many
+    verses in one request (e.g. the v1 word detail's other-occurrences list)
+    must not fire a chain of sequential external fetches on a request thread.
+    """
     rows = conn.execute(
         "SELECT word_pos, translation_en FROM word_glosses "
         "WHERE chapter = ? AND verse = ? ORDER BY word_pos",
@@ -1548,6 +1570,9 @@ def _fetch_word_glosses(conn, surah, ayah):
 
     if rows:
         return {row["word_pos"]: row["translation_en"] for row in rows}
+
+    if not allow_fetch:
+        return {}
 
     # Fetch from Quran.com API v4 and cache
     try:
@@ -2239,6 +2264,14 @@ def get_assistant_usage():
         conn.close()
 
 
+# At most 2 of the (few) gunicorn request threads may proxy an upstream
+# Claude stream at once. Streaming holds a thread for the whole response;
+# without a cap, a handful of concurrent (or malicious — session_id is
+# client-supplied) asks could occupy every request thread and take the
+# site down for everyone.
+_assistant_ask_slots = threading.BoundedSemaphore(2)
+
+
 @app.route("/api/assistant/ask", methods=["POST"])
 def proxy_assistant_ask():
     """Stream a Claude response using the server's API key (free tier)."""
@@ -2292,6 +2325,20 @@ def proxy_assistant_ask():
 
     def generate():
         import json as _json
+        # Acquire the streaming slot INSIDE the generator so acquire/release
+        # are tied to actual execution: a generator that is never iterated
+        # (client vanished before the first byte) never acquires, and one
+        # that is closed mid-stream still runs the finally. Reject rather
+        # than queue when all slots are busy — a queued request would hold a
+        # scarce gunicorn thread anyway.
+        if not _assistant_ask_slots.acquire(blocking=False):
+            yield f"data: {_json.dumps({'type': 'error', 'error': {'message': 'The assistant is answering other questions right now — please retry in a moment.'}})}\n\n"
+            return
+        resp = None
+        # Hard wall-clock budget for the WHOLE stream. requests' timeout is
+        # per-socket-read, so a slowly-dripping upstream could otherwise hold
+        # this thread indefinitely.
+        deadline = time.monotonic() + 180
         try:
             resp = requests.post(
                 "https://api.anthropic.com/v1/messages",
@@ -2309,7 +2356,7 @@ def proxy_assistant_ask():
                     "stream": True,
                 },
                 stream=True,
-                timeout=120,
+                timeout=(10, 30),  # 10s connect, 30s max silence between chunks
             )
             if not resp.ok:
                 error_body = resp.text[:200]
@@ -2317,10 +2364,20 @@ def proxy_assistant_ask():
                 return
 
             for line in resp.iter_lines(decode_unicode=True):
+                if time.monotonic() > deadline:
+                    yield f"data: {_json.dumps({'type': 'error', 'error': {'message': 'Response took too long and was cut off.'}})}\n\n"
+                    return
                 if line and line.startswith("data: "):
                     yield line + "\n\n"
         except Exception as e:
             yield f"data: {_json.dumps({'type': 'error', 'error': {'message': str(e)[:200]}})}\n\n"
+        finally:
+            if resp is not None:
+                try:
+                    resp.close()
+                except Exception:
+                    pass
+            _assistant_ask_slots.release()
 
     return Response(
         generate(),
@@ -2401,44 +2458,65 @@ def save_assistant_qa():
     try:
         conn = get_db()
         try:
-            # Use BEGIN IMMEDIATE for atomic lookup+write (Fix 7)
-            conn.execute("BEGIN IMMEDIATE")
+            # --- Resolve existing row OUTSIDE any transaction (Fix 5) ---
+            # The synthesis/moderation Claude calls below take up to 15s
+            # each; they used to run INSIDE a BEGIN IMMEDIATE transaction,
+            # holding SQLite's write lock across the network for up to 30s
+            # per save (a thread-starvation contributor found in the
+            # 2026-07-02 outage audit). Now: resolve → network calls with no
+            # lock → short write transaction with a re-resolve for atomicity.
+            def _resolve_existing(c):
+                row = None
+                if thread_id:
+                    row = c.execute(
+                        "SELECT id, question FROM assistant_conversations "
+                        "WHERE id = ? AND session_id = ?",
+                        (thread_id, data["session_id"]),
+                    ).fetchone()
+                if not row:
+                    # Defense-in-depth: recent row from same session+page (Fix 5)
+                    row = c.execute(
+                        "SELECT id, question FROM assistant_conversations "
+                        "WHERE session_id = ? AND page_type = ? AND page_key = ? "
+                        "  AND created_at > datetime('now', '-1 hour') "
+                        "ORDER BY id DESC LIMIT 1",
+                        (data["session_id"], data["page_type"], data["page_key"]),
+                    ).fetchone()
+                return row
 
-            # --- Resolve existing row: client thread_id OR session-based lookup (Fix 5) ---
-            existing_row = None
-            if thread_id:
-                existing_row = conn.execute(
-                    "SELECT id, question FROM assistant_conversations "
-                    "WHERE id = ? AND session_id = ?",
-                    (thread_id, data["session_id"]),
-                ).fetchone()
+            existing_row = _resolve_existing(conn)
 
-            if not existing_row:
-                # Defense-in-depth: look for a recent row from same session+page (Fix 5)
-                existing_row = conn.execute(
-                    "SELECT id, question FROM assistant_conversations "
-                    "WHERE session_id = ? AND page_type = ? AND page_key = ? "
-                    "  AND created_at > datetime('now', '-1 hour') "
-                    "ORDER BY id DESC LIMIT 1",
-                    (data["session_id"], data["page_type"], data["page_key"]),
-                ).fetchone()
-
+            saved_question_update = None
             if existing_row:
-                # --- UPDATE path --- (Fix 6: always synthesize when updating)
-                row_id = existing_row["id"]
+                # (Fix 6: always synthesize when updating) — network calls
+                # happen here, with NO database lock held.
                 existing_question = existing_row["question"]
-
-                # Build question list for synthesis
                 if all_questions and len(all_questions) > 1:
                     questions_to_merge = all_questions
                 else:
-                    # Fallback: merge existing stored question + new question
                     questions_to_merge = [existing_question, data["question"]]
-
-                # Synthesize + moderate
                 synthesized = _synthesize_questions(questions_to_merge)
                 synth_mod = _moderate_question(synthesized)
-                saved_question = synth_mod["reworded"] if synth_mod["approved"] else synthesized
+                saved_question_update = (
+                    synth_mod["reworded"] if synth_mod["approved"] else synthesized
+                )
+
+            # Use BEGIN IMMEDIATE for atomic lookup+write (Fix 7). Re-resolve
+            # inside the transaction: if a concurrent save inserted a row in
+            # the window above, we update it instead of double-inserting.
+            conn.execute("BEGIN IMMEDIATE")
+            existing_row = _resolve_existing(conn)
+
+            if existing_row:
+                row_id = existing_row["id"]
+                # Rare race: the row appeared between the pre-resolve and the
+                # transaction, so no synthesis ran. Save the moderated new
+                # question rather than making a network call under the lock.
+                saved_question = (
+                    saved_question_update
+                    if saved_question_update is not None
+                    else moderation["reworded"]
+                )
 
                 # context_range: only overwrite when the new ask provided
                 # one. Empty/None on a follow-up question means "carry the
@@ -5155,7 +5233,9 @@ def learning_ask():
                     "stream": False,
                     "options": {"temperature": 0.3},
                 },
-                timeout=120,
+                # (3s connect, 45s read) — was a flat 120s, which let this
+                # public endpoint pin a scarce request thread for 2 minutes.
+                timeout=(3, 45),
             )
             resp.raise_for_status()
             answer = resp.json()["message"]["content"]
@@ -11345,7 +11425,10 @@ def _perform_educational_youtube_upload(
                 "Content-Type": f"multipart/related; boundary={boundary}",
             },
             data=upload_body,
-            timeout=600,
+            # (connect, per-socket-op) — a flat 600 let a stalled Google
+            # endpoint pin the calling thread ~10 min; 120s per op still
+            # accommodates large multipart bodies making progress.
+            timeout=(10, 120),
         )
     except requests.RequestException as e:
         return {"ok": False, "error": f"Upload request failed: {e}", "status": 502}
@@ -18889,7 +18972,9 @@ def admin_test_youtube_oauth():
     failure, the helper records the failure with a concrete
     remediation message. Returns the result so the UI can show it."""
     try:
-        token = _get_youtube_access_token()
+        # (was _get_youtube_access_token — an undefined name; the endpoint
+        # 500'd with NameError on every use)
+        token = _youtube_get_access_token()
         return jsonify({
             "ok": True,
             "message": "OAuth refresh succeeded. Upload schedule will resume on the next slot.",
@@ -19359,7 +19444,10 @@ def _perform_youtube_upload(
                 "Content-Type": f"multipart/related; boundary={boundary}",
             },
             data=upload_body,
-            timeout=600,
+            # (connect, per-socket-op) — a flat 600 let a stalled Google
+            # endpoint pin the calling thread ~10 min; 120s per op still
+            # accommodates large multipart bodies making progress.
+            timeout=(10, 120),
         )
     except requests.RequestException as e:
         return {"ok": False, "error": f"Upload request failed: {e}", "status": 502}
@@ -19927,7 +20015,9 @@ def admin_upload_pipeline_video_to_tiktok(video_id: int):
             "Content-Range": f"bytes 0-{video_size - 1}/{video_size}",
         },
         data=video_bytes,
-        timeout=600,
+        # (connect, per-socket-op) — bounds each op instead of letting a
+        # stalled TikTok endpoint pin the request thread for 10 minutes.
+        timeout=(10, 120),
     )
     if put_resp.status_code not in (200, 201):
         return jsonify({
