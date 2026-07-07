@@ -1,0 +1,34 @@
+{
+  "qa_id": 5765,
+  "anchor_ref": "107:4",
+  "title": "Why does the Qur'an say woe to those who pray?",
+  "theme": "woe-to-the-praying",
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "There's a verse that says: woe to those who pray. Yes — to those who pray. Why?"
+    },
+    {
+      "kind": "set",
+      "narration": "The chapter had been describing someone who denies the Judgment: he shoves the orphan away, won't feed the poor. Then the verdict lands — not on him. So ruin is for those who perform the prayer.",
+      "verse": {
+        "ref": "107:4",
+        "highlight_phrase_en": "those who perform the prayer",
+        "highlight_words_ar": ["لِّلْمُصَلِّينَ"]
+      }
+    },
+    {
+      "kind": "turn",
+      "narration": "The same word, musallin, appears elsewhere naming the saved: everyone is in loss — except those who pray. One participle. Rescue there. Ruin here. What changed?",
+      "verse": {
+        "ref": "70:22",
+        "highlight_phrase_en": "those who pray",
+        "highlight_words_ar": ["الْمُصَلِّينَ"]
+      }
+    },
+    {
+      "kind": "land",
+      "narration": "Not whether they pray — how. The next verses answer: inattentive, performing to be seen. Prayer that leaves the orphan shoved has quietly become the very denial it was meant to oppose."
+    }
+  ]
+}

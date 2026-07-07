@@ -269,18 +269,22 @@ def is_verse_safe(
         arabic=arabic, translation=translation,
         base_url=base_url, model=model, api_key=api_key,
     )
-    # Cache the result (including 'unknown' so the same verse doesn't
-    # retry Ollama on every render — TTL covers re-checks).
-    try:
-        conn.execute(
-            "INSERT OR REPLACE INTO verse_safety_cache "
-            "(chapter, verse, status, reason, model, checked_at) "
-            "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
-            (chapter, verse, status, reason, model_used),
-        )
-        conn.commit()
-    except Exception as e:
-        print(f"[verse-safety] cache write failed for {chapter}:{verse}: {e}")
+    # Cache only DEFINITIVE results. 'unknown' (transport/auth/parse
+    # failure) used to be cached too, which poisoned the cache for the
+    # 30-day TTL: a verse checked while Ollama was down was recorded and
+    # treated as effectively safe with no re-check (2026-07 audit). An
+    # unknown now just means "try again next call".
+    if status in ("safe", "controversial"):
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO verse_safety_cache "
+                "(chapter, verse, status, reason, model, checked_at) "
+                "VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                (chapter, verse, status, reason, model_used),
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"[verse-safety] cache write failed for {chapter}:{verse}: {e}")
     if status == "controversial":
         print(f"[verse-safety] flagged {chapter}:{verse} controversial: {reason}")
     return status != "controversial"

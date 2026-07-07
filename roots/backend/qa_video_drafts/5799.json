@@ -1,0 +1,34 @@
+{
+  "qa_id": 5799,
+  "anchor_ref": "17:23",
+  "title": "Why does the Qur'an forbid the smallest sound of irritation first?",
+  "theme": "the-smallest-sound",
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "Of all the ways to hurt your parents, the Qur'an forbids the smallest sound first. Why?"
+    },
+    {
+      "kind": "set",
+      "narration": "Not violence. Not abandonment. The verse reaches for the tiniest thing: when they grow old with you, don't even say uff — a clipped breath of irritation. Why legislate the minimum?",
+      "verse": {
+        "ref": "17:23",
+        "highlight_phrase_en": "do not say to them",
+        "highlight_words_ar": ["أُفٍّ"]
+      }
+    },
+    {
+      "kind": "turn",
+      "narration": "Because uff is not neutral. Elsewhere it is the exact word a son throws at his parents while rejecting everything they ask him to believe. It is contempt's first audible leak.",
+      "verse": {
+        "ref": "46:17",
+        "highlight_phrase_en": "Off to you both",
+        "highlight_words_ar": ["أُفٍّ"]
+      }
+    },
+    {
+      "kind": "land",
+      "narration": "Seal the smallest leak, and everything coarser is sealed with it. The verse sets its watch on the instant the relationship inverts — when the parent becomes the one easy to sigh at."
+    }
+  ]
+}

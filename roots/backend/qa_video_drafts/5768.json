@@ -1,0 +1,34 @@
+{
+  "qa_id": 5768,
+  "anchor_ref": "107:6",
+  "title": "Why does this chapter begin with seeing and end with being seen?",
+  "theme": "two-gazes",
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "This chapter opens with 'have you seen?' and ends with people praying just to be seen. Coincidence?"
+    },
+    {
+      "kind": "set",
+      "narration": "The closing verses describe people who pray while inattentive — those who put themselves on display. The verb is yura'un: not seeing, but getting yourself seen, performed for an audience.",
+      "verse": {
+        "ref": "107:6",
+        "highlight_phrase_en": "put themselves on display",
+        "highlight_words_ar": ["يُرَاءُونَ"]
+      }
+    },
+    {
+      "kind": "turn",
+      "narration": "Now hear the chapter's very first word: a-ra'ayta — have you seen? Same root. The surah opens by summoning your sight, and closes on people who only crave to be a sight.",
+      "verse": {
+        "ref": "107:1",
+        "highlight_phrase_en": "Have you seen",
+        "highlight_words_ar": ["أَرَءَيْتَ"]
+      }
+    },
+    {
+      "kind": "land",
+      "narration": "Two gazes, set against each other: seeing that discloses what is true, and performing to be seen. Between them stand an orphan unhelped and a prayer gone hollow."
+    }
+  ]
+}

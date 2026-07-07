@@ -530,8 +530,13 @@ def _resolve(conn, system_prompt: str, user_message: str) -> dict:
         base_url=base_url, model=model, api_key=api_key,
     )
     if verdict == "unknown":
-        # Permissive: judge unreachable / malformed → let it through.
-        pass_ = True
+        # FAIL CLOSED. This used to be permissive ("judge unreachable → let
+        # it through"), which meant a dead Ollama credential silently
+        # disabled the only quality gate — every candidate auto-passed and
+        # the logs even printed APPROVED (observed in prod, 2026-07 audit).
+        # Under the script-bank model there is no volume pressure: a judge
+        # outage should pause generation, not open the floodgates.
+        pass_ = False
     else:
         pass_ = (verdict == "interesting") and (score >= INTERESTING_THRESHOLD)
     return {

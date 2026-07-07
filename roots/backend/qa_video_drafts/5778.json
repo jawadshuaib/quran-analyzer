@@ -1,0 +1,38 @@
+{
+  "qa_id": 5778,
+  "anchor_ref": "110:3",
+  "title": "Why is the command at the moment of victory to ask forgiveness?",
+  "theme": "victory-asks-pardon",
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "At the moment of total victory, the Qur'an's command is: ask forgiveness. Why?"
+    },
+    {
+      "kind": "set",
+      "narration": "Help has arrived. The door has opened. Crowds are streaming in. And the response commanded is: praise your Lord, and seek His forgiveness. As if pardon were victory's proper consequence.",
+      "verse": {
+        "ref": "110:3",
+        "highlight_phrase_en": "seek His covering‑forgiveness",
+        "highlight_words_ar": [
+          "وَاسْتَغْفِرْهُ"
+        ]
+      }
+    },
+    {
+      "kind": "turn",
+      "narration": "The verse gives its reason: He has always been tawwab, the one who turns back toward you. It is the word from the first human story, when Adam fell and God turned back towards him.",
+      "verse": {
+        "ref": "2:37",
+        "highlight_phrase_en": "turned back towards him",
+        "highlight_words_ar": [
+          "التَّوَّابُ"
+        ]
+      }
+    },
+    {
+      "kind": "land",
+      "narration": "Victory, the surah insists, is not a possession. It was His help all along. The higher the arrival, the more the moment calls for turning back, not claiming."
+    }
+  ]
+}

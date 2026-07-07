@@ -2697,3 +2697,94 @@ export async function bulkAdminPoetry(
   if (!res.ok) throw new Error(data.error || 'Bulk action failed');
   return data;
 }
+
+// ---------------------------------------------------------------------------
+// Q&A video script bank (pre-generated shorts)
+// ---------------------------------------------------------------------------
+
+export interface QaVideoBeat {
+  kind: string;
+  narration: string;
+  verse?: { ref: string; highlight_phrase_en?: string; highlight_words_ar?: string[] };
+}
+
+export interface QaVideoItem {
+  id: number;
+  qa_id: number;
+  anchor_ref: string;
+  title: string;
+  theme: string | null;
+  status: string;
+  filename: string | null;
+  file_size: number | null;
+  punch_ok: number | null;
+  match_ok: number | null;
+  error_message: string | null;
+  youtube_video_id: string | null;
+  uploaded_to_youtube: number;
+  created_at: string;
+  completed_at: string | null;
+  beats: QaVideoBeat[];
+}
+
+export interface QaPublishSchedule {
+  enabled: boolean;
+  days: number[];
+  time: string;
+  grace_minutes?: number;
+  privacy: string;
+  last_fired_date?: string | null;
+}
+
+export async function getQaVideos(): Promise<{
+  videos: QaVideoItem[];
+  publish_schedule: QaPublishSchedule;
+}> {
+  const res = await authFetch(`${BASE}/qa-videos`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load videos');
+  return data;
+}
+
+export async function renderQaVideo(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/qa-videos/${id}/render`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Render failed to start');
+}
+
+export async function approveQaVideo(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/qa-videos/${id}/approve`, { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Approve failed');
+}
+
+export async function rejectQaVideo(id: number, reason?: string): Promise<void> {
+  const res = await authFetch(`${BASE}/qa-videos/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason: reason || '' }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Reject failed');
+}
+
+export async function saveQaPublishSchedule(
+  patch: Partial<QaPublishSchedule>,
+): Promise<QaPublishSchedule> {
+  const res = await authFetch(`${BASE}/qa-videos/publish-schedule`, {
+    method: 'PUT',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Save failed');
+  return data;
+}
+
+/** Fetch the rendered MP4 with auth and return an object URL for <video>.
+ *  (A bare <video src> can't send the Bearer header.) Caller must
+ *  URL.revokeObjectURL when done. */
+export async function fetchQaVideoObjectUrl(id: number): Promise<string> {
+  const res = await authFetch(`${BASE}/qa-videos/${id}/video`);
+  if (!res.ok) throw new Error('Video not available');
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}

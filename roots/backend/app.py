@@ -6732,6 +6732,15 @@ def _ensure_poetry_serve_tables(conn):
     conn.commit()
     _ensure_lexicon_table(conn)
     _ensure_meter_articles_table(conn)
+    _ensure_qa_videos_table(conn)
+
+
+def _ensure_qa_videos_table(conn):
+    """Idempotent: the Q&A video script-bank table. The schema is owned by
+    qa_video_pipeline.py (import-safe module, no app import); reusing it
+    here means prod gets the table on deploy and the two never drift."""
+    import qa_video_pipeline as _qa_pipe
+    _qa_pipe.ensure_tables(conn)
 
 
 def _poetry_quoted(conn, raw):
@@ -11869,17 +11878,18 @@ def _educational_pipeline_run_thread(
             # what makes a translation_hides short stop the scroll
             # is different from what makes a word_origins one
             # ("chastity→architecture" picture-flip vs. "etymology
-            # reframes a familiar verse"). 'unknown' (Ollama down
-            # or malformed JSON) passes through — see
-            # educational_interestingness.judge_script.
+            # reframes a familiar verse"). FAIL CLOSED: 'unknown'
+            # (Ollama down or malformed JSON) and judge crashes now
+            # REJECT — a dead judge should pause the pipeline, not
+            # wave everything through (2026-07 audit).
             vtype = (rd.get("type") or "translation_hides").strip()
             try:
                 verdict = _interest.judge_script(c, payload, script, vtype)
             except Exception as e:
-                print(f"[interestingness] judge raised, accepting: {e}")
+                print(f"[interestingness] judge raised, rejecting: {e}")
                 verdict = {"verdict": "unknown", "score": 0,
                            "reason": f"judge crashed: {e}", "model": "",
-                           "pass": True}
+                           "pass": False}
 
             try:
                 c.execute(
@@ -16971,12 +16981,25 @@ def _pipeline_generate_task(video_id):
                     f"(score={verdict.get('score')}): {verdict.get('reason')}"
                 )
             except Exception as e:
-                # Judge crashed — permissive: let it through so we
-                # don't starve the pipeline on Ollama issues.
+                # Judge crashed — FAIL CLOSED (2026-07 audit): a dead
+                # judge pauses the pipeline instead of waving passages
+                # through unjudged. The row is marked failed so the
+                # admin UI shows why nothing was produced.
                 print(
                     f"[interestingness] recitation judge crashed, "
-                    f"accepting: {e}"
+                    f"rejecting: {e}"
                 )
+                _set_conn = get_db()
+                try:
+                    _set_conn.execute(
+                        "UPDATE admin_pipeline_videos SET "
+                        "  status='failed', error_message=? WHERE id=?",
+                        (f"interestingness judge unavailable: {e}"[:1000], video_id),
+                    )
+                    _set_conn.commit()
+                finally:
+                    _set_conn.close()
+                return
 
         # ---- 3. Fetch translations ----
         surah_name = _surah_name(chapter)
@@ -18668,6 +18691,10 @@ def _scheduler_loop():
             _lessons_refresh_tick()
         except Exception as e:
             print(f"[lessons-scheduler] tick error: {e}")
+        try:
+            _qa_publish_tick()
+        except Exception as e:
+            print(f"[qa-publish] tick error: {e}")
         # Sleep in 5s chunks so shutdown can interrupt quickly.
         for _ in range(6):
             if _scheduler_stop.is_set():
@@ -18996,6 +19023,361 @@ def admin_reset_youtube_circuit_breaker():
     finally:
         conn.close()
     return jsonify({"ok": True})
+
+
+# ============================================================================
+# Q&A video script bank (admin) — Stage 1 of the pre-generated shorts plan.
+#
+# Scripts are drafted by Claude (subscription) via the /qa-video-draft skill,
+# validated by the fail-closed compile/punch/match gates (qa_video_gen.py),
+# and land in qa_videos as status='gate_passed'. From here the admin flow is:
+#   gate_passed --render(202+thread)--> rendered --human approve--> approved
+#   --publish tick (Mon/Wed/Fri)--> uploaded
+# The publish scheduler ONLY uploads human-approved videos; it never
+# generates anything.
+# ============================================================================
+
+_QA_PUBLISH_PREF_KEY = "qa_publish_schedule"
+_QA_PUBLISH_DEFAULTS = {
+    "enabled": True,
+    # Python weekday(): Monday=0, Wednesday=2, Friday=4
+    "days": [0, 2, 4],
+    "time": "16:00",       # UTC
+    "grace_minutes": 120,
+    "privacy": "public",
+    "last_fired_date": None,
+}
+
+
+def _qa_videos_dir() -> str:
+    import qa_video_render as _qr
+    return _qr.OUTPUT_DIR
+
+
+def _qa_publish_prefs(conn) -> dict:
+    row = conn.execute(
+        "SELECT value FROM admin_preferences WHERE key=?",
+        (_QA_PUBLISH_PREF_KEY,),
+    ).fetchone()
+    prefs = dict(_QA_PUBLISH_DEFAULTS)
+    if row and row["value"]:
+        try:
+            prefs.update(json.loads(row["value"]))
+        except Exception:
+            pass
+    return prefs
+
+
+def _qa_publish_prefs_save(conn, prefs: dict) -> None:
+    conn.execute(
+        "INSERT OR REPLACE INTO admin_preferences (key, value) VALUES (?, ?)",
+        (_QA_PUBLISH_PREF_KEY, json.dumps(prefs)),
+    )
+    conn.commit()
+
+
+@app.route("/api/admin/qa-videos", methods=["GET"])
+@admin_required
+def admin_qa_videos_list():
+    conn = get_db()
+    try:
+        _ensure_qa_videos_table(conn)
+        rows = [dict(r) for r in conn.execute(
+            "SELECT id, qa_id, anchor_ref, title, theme, status, filename, "
+            "       file_size, punch_ok, match_ok, error_message, "
+            "       youtube_video_id, uploaded_to_youtube, created_at, "
+            "       completed_at, script_json "
+            "FROM qa_videos ORDER BY id DESC"
+        ).fetchall()]
+        for r in rows:
+            # Ship the beats for the review UI's script panel, not the
+            # whole raw JSON blob.
+            try:
+                r["beats"] = json.loads(r.pop("script_json") or "{}").get("beats", [])
+            except Exception:
+                r["beats"] = []
+        prefs = _qa_publish_prefs(conn)
+        return jsonify({"videos": rows, "publish_schedule": prefs})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/qa-videos/<int:row_id>/render", methods=["POST"])
+@admin_required
+def admin_qa_video_render(row_id: int):
+    """202 + daemon thread — rendering takes minutes (TTS + Chromium) and
+    must never hold a request thread (2026-07 outage lesson)."""
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM qa_videos WHERE id=?", (row_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        if row["status"] not in ("gate_passed", "rendered"):
+            return jsonify({"error": f"not renderable from status={row['status']}"}), 409
+        pref = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key='elevenlabs_api_key'"
+        ).fetchone()
+        elevenlabs_key = pref["value"] if pref and pref["value"] else None
+        if not elevenlabs_key:
+            return jsonify({"error": "ElevenLabs API key not set"}), 400
+        vrow = conn.execute(
+            "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
+        ).fetchone()
+        voice_id = vrow["voice_id"] if vrow else None
+        if not voice_id:
+            return jsonify({"error": "no voice configured (admin_voices empty)"}), 400
+    finally:
+        conn.close()
+
+    def _do_render():
+        import qa_video_render as _qr
+        c = get_db()
+        try:
+            _qr.render_qa_video(
+                c, row_id,
+                elevenlabs_api_key=elevenlabs_key, voice_id=voice_id,
+            )
+        except Exception as exc:  # error already recorded on the row
+            print(f"[qa-videos] render {row_id} failed: {exc}")
+        finally:
+            c.close()
+
+    threading.Thread(target=_do_render, daemon=True).start()
+    return jsonify({"id": row_id, "status": "rendering"}), 202
+
+
+@app.route("/api/admin/qa-videos/<int:row_id>/video", methods=["GET"])
+@admin_required
+def admin_qa_video_file(row_id: int):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT filename FROM qa_videos WHERE id=?", (row_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row or not row["filename"]:
+        return jsonify({"error": "no rendered file"}), 404
+    # conditional=True → Range support, so the <video> player can seek.
+    return send_from_directory(
+        _qa_videos_dir(), row["filename"],
+        mimetype="video/mp4", conditional=True,
+    )
+
+
+@app.route("/api/admin/qa-videos/<int:row_id>/approve", methods=["POST"])
+@admin_required
+def admin_qa_video_approve(row_id: int):
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM qa_videos WHERE id=?", (row_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        if row["status"] != "rendered":
+            return jsonify({"error": f"only rendered videos can be approved (status={row['status']})"}), 409
+        conn.execute(
+            "UPDATE qa_videos SET status='approved', error_message=NULL WHERE id=?",
+            (row_id,),
+        )
+        conn.commit()
+        return jsonify({"id": row_id, "status": "approved"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/qa-videos/<int:row_id>/reject", methods=["POST"])
+@admin_required
+def admin_qa_video_reject(row_id: int):
+    body = request.get_json(silent=True) or {}
+    reason = (body.get("reason") or "").strip()[:500]
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM qa_videos WHERE id=?", (row_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        conn.execute(
+            "UPDATE qa_videos SET status='rejected', error_message=? WHERE id=?",
+            (reason or "rejected by reviewer", row_id),
+        )
+        conn.commit()
+        return jsonify({"id": row_id, "status": "rejected"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/qa-videos/publish-schedule", methods=["PUT"])
+@admin_required
+def admin_qa_publish_schedule_save():
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    try:
+        prefs = _qa_publish_prefs(conn)
+        if "enabled" in body:
+            prefs["enabled"] = bool(body["enabled"])
+        if "days" in body:
+            days = body["days"]
+            if (not isinstance(days, list)
+                    or any(not isinstance(d, int) or d < 0 or d > 6 for d in days)):
+                return jsonify({"error": "days must be a list of weekday ints 0-6"}), 400
+            prefs["days"] = sorted(set(days))
+        if "time" in body:
+            if not re.match(r"^\d{2}:\d{2}$", str(body["time"])):
+                return jsonify({"error": "time must be 'HH:MM' (UTC)"}), 400
+            prefs["time"] = body["time"]
+        if "privacy" in body:
+            if body["privacy"] not in ("public", "unlisted", "private"):
+                return jsonify({"error": "bad privacy"}), 400
+            prefs["privacy"] = body["privacy"]
+        _qa_publish_prefs_save(conn, prefs)
+        return jsonify(prefs)
+    finally:
+        conn.close()
+
+
+def _qa_upload_to_youtube(conn, row: dict, privacy: str) -> dict:
+    """Upload one approved qa_videos row. Returns {ok, video_id|error}.
+    Mirrors the educational multipart upload (bounded tuple timeout)."""
+    filepath = os.path.join(_qa_videos_dir(), row["filename"])
+    if not os.path.isfile(filepath):
+        return {"ok": False, "error": f"file missing: {row['filename']}"}
+
+    access_token = _youtube_get_access_token()  # raises RuntimeError on bad creds
+
+    script = {}
+    try:
+        script = json.loads(row.get("script_json") or "{}")
+    except Exception:
+        pass
+    refs = [row.get("anchor_ref") or ""]
+    for b in script.get("beats", []):
+        ref = (b.get("verse") or {}).get("ref")
+        if ref and ref not in refs:
+            refs.append(ref)
+    description = (
+        f"{row['title']}\n\n"
+        f"One verse, one question — read closely with us: {', '.join(r for r in refs if r)}.\n\n"
+        "Brought to you by al-nuqta.com — A Root Based Translation of the "
+        "Quran. Explore the morphology, etymology, and Semitic cognates "
+        "behind every word of the Qur'an at https://al-nuqta.com.\n\n"
+        "#Quran #QuranicArabic #Shorts"
+    )
+    metadata = {
+        "snippet": {
+            "title": (row["title"] or "One verse, one question")[:95],
+            "description": description[:4900],
+            "tags": ["Quran", "Quranic Arabic", "Quran translation", "Shorts"],
+            "categoryId": "27",  # Education
+        },
+        "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": False},
+    }
+    boundary = f"boundary_{uuid.uuid4().hex}"
+    parts: list[bytes] = [
+        f"--{boundary}\r\n".encode(),
+        b"Content-Type: application/json; charset=UTF-8\r\n\r\n",
+        json.dumps(metadata).encode("utf-8"),
+        b"\r\n",
+        f"--{boundary}\r\n".encode(),
+        b"Content-Type: video/mp4\r\n\r\n",
+    ]
+    with open(filepath, "rb") as f:
+        parts.append(f.read())
+    parts.append(b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+
+    up_resp = requests.post(
+        "https://www.googleapis.com/upload/youtube/v3/videos",
+        params={"uploadType": "multipart", "part": "snippet,status"},
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": f"multipart/related; boundary={boundary}",
+        },
+        data=b"".join(parts),
+        timeout=(10, 120),
+    )
+    if up_resp.status_code not in (200, 201):
+        return {"ok": False, "error": f"upload http {up_resp.status_code}: {up_resp.text[:300]}"}
+    vid = (up_resp.json() or {}).get("id")
+    if not vid:
+        return {"ok": False, "error": "upload ok but no video id in response"}
+    return {"ok": True, "video_id": vid}
+
+
+def _qa_publish_tick():
+    """Publish-only scheduler: on configured days (default Mon/Wed/Fri
+    16:00 UTC) upload the OLDEST human-approved video. Never generates,
+    never uploads anything not explicitly approved. Skips quietly when
+    the OAuth circuit breaker is open."""
+    from datetime import datetime, timezone
+
+    conn = get_db()
+    try:
+        _ensure_qa_videos_table(conn)
+        prefs = _qa_publish_prefs(conn)
+        if not prefs.get("enabled"):
+            return
+        now = datetime.now(timezone.utc)
+        if now.weekday() not in (prefs.get("days") or []):
+            return
+        today = now.strftime("%Y-%m-%d")
+        if prefs.get("last_fired_date") == today:
+            return
+        try:
+            hh, mm = str(prefs.get("time") or "16:00").split(":")
+            slot_min = int(hh) * 60 + int(mm)
+        except Exception:
+            slot_min = 16 * 60
+        now_min = now.hour * 60 + now.minute
+        grace = int(prefs.get("grace_minutes") or 120)
+        if not (slot_min <= now_min <= slot_min + grace):
+            return
+        # Respect the OAuth circuit breaker — don't hammer broken creds.
+        if _youtube_oauth_failure_count(conn) >= OAUTH_CIRCUIT_BREAKER_THRESHOLD:
+            print("[qa-publish] OAuth circuit breaker open — skipping slot")
+            return
+        row = conn.execute(
+            "SELECT * FROM qa_videos WHERE status='approved' "
+            "ORDER BY id ASC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return
+        rd = dict(row)
+        # Mark the slot consumed BEFORE the upload so a crash can't
+        # double-post the same day; a failed upload just waits for the
+        # next slot (the row stays approved).
+        prefs["last_fired_date"] = today
+        _qa_publish_prefs_save(conn, prefs)
+
+        print(f"[qa-publish] uploading qa_video {rd['id']} — {rd['title']!r}")
+        try:
+            result = _qa_upload_to_youtube(conn, rd, prefs.get("privacy") or "public")
+        except RuntimeError as e:  # credential problems
+            _youtube_oauth_record_failure(conn, str(e))
+            print(f"[qa-publish] upload failed (oauth): {e}")
+            return
+        if result.get("ok"):
+            _youtube_oauth_record_success(conn)
+            conn.execute(
+                "UPDATE qa_videos SET status='uploaded', uploaded_to_youtube=1, "
+                "  youtube_video_id=?, completed_at=datetime('now') WHERE id=?",
+                (result["video_id"], rd["id"]),
+            )
+            conn.commit()
+            print(f"[qa-publish] uploaded qa_video {rd['id']} → https://youtu.be/{result['video_id']}")
+        else:
+            conn.execute(
+                "UPDATE qa_videos SET error_message=? WHERE id=?",
+                (f"publish: {result.get('error')}"[:1000], rd["id"]),
+            )
+            conn.commit()
+            print(f"[qa-publish] upload failed: {result.get('error')}")
+    finally:
+        conn.close()
 
 
 @app.route("/api/admin/youtube-upload-schedule", methods=["PUT"])
