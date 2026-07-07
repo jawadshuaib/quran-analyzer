@@ -30,7 +30,10 @@ import tempfile
 import qa_video_common as C
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-RENDERER_DIR = os.path.abspath(os.path.join(_THIS_DIR, "..", "video-renderer"))
+# Same layout contract as educational_render_remotion: dev = sibling
+# ../video-renderer; prod image sets REMOTION_RENDERER_DIR=/app/video-renderer.
+_DEFAULT_RENDERER_DIR = os.path.normpath(os.path.join(_THIS_DIR, "..", "video-renderer"))
+RENDERER_DIR = os.environ.get("REMOTION_RENDERER_DIR", _DEFAULT_RENDERER_DIR)
 RENDER_SCRIPT = os.path.join(RENDERER_DIR, "scripts", "render.mjs")
 OUTPUT_DIR = os.path.join(_THIS_DIR, "data", "qa_videos")
 
