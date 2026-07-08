@@ -1,26 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getQaVideos, renderQaVideo, approveQaVideo, rejectQaVideo,
-  saveQaPublishSchedule, fetchQaVideoObjectUrl,
-  type QaVideoItem, type QaPublishSchedule,
+  saveQaPublishSchedule, fetchQaVideoObjectUrl, editQaVideoScript,
+  type QaVideoItem, type QaPublishSchedule, type QaVideoBeat,
 } from '../../api/admin';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const STATUS_STYLE: Record<string, string> = {
   gate_passed: 'bg-sky-100 text-sky-700',
-  rendering: 'bg-amber-100 text-amber-700 animate-pulse',
-  rendered: 'bg-violet-100 text-violet-700',
   approved: 'bg-emerald-100 text-emerald-700',
   uploaded: 'bg-emerald-600 text-white',
   rejected: 'bg-stone-200 text-stone-500',
 };
 
 /**
- * The Q&A video bank review queue: scripts drafted by Claude and validated
- * by the fail-closed gates arrive here as gate_passed. The reviewer renders,
- * WATCHES the video, and approves — only approved videos are ever uploaded,
- * by the Mon/Wed/Fri publish scheduler. This tab never generates content.
+ * Script-first review queue. Gate-passed SCRIPTS arrive here for reading;
+ * the reviewer edits inline (every edit is re-validated by the fail-closed
+ * gates server-side), then approves the script. Approved scripts render
+ * automatically at publish time (Mon/Wed/Fri slots) and upload — or the
+ * reviewer can render a preview manually at any point.
  */
 export default function AdminQaVideos() {
   const [videos, setVideos] = useState<QaVideoItem[]>([]);
@@ -45,10 +44,9 @@ export default function AdminQaVideos() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // Poll while anything is rendering so the row flips to `rendered`
-  // without a manual reload.
+  // Poll while anything is rendering so cards update without a reload.
   useEffect(() => {
-    const anyRendering = videos.some((v) => v.status === 'rendering');
+    const anyRendering = videos.some((v) => v.rendering === 1);
     if (anyRendering && pollRef.current === undefined) {
       pollRef.current = window.setInterval(refresh, 5000);
     }
@@ -64,7 +62,7 @@ export default function AdminQaVideos() {
     };
   }, [videos, refresh]);
 
-  async function act(id: number, fn: () => Promise<void>) {
+  async function act(id: number, fn: () => Promise<unknown>) {
     setBusyId(id);
     try {
       await fn();
@@ -84,8 +82,9 @@ export default function AdminQaVideos() {
       <header>
         <h1 className="text-xl font-semibold text-stone-800">Q&amp;A Video Bank</h1>
         <p className="mt-1 text-sm text-stone-500">
-          Scripts drafted by Claude, verified by the highlight gates. Render,
-          watch, approve — the scheduler uploads only what you approve.
+          Read the script, edit inline if needed (every edit re-runs the
+          gates), approve — approved scripts render and publish themselves
+          on schedule.
         </p>
         <div className="mt-2 flex flex-wrap gap-2 text-xs">
           {Object.entries(counts).map(([s, n]) => (
@@ -107,7 +106,7 @@ export default function AdminQaVideos() {
       )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="whitespace-pre-line rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       )}
 
       {loading ? (
@@ -121,7 +120,7 @@ export default function AdminQaVideos() {
       ) : (
         <ul className="space-y-4">
           {videos.map((v) => (
-            <VideoCard key={v.id} video={v} busy={busyId === v.id} onAct={act} />
+            <ScriptCard key={v.id} video={v} busy={busyId === v.id} onAct={act} />
           ))}
         </ul>
       )}
@@ -149,8 +148,9 @@ function ScheduleCard({
         <div>
           <h2 className="text-sm font-semibold text-stone-700">Publish schedule</h2>
           <p className="text-xs text-stone-400">
-            Uploads the oldest <span className="font-medium text-emerald-600">approved</span> video
-            at {schedule.time} UTC on the selected days. Nothing unapproved ever uploads.
+            At {schedule.time} UTC on selected days: renders the oldest{' '}
+            <span className="font-medium text-emerald-600">approved</span> script
+            automatically, then uploads it. Nothing unapproved ever publishes.
           </p>
         </div>
         <button
@@ -204,60 +204,87 @@ function ScheduleCard({
   );
 }
 
-function VideoCard({
+const BEAT_ACCENT: Record<string, string> = {
+  hook: 'bg-amber-100 text-amber-700',
+  set: 'bg-sky-100 text-sky-700',
+  turn: 'bg-violet-100 text-violet-700',
+  land: 'bg-emerald-100 text-emerald-700',
+};
+
+function ScriptCard({
   video,
   busy,
   onAct,
 }: {
   video: QaVideoItem;
   busy: boolean;
-  onAct: (id: number, fn: () => Promise<void>) => Promise<void>;
+  onAct: (id: number, fn: () => Promise<unknown>) => Promise<void>;
 }) {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [showScript, setShowScript] = useState(false);
   const [loadingVideo, setLoadingVideo] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(video.title);
+  const [draftBeats, setDraftBeats] = useState<QaVideoBeat[]>(video.beats);
 
-  // Revoke the blob URL on unmount / replacement.
+  // Reset drafts when the row refreshes from the server.
+  useEffect(() => {
+    if (!editing) {
+      setDraftTitle(video.title);
+      setDraftBeats(video.beats);
+    }
+  }, [video, editing]);
+
   useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl); }, [videoUrl]);
 
   async function loadPlayer() {
     setLoadingVideo(true);
     try {
-      const url = await fetchQaVideoObjectUrl(video.id);
-      setVideoUrl(url);
-    } catch {
-      /* surfaced via error styling below */
+      setVideoUrl(await fetchQaVideoObjectUrl(video.id));
     } finally {
       setLoadingVideo(false);
     }
   }
 
-  const canRender = video.status === 'gate_passed' || video.status === 'rendered';
-  const watchable = ['rendered', 'approved', 'uploaded'].includes(video.status) && video.filename;
+  const reviewable = video.status === 'gate_passed';
+  const isRendering = video.rendering === 1;
 
   return (
     <li className="rounded-xl border border-stone-200 bg-white p-4">
+      {/* header row */}
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[video.status] || 'bg-stone-100'}`}>
               {video.status}
             </span>
+            {isRendering && (
+              <span className="animate-pulse rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                rendering…
+              </span>
+            )}
             <span className="text-[11px] text-stone-400">#{video.id} · {video.anchor_ref} · qa {video.qa_id}</span>
-            {video.punch_ok === 1 && video.match_ok === 1 && (
-              <span className="text-[11px] text-emerald-600">gates ✓</span>
+            <span className="text-[11px] text-emerald-600">gates ✓</span>
+            {video.filename && !isRendering && (
+              <span className="text-[11px] text-stone-400">preview rendered</span>
             )}
           </div>
-          <h3 className="mt-1 text-[15px] font-semibold text-stone-800">{video.title}</h3>
+          {editing ? (
+            <input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              className="mt-1 w-full rounded-md border border-sky-300 px-2 py-1 text-[15px] font-semibold text-stone-800 outline-none focus:ring-1 focus:ring-sky-400"
+            />
+          ) : (
+            <h3 className="mt-1 text-[15px] font-semibold text-stone-800">{video.title}</h3>
+          )}
           {video.error_message && (
             <p className="mt-1 text-xs text-rose-600">{video.error_message}</p>
           )}
         </div>
+
+        {/* actions */}
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {video.status === 'gate_passed' && (
-            <ActionBtn label="Render" busy={busy} onClick={() => onAct(video.id, () => renderQaVideo(video.id))} accent="sky" />
-          )}
-          {video.status === 'rendered' && (
+          {reviewable && !editing && (
             <>
               <ActionBtn label="Approve" busy={busy} onClick={() => onAct(video.id, () => approveQaVideo(video.id))} accent="emerald" />
               <ActionBtn label="Reject" busy={busy} onClick={() => onAct(video.id, () => rejectQaVideo(video.id))} accent="rose" />
@@ -265,12 +292,11 @@ function VideoCard({
           )}
           {video.status === 'approved' && (
             <>
-              <span className="text-xs text-emerald-600">queued for publish</span>
-              <ActionBtn label="Unqueue" busy={busy} onClick={() => onAct(video.id, () => rejectQaVideo(video.id, 'pulled from queue'))} accent="rose" />
+              <span className="text-xs text-emerald-600">
+                {video.filename ? 'publishes next slot' : 'renders + publishes next slot'}
+              </span>
+              <ActionBtn label="Unapprove" busy={busy} onClick={() => onAct(video.id, () => rejectQaVideo(video.id, 'pulled from queue'))} accent="rose" />
             </>
-          )}
-          {video.status === 'rejected' && canRender && (
-            <ActionBtn label="Re-render" busy={busy} onClick={() => onAct(video.id, () => renderQaVideo(video.id))} accent="sky" />
           )}
           {video.status === 'uploaded' && video.youtube_video_id && (
             <a
@@ -284,19 +310,102 @@ function VideoCard({
         </div>
       </div>
 
+      {/* THE SCRIPT — front and center, inline-editable */}
+      {video.status !== 'uploaded' && (
+        <div className="mt-3 rounded-lg bg-stone-50 p-3">
+          <ol className="space-y-2">
+            {(editing ? draftBeats : video.beats).map((b, i) => (
+              <li key={i} className="flex gap-2 text-sm">
+                <span className={`mt-0.5 h-fit shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase ${BEAT_ACCENT[b.kind] || 'bg-stone-200 text-stone-500'}`}>
+                  {b.kind}
+                </span>
+                <div className="min-w-0 flex-1">
+                  {editing ? (
+                    <textarea
+                      value={b.narration}
+                      onChange={(e) => {
+                        const next = draftBeats.map((x, xi) =>
+                          xi === i ? { ...x, narration: e.target.value } : x);
+                        setDraftBeats(next);
+                      }}
+                      rows={2}
+                      className="w-full resize-y rounded-md border border-sky-300 px-2 py-1 text-sm text-stone-700 outline-none focus:ring-1 focus:ring-sky-400"
+                    />
+                  ) : (
+                    <p className="text-stone-700">{b.narration}</p>
+                  )}
+                  {b.verse && (
+                    <p className="mt-0.5 text-[11px] text-stone-400">
+                      {b.verse.ref}
+                      {b.verse.highlight_words_ar && (
+                        <span lang="ar" dir="rtl" className="mx-1 font-arabic text-[13px] text-stone-500">
+                          {b.verse.highlight_words_ar.join(' ')}
+                        </span>
+                      )}
+                      {b.verse.highlight_phrase_en && <span>· “{b.verse.highlight_phrase_en}”</span>}
+                      <span className="ml-1 text-stone-300">(highlights are gate-locked)</span>
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          {/* edit controls */}
+          {(video.status === 'gate_passed' || video.status === 'approved' || video.status === 'rejected') && (
+            <div className="mt-3 flex items-center gap-2">
+              {editing ? (
+                <>
+                  <ActionBtn
+                    label="Save (re-runs gates)"
+                    busy={busy}
+                    accent="sky"
+                    onClick={() => onAct(video.id, async () => {
+                      await editQaVideoScript(video.id, { title: draftTitle, beats: draftBeats });
+                      setEditing(false);
+                    })}
+                  />
+                  <button
+                    onClick={() => { setEditing(false); setDraftTitle(video.title); setDraftBeats(video.beats); }}
+                    className="text-xs text-stone-400 hover:text-stone-600"
+                  >
+                    cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setEditing(true)}
+                  disabled={isRendering}
+                  className="text-xs font-medium text-sky-600 hover:text-sky-800 disabled:opacity-40"
+                >
+                  ✎ Edit script
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* optional preview render / player */}
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
-        {watchable && !videoUrl && (
+        {(video.status === 'gate_passed' || video.status === 'approved') && !video.filename && !isRendering && (
+          <button
+            onClick={() => onAct(video.id, () => renderQaVideo(video.id))}
+            disabled={busy}
+            className="text-stone-400 hover:text-stone-600 disabled:opacity-40"
+          >
+            render preview (optional)
+          </button>
+        )}
+        {video.filename && !videoUrl && !isRendering && (
           <button
             onClick={loadPlayer}
             disabled={loadingVideo}
             className="rounded-md bg-stone-800 px-3 py-1.5 font-medium text-white transition-colors hover:bg-stone-700 disabled:opacity-50"
           >
-            {loadingVideo ? 'Loading…' : '▶ Watch'}
+            {loadingVideo ? 'Loading…' : '▶ Watch preview'}
           </button>
         )}
-        <button onClick={() => setShowScript((s) => !s)} className="text-stone-400 hover:text-stone-600">
-          {showScript ? 'hide script' : 'show script'}
-        </button>
         {video.file_size != null && video.file_size > 0 && (
           <span className="text-stone-300">{(video.file_size / 1024 / 1024).toFixed(1)} MB</span>
         )}
@@ -306,22 +415,6 @@ function VideoCard({
         <div className="mt-3">
           <video src={videoUrl} controls className="max-h-[480px] rounded-lg border border-stone-200" />
         </div>
-      )}
-
-      {showScript && (
-        <ol className="mt-3 space-y-2 rounded-lg bg-stone-50 p-3">
-          {video.beats.map((b, i) => (
-            <li key={i} className="text-sm">
-              <span className="mr-2 rounded bg-stone-200 px-1.5 py-0.5 text-[10px] font-medium uppercase text-stone-500">{b.kind}</span>
-              <span className="text-stone-700">{b.narration}</span>
-              {b.verse && (
-                <span className="ml-2 text-[11px] text-stone-400">
-                  [{b.verse.ref}{b.verse.highlight_words_ar ? ` → ${b.verse.highlight_words_ar.join(' ')}` : ''}]
-                </span>
-              )}
-            </li>
-          ))}
-        </ol>
       )}
     </li>
   );

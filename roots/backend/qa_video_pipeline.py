@@ -76,6 +76,15 @@ CREATE INDEX IF NOT EXISTS idx_qa_videos_qa ON qa_videos(qa_id);
 
 def ensure_tables(conn) -> None:
     conn.executescript(SCHEMA)
+    # Migrations for columns added after the first deploy (CREATE IF NOT
+    # EXISTS never alters an existing table).
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(qa_videos)").fetchall()}
+    if "rendering" not in cols:
+        conn.execute("ALTER TABLE qa_videos ADD COLUMN rendering INTEGER DEFAULT 0")
+    # Script-first review model (2026-07): humans review SCRIPTS, not
+    # renders — the legacy 'rendered' status folds into gate_passed (the
+    # rendered file, when present, is just an optional preview).
+    conn.execute("UPDATE qa_videos SET status='gate_passed' WHERE status='rendered'")
     conn.commit()
 
 

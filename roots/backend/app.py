@@ -19084,7 +19084,7 @@ def admin_qa_videos_list():
         _ensure_qa_videos_table(conn)
         rows = [dict(r) for r in conn.execute(
             "SELECT id, qa_id, anchor_ref, title, theme, status, filename, "
-            "       file_size, punch_ok, match_ok, error_message, "
+            "       file_size, punch_ok, match_ok, error_message, rendering, "
             "       youtube_video_id, uploaded_to_youtube, created_at, "
             "       completed_at, script_json "
             "FROM qa_videos ORDER BY id DESC"
@@ -19110,12 +19110,14 @@ def admin_qa_video_render(row_id: int):
     conn = get_db()
     try:
         row = conn.execute(
-            "SELECT status FROM qa_videos WHERE id=?", (row_id,)
+            "SELECT status, rendering FROM qa_videos WHERE id=?", (row_id,)
         ).fetchone()
         if not row:
             return jsonify({"error": "not found"}), 404
-        if row["status"] not in ("gate_passed", "rendered"):
+        if row["status"] not in ("gate_passed", "approved"):
             return jsonify({"error": f"not renderable from status={row['status']}"}), 409
+        if row["rendering"]:
+            return jsonify({"error": "already rendering"}), 409
         pref = conn.execute(
             "SELECT value FROM admin_preferences WHERE key='elevenlabs_api_key'"
         ).fetchone()
@@ -19177,8 +19179,8 @@ def admin_qa_video_approve(row_id: int):
         ).fetchone()
         if not row:
             return jsonify({"error": "not found"}), 404
-        if row["status"] != "rendered":
-            return jsonify({"error": f"only rendered videos can be approved (status={row['status']})"}), 409
+        if row["status"] != "gate_passed":
+            return jsonify({"error": f"only gate_passed scripts can be approved (status={row['status']})"}), 409
         conn.execute(
             "UPDATE qa_videos SET status='approved', error_message=NULL WHERE id=?",
             (row_id,),
@@ -19207,6 +19209,78 @@ def admin_qa_video_reject(row_id: int):
         )
         conn.commit()
         return jsonify({"id": row_id, "status": "rejected"})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/qa-videos/<int:row_id>/script", methods=["PUT"])
+@admin_required
+def admin_qa_video_edit_script(row_id: int):
+    """Inline script edit. The edited script is re-validated through the
+    SAME fail-closed gates the original draft passed (compile + punchiness
+    + highlight-match) BEFORE anything is saved — a human edit can never
+    ship an unverified highlight or a bloated narration. On success the
+    stored script/payload are replaced and any previously rendered file is
+    marked stale (cleared) so the publish tick re-renders the new text."""
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT * FROM qa_videos WHERE id=?", (row_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        rd = dict(row)
+        if rd["status"] not in ("gate_passed", "approved", "rejected"):
+            return jsonify({"error": f"not editable in status={rd['status']}"}), 409
+        if rd.get("rendering"):
+            return jsonify({"error": "rendering in progress — try again shortly"}), 409
+
+        try:
+            script = json.loads(rd["script_json"] or "{}")
+        except Exception:
+            return jsonify({"error": "stored script is unreadable"}), 500
+
+        # Merge the editable surface: title + beats. Identity fields
+        # (qa_id, anchor_ref) are immutable; theme may ride along.
+        before = json.dumps(script, ensure_ascii=False, sort_keys=True)
+        if isinstance(body.get("title"), str) and body["title"].strip():
+            script["title"] = body["title"].strip()
+        if isinstance(body.get("theme"), str) and body["theme"].strip():
+            script["theme"] = body["theme"].strip()
+        if isinstance(body.get("beats"), list) and body["beats"]:
+            script["beats"] = body["beats"]
+        after = json.dumps(script, ensure_ascii=False, sort_keys=True)
+        if before == after:
+            return jsonify({"ok": True, "unchanged": True, "status": rd["status"]})
+
+        import qa_video_gen as _qg
+        result = _qg.gate_script(conn, script)
+        if not result["ok"]:
+            return jsonify({
+                "error": "edit rejected by gates",
+                "issues": result["issues"],
+            }), 422
+
+        # Saved: replace script + regenerated payload; clear any stale
+        # render. A rejected script that now passes returns to the queue.
+        new_status = "gate_passed" if rd["status"] == "rejected" else rd["status"]
+        conn.execute(
+            "UPDATE qa_videos SET "
+            "  title=?, theme=?, script_json=?, payload_json=?, "
+            "  match_snapshot=?, punch_ok=1, match_ok=1, "
+            "  filename=NULL, file_size=NULL, error_message=NULL, status=? "
+            "WHERE id=?",
+            (
+                script.get("title"), script.get("theme"),
+                json.dumps(script, ensure_ascii=False),
+                json.dumps(result["payload"], ensure_ascii=False),
+                json.dumps(result["match_snapshot"], ensure_ascii=False),
+                new_status, row_id,
+            ),
+        )
+        conn.commit()
+        return jsonify({"ok": True, "status": new_status})
     finally:
         conn.close()
 
@@ -19347,6 +19421,43 @@ def _qa_publish_tick():
         if not row:
             return
         rd = dict(row)
+
+        # Script-first flow: the human approved the SCRIPT; rendering
+        # happens automatically here at publish time (unless the operator
+        # already rendered a preview manually). The render runs in its own
+        # daemon thread so this 30s scheduler tick never blocks; a later
+        # tick inside the same grace window finds the file and uploads.
+        if rd.get("rendering"):
+            return  # render in flight — check again next tick
+        if not rd.get("filename"):
+            pref = conn.execute(
+                "SELECT value FROM admin_preferences WHERE key='elevenlabs_api_key'"
+            ).fetchone()
+            elevenlabs_key = pref["value"] if pref and pref["value"] else None
+            vrow = conn.execute(
+                "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
+            ).fetchone()
+            voice_id = vrow["voice_id"] if vrow else None
+            if not (elevenlabs_key and voice_id):
+                print("[qa-publish] cannot auto-render: ElevenLabs key/voice missing")
+                return
+
+            def _auto_render(video_row_id=rd["id"], key=elevenlabs_key, voice=voice_id):
+                import qa_video_render as _qr
+                c = get_db()
+                try:
+                    print(f"[qa-publish] auto-rendering qa_video {video_row_id} for today's slot")
+                    _qr.render_qa_video(c, video_row_id,
+                                        elevenlabs_api_key=key, voice_id=voice)
+                    print(f"[qa-publish] auto-render {video_row_id} done")
+                except Exception as exc:  # error recorded on the row
+                    print(f"[qa-publish] auto-render {video_row_id} failed: {exc}")
+                finally:
+                    c.close()
+
+            threading.Thread(target=_auto_render, daemon=True).start()
+            return  # upload happens on a later tick once the file exists
+
         # Mark the slot consumed BEFORE the upload so a crash can't
         # double-post the same day; a failed upload just waits for the
         # next slot (the row stays approved).

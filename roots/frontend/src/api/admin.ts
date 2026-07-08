@@ -2720,6 +2720,7 @@ export interface QaVideoItem {
   punch_ok: number | null;
   match_ok: number | null;
   error_message: string | null;
+  rendering: number;
   youtube_video_id: string | null;
   uploaded_to_youtube: number;
   created_at: string;
@@ -2787,4 +2788,23 @@ export async function fetchQaVideoObjectUrl(id: number): Promise<string> {
   if (!res.ok) throw new Error('Video not available');
   const blob = await res.blob();
   return URL.createObjectURL(blob);
+}
+
+/** Inline script edit — the server re-runs ALL gates on the edited script
+ *  and rejects with {issues} if anything fails. Only title/theme/beats are
+ *  editable; a successful edit clears any stale rendered file. */
+export async function editQaVideoScript(
+  id: number,
+  patch: { title?: string; theme?: string; beats?: QaVideoBeat[] },
+): Promise<{ ok: boolean; status: string }> {
+  const res = await authFetch(`${BASE}/qa-videos/${id}/script`, {
+    method: 'PUT',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const issues = Array.isArray(data.issues) ? `\n• ${data.issues.join('\n• ')}` : '';
+    throw new Error((data.error || 'Edit failed') + issues);
+  }
+  return data;
 }

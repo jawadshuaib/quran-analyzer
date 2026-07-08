@@ -13,9 +13,11 @@ Usage (CLI, local or in the container):
     python3 qa_video_render.py --id 5              # render qa_videos row 5
     python3 qa_video_render.py --id 5 --voice-id X # override voice
 
-Lifecycle: gate_passed → rendering → rendered (status + filename +
-file_size on the row). Failures → status back to gate_passed with
-error_message set, so a retry is a re-run.
+Lifecycle (script-first review): status is never changed by rendering —
+the file is an orthogonal artifact. The transient `rendering` flag guards
+double-renders; success sets filename/file_size, failure sets
+error_message. Renderable from status gate_passed (preview) or approved
+(the publish tick's auto-render).
 """
 
 from __future__ import annotations
@@ -58,11 +60,17 @@ def render_qa_video(
     if not row:
         raise QaRenderError(f"qa_videos row {row_id} not found")
     rd = dict(row)
-    if rd.get("status") not in ("gate_passed", "rendered"):
+    # Script-first model: renders are allowed for scripts awaiting review
+    # (preview) and approved scripts (the publish tick's auto-render).
+    # Status is NEVER changed by rendering — the file is orthogonal to the
+    # review state; the transient `rendering` flag guards double-renders.
+    if rd.get("status") not in ("gate_passed", "approved"):
         raise QaRenderError(
             f"row {row_id} is status={rd.get('status')} — only gate_passed "
-            f"(or a re-render of rendered) is renderable"
+            f"or approved scripts are renderable"
         )
+    if rd.get("rendering"):
+        raise QaRenderError(f"row {row_id} is already rendering")
     if not rd.get("payload_json"):
         raise QaRenderError(f"row {row_id} has no payload_json — re-run the gate")
 
@@ -73,7 +81,7 @@ def render_qa_video(
     out_path = os.path.join(OUTPUT_DIR, out_filename)
 
     conn.execute(
-        "UPDATE qa_videos SET status='rendering', error_message=NULL WHERE id=?",
+        "UPDATE qa_videos SET rendering=1, error_message=NULL WHERE id=?",
         (row_id,),
     )
     conn.commit()
@@ -137,7 +145,7 @@ def render_qa_video(
 
     size = os.path.getsize(out_path)
     conn.execute(
-        "UPDATE qa_videos SET status='rendered', filename=?, file_size=?, "
+        "UPDATE qa_videos SET rendering=0, filename=?, file_size=?, "
         "error_message=NULL, completed_at=datetime('now') WHERE id=?",
         (out_filename, size, row_id),
     )
@@ -148,7 +156,7 @@ def render_qa_video(
 def _mark_failed(conn, row_id: int, msg: str) -> None:
     try:
         conn.execute(
-            "UPDATE qa_videos SET status='gate_passed', error_message=? WHERE id=?",
+            "UPDATE qa_videos SET rendering=0, error_message=? WHERE id=?",
             (msg[:1000], row_id),
         )
         conn.commit()

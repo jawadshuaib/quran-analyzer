@@ -132,6 +132,38 @@ def cmd_gate(args) -> int:
         conn.close()
 
 
+def gate_script(conn, script, *, use_renderer: bool = True) -> dict:
+    """Structured, non-printing gate run for programmatic callers — the
+    admin inline-edit endpoint re-validates every human edit through the
+    SAME fail-closed gates the original draft passed. Returns a dict:
+    {ok, issues[], gate_a, gate_b, payload, match_snapshot}."""
+    cited = _refs_in_script(script)
+    try:
+        payload, intent = CO.compile_payload(conn, script)
+    except CO.CompileError as e:
+        return {
+            "ok": False,
+            "issues": [f"compile: {e}"],
+            "gate_a": None, "gate_b": None,
+            "payload": None, "match_snapshot": None,
+        }
+    gate_a = PG.run(conn, script, payload, cited_refs=cited, llm=False)
+    use_rend = _node_available() and use_renderer
+    gate_b = MG.run(conn, payload, intent, cited_refs=cited, use_renderer=use_rend)
+    issues = (
+        [f"punchiness: {x}" for x in gate_a["precheck"]["issues"]]
+        + [f"match: {x}" for x in gate_b["issues"]]
+    )
+    return {
+        "ok": bool(gate_a["ok"] and gate_b["ok"]),
+        "issues": issues,
+        "gate_a": gate_a,
+        "gate_b": gate_b,
+        "payload": payload,
+        "match_snapshot": gate_b.get("snapshot"),
+    }
+
+
 def _gate_and_report(conn, script, *, llm, no_renderer, persist) -> int:
     """Compile -> Gate A -> Gate B -> print -> optionally persist. Shared by
     `build` (from a fixture) and `from-qa` (LLM-compressed)."""
