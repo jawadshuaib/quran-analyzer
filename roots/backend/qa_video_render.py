@@ -172,10 +172,22 @@ def _creds_from_db(conn) -> tuple[str, str]:
     key = row["value"] if row and row["value"] else ""
     voice = ""
     try:
-        vrow = conn.execute(
-            "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
+        # Prefer the bank's configured voice (qa_publish_schedule pref).
+        import json as _json
+        prow = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key='qa_publish_schedule'"
         ).fetchone()
-        voice = vrow["voice_id"] if vrow else ""
+        if prow and prow["value"]:
+            want = (_json.loads(prow["value"]).get("voice_id") or "").strip()
+            if want and conn.execute(
+                "SELECT 1 FROM admin_voices WHERE voice_id=?", (want,)
+            ).fetchone():
+                voice = want
+        if not voice:
+            vrow = conn.execute(
+                "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
+            ).fetchone()
+            voice = vrow["voice_id"] if vrow else ""
     except Exception:
         pass
     return key, voice

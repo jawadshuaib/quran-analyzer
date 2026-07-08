@@ -113,6 +113,14 @@ def cmd_context(args) -> int:
         print("VERSES YOU MAY SHOW (copy highlight_words_ar EXACTLY from these "
               "tokens; highlight_phrase_en must be a verbatim substring of the ENGLISH):\n")
         print(SC._format_context(ctx))
+        # The consolidator: everything else the corpus knows about this verse
+        # (exegesis, pre-Islamic poetry, root lexicon, cognates). The writer
+        # draws on whatever is most powerful — never beyond it.
+        enr = SC.build_enrichment(conn, qa["anchor_ref"])
+        if any(enr.get(k) for k in ("exegesis", "poetry_note", "departure_notes", "roots")):
+            print("\nENRICHMENT (optional source material — use what is most "
+                  "powerful, never fabricate beyond it):")
+            print(json.dumps(enr, ensure_ascii=False, indent=1))
         return 0
     finally:
         conn.close()

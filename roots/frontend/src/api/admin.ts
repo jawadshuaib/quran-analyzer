@@ -2734,12 +2734,20 @@ export interface QaPublishSchedule {
   time: string;
   grace_minutes?: number;
   privacy: string;
+  voice_id?: string | null;
   last_fired_date?: string | null;
+}
+
+export interface QaVoice {
+  id: number;
+  name: string;
+  voice_id: string;
 }
 
 export async function getQaVideos(): Promise<{
   videos: QaVideoItem[];
   publish_schedule: QaPublishSchedule;
+  voices: QaVoice[];
 }> {
   const res = await authFetch(`${BASE}/qa-videos`);
   const data = await res.json();

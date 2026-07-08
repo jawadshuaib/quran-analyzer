@@ -212,3 +212,139 @@ def _light_validate(script: dict) -> None:
     n_verse = sum(1 for b in beats if isinstance(b.get("verse"), dict))
     if n_verse > 2:
         raise ScriptGenError(f"{n_verse} verse beats (max 2)")
+
+
+# ---------------------------------------------------------------------------
+#  Enrichment — the consolidator. Everything the corpus knows about a verse,
+#  condensed for the script writer (drafting AND agent editing): approved
+#  exegesis, pre-Islamic poetry verse-note, per-root poetry comparisons +
+#  poetic lexicon + Semitic cognates, and translation departure notes. The
+#  writer picks whatever is most powerful; it must never fabricate beyond
+#  what is provided here. Every source degrades gracefully — the slim
+#  routine DB lacks most of these tables.
+# ---------------------------------------------------------------------------
+
+# Buckwalter -> semiticroots transliteration (copy of app._BW_TO_SR — kept
+# local so this module stays import-safe, same precedent as qa_video_common).
+_BW_TO_SR = {
+    "'": "ʔ", ">": "ʔ", "<": "ʔ", "&": "ʔ", "}": "ʔ", "A": "ʔ",
+    "b": "b", "t": "t", "v": "ṯ", "j": "g",
+    "H": "ḥ", "x": "ḫ", "d": "d", "*": "ḏ",
+    "r": "r", "z": "z", "s": "s¹", "$": "s²",
+    "S": "ṣ", "D": "ḍ", "T": "ṭ", "Z": "ẓ",
+    "E": "ʕ", "g": "ġ", "f": "f", "q": "q",
+    "k": "k", "l": "l", "m": "m", "n": "n",
+    "h": "h", "w": "w", "y": "y",
+}
+
+
+def _snip(text, n=700):
+    if not text:
+        return None
+    t = str(text).strip()
+    return t if len(t) <= n else t[: n - 1].rsplit(" ", 1)[0] + "…"
+
+
+def _first_quoted_bayt(quoted_lines_json):
+    """One representative (arabic, english, poet) bayt from a
+    quoted_lines_json blob, preferring entries that carry a translation."""
+    import json as _json
+    try:
+        items = _json.loads(quoted_lines_json or "[]")
+    except Exception:
+        return None
+    best = None
+    for q in items:
+        if not isinstance(q, dict):
+            continue
+        ar = q.get("bayt") or q.get("arabic") or q.get("line")
+        en = q.get("english") or q.get("translation")
+        if ar and en:
+            return {"arabic": ar, "english": en, "poet": q.get("poet")}
+        if ar and best is None:
+            best = {"arabic": ar, "english": None, "poet": q.get("poet")}
+    return best
+
+
+def build_enrichment(conn, anchor_ref: str, max_roots: int = 6) -> dict:
+    try:
+        c, v = C.parse_ref(anchor_ref)
+    except ValueError:
+        return {}
+
+    def q1(sql, params=()):
+        try:
+            return conn.execute(sql, params).fetchone()
+        except Exception:
+            return None
+
+    def qa(sql, params=()):
+        try:
+            return conn.execute(sql, params).fetchall()
+        except Exception:
+            return []
+
+    out = {"exegesis": None, "poetry_note": None, "departure_notes": None, "roots": []}
+
+    row = q1(
+        "SELECT exegesis_markdown FROM verse_exegesis "
+        "WHERE chapter=? AND verse=? AND review_status='approved' "
+        "AND COALESCE(hidden,0)=0 ORDER BY id DESC LIMIT 1", (c, v))
+    if row:
+        out["exegesis"] = _snip(row["exegesis_markdown"], 1200)
+
+    row = q1(
+        "SELECT note_markdown FROM verse_poetry_notes "
+        "WHERE chapter=? AND verse=? AND review_status='approved' "
+        "AND COALESCE(hidden,0)=0 ORDER BY id DESC LIMIT 1", (c, v))
+    if row:
+        out["poetry_note"] = _snip(row["note_markdown"], 900)
+
+    row = q1(
+        "SELECT departure_notes FROM ai_translations "
+        "WHERE chapter=? AND verse=? AND departure_notes IS NOT NULL "
+        "ORDER BY id DESC LIMIT 1", (c, v))
+    if row:
+        out["departure_notes"] = _snip(row["departure_notes"], 700)
+
+    roots = [r[0] for r in qa(
+        "SELECT DISTINCT root_buckwalter FROM morphology "
+        "WHERE chapter=? AND verse=? AND root_buckwalter IS NOT NULL "
+        "AND root_buckwalter != ''", (c, v))][:max_roots]
+
+    for root in roots:
+        entry = {"root": root}
+        row = q1(
+            "SELECT root_arabic, shift_type, comparison_markdown, quoted_lines_json "
+            "FROM root_poetry_comparisons WHERE root_buckwalter=? "
+            "AND review_status='approved' AND COALESCE(hidden,0)=0 LIMIT 1", (root,))
+        if row:
+            entry["arabic"] = row["root_arabic"]
+            entry["poetry_comparison"] = {
+                "shift_type": row["shift_type"],
+                "summary": _snip(row["comparison_markdown"], 800),
+                "sample_bayt": _first_quoted_bayt(row["quoted_lines_json"]),
+            }
+        row = q1(
+            "SELECT quran_internal_summary, relation_to_quran "
+            "FROM root_poetic_lexicon WHERE root_buckwalter=? "
+            "AND review_status='approved' AND COALESCE(hidden,0)=0 LIMIT 1", (root,))
+        if row:
+            entry["poetic_lexicon"] = {
+                "quran_usage": _snip(row["quran_internal_summary"], 400),
+                "relation_to_quran": _snip(row["relation_to_quran"], 300),
+            }
+        sr = "-".join(_BW_TO_SR.get(ch, ch) for ch in root)
+        row = q1("SELECT id, concept FROM semitic_roots WHERE transliteration=?", (sr,))
+        if row:
+            cogs = qa(
+                "SELECT language, word, meaning FROM semitic_derivatives "
+                "WHERE root_id=? AND word IS NOT NULL LIMIT 4", (row["id"],))
+            entry["cognates"] = {
+                "concept": row["concept"],
+                "examples": [dict(x) for x in cogs],
+            }
+        if len(entry) > 1:
+            out["roots"].append(entry)
+
+    return out

@@ -88,6 +88,25 @@ For each verse beat you name the word(s) to light up on screen:
 
 ---
 
+## ENRICHMENT — the consolidator (use the best angle, never invent)
+
+The context dump (and the agent GET) may include an `ENRICHMENT` block:
+approved **exegesis** for the verse, a **pre-Islamic poetry** verse-note,
+per-root **poetry comparisons** (how the Qurʾān transformed a word the
+poets used — often the most powerful angle available), the **poetic
+lexicon** (what the root meant in 6th-century usage), **Semitic cognates**,
+and the translation's **departure notes**.
+
+- Treat these as source material for the NARRATION — pick whichever single
+  angle is most powerful for the hook; don't stack them.
+- **Never fabricate beyond what enrichment provides.** If you mention what
+  pre-Islamic poets did with a word, it must come from the provided
+  comparison; quote poetry only verbatim from a provided bayt.
+- On-screen verses remain Qurʾānic only (the highlight gates enforce this);
+  poetry and cognates live in the spoken narration.
+
+---
+
 ## OUTPUT — strict JSON only
 
 ```json

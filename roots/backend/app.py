@@ -19045,8 +19045,27 @@ _QA_PUBLISH_DEFAULTS = {
     "time": "16:00",       # UTC
     "grace_minutes": 120,
     "privacy": "public",
+    # ElevenLabs voice for bank renders; None → first admin_voices row.
+    "voice_id": None,
     "last_fired_date": None,
 }
+
+
+def _qa_resolve_voice(conn) -> str | None:
+    """Voice for bank renders: the schedule pref when set (and still
+    existing), else the first configured voice."""
+    prefs = _qa_publish_prefs(conn)
+    want = (prefs.get("voice_id") or "").strip()
+    if want:
+        row = conn.execute(
+            "SELECT voice_id FROM admin_voices WHERE voice_id=?", (want,)
+        ).fetchone()
+        if row:
+            return row["voice_id"]
+    row = conn.execute(
+        "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
+    ).fetchone()
+    return row["voice_id"] if row else None
 
 
 def _qa_videos_dir() -> str:
@@ -19097,7 +19116,13 @@ def admin_qa_videos_list():
             except Exception:
                 r["beats"] = []
         prefs = _qa_publish_prefs(conn)
-        return jsonify({"videos": rows, "publish_schedule": prefs})
+        try:
+            voices = [dict(r) for r in conn.execute(
+                "SELECT id, name, voice_id FROM admin_voices ORDER BY id"
+            ).fetchall()]
+        except Exception:
+            voices = []
+        return jsonify({"videos": rows, "publish_schedule": prefs, "voices": voices})
     finally:
         conn.close()
 
@@ -19124,10 +19149,7 @@ def admin_qa_video_render(row_id: int):
         elevenlabs_key = pref["value"] if pref and pref["value"] else None
         if not elevenlabs_key:
             return jsonify({"error": "ElevenLabs API key not set"}), 400
-        vrow = conn.execute(
-            "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
-        ).fetchone()
-        voice_id = vrow["voice_id"] if vrow else None
+        voice_id = _qa_resolve_voice(conn)
         if not voice_id:
             return jsonify({"error": "no voice configured (admin_voices empty)"}), 400
     finally:
@@ -19396,6 +19418,10 @@ def qa_video_agent_get(row_id: int):
             "title": rd["title"],
             "script": script,
             "verses": ctx["verses"],
+            # The consolidator: exegesis, pre-Islamic poetry comparisons,
+            # root lexicon, cognates, departure notes — so the editing agent
+            # can draw on the most powerful material without any local DB.
+            "enrichment": _qs.build_enrichment(conn, rd["anchor_ref"]),
             "rules": {
                 "max_duration_sec": 125,
                 "highlight_words_ar": "EXACT tokens from verses[].tokens, verbatim",
@@ -19448,6 +19474,15 @@ def admin_qa_publish_schedule_save():
             if body["privacy"] not in ("public", "unlisted", "private"):
                 return jsonify({"error": "bad privacy"}), 400
             prefs["privacy"] = body["privacy"]
+        if "voice_id" in body:
+            vid = (body["voice_id"] or "").strip() or None
+            if vid:
+                row = conn.execute(
+                    "SELECT 1 FROM admin_voices WHERE voice_id=?", (vid,)
+                ).fetchone()
+                if not row:
+                    return jsonify({"error": "unknown voice_id"}), 400
+            prefs["voice_id"] = vid
         _qa_publish_prefs_save(conn, prefs)
         return jsonify(prefs)
     finally:
@@ -19574,10 +19609,7 @@ def _qa_publish_tick():
                 "SELECT value FROM admin_preferences WHERE key='elevenlabs_api_key'"
             ).fetchone()
             elevenlabs_key = pref["value"] if pref and pref["value"] else None
-            vrow = conn.execute(
-                "SELECT voice_id FROM admin_voices ORDER BY id LIMIT 1"
-            ).fetchone()
-            voice_id = vrow["voice_id"] if vrow else None
+            voice_id = _qa_resolve_voice(conn)
             if not (elevenlabs_key and voice_id):
                 print("[qa-publish] cannot auto-render: ElevenLabs key/voice missing")
                 return

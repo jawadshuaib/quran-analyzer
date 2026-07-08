@@ -3,7 +3,7 @@ import {
   getQaVideos, renderQaVideo, approveQaVideo, rejectQaVideo,
   saveQaPublishSchedule, fetchQaVideoObjectUrl, editQaVideoScript,
   mintQaEditToken,
-  type QaVideoItem, type QaPublishSchedule, type QaVideoBeat,
+  type QaVideoItem, type QaPublishSchedule, type QaVideoBeat, type QaVoice,
 } from '../../api/admin';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -25,6 +25,7 @@ const STATUS_STYLE: Record<string, string> = {
 export default function AdminQaVideos() {
   const [videos, setVideos] = useState<QaVideoItem[]>([]);
   const [schedule, setSchedule] = useState<QaPublishSchedule | null>(null);
+  const [voices, setVoices] = useState<QaVoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -35,6 +36,7 @@ export default function AdminQaVideos() {
       const data = await getQaVideos();
       setVideos(data.videos);
       setSchedule(data.publish_schedule);
+      setVoices(data.voices || []);
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -99,6 +101,7 @@ export default function AdminQaVideos() {
       {schedule && (
         <ScheduleCard
           schedule={schedule}
+          voices={voices}
           onSave={async (patch) => {
             const next = await saveQaPublishSchedule(patch);
             setSchedule(next);
@@ -131,9 +134,11 @@ export default function AdminQaVideos() {
 
 function ScheduleCard({
   schedule,
+  voices,
   onSave,
 }: {
   schedule: QaPublishSchedule;
+  voices: QaVoice[];
   onSave: (patch: Partial<QaPublishSchedule>) => Promise<void>;
 }) {
   const [saving, setSaving] = useState(false);
@@ -197,6 +202,21 @@ function ScheduleCard({
           <option value="unlisted">unlisted</option>
           <option value="private">private</option>
         </select>
+        {voices.length > 0 && (
+          <label className="flex items-center gap-1.5 text-xs text-stone-500">
+            voice
+            <select
+              value={schedule.voice_id || voices[0]?.voice_id || ''}
+              onChange={(e) => patch({ voice_id: e.target.value })}
+              disabled={saving}
+              className="rounded-md border border-stone-200 px-2 py-1 text-xs text-stone-600"
+            >
+              {voices.map((v) => (
+                <option key={v.id} value={v.voice_id}>{v.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
         {schedule.last_fired_date && (
           <span className="text-[11px] text-stone-400">last published: {schedule.last_fired_date}</span>
         )}
@@ -463,7 +483,10 @@ MY INSTRUCTIONS:
 ${instructions.trim()}
 
 HOW TO DO IT:
-1. Fetch the script + verse data (numbered Arabic tokens + translations):
+1. Fetch the script + verse data (numbered Arabic tokens + translations),
+   plus ENRICHMENT — everything the corpus knows about this verse: approved
+   exegesis, pre-Islamic poetry comparisons (how the Qur'an transformed a
+   word the poets used), root lexicon, Semitic cognates, translation notes:
    curl "${base}/api/qa-videos/agent/${video.id}?token=${token}"
 2. Rewrite per my instructions, keeping the script-bank rules:
    - beats: hook / set / turn / land (a ~2-min script may add one extra turn)
@@ -471,6 +494,8 @@ HOW TO DO IT:
    - highlight_words_ar: EXACT token(s) copied from the verses[].tokens dump
    - highlight_phrase_en: verbatim substring of that verse's translation
    - Quran-internal only; never post-Quranic terms (Islam/Muslim/hadith/...)
+   - you may draw narration from the enrichment block (pick the most
+     powerful single angle); NEVER fabricate beyond what it provides
    - aim 110-150 spoken words; up to ~280 (~2 min) only if the insight earns it
 3. Apply the edit (server re-runs ALL fail-closed gates):
    curl -X PUT "${base}/api/qa-videos/agent/${video.id}" \
