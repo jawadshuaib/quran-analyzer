@@ -19225,62 +19225,202 @@ def admin_qa_video_edit_script(row_id: int):
     body = request.get_json(silent=True) or {}
     conn = get_db()
     try:
+        result, code = _qa_apply_script_edit(conn, row_id, body)
+        return jsonify(result), code
+    finally:
+        conn.close()
+
+
+def _qa_apply_script_edit(conn, row_id: int, body: dict) -> tuple[dict, int]:
+    """Shared gate-checked script edit — used by the admin inline editor AND
+    the tokened agent endpoint. Merges title/theme/beats onto the stored
+    script, re-runs ALL gates, and only persists on a clean pass."""
+    row = conn.execute(
+        "SELECT * FROM qa_videos WHERE id=?", (row_id,)
+    ).fetchone()
+    if not row:
+        return {"error": "not found"}, 404
+    rd = dict(row)
+    if rd["status"] not in ("gate_passed", "approved", "rejected"):
+        return {"error": f"not editable in status={rd['status']}"}, 409
+    if rd.get("rendering"):
+        return {"error": "rendering in progress — try again shortly"}, 409
+
+    try:
+        script = json.loads(rd["script_json"] or "{}")
+    except Exception:
+        return {"error": "stored script is unreadable"}, 500
+
+    # Merge the editable surface: title + beats. Identity fields
+    # (qa_id, anchor_ref) are immutable; theme may ride along.
+    before = json.dumps(script, ensure_ascii=False, sort_keys=True)
+    if isinstance(body.get("title"), str) and body["title"].strip():
+        script["title"] = body["title"].strip()
+    if isinstance(body.get("theme"), str) and body["theme"].strip():
+        script["theme"] = body["theme"].strip()
+    if isinstance(body.get("beats"), list) and body["beats"]:
+        script["beats"] = body["beats"]
+    after = json.dumps(script, ensure_ascii=False, sort_keys=True)
+    if before == after:
+        return {"ok": True, "unchanged": True, "status": rd["status"]}, 200
+
+    import qa_video_gen as _qg
+    result = _qg.gate_script(conn, script)
+    if not result["ok"]:
+        return {
+            "error": "edit rejected by gates",
+            "issues": result["issues"],
+        }, 422
+
+    # Saved: replace script + regenerated payload; clear any stale
+    # render. A rejected script that now passes returns to the queue.
+    new_status = "gate_passed" if rd["status"] == "rejected" else rd["status"]
+    conn.execute(
+        "UPDATE qa_videos SET "
+        "  title=?, theme=?, script_json=?, payload_json=?, "
+        "  match_snapshot=?, punch_ok=1, match_ok=1, "
+        "  filename=NULL, file_size=NULL, error_message=NULL, status=? "
+        "WHERE id=?",
+        (
+            script.get("title"), script.get("theme"),
+            json.dumps(script, ensure_ascii=False),
+            json.dumps(result["payload"], ensure_ascii=False),
+            json.dumps(result["match_snapshot"], ensure_ascii=False),
+            new_status, row_id,
+        ),
+    )
+    conn.commit()
+    return {"ok": True, "status": new_status}, 200
+
+
+def _qa_edit_token_hash(token: str) -> str:
+    import hashlib
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _qa_verify_edit_token(conn, row_id: int, token: str):
+    """Return the row dict if the token is valid + unexpired, else None."""
+    if not token:
+        return None
+    row = conn.execute(
+        "SELECT * FROM qa_videos WHERE id=?", (row_id,)
+    ).fetchone()
+    if not row:
+        return None
+    rd = dict(row)
+    if not rd.get("edit_token_hash") or not rd.get("edit_token_expires"):
+        return None
+    if _qa_edit_token_hash(token) != rd["edit_token_hash"]:
+        return None
+    from datetime import datetime, timezone
+    try:
+        exp = datetime.fromisoformat(rd["edit_token_expires"])
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+    if datetime.now(timezone.utc) > exp:
+        return None
+    return rd
+
+
+@app.route("/api/admin/qa-videos/<int:row_id>/edit-token", methods=["POST"])
+@admin_required
+def admin_qa_video_mint_edit_token(row_id: int):
+    """Mint a 24h single-script edit token for the "Ask AI to Edit" flow.
+    The plaintext token is returned ONCE (only its hash is stored); it
+    authorizes the agent GET/PUT endpoints for THIS row only, and every
+    edit still goes through the fail-closed gates. Re-minting replaces
+    any previous token."""
+    from datetime import datetime, timedelta, timezone
+    conn = get_db()
+    try:
         row = conn.execute(
-            "SELECT * FROM qa_videos WHERE id=?", (row_id,)
+            "SELECT status FROM qa_videos WHERE id=?", (row_id,)
         ).fetchone()
         if not row:
             return jsonify({"error": "not found"}), 404
-        rd = dict(row)
-        if rd["status"] not in ("gate_passed", "approved", "rejected"):
-            return jsonify({"error": f"not editable in status={rd['status']}"}), 409
-        if rd.get("rendering"):
-            return jsonify({"error": "rendering in progress — try again shortly"}), 409
+        if row["status"] not in ("gate_passed", "approved", "rejected"):
+            return jsonify({"error": f"not editable in status={row['status']}"}), 409
+        token = secrets.token_urlsafe(24)
+        expires = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
+        conn.execute(
+            "UPDATE qa_videos SET edit_token_hash=?, edit_token_expires=? WHERE id=?",
+            (_qa_edit_token_hash(token), expires, row_id),
+        )
+        conn.commit()
+        return jsonify({"token": token, "expires": expires, "id": row_id})
+    finally:
+        conn.close()
 
+
+@app.route("/api/qa-videos/agent/<int:row_id>", methods=["GET"])
+def qa_video_agent_get(row_id: int):
+    """Tokened read for an external editing agent (Claude Code): the current
+    script plus numbered verse tokens + translations for every referenced
+    verse — everything needed to rewrite highlights against the EXACT
+    strings the renderer ships, with no local database."""
+    token = request.args.get("token", "")
+    conn = get_db()
+    try:
+        rd = _qa_verify_edit_token(conn, row_id, token)
+        if not rd:
+            return jsonify({"error": "invalid or expired token"}), 403
         try:
             script = json.loads(rd["script_json"] or "{}")
         except Exception:
-            return jsonify({"error": "stored script is unreadable"}), 500
+            return jsonify({"error": "stored script unreadable"}), 500
+        # Verse context: anchor + every ref in beats (plus cited refs the
+        # original Q&A carried, so the agent may swap cross-references).
+        import qa_video_script as _qs
+        refs = []
+        for b in script.get("beats", []):
+            ref = (b.get("verse") or {}).get("ref")
+            if ref:
+                refs.append(ref)
+        qa_row = conn.execute(
+            "SELECT generation_meta FROM assistant_conversations WHERE id=?",
+            (rd["qa_id"],),
+        ).fetchone()
+        if qa_row and qa_row["generation_meta"]:
+            try:
+                refs += list(json.loads(qa_row["generation_meta"]).get("cited_refs") or [])
+            except Exception:
+                pass
+        ctx = _qs.build_context(conn, rd["anchor_ref"], refs)
+        return jsonify({
+            "id": rd["id"],
+            "qa_id": rd["qa_id"],
+            "anchor_ref": rd["anchor_ref"],
+            "status": rd["status"],
+            "title": rd["title"],
+            "script": script,
+            "verses": ctx["verses"],
+            "rules": {
+                "max_duration_sec": 125,
+                "highlight_words_ar": "EXACT tokens from verses[].tokens, verbatim",
+                "highlight_phrase_en": "verbatim substring of that verse's translation",
+                "no_post_quranic_terms": True,
+            },
+        })
+    finally:
+        conn.close()
 
-        # Merge the editable surface: title + beats. Identity fields
-        # (qa_id, anchor_ref) are immutable; theme may ride along.
-        before = json.dumps(script, ensure_ascii=False, sort_keys=True)
-        if isinstance(body.get("title"), str) and body["title"].strip():
-            script["title"] = body["title"].strip()
-        if isinstance(body.get("theme"), str) and body["theme"].strip():
-            script["theme"] = body["theme"].strip()
-        if isinstance(body.get("beats"), list) and body["beats"]:
-            script["beats"] = body["beats"]
-        after = json.dumps(script, ensure_ascii=False, sort_keys=True)
-        if before == after:
-            return jsonify({"ok": True, "unchanged": True, "status": rd["status"]})
 
-        import qa_video_gen as _qg
-        result = _qg.gate_script(conn, script)
-        if not result["ok"]:
-            return jsonify({
-                "error": "edit rejected by gates",
-                "issues": result["issues"],
-            }), 422
-
-        # Saved: replace script + regenerated payload; clear any stale
-        # render. A rejected script that now passes returns to the queue.
-        new_status = "gate_passed" if rd["status"] == "rejected" else rd["status"]
-        conn.execute(
-            "UPDATE qa_videos SET "
-            "  title=?, theme=?, script_json=?, payload_json=?, "
-            "  match_snapshot=?, punch_ok=1, match_ok=1, "
-            "  filename=NULL, file_size=NULL, error_message=NULL, status=? "
-            "WHERE id=?",
-            (
-                script.get("title"), script.get("theme"),
-                json.dumps(script, ensure_ascii=False),
-                json.dumps(result["payload"], ensure_ascii=False),
-                json.dumps(result["match_snapshot"], ensure_ascii=False),
-                new_status, row_id,
-            ),
-        )
-        conn.commit()
-        return jsonify({"ok": True, "status": new_status})
+@app.route("/api/qa-videos/agent/<int:row_id>", methods=["PUT"])
+def qa_video_agent_put(row_id: int):
+    """Tokened edit for an external agent. Identical gate-checked path as
+    the admin inline editor — the token changes WHO may submit, never what
+    is allowed through."""
+    body = request.get_json(silent=True) or {}
+    token = body.pop("token", "") or request.args.get("token", "")
+    conn = get_db()
+    try:
+        rd = _qa_verify_edit_token(conn, row_id, token)
+        if not rd:
+            return jsonify({"error": "invalid or expired token"}), 403
+        result, code = _qa_apply_script_edit(conn, row_id, body)
+        return jsonify(result), code
     finally:
         conn.close()
 

@@ -81,6 +81,13 @@ def ensure_tables(conn) -> None:
     cols = {r[1] for r in conn.execute("PRAGMA table_info(qa_videos)").fetchall()}
     if "rendering" not in cols:
         conn.execute("ALTER TABLE qa_videos ADD COLUMN rendering INTEGER DEFAULT 0")
+    # "Ask AI to Edit" handoff: a per-row token (hash + expiry) lets a
+    # local Claude Code session edit THIS script through the gate-checked
+    # agent endpoint without an admin login.
+    if "edit_token_hash" not in cols:
+        conn.execute("ALTER TABLE qa_videos ADD COLUMN edit_token_hash TEXT")
+    if "edit_token_expires" not in cols:
+        conn.execute("ALTER TABLE qa_videos ADD COLUMN edit_token_expires TEXT")
     # Script-first review model (2026-07): humans review SCRIPTS, not
     # renders — the legacy 'rendered' status folds into gate_passed (the
     # rendered file, when present, is just an optional preview).

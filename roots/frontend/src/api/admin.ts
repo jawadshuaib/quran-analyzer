@@ -2808,3 +2808,13 @@ export async function editQaVideoScript(
   }
   return data;
 }
+
+/** Mint a 24h edit token for the "Ask AI to Edit" handoff (returned once). */
+export async function mintQaEditToken(
+  id: number,
+): Promise<{ token: string; expires: string; id: number }> {
+  const res = await authFetch(`${BASE}/qa-videos/${id}/edit-token`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Token mint failed');
+  return data;
+}

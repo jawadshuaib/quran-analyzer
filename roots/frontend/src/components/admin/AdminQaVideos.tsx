@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getQaVideos, renderQaVideo, approveQaVideo, rejectQaVideo,
   saveQaPublishSchedule, fetchQaVideoObjectUrl, editQaVideoScript,
+  mintQaEditToken,
   type QaVideoItem, type QaPublishSchedule, type QaVideoBeat,
 } from '../../api/admin';
 
@@ -223,6 +224,7 @@ function ScriptCard({
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [loadingVideo, setLoadingVideo] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [askAiOpen, setAskAiOpen] = useState(false);
   const [draftTitle, setDraftTitle] = useState(video.title);
   const [draftBeats, setDraftBeats] = useState<QaVideoBeat[]>(video.beats);
 
@@ -373,13 +375,22 @@ function ScriptCard({
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => setEditing(true)}
-                  disabled={isRendering}
-                  className="text-xs font-medium text-sky-600 hover:text-sky-800 disabled:opacity-40"
-                >
-                  ✎ Edit script
-                </button>
+                <>
+                  <button
+                    onClick={() => setEditing(true)}
+                    disabled={isRendering}
+                    className="text-xs font-medium text-sky-600 hover:text-sky-800 disabled:opacity-40"
+                  >
+                    ✎ Edit script
+                  </button>
+                  <button
+                    onClick={() => setAskAiOpen(true)}
+                    disabled={isRendering}
+                    className="text-xs font-medium text-violet-600 hover:text-violet-800 disabled:opacity-40"
+                  >
+                    ✦ Ask AI to Edit
+                  </button>
+                </>
               )}
             </div>
           )}
@@ -416,7 +427,135 @@ function ScriptCard({
           <video src={videoUrl} controls className="max-h-[480px] rounded-lg border border-stone-200" />
         </div>
       )}
+
+      {askAiOpen && (
+        <AskAiModal video={video} onClose={() => setAskAiOpen(false)} />
+      )}
     </li>
+  );
+}
+
+/**
+ * "Ask AI to Edit": the reviewer types plain-language instructions; we mint
+ * a 24h single-script edit token and generate a self-contained prompt to
+ * paste into Claude Code. The agent fetches the script + verse tokens via
+ * the tokened GET, rewrites per the instructions, and PUTs the edit back —
+ * where the server re-runs the same fail-closed gates as any other edit.
+ */
+function AskAiModal({ video, onClose }: { video: QaVideoItem; onClose: () => void }) {
+  const [instructions, setInstructions] = useState('');
+  const [prompt, setPrompt] = useState<string | null>(null);
+  const [minting, setMinting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState('');
+
+  async function generate() {
+    if (!instructions.trim()) return;
+    setMinting(true);
+    setError('');
+    try {
+      const { token, expires } = await mintQaEditToken(video.id);
+      const base = window.location.origin;
+      setPrompt(
+`Edit a video script in the al-nuqta Q&A script bank (script #${video.id}, verse ${video.anchor_ref}, "${video.title}").
+
+MY INSTRUCTIONS:
+${instructions.trim()}
+
+HOW TO DO IT:
+1. Fetch the script + verse data (numbered Arabic tokens + translations):
+   curl "${base}/api/qa-videos/agent/${video.id}?token=${token}"
+2. Rewrite per my instructions, keeping the script-bank rules:
+   - beats: hook / set / turn / land (a ~2-min script may add one extra turn)
+   - hook: plain English question, no Arabic, no jargon, a stranger gets it in 5s
+   - highlight_words_ar: EXACT token(s) copied from the verses[].tokens dump
+   - highlight_phrase_en: verbatim substring of that verse's translation
+   - Quran-internal only; never post-Quranic terms (Islam/Muslim/hadith/...)
+   - aim 110-150 spoken words; up to ~280 (~2 min) only if the insight earns it
+3. Apply the edit (server re-runs ALL fail-closed gates):
+   curl -X PUT "${base}/api/qa-videos/agent/${video.id}" \
+        -H "Content-Type: application/json" \
+        -d '{"token": "${token}", "title": "...", "beats": [...]}'
+   A 422 lists gate issues — fix and retry (max 3 tries).
+4. Report what you changed and the final gate result.
+
+The token expires ${new Date(expires).toUTCString()} and only works for this one script.`
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to mint token');
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  async function copy() {
+    if (!prompt) return;
+    try {
+      await navigator.clipboard.writeText(prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* select-all fallback below */ }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/30 p-4"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="flex items-start justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-stone-800">✦ Ask AI to Edit — script #{video.id}</h3>
+            <p className="mt-0.5 text-xs text-stone-400">
+              Describe the change; you'll get a prompt to paste into Claude Code.
+              The AI's edit passes through the same gates as any other edit.
+            </p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-600">✕</button>
+        </div>
+
+        {!prompt ? (
+          <>
+            <textarea
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              rows={4}
+              placeholder="e.g. Make the hook more surprising; tighten the land beat; swap the cross-reference for something about mercy…"
+              className="mt-3 w-full resize-y rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-700 outline-none focus:border-violet-300 focus:ring-1 focus:ring-violet-300"
+            />
+            {error && <p className="mt-2 text-xs text-rose-600">{error}</p>}
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={generate}
+                disabled={minting || !instructions.trim()}
+                className="rounded-md bg-violet-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-violet-700 disabled:opacity-50"
+              >
+                {minting ? 'Generating…' : 'Generate prompt'}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <textarea
+              readOnly
+              value={prompt}
+              rows={16}
+              onFocus={(e) => e.target.select()}
+              className="mt-3 w-full resize-y rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 font-mono text-[11px] leading-relaxed text-stone-700"
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-[11px] text-stone-400">Paste this into Claude Code. Token valid 24h, this script only.</p>
+              <button
+                onClick={copy}
+                className="rounded-md bg-stone-800 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-stone-700"
+              >
+                {copied ? 'Copied ✓' : 'Copy prompt'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

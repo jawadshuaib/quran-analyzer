@@ -59,11 +59,16 @@ land  no verse. ~18–32 words. The quiet answer. Proportion confidence
       ("the most we can fairly say…"). Plain, warm, not preachy.
 ```
 
-- **Total ≈ 110–150 spoken words** (≈ 45–75s). Shorter is fine. Punchy wins.
+- **Aim ≈ 110–150 spoken words** (≈ 45–75s). Shorter is fine. Punchy wins.
+  When the insight genuinely needs the room (a second cross-reference that
+  completes the triangulation), up to **~280 words (~2 minutes)** is
+  allowed — never pad to get there; every extra beat must earn its seconds.
 - At most ONE Arabic term introduced in the whole video, and only after the
   hook. Keep the spoken language plain throughout — you are *talking to*
   the viewer, not lecturing them.
-- At most TWO verses on screen total (one `set`, at most one `turn`).
+- At most TWO verses on screen for a standard short (one `set`, one `turn`).
+  A long (~2 min) script may add ONE more `turn` beat with a second
+  cross-reference — three verses on screen is the hard ceiling.
 - Use only the anchor verse and the listed cross-references. Never invent one.
 
 ---

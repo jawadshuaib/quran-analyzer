@@ -33,7 +33,11 @@ _POST_QURANIC = re.compile(
 # Budget. Length is the real lever since total video length is
 # narration-driven (renderer bumps each slide to audio+0.4s).
 MIN_WORDS = 60
-MAX_DURATION_SEC = 95.0
+# Raised from 95s (2026-07-08): at 3 curated videos/week a script may run
+# to ~2 minutes when the insight earns the room (YouTube Shorts allows up
+# to 3 min vertical). Punchy still wins — the brief keeps 45-75s as the
+# default aim; this is a ceiling, not a target.
+MAX_DURATION_SEC = 125.0
 MAX_VERSE_SLIDES = 2
 
 # Distinctive phrases from the 39:42 exemplar in the script-gen prompt.
