@@ -2,6 +2,8 @@ import { AbsoluteFill, Sequence, Audio, staticFile } from 'remotion';
 import type { PayloadT, SlideT } from '../types';
 import { FPS } from '../slides/shared';
 import { RootPage } from '../slides/RootPage';
+import { PoetryPage } from '../slides/PoetryPage';
+import { VerseContrastPage } from '../slides/VerseContrastPage';
 import { VerseFlowPage } from '../slides/VerseFlowPage';
 import { WordToWordPage } from '../slides/WordToWordPage';
 import { OutroPage } from '../slides/OutroPage';
@@ -90,6 +92,10 @@ function SlideRenderer({ slide }: { slide: SlideT }) {
       return <RootPage slide={slide} />;
     case 'verse-flow':
       return <VerseFlowPage slide={slide} />;
+    case 'poetry':
+      return <PoetryPage slide={slide} />;
+    case 'verse-contrast':
+      return <VerseContrastPage slide={slide} />;
     case 'word-to-word':
       return <WordToWordPage slide={slide} />;
     case 'grammar-verse':

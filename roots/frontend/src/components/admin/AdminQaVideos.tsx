@@ -490,6 +490,10 @@ HOW TO DO IT:
    curl "${base}/api/qa-videos/agent/${video.id}?token=${token}"
 2. Rewrite per my instructions, keeping the script-bank rules:
    - beats: hook / set / turn / land (a ~2-min script may add one extra turn)
+   - optional dynamic beats: "root" (root on its own slide — must belong to a
+     shown verse), "poetry" (pre-Islamic bayt slide — verbatim from the
+     enrichment only), "contrast" (TWO verses on screen at once, each with
+     its own highlights) — use one only when it serves the insight
    - hook: plain English question, no Arabic, no jargon, a stranger gets it in 5s
    - highlight_words_ar: EXACT token(s) copied from the verses[].tokens dump
    - highlight_phrase_en: verbatim substring of that verse's translation

@@ -19427,6 +19427,11 @@ def qa_video_agent_get(row_id: int):
                 "highlight_words_ar": "EXACT tokens from verses[].tokens, verbatim",
                 "highlight_phrase_en": "verbatim substring of that verse's translation",
                 "no_post_quranic_terms": True,
+                "dynamic_beats": {
+                    "root": "root on its own slide; root.arabic must be a root of a shown verse",
+                    "poetry": "pre-Islamic bayt slide; poetry.arabic must be verbatim from enrichment (corpus-verified)",
+                    "contrast": "verses: [two entries like verse beats] shown on screen together",
+                },
             },
         })
     finally:

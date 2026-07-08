@@ -77,7 +77,10 @@ def _resolve_indices(tokens: list[str], intended_forms: list[str],
     return sorted(set(idxs))
 
 
-def _verse_flow_slide(conn, ref: str, beat_verse: dict, narration: str) -> tuple[dict, dict]:
+def _resolve_verse(conn, ref: str, beat_verse: dict) -> dict:
+    """Fail-closed resolution of one verse + its highlight intent. Shared by
+    verse-flow slides and both halves of a verse-contrast slide, so every
+    on-screen highlight goes through the SAME resolver."""
     if not isinstance(beat_verse, dict):
         raise CompileError(f"verse beat for {ref} is malformed (not an object)")
     c, v = C.parse_ref(ref)
@@ -105,6 +108,20 @@ def _verse_flow_slide(conn, ref: str, beat_verse: dict, narration: str) -> tuple
     if english_omitted:
         phrase = ""
 
+    return {
+        "surah": c, "ayah": v, "arabic": arabic, "translation": translation,
+        "idxs": idxs, "forms": forms, "phrase": phrase,
+        "english_omitted": english_omitted,
+    }
+
+
+def _verse_flow_slide(conn, ref: str, beat_verse: dict, narration: str) -> tuple[dict, dict]:
+    r = _resolve_verse(conn, ref, beat_verse)
+    c, v = r["surah"], r["ayah"]
+    arabic, translation = r["arabic"], r["translation"]
+    idxs, forms, phrase = r["idxs"], r["forms"], r["phrase"]
+    english_omitted = r["english_omitted"]
+
     slide = {
         "type": "verse-flow",
         "durationSec": 6,
@@ -130,6 +147,137 @@ def _verse_flow_slide(conn, ref: str, beat_verse: dict, narration: str) -> tuple
     return slide, intent
 
 
+def _root_slide(conn, beat: dict, narration: str) -> dict:
+    """A root shown on its own slide. FAIL CLOSED: the root must actually be
+    a root of a word in one of the script's verses — we verify by converting
+    the anchor verse's morphology roots (Buckwalter) to Arabic and matching
+    letter-skeletons, so the writer can never invent a root."""
+    import buckwalter as BW
+    spec = beat.get("root") or {}
+    root_ar = (spec.get("arabic") or "").strip()
+    if not root_ar:
+        raise CompileError("root beat missing root.arabic")
+    want = C.normalize_ar(root_ar.replace(" ", "").replace("-", ""))
+
+    allowed = set()
+    refs = beat.get("_script_refs") or []
+    for ref in refs:
+        try:
+            c, v = C.parse_ref(ref)
+        except ValueError:
+            continue
+        try:
+            rows = conn.execute(
+                "SELECT DISTINCT root_buckwalter FROM morphology "
+                "WHERE chapter=? AND verse=? AND root_buckwalter IS NOT NULL "
+                "AND root_buckwalter != ''", (c, v)).fetchall()
+        except Exception:
+            rows = []
+        for r in rows:
+            try:
+                allowed.add(C.normalize_ar(BW.buckwalter_to_arabic(r[0])))
+            except Exception:
+                pass
+    if want not in allowed:
+        raise CompileError(
+            f"root beat: {root_ar!r} is not a root of any verse in this "
+            f"script (allowed roots come from the shown verses' morphology)"
+        )
+
+    display = spec.get("display") or " ".join(root_ar.replace("-", " ").split())
+    return {
+        "type": "root",
+        "durationSec": 5,
+        "rootArabic": display,
+        "rootLabel": (spec.get("label") or "").strip(),
+        "meaningTitle": (spec.get("meaning_title") or "Meaning").strip(),
+        "meaning": (spec.get("meaning") or "").strip(),
+        "narration": {"text": C.sanitize_for_tts(narration)},
+    }
+
+
+def _poetry_slide(conn, beat: dict, narration: str) -> dict:
+    """A pre-Islamic bayt on its own slide. FAIL CLOSED: the bayt must exist
+    in the poetry corpus (poetry_lines) — matched by letter-skeleton
+    containment in either direction — so a writer can never put invented
+    'poetry' on screen."""
+    spec = beat.get("poetry") or {}
+    bayt = (spec.get("arabic") or "").strip()
+    if not bayt:
+        raise CompileError("poetry beat missing poetry.arabic")
+    want = C.normalize_ar(bayt.replace(" ", ""))
+    if len(want) < 12:
+        raise CompileError("poetry beat: bayt too short to verify against the corpus")
+
+    found = False
+    try:
+        rows = conn.execute(
+            "SELECT hemistich1, hemistich2, text_plain FROM poetry_lines"
+        ).fetchall()
+    except Exception:
+        raise CompileError(
+            "poetry beat: poetry_lines table unavailable in this database — "
+            "cannot verify the bayt (fail closed)"
+        )
+    for r in rows:
+        line = " ".join(x for x in (r[0], r[1], r[2]) if x)
+        have = C.normalize_ar(line.replace(" ", ""))
+        if want in have or (len(have) >= 12 and have in want):
+            found = True
+            break
+    if not found:
+        raise CompileError(
+            "poetry beat: bayt not found in the poetry corpus — quote a line "
+            "verbatim from the enrichment (never compose poetry)"
+        )
+
+    slide = {
+        "type": "poetry",
+        "durationSec": 6,
+        "bayt": bayt,
+        "narration": {"text": C.sanitize_for_tts(narration)},
+    }
+    if spec.get("english"):
+        slide["english"] = str(spec["english"]).strip()
+    if spec.get("poet"):
+        slide["poet"] = str(spec["poet"]).strip()
+    return slide
+
+
+def _contrast_slide(conn, beat: dict, narration: str) -> tuple[dict, list[dict]]:
+    """Two verses on screen at once. Both halves resolve through the SAME
+    fail-closed resolver as verse-flow slides."""
+    specs = beat.get("verses") or []
+    if not (isinstance(specs, list) and len(specs) == 2):
+        raise CompileError("contrast beat needs exactly two entries in verses[]")
+    halves, intents = [], []
+    for bv in specs:
+        ref = (bv or {}).get("ref")
+        if not ref:
+            raise CompileError("contrast beat verse missing ref")
+        r = _resolve_verse(conn, ref, bv)
+        halves.append({
+            "surah": r["surah"], "ayah": r["ayah"],
+            "arabicText": r["arabic"], "translation": r["translation"],
+            "highlightWordIndices": r["idxs"],
+            **({"highlightTranslationText": r["phrase"]} if r["phrase"] else {}),
+        })
+        intents.append({
+            "surah": r["surah"], "ayah": r["ayah"], "indices": r["idxs"],
+            "skeletons": sorted({C.normalize_ar(f) for f in r["forms"]}),
+            "forms": r["forms"], "phrase": r["phrase"],
+            "english_omitted": r["english_omitted"],
+        })
+    slide = {
+        "type": "verse-contrast",
+        "durationSec": 8,
+        "top": halves[0],
+        "bottom": halves[1],
+        "narration": {"text": C.sanitize_for_tts(narration)},
+    }
+    return slide, intents
+
+
 def _outro_slide() -> dict:
     return {
         "type": "outro",
@@ -150,12 +298,47 @@ def compile_payload(conn, script: dict) -> tuple[dict, list[dict | None]]:
     intent: list[dict | None] = []
     pending_prefix = ""  # leading no-verse narration (e.g. the hook)
 
+    # Refs of every verse shown anywhere in the script — used by the root
+    # beat's fail-closed "root must belong to a shown verse" check.
+    script_refs = []
+    for b in beats:
+        if isinstance(b, dict):
+            if isinstance(b.get("verse"), dict) and b["verse"].get("ref"):
+                script_refs.append(b["verse"]["ref"])
+            for bv in (b.get("verses") or []):
+                if isinstance(bv, dict) and bv.get("ref"):
+                    script_refs.append(bv.get("ref"))
+    anchor_ref = script.get("anchor_ref")
+    if anchor_ref:
+        script_refs.append(anchor_ref)
+
     for beat in beats:
         if not isinstance(beat, dict):
             raise CompileError(f"malformed beat (not an object): {beat!r:.60}")
         narr = (beat.get("narration") or "").strip()
         bverse = beat.get("verse")
-        if bverse:
+        if beat.get("kind") == "contrast" or beat.get("verses"):
+            combined = (pending_prefix + " " + narr).strip() if pending_prefix else narr
+            pending_prefix = ""
+            slide, cintents = _contrast_slide(conn, beat, combined)
+            slides.append(slide)
+            # Both halves' intents ride on ONE slide; the match gate handles
+            # verse-flow slides, so contrast correctness is compile-enforced
+            # (same resolver). Store as a list for future gate extension.
+            intent.append({"contrast": cintents})
+        elif beat.get("kind") == "root" or beat.get("root"):
+            combined = (pending_prefix + " " + narr).strip() if pending_prefix else narr
+            pending_prefix = ""
+            beat = dict(beat)
+            beat["_script_refs"] = script_refs
+            slides.append(_root_slide(conn, beat, combined))
+            intent.append(None)
+        elif beat.get("kind") == "poetry" or beat.get("poetry"):
+            combined = (pending_prefix + " " + narr).strip() if pending_prefix else narr
+            pending_prefix = ""
+            slides.append(_poetry_slide(conn, beat, combined))
+            intent.append(None)
+        elif bverse:
             ref = bverse.get("ref")
             if not ref:
                 raise CompileError(f"verse beat {beat.get('kind')!r} missing ref")
@@ -175,8 +358,8 @@ def compile_payload(conn, script: dict) -> tuple[dict, list[dict | None]]:
             else:
                 pending_prefix = (pending_prefix + " " + narr).strip()
 
-    if not slides:
-        raise CompileError("script produced no verse slides — nothing to show")
+    if not any(sl["type"] in ("verse-flow", "verse-contrast") for sl in slides):
+        raise CompileError("script shows no Quranic verse — at least one verse or contrast beat is required")
     if pending_prefix:
         # Hook with no verse anywhere after it: prepend to first slide.
         first = slides[0]

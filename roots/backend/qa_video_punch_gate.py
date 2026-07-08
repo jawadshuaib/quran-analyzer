@@ -38,7 +38,9 @@ MIN_WORDS = 60
 # to 3 min vertical). Punchy still wins — the brief keeps 45-75s as the
 # default aim; this is a ceiling, not a target.
 MAX_DURATION_SEC = 125.0
-MAX_VERSE_SLIDES = 2
+# Verses SHOWN (a contrast slide shows two at once). Raised 2 -> 3 with
+# the ~2-minute budget: a long script may add one extra cross-reference.
+MAX_VERSE_SLIDES = 3
 
 # Distinctive phrases from the 39:42 exemplar in the script-gen prompt.
 # If they show up on a verse that ISN'T 39:42, the model leaked the
@@ -93,7 +95,11 @@ def precheck(conn, script: dict, payload: dict, *, cited_refs: list[str] | None 
     if "?" not in hook_text and "?" not in title:
         issues.append("no question in the hook/title — the video must open in a question")
 
-    n_verse = sum(1 for s in payload.get("slides") or [] if s.get("type") == "verse-flow")
+    n_verse = sum(
+        2 if s.get("type") == "verse-contrast" else 1
+        for s in payload.get("slides") or []
+        if s.get("type") in ("verse-flow", "verse-contrast")
+    )
     if n_verse == 0:
         issues.append("no verse on screen")
     if n_verse > MAX_VERSE_SLIDES:

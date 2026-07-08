@@ -306,9 +306,42 @@ export const WordLensSlide = z.object({
   narration: Narration.optional(),
 });
 
+// Q&A bank — a pre-Islamic poetry bayt on its own slide. Visually
+// distinct from Qur'an slides (parchment/amber, explicit label) so a
+// viewer can never mistake poetry for scripture. The compile gate
+// verifies the bayt exists verbatim in the poetry corpus.
+export const PoetrySlide = z.object({
+  type: z.literal('poetry'),
+  durationSec: z.number().positive().default(6),
+  bayt: z.string(),
+  english: z.string().optional(),
+  poet: z.string().optional(),
+  narration: Narration.optional(),
+});
+
+// Q&A bank — two verses on screen AT ONCE, each with its own
+// highlight, for insights built on a mirror/contrast between verses.
+export const ContrastVerse = z.object({
+  surah: z.number().int().positive(),
+  ayah: z.number().int().positive(),
+  arabicText: z.string(),
+  translation: z.string(),
+  highlightWordIndices: z.array(z.number().int().positive()).optional(),
+  highlightTranslationText: z.string().optional(),
+});
+export const VerseContrastSlide = z.object({
+  type: z.literal('verse-contrast'),
+  durationSec: z.number().positive().default(8),
+  top: ContrastVerse,
+  bottom: ContrastVerse,
+  narration: Narration.optional(),
+});
+
 export const Slide = z.discriminatedUnion('type', [
   RootSlide,
   VerseFlowSlide,
+  PoetrySlide,
+  VerseContrastSlide,
   WordToWordSlide,
   GrammarVerseSlide,
   GrammarContrastSlide,
@@ -338,6 +371,9 @@ export type GrammarContrastSlideT = z.infer<typeof GrammarContrastSlide>;
 export type GrammarHighlightT = z.infer<typeof GrammarHighlight>;
 export type TranslationRevealSlideT = z.infer<typeof TranslationRevealSlide>;
 export type WordLensSlideT = z.infer<typeof WordLensSlide>;
+export type PoetrySlideT = z.infer<typeof PoetrySlide>;
+export type VerseContrastSlideT = z.infer<typeof VerseContrastSlide>;
+export type ContrastVerseT = z.infer<typeof ContrastVerse>;
 export type SlideT = z.infer<typeof Slide>;
 export type PayloadT = z.infer<typeof Payload>;
 export type NarrationT = z.infer<typeof Narration>;

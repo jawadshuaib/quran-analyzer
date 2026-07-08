@@ -88,6 +88,45 @@ For each verse beat you name the word(s) to light up on screen:
 
 ---
 
+## DYNAMIC SLIDES — pick the visual that fits the insight
+
+Beyond plain verse beats, three optional beat kinds break the
+verse-then-verse monotony. Use one when it genuinely serves the insight —
+most videos still need none of them:
+
+```json
+{"kind": "root", "narration": "...",
+ "root": {"arabic": "ذ ل ل", "label": "dh-l-l", "meaning": "to be low, humble"}}
+```
+The root on its own slide (big letters + gloss). ONLY for a root that
+belongs to a verse shown in this script — the gate verifies against the
+verse's morphology and fails otherwise. Use when the root itself is the
+star of the insight.
+
+```json
+{"kind": "poetry", "narration": "...",
+ "poetry": {"arabic": "<bayt>", "english": "<translation>", "poet": "Zuhayr"}}
+```
+A pre-Islamic bayt on a visually distinct parchment slide (labeled, never
+mistakable for Qurʾān). The bayt MUST be copied verbatim from the
+enrichment's sample_bayt / poetry material — the gate checks it against
+the poetry corpus and fails on anything composed.
+
+```json
+{"kind": "contrast", "narration": "...",
+ "verses": [
+   {"ref": "107:4", "highlight_words_ar": ["لِّلْمُصَلِّينَ"], "highlight_phrase_en": "..."},
+   {"ref": "70:22", "highlight_words_ar": ["الْمُصَلِّينَ"], "highlight_phrase_en": "..."}
+ ]}
+```
+TWO verses on screen at once, each with its own highlight — for
+mirror-insights ("the same word marks rescue there and ruin here") where
+seeing both beats remembering one. Counts as two of the verse budget.
+Highlight rules are identical to verse beats (exact tokens, verbatim
+English).
+
+---
+
 ## ENRICHMENT — the consolidator (use the best angle, never invent)
 
 The context dump (and the agent GET) may include an `ENRICHMENT` block:
