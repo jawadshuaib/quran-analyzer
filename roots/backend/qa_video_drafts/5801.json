@@ -1,34 +1,39 @@
 {
-  "qa_id": 5801,
-  "anchor_ref": "17:24",
-  "title": "Why does the Qur'an honor parents with a word that usually means humiliation?",
-  "theme": "wing-of-lowliness",
-  "beats": [
-    {
-      "kind": "hook",
-      "narration": "The Qur'an tells you to treat your parents with a word that usually means humiliation. Why?"
-    },
-    {
-      "kind": "set",
-      "narration": "This verse says: lower for them the wing of lowliness. That word is dhull — elsewhere it means being brought genuinely low, even humiliated. Translators soften it. The text doesn't.",
-      "verse": {
-        "ref": "17:24",
-        "highlight_phrase_en": "the wing of lowliness",
-        "highlight_words_ar": ["جَنَاحَ", "الذُّلِّ"]
-      }
-    },
-    {
-      "kind": "turn",
-      "narration": "Now watch the wing. Elsewhere a prophet is told: lower your wing to those who follow you. The strong one spreads a wing over the weak, the way a bird shelters its young.",
-      "verse": {
-        "ref": "26:215",
-        "highlight_phrase_en": "lower your wing",
-        "highlight_words_ar": ["جَنَاحَكَ"]
-      }
-    },
-    {
-      "kind": "land",
-      "narration": "Here the figure turns over. The child once sheltered now lowers the wing. The most we can fairly say: real tenderness asks the strong to be willingly brought low."
-    }
-  ]
+ "qa_id": 5801,
+ "anchor_ref": "17:24",
+ "title": "Why does the Qur'an honor parents with a word that usually means humiliation?",
+ "theme": "wing-of-lowliness",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The Qur'an tells you to treat your parents with a word that usually means humiliation. Why?"
+  },
+  {
+   "kind": "set",
+   "narration": "This verse says lower for them the wing of lowliness. That word is dhull. Elsewhere it means being brought genuinely low, even humiliated. Translators soften it. The text doesn't.",
+   "verse": {
+    "highlight_phrase_en": "the wing of lowliness",
+    "highlight_words_ar": [
+     "جَنَاحَ",
+     "الذُّلِّ"
+    ],
+    "ref": "17:24"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Now watch the wing. Elsewhere a prophet is told to lower his wing to those who follow him. The strong one spreads a wing over the weak, the way a bird shelters its young.",
+   "verse": {
+    "highlight_phrase_en": "lower your wing",
+    "highlight_words_ar": [
+     "جَنَاحَكَ"
+    ],
+    "ref": "26:215"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "Here the figure turns over. The child once sheltered now lowers the wing. The most we can fairly say is this. Real tenderness asks the strong to be willingly brought low."
+  }
+ ]
 }

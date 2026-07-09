@@ -19276,6 +19276,8 @@ def _qa_apply_script_edit(conn, row_id: int, body: dict) -> tuple[dict, int]:
 
     # Merge the editable surface: title + beats. Identity fields
     # (qa_id, anchor_ref) are immutable; theme may ride along.
+    old_narrations = {(b.get("narration") or "").strip()
+                      for b in script.get("beats", []) if isinstance(b, dict)}
     before = json.dumps(script, ensure_ascii=False, sort_keys=True)
     if isinstance(body.get("title"), str) and body["title"].strip():
         script["title"] = body["title"].strip()
@@ -19290,10 +19292,31 @@ def _qa_apply_script_edit(conn, row_id: int, body: dict) -> tuple[dict, int]:
     import qa_video_gen as _qg
     result = _qg.gate_script(conn, script)
     if not result["ok"]:
-        return {
-            "error": "edit rejected by gates",
-            "issues": result["issues"],
-        }, 422
+        # Grandfather clause: scripts written before the spoken-style rule
+        # may carry em-dashes/colons in narrations the operator did NOT
+        # touch. Style issues only block the edit when a CHANGED narration
+        # is dirty; everything else (compile, highlights, terminology,
+        # budgets) still fails closed.
+        style_issues = [i for i in result["issues"]
+                        if "written-register punctuation" in i]
+        other_issues = [i for i in result["issues"]
+                        if "written-register punctuation" not in i]
+        changed_narrations = [
+            (b.get("narration") or "").strip()
+            for b in script.get("beats", []) if isinstance(b, dict)
+        ]
+        changed_narrations = [n for n in changed_narrations
+                              if n not in old_narrations]
+        marks = ("\u2014", "\u2013", ":", ";")
+        dirty_change = any(any(m in n for m in marks)
+                           for n in changed_narrations)
+        if other_issues or dirty_change or not style_issues:
+            return {
+                "error": "edit rejected by gates",
+                "issues": result["issues"],
+            }, 422
+        # Legacy style forgiven: the edit itself is clean and every other
+        # gate passed — proceed as a pass.
 
     # Saved: replace script + regenerated payload; clear any stale
     # render. A rejected script that now passes returns to the queue.
