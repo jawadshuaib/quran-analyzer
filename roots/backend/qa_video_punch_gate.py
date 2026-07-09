@@ -29,6 +29,11 @@ _POST_QURANIC = re.compile(
     r"sharia|mosque|imam|madhhab|fiqh)\b",
     re.IGNORECASE,
 )
+# "pre-Islamic" is a period label, not post-Quranic vocabulary — the site's
+# own public feature is titled "Pre-Islamic Poetry" and the bayt slide's
+# on-screen eyebrow says the same. Strip it before the banned-term scan so
+# "Islamic" inside it doesn't false-positive.
+_PRE_ISLAMIC = re.compile(r"\bpre-?islamic\b", re.IGNORECASE)
 
 # Budget. Length is the real lever since total video length is
 # narration-driven (renderer bumps each slide to audio+0.4s).
@@ -76,7 +81,7 @@ def precheck(conn, script: dict, payload: dict, *, cited_refs: list[str] | None 
     if dur > MAX_DURATION_SEC:
         issues.append(f"too long: ~{dur:.0f}s estimated (> {MAX_DURATION_SEC:.0f}s); trim the script")
 
-    m = _POST_QURANIC.search(narration + " " + (script.get("title") or ""))
+    m = _POST_QURANIC.search(_PRE_ISLAMIC.sub(" ", narration + " " + (script.get("title") or "")))
     if m:
         issues.append(f"post-Quranic terminology: {m.group(0)!r} (render Arabic terms transliterated + glossed)")
 
