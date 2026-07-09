@@ -2748,10 +2748,22 @@ export interface QaVoice {
   voice_id: string;
 }
 
+export interface QaCandidate {
+  id: number;
+  source_type: string;
+  source_key: string;
+  anchor_ref: string | null;
+  angle: string | null;
+  hook_sketch: string | null;
+  self_score: number | null;
+  status: string;
+}
+
 export async function getQaVideos(): Promise<{
   videos: QaVideoItem[];
   publish_schedule: QaPublishSchedule;
   voices: QaVoice[];
+  candidates: QaCandidate[];
 }> {
   const res = await authFetch(`${BASE}/qa-videos`);
   const data = await res.json();
@@ -2829,4 +2841,18 @@ export async function mintQaEditToken(
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Token mint failed');
   return data;
+}
+
+
+/** Backlog panel: star an idea (drafted next) or kill it (never re-proposed). */
+export async function patchVideoCandidate(
+  id: number,
+  status: 'starred' | 'rejected_score' | 'proposed',
+  reason?: string,
+): Promise<void> {
+  const res = await authFetch(`${BASE}/video-candidates/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, reason }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
 }

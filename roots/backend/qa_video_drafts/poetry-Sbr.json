@@ -1,0 +1,44 @@
+{
+ "anchor_ref": "12:18",
+ "title": "What did patience prove before the Qur'an?",
+ "theme": "poetry-sabr-theologization",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "Before this book, what did patience prove? That you needed no one."
+  },
+  {
+   "kind": "poetry",
+   "narration": "For the old poets, sabr, endurance, was the spine of nobility. Imru al-Qays taunts an entire tribe with it. Had you been noble, you would have stood firm.",
+   "poetry": {
+    "arabic": "أَحْنَظَلُ لو كنتمْ كِرَامًا صَبَرْتُمُ وَحُطْتُمْ ولا يُلْقَى التَّمِيمِيُّ صَابِرَا",
+    "english": "O Ḥanẓala, had you been noble you would have stood firm and guarded — but the Tamīmī is never found steadfast.",
+    "poet": "Imru al-Qays"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "And it was a weapon a man drew from himself. Antara boasts he will destroy a whole army by his steadfastness alone. His grit. His inherited honor. Help asked of no one.",
+   "poetry": {
+    "arabic": "وَسَوفَ أُبيدُ جَمعَكُمُ بِصَبري وَيَطفا لاعِجي وَتَقَرُّ عَيني",
+    "english": "And I shall destroy your whole host by my steadfastness; my burning will be quenched and my eye will be cooled",
+    "poet": "Antara ibn Shaddad"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Then a father stands holding his son's shirt, stained with lying blood. He answers with the poets' own word. Fine endurance, sabrun jamil. But he does not stop there. And God is the One whose help is sought. In one breath, patience stops being a private weapon.",
+   "verse": {
+    "ref": "12:18",
+    "highlight_words_ar": [
+     "فَصَبْرٌ جَمِيلٌ"
+    ],
+    "highlight_phrase_en": "fine endurance"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The hero clenched and stood alone. The father stands just as firm, leaning on someone. The same unbroken spine, planted in different ground."
+  }
+ ]
+}

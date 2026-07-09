@@ -54,3 +54,40 @@ sure only ideas worth the operator's attention become scripts.
 - A second verse that repeats rather than advances (fails density)
 - Roots where the "divergence" is a synonym (connection/bond/tie — fine
   shades don't stop a scroll)
+
+
+---
+
+## CALIBRATION LOG — operator verdicts on the pilot (2026-07-09)
+
+Approved 7 / rejected 4. Lessons below are BINDING on rating and drafting:
+
+1. **Land on the image, not the sermon.** The operator cut every
+   moralizing summary from approved scripts ("real tenderness asks the
+   strong to be brought low" — deleted). The land closes the pattern;
+   it never explains the moral. If your land begins "So the lesson is"
+   in spirit, cut it.
+2. **No meta-commentary.** "Translators soften it. The text doesn't." —
+   deleted by the operator. Don't posture against translators or
+   traditions unless the translation gap IS the insight (as in slm).
+3. **Directness beats coyness.** "this book's most famous words" became
+   "the Quran's most important words"; the word under discussion got
+   named ("the word Muslim") instead of hinted at. Say "the Quran".
+   Name the subject word with a mention frame. Riddle-hooks that
+   withhold the subject ("Which one?") scored a rejection (#10).
+4. **Structure must resolve into meaning.** The 109 refrain-asymmetry
+   gem was rejected: structurally elegant, but the payoff was pattern
+   appreciation. A gem candidate must answer "what does a person now
+   FEEL or DO differently when reading this verse?" — if the answer is
+   "appreciate the craft", kill it (surprise ≤ 1).
+5. **Every land claim must be corpus-licensed.** "The snare, in the
+   end, holds the one who set it" was rhetorical invention beyond the
+   lexicon; that script was rejected. The land is part of the evidence,
+   not a free rhetorical zone.
+6. **Territory saturation is a kill criterion.** Two scripts in
+   already-approved chapters (107, 110) were rejected as redundant.
+   Before proposing, check approved+uploaded videos' anchor chapters;
+   same-chapter or same-insight-family proposals need a genuinely
+   different angle or die at rating.
+7. **Poetry is the strongest series** (2/2 approved, both co-edited
+   only lightly). Weight it up in round-robin while its inventory lasts.

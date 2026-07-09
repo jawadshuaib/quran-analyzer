@@ -19123,7 +19123,19 @@ def admin_qa_videos_list():
             ).fetchall()]
         except Exception:
             voices = []
-        return jsonify({"videos": rows, "publish_schedule": prefs, "voices": voices})
+        try:
+            candidates = [dict(r) for r in conn.execute(
+                "SELECT id, source_type, source_key, anchor_ref, angle, "
+                "       hook_sketch, self_score, status "
+                "FROM video_candidates "
+                "WHERE status IN ('proposed', 'starred') "
+                "ORDER BY (status='starred') DESC, self_score DESC, id DESC "
+                "LIMIT 20"
+            ).fetchall()]
+        except Exception:
+            candidates = []
+        return jsonify({"videos": rows, "publish_schedule": prefs,
+                        "voices": voices, "candidates": candidates})
     finally:
         conn.close()
 
@@ -19480,6 +19492,34 @@ def qa_video_agent_put(row_id: int):
         conn.close()
 
 
+@app.route("/api/admin/video-candidates/<int:cand_id>", methods=["PATCH"])
+@admin_required
+def admin_video_candidate_patch(cand_id: int):
+    """Backlog panel actions: star an idea (loop drafts it next) or kill it
+    (recorded so the loop never re-proposes it)."""
+    body = request.get_json(silent=True) or {}
+    status = body.get("status")
+    if status not in ("starred", "rejected_score", "proposed"):
+        return jsonify({"error": "bad status"}), 400
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT status FROM video_candidates WHERE id=?", (cand_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        note = (body.get("reason") or "").strip()[:300]
+        conn.execute(
+            "UPDATE video_candidates SET status=?, "
+            "rationale=COALESCE(NULLIF(?, ''), rationale), "
+            "updated_at=datetime('now') WHERE id=?",
+            (status, (f"operator: {note}" if note else ""), cand_id))
+        conn.commit()
+        return jsonify({"ok": True, "id": cand_id, "status": status})
+    finally:
+        conn.close()
+
+
 @app.route("/api/admin/qa-videos/publish-schedule", methods=["PUT"])
 @admin_required
 def admin_qa_publish_schedule_save():
@@ -19618,10 +19658,24 @@ def _qa_publish_tick():
         if _youtube_oauth_failure_count(conn) >= OAUTH_CIRCUIT_BREAKER_THRESHOLD:
             print("[qa-publish] OAuth circuit breaker open — skipping slot")
             return
-        row = conn.execute(
-            "SELECT * FROM qa_videos WHERE status='approved' "
-            "ORDER BY id ASC LIMIT 1"
-        ).fetchone()
+        # Round-robin across series so subscribers get variety: pick the
+        # series whose last upload is oldest (never-uploaded series first,
+        # in cycle order), then the oldest approved script within it.
+        _CYCLE = ["poetry", "root", "exegesis", "qa"]
+        last_up = {r["source_type"]: r["m"] for r in conn.execute(
+            "SELECT source_type, MAX(completed_at) AS m FROM qa_videos "
+            "WHERE status='uploaded' GROUP BY source_type").fetchall()}
+        stocked = [r["source_type"] for r in conn.execute(
+            "SELECT DISTINCT source_type FROM qa_videos WHERE status='approved'"
+        ).fetchall()]
+        stocked.sort(key=lambda t: (last_up.get(t) or "", _CYCLE.index(t)
+                                    if t in _CYCLE else 9))
+        row = None
+        if stocked:
+            row = conn.execute(
+                "SELECT * FROM qa_videos WHERE status='approved' "
+                "AND source_type=? ORDER BY id ASC LIMIT 1", (stocked[0],)
+            ).fetchone()
         if not row:
             return
         rd = dict(row)

@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getQaVideos, renderQaVideo, approveQaVideo, rejectQaVideo,
   saveQaPublishSchedule, fetchQaVideoObjectUrl, editQaVideoScript,
-  mintQaEditToken,
+  mintQaEditToken, patchVideoCandidate,
   type QaVideoItem, type QaPublishSchedule, type QaVideoBeat, type QaVoice,
+  type QaCandidate,
 } from '../../api/admin';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -35,6 +36,7 @@ export default function AdminQaVideos() {
   const [videos, setVideos] = useState<QaVideoItem[]>([]);
   const [schedule, setSchedule] = useState<QaPublishSchedule | null>(null);
   const [voices, setVoices] = useState<QaVoice[]>([]);
+  const [candidates, setCandidates] = useState<QaCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -47,6 +49,7 @@ export default function AdminQaVideos() {
       setVideos(data.videos);
       setSchedule(data.publish_schedule);
       setVoices(data.voices || []);
+      setCandidates(data.candidates || []);
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -138,6 +141,10 @@ export default function AdminQaVideos() {
         />
       )}
 
+      {candidates.length > 0 && (
+        <IdeaBacklog candidates={candidates} onChanged={refresh} />
+      )}
+
       {error && (
         <div className="whitespace-pre-line rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       )}
@@ -157,6 +164,96 @@ export default function AdminQaVideos() {
             .map((v) => (
               <ScriptCard key={v.id} video={v} busy={busyId === v.id} onAct={act} />
             ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Idea backlog: rated candidates awaiting drafting. Star = the loop drafts
+ * it next; kill = recorded so it is never proposed again. Lets the operator
+ * steer the generator before any drafting cost is spent.
+ */
+function IdeaBacklog({
+  candidates,
+  onChanged,
+}: {
+  candidates: QaCandidate[];
+  onChanged: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<number | null>(null);
+
+  async function act(id: number, status: 'starred' | 'rejected_score' | 'proposed', reason?: string) {
+    setBusy(id);
+    try {
+      await patchVideoCandidate(id, status, reason);
+      await onChanged();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between text-left"
+      >
+        <div>
+          <h2 className="text-sm font-semibold text-stone-700">
+            Idea backlog <span className="font-normal text-stone-400">({candidates.length} rated, awaiting drafting)</span>
+          </h2>
+          <p className="text-xs text-stone-400">Star an idea to draft it next. Kill it and it is never proposed again.</p>
+        </div>
+        <span className="text-stone-400">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <ul className="mt-3 space-y-2">
+          {candidates.map((c) => (
+            <li key={c.id} className="flex items-start justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2">
+              <div className="min-w-0 flex-1 text-xs">
+                <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${(SERIES[c.source_type] || SERIES.qa).chip}`}>
+                  {(SERIES[c.source_type] || SERIES.qa).label}
+                </span>
+                <span className="font-semibold text-stone-600">{c.self_score ?? '–'}</span>
+                {c.status === 'starred' && <span className="ml-1 text-amber-500">★</span>}
+                <span className="ml-1.5 text-stone-400">{c.anchor_ref}</span>
+                <p className="mt-0.5 text-stone-600">{c.angle || c.hook_sketch}</p>
+              </div>
+              <div className="flex shrink-0 gap-1.5">
+                {c.status !== 'starred' ? (
+                  <button
+                    onClick={() => act(c.id, 'starred')}
+                    disabled={busy === c.id}
+                    title="Draft this next"
+                    className="rounded-md px-2 py-1 text-xs text-amber-600 hover:bg-amber-50 disabled:opacity-40"
+                  >
+                    ★ Star
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => act(c.id, 'proposed')}
+                    disabled={busy === c.id}
+                    className="rounded-md px-2 py-1 text-xs text-stone-400 hover:bg-stone-100 disabled:opacity-40"
+                  >
+                    Unstar
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    const reason = window.prompt('Why kill this idea? (optional)') || '';
+                    act(c.id, 'rejected_score', reason);
+                  }}
+                  disabled={busy === c.id}
+                  className="rounded-md px-2 py-1 text-xs text-rose-500 hover:bg-rose-50 disabled:opacity-40"
+                >
+                  ✕ Kill
+                </button>
+              </div>
+            </li>
+          ))}
         </ul>
       )}
     </div>
@@ -343,7 +440,15 @@ function ScriptCard({
           {reviewable && !editing && (
             <>
               <ActionBtn label="Approve" busy={busy} onClick={() => onAct(video.id, () => approveQaVideo(video.id))} accent="emerald" />
-              <ActionBtn label="Reject" busy={busy} onClick={() => onAct(video.id, () => rejectQaVideo(video.id))} accent="rose" />
+              <ActionBtn
+                label="Reject"
+                busy={busy}
+                onClick={() => {
+                  const reason = window.prompt('Why reject? (optional — this trains the generator)') || '';
+                  onAct(video.id, () => rejectQaVideo(video.id, reason));
+                }}
+                accent="rose"
+              />
             </>
           )}
           {video.status === 'approved' && (

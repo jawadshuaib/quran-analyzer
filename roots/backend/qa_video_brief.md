@@ -102,6 +102,10 @@ way a good teacher talks, not the way essays are written:
 - Discussing a term AS A WORD is allowed with an explicit mention frame,
   "the word muslim", "the term halal" (and quoted mentions in titles).
   Anachronistic use ("what Islam teaches...") stays banned everywhere.
+- The LAND closes on the image or the pattern, never on a moral summary.
+  No "the lesson is", no "real X asks Y of us". Say "the Quran", not
+  "this book". Name the word under discussion (mention frame) instead
+  of hinting at it.
 - Avoid stock AI cadences ("It's not just X, it's Y", triads for their
   own sake, "here's the thing").
 
