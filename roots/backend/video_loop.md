@@ -26,14 +26,24 @@ every few minutes and must obey every rail below.
    `video_candidates.py submit --source-key <key> --file <draft> --score N --angle "..."`.
 6. **On gate rejection**: fix per the issue text, ≤ 2 repair attempts,
    then leave as rejected_gate and move on (the candidate row records it).
-7. **Persist + sync**: copy the passing draft to
+7. **QUALITY PANEL** (video_quality_panel.md): spawn the five agents as
+   subagents on the gate-passed draft — claim-auditor, calibration-judge,
+   cold-viewer x2, read-aloud, freshness. All adversarial, independent.
+   HARD fails (claims/calibration/freshness) or fatal viewer/read-aloud
+   findings → revise against the findings, re-run failing agents, ≤ 2
+   rounds; still failing → candidate `rejected_quality`, do not bank.
+   Pass → bank with `--quality-report <report.json>` so the verdicts
+   show on the Studio card.
+8. **Persist + sync**: copy the passing draft to
    `qa_video_drafts/<source_key with ':'→'-'>.json`, commit with a one-line
    message, and sync the two tables to prod:
    `./sync_studio_to_prod.sh` — INSERT-ONLY by source_key; NEVER use
    sync_tables_to_prod.sh for these two tables (it REPLACEs by id and
    would clobber operator statuses and edits on prod).
-8. **Ledger**: every ~10 ticks, emit one summary line per series
-   (mined / killed / drafted / queued) so the operator can audit taste.
+9. **Ledger**: every ~10 ticks, emit one summary line per series
+   (mined / killed / drafted / panel-failed / queued) so the operator can
+   audit taste. When the operator rejects a panel-passed script, note in
+   the ledger which agent should have caught it.
 
 ## Rails (absolute)
 

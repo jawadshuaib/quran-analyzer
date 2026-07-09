@@ -292,6 +292,8 @@ def cmd_submit(args) -> int:
             fields["match_snapshot"] = json.dumps(result["match_snapshot"], ensure_ascii=False)
         if source_type == "qa" and str(script.get("qa_id") or "").isdigit():
             fields["qa_id"] = int(script["qa_id"])
+        if args.quality_report:
+            fields["quality_report"] = open(args.quality_report, encoding="utf-8").read()
         vid = PL.upsert_by_source(conn, source_type, args.source_key,
                                   script.get("anchor_ref"), **fields)
         conn.execute(
@@ -354,6 +356,7 @@ def main() -> int:
     p.add_argument("--file", required=True)
     p.add_argument("--angle")
     p.add_argument("--score", type=float)
+    p.add_argument("--quality-report", help="JSON file with the quality panel verdicts")
     p.set_defaults(fn=cmd_submit)
 
     p = sub.add_parser("list", help="show recorded candidates")

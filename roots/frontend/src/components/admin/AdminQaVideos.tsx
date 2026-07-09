@@ -353,6 +353,64 @@ function ScheduleCard({
   );
 }
 
+/**
+ * Quality panel verdicts (video_quality_panel.md): five adversarial agents
+ * ran between the gates and the bank. Chips summarize; expand for findings.
+ */
+function QualityBadges({ reportJson }: { reportJson: string | null }) {
+  const [open, setOpen] = useState(false);
+  if (!reportJson) return null;
+  let report: {
+    overall?: string;
+    agents?: Record<string, { verdict?: string; hook_score?: number; findings?: { quote?: string; problem?: string }[] }>;
+  };
+  try {
+    report = JSON.parse(reportJson);
+  } catch {
+    return null;
+  }
+  if (!report.agents) return null;
+  const LABELS: Record<string, string> = {
+    claim_auditor: 'claims',
+    calibration_judge: 'calibration',
+    cold_viewer_1: 'viewer 1',
+    cold_viewer_2: 'viewer 2',
+    read_aloud: 'read-aloud',
+    freshness: 'freshness',
+  };
+  const entries = Object.entries(report.agents);
+  const notes = entries.flatMap(([k, a]) =>
+    (a.findings || []).map((f) => ({ agent: LABELS[k] || k, ...f })));
+  return (
+    <div className="mt-2">
+      <button onClick={() => setOpen(!open)} className="flex flex-wrap items-center gap-1 text-left">
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-400">panel</span>
+        {entries.map(([k, a]) => (
+          <span
+            key={k}
+            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+              a.verdict === 'pass' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+            }`}
+          >
+            {LABELS[k] || k}{typeof a.hook_score === 'number' ? ` ${a.hook_score}` : ''}
+          </span>
+        ))}
+        {notes.length > 0 && <span className="text-[10px] text-stone-400">{open ? '▾' : `${notes.length} notes ▸`}</span>}
+      </button>
+      {open && notes.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-[11px] text-stone-500">
+          {notes.map((n, i) => (
+            <li key={i}>
+              <span className="font-medium text-stone-600">{n.agent}</span>
+              {n.quote && <span className="text-stone-400"> “{n.quote}”</span>} — {n.problem}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 const BEAT_ACCENT: Record<string, string> = {
   hook: 'bg-amber-100 text-amber-700',
   set: 'bg-sky-100 text-sky-700',
@@ -433,6 +491,7 @@ function ScriptCard({
           {video.error_message && (
             <p className="mt-1 text-xs text-rose-600">{video.error_message}</p>
           )}
+          <QualityBadges reportJson={video.quality_report} />
         </div>
 
         {/* actions */}

@@ -2725,6 +2725,7 @@ export interface QaVideoItem {
   source_key: string | null;
   angle: string | null;
   self_score: number | null;
+  quality_report: string | null;
   youtube_video_id: string | null;
   uploaded_to_youtube: number;
   created_at: string;

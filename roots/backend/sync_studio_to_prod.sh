@@ -44,7 +44,7 @@ updated = {"qa_videos": 0, "video_candidates": 0}
 # Status and review outcome stay prod-owned, always.
 REFRESH = ["title", "theme", "angle", "self_score", "script_json",
            "payload_json", "match_snapshot", "punch_ok", "match_ok",
-           "error_message"]
+           "error_message", "quality_report"]
 for table in ("qa_videos", "video_candidates"):
     cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
     prod = {r[0]: r[1] for r in conn.execute(
