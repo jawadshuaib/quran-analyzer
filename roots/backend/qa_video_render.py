@@ -5,7 +5,9 @@ Thin bridge between the qa_videos table and the Remotion renderer: the
 payload was already compiled AND validated by the gates (qa_video_compile +
 qa_video_match_gate), so this module deliberately does no payload surgery —
 it ships payload_json byte-for-byte to `node scripts/render.mjs`, the same
-subprocess plumbing educational_render_remotion uses. That "render exactly
+subprocess plumbing educational_render_remotion uses. (One sanctioned,
+content-free addition at render time: the outro branding audio bite —
+see render_qa_video.) That "render exactly
 what the gate verified" property is what makes the script↔highlight
 guarantee hold end to end.
 
@@ -75,6 +77,34 @@ def render_qa_video(
         raise QaRenderError(f"row {row_id} has no payload_json — re-run the gate")
 
     payload = json.loads(rd["payload_json"])
+
+    # The ONE sanctioned payload addition: the outro audio bite ("Learn a
+    # bit of the Qur'an every day. Subscribe.") — the same branding clip
+    # the educational pipelines play over the splash. Bank rows usually
+    # carry no pipeline_id, so fall back to any pipeline with a clip
+    # configured. Additive and outro-only: the gate-verified content
+    # slides ship byte-exact, and a missing clip never fails a render.
+    try:
+        import educational_render_remotion as _ER
+        candidates = [rd.get("pipeline_id")] if rd.get("pipeline_id") else []
+        candidates += [r["id"] for r in conn.execute(
+            "SELECT id FROM educational_pipelines "
+            "WHERE outro_audio_filename IS NOT NULL AND outro_audio_filename != '' "
+            "ORDER BY id"
+        ).fetchall()]
+        outro_fname, outro_dur = None, 0.0
+        for pid in candidates:  # first pipeline whose clip file actually exists
+            outro_fname, outro_dur = _ER._stage_outro_audio(pid, conn)
+            if outro_fname:
+                break
+        if outro_fname:
+            for s in payload.get("slides", []):
+                if s.get("type") == "outro":
+                    s["outroAudioFile"] = outro_fname
+                    if outro_dur > 0:
+                        s["durationSec"] = max(s.get("durationSec", 3), outro_dur + 0.5)
+    except Exception:
+        pass
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     out_filename = f"qa-{row_id:06d}-short.mp4"
