@@ -1,0 +1,35 @@
+{
+ "anchor_ref": "12:108",
+ "title": "Why does the word for 'partners' come from a hunter's snare?",
+ "theme": "root-srk-snare",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One word in this book began as a hunter's snare for birds. Which one?"
+  },
+  {
+   "kind": "set",
+   "narration": "It is the word this verse sets the speaker against: I am not of those who join others as partners with God. Partners. Co-sharers. The gravest charge in the book.",
+   "verse": {
+    "ref": "12:108",
+    "highlight_words_ar": [
+     "الْمُشْرِكِينَ"
+    ],
+    "highlight_phrase_en": "those who join [others] as partners"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "Long before, the same root named tangible things that catch and interweave. In Zuhayr's verse, ash-sharak is the fowler's snare — the net whose crossing strands cut a sandgrouse off from her sister. It also named the interlacing tracks of a road: paths that share one route.",
+   "poetry": {
+    "arabic": "كَأَنَّها مِن قَطا الأَجبابِ حَلَّأَها وِردٌ وَأَفرَدَ عَنها أُختَها الشَرَكُ",
+    "english": "As though she were one of the sandgrouse of al-Ajbab, whom a watering-place had turned away — and the snare had cut her off from her sister.",
+    "poet": "Zuhayr ibn Abi Sulma"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "Sharing, interweaving, entangling — strands that cross and catch. The book keeps that picture and aims it at the one place sharing cannot go: giving the One a co-sharer. The snare, in the end, holds the one who set it."
+  }
+ ]
+}

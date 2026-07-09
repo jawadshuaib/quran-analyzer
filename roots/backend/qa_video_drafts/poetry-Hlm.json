@@ -1,0 +1,35 @@
+{
+ "anchor_ref": "2:225",
+ "title": "How did Arabia's highest virtue become a name of God?",
+ "theme": "poetry-hilm-theologization",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "What was the highest praise in old Arabia? Not brave. Not generous. Something quieter."
+  },
+  {
+   "kind": "poetry",
+   "narration": "They called it hilm: the self-mastery of the man who holds his anger and does not rush to vengeance. Zuhayr paints the ideal chief in one stroke — forbearing in the assembly, fierce on the day of battle. A discipline, the poets said, you must school yourself into.",
+   "poetry": {
+    "arabic": "حُلَماءُ في النادي إِذا ما جِئتَهُم جُهَلاءُ يَومَ عَجاجَةٍ وَلِقاءِ",
+    "english": "forbearing (ḥulamāʾ) in the assembly, fierce (juhalāʾ) on the day of battle-dust",
+    "poet": "Zuhayr ibn Abi Sulma"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran inherits the virtue whole — and then moves its center of gravity. Here, the one who does not rush to punish rash words is God Himself: haleem. Forbearing. The chieftain's composure has become a divine name.",
+   "verse": {
+    "ref": "2:225",
+    "highlight_words_ar": [
+     "حَلِيمٌ"
+    ],
+    "highlight_phrase_en": "Forbearing"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The poets kept forbearance while honor allowed and set it aside when honor demanded blood. Named of God, it loses that expiry date — restraint, not as strategy, but as who He is."
+  }
+ ]
+}

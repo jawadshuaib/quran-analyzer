@@ -1,0 +1,39 @@
+{
+ "anchor_ref": "109:4",
+ "title": "Why does one line in this chapter refuse to repeat?",
+ "theme": "gem-refrain-asymmetry",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "This chapter repeats itself word for word — except once. Can you hear the change?"
+  },
+  {
+   "kind": "set",
+   "narration": "The lines addressed to the other side are a frozen refrain: verse three and verse five are the identical sentence, repeated letter for letter. But the speaker's own lines refuse to hold still."
+  },
+  {
+   "kind": "contrast",
+   "narration": "First: I do not serve what you serve — present tense, this moment. Then the line that breaks the symmetry: nor am I one who serves what you HAVE served — reaching back across the whole past. Their posture is photographed twice, unchanged. His denial moves through time.",
+   "verses": [
+    {
+     "ref": "109:2",
+     "highlight_words_ar": [
+      "تَعْبُدُونَ"
+     ],
+     "highlight_phrase_en": "what you serve"
+    },
+    {
+     "ref": "109:4",
+     "highlight_words_ar": [
+      "عَبَدتُّمْ"
+     ],
+     "highlight_phrase_en": "what you have served"
+    }
+   ]
+  },
+  {
+   "kind": "land",
+   "narration": "One side is pinned to a single unchanging stance. The other side's refusal covers the present and the entire settled past. By the last verse — to you your way, to me mine — the separation is already total. Grammar sealed it."
+  }
+ ]
+}

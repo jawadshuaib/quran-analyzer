@@ -1,0 +1,46 @@
+{
+ "anchor_ref": "10:72",
+ "title": "Why do translators leave this famous word untranslated?",
+ "theme": "root-slm-verb-not-name",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One of this book's most famous words is almost never translated. What does it actually say?"
+  },
+  {
+   "kind": "set",
+   "narration": "Most translations carry it straight over as a name. But listen to how this verse renders it: I have been commanded to be among those who submit. A verb. Something a person does.",
+   "verse": {
+    "ref": "10:72",
+    "highlight_words_ar": [
+     "الْمُسْلِمِينَ"
+    ],
+    "highlight_phrase_en": "those who submit"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is seen lam meem. In the oldest poetry every branch grows from one kernel: wholeness. A warrior returns saalim — safe, intact. A sound horse is saleem — flawless. And handing something over, giving it up whole, is the same root's verb.",
+   "root": {
+    "arabic": "س ل م",
+    "label": "s-l-m",
+    "meaning": "wholeness, safety, peace — and the handing-over of a thing, whole"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Now hear its sister in this verse: when the ignorant address them, they say — salaaman. Peace. The famous name and the greeting of peace are one root: to hand yourself over whole, and to be whole.",
+   "verse": {
+    "ref": "25:63",
+    "highlight_words_ar": [
+     "سَلَمًا"
+    ],
+    "highlight_phrase_en": "peace"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "Not a label you inherit. A motion you make — giving yourself over, whole, and finding wholeness on the other side of it."
+  }
+ ]
+}
