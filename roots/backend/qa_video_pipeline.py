@@ -36,7 +36,14 @@ def _drafted_qa_ids() -> set[int]:
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS qa_videos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    qa_id INTEGER NOT NULL,
+    -- Studio model (2026-07): the bank serves FOUR series, not just Q&A.
+    -- qa_id is set only for source_type='qa'; source_key is the universal
+    -- dedup handle ('qa:5768', 'exegesis:1234', 'root:Slw', 'poetry:rHm').
+    qa_id INTEGER,
+    source_type TEXT NOT NULL DEFAULT 'qa',
+    source_key TEXT,
+    angle TEXT,
+    self_score REAL,
     anchor_ref TEXT NOT NULL,
     theme TEXT,
     title TEXT,
@@ -67,14 +74,56 @@ CREATE TABLE IF NOT EXISTS qa_videos (
     created_at TEXT DEFAULT (datetime('now')),
     completed_at TEXT,
     pipeline_id INTEGER,
-    UNIQUE(qa_id)
+    rendering INTEGER DEFAULT 0,
+    edit_token_hash TEXT,
+    edit_token_expires TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_qa_videos_status ON qa_videos(status);
 CREATE INDEX IF NOT EXISTS idx_qa_videos_qa ON qa_videos(qa_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_qa_videos_source_key ON qa_videos(source_key);
+
+-- The idea layer: mined candidates with self-ratings. This is the
+-- generation loop's MEMORY — rejected ideas stay recorded (with the
+-- rationale) so they are never re-proposed.
+CREATE TABLE IF NOT EXISTS video_candidates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT NOT NULL,
+    source_key TEXT NOT NULL UNIQUE,
+    anchor_ref TEXT,
+    angle TEXT,
+    hook_sketch TEXT,
+    self_score REAL,
+    rationale TEXT,
+    status TEXT DEFAULT 'proposed',  -- proposed|drafted|rejected_score|rejected_gate|duplicate|starred
+    video_id INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_video_candidates_status ON video_candidates(status);
 """
 
 
 def ensure_tables(conn) -> None:
+    # One-time rebuild from the legacy Q&A-only shape (qa_id NOT NULL +
+    # UNIQUE(qa_id)) to the studio shape (qa_id nullable, source_key is
+    # the universal dedup handle). SQLite can't ALTER constraints, so:
+    # create the new table, copy the intersection of columns, swap.
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE name='qa_videos' AND type='table'"
+    ).fetchone()
+    if row and ("UNIQUE(qa_id)" in row[0] or "qa_id INTEGER NOT NULL" in row[0]):
+        old_cols = [r[1] for r in conn.execute("PRAGMA table_info(qa_videos)").fetchall()]
+        conn.execute("ALTER TABLE qa_videos RENAME TO qa_videos_legacy")
+        conn.executescript(SCHEMA)
+        new_cols = [r[1] for r in conn.execute("PRAGMA table_info(qa_videos)").fetchall()]
+        common = [c for c in old_cols if c in new_cols]
+        collist = ", ".join(common)
+        conn.execute(
+            f"INSERT INTO qa_videos ({collist}) SELECT {collist} FROM qa_videos_legacy"
+        )
+        conn.execute("DROP TABLE qa_videos_legacy")
+        conn.commit()
+
     conn.executescript(SCHEMA)
     # Migrations for columns added after the first deploy (CREATE IF NOT
     # EXISTS never alters an existing table).
@@ -88,6 +137,19 @@ def ensure_tables(conn) -> None:
         conn.execute("ALTER TABLE qa_videos ADD COLUMN edit_token_hash TEXT")
     if "edit_token_expires" not in cols:
         conn.execute("ALTER TABLE qa_videos ADD COLUMN edit_token_expires TEXT")
+    for col, ddl in (("source_type", "TEXT NOT NULL DEFAULT 'qa'"),
+                     ("source_key", "TEXT"), ("angle", "TEXT"), ("self_score", "REAL")):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE qa_videos ADD COLUMN {col} {ddl}")
+    # Backfill the universal dedup handle for legacy Q&A rows, then
+    # enforce it going forward.
+    conn.execute(
+        "UPDATE qa_videos SET source_key='qa:'||qa_id "
+        "WHERE source_key IS NULL AND qa_id IS NOT NULL"
+    )
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_qa_videos_source_key ON qa_videos(source_key)"
+    )
     # Script-first review model (2026-07): humans review SCRIPTS, not
     # renders — the legacy 'rendered' status folds into gate_passed (the
     # rendered file, when present, is just an optional preview).
@@ -137,23 +199,35 @@ def sample_candidates(conn, limit: int = 20, exclude_built: bool = True) -> list
     return out
 
 
-def upsert_video(conn, qa_id: int, anchor_ref: str, **fields) -> int:
+def upsert_by_source(conn, source_type: str, source_key: str,
+                     anchor_ref: str, **fields) -> int:
+    """Universal bank upsert — one row per source_key across all series."""
     ensure_tables(conn)
-    row = conn.execute("SELECT id FROM qa_videos WHERE qa_id=?", (qa_id,)).fetchone()
-    cols = {"anchor_ref": anchor_ref, **fields}
+    row = conn.execute(
+        "SELECT id FROM qa_videos WHERE source_key=?", (source_key,)
+    ).fetchone()
+    cols = {"source_type": source_type, "anchor_ref": anchor_ref, **fields}
     if row:
         sets = ", ".join(f"{k}=?" for k in cols)
-        conn.execute(f"UPDATE qa_videos SET {sets} WHERE qa_id=?",
-                     (*cols.values(), qa_id))
+        conn.execute(f"UPDATE qa_videos SET {sets} WHERE source_key=?",
+                     (*cols.values(), source_key))
         vid = row["id"]
     else:
-        keys = ["qa_id"] + list(cols.keys())
+        keys = ["source_key"] + list(cols.keys())
         ph = ", ".join("?" for _ in keys)
         conn.execute(f"INSERT INTO qa_videos ({', '.join(keys)}) VALUES ({ph})",
-                     (qa_id, *cols.values()))
-        vid = conn.execute("SELECT id FROM qa_videos WHERE qa_id=?", (qa_id,)).fetchone()["id"]
+                     (source_key, *cols.values()))
+        vid = conn.execute(
+            "SELECT id FROM qa_videos WHERE source_key=?", (source_key,)
+        ).fetchone()["id"]
     conn.commit()
     return vid
+
+
+def upsert_video(conn, qa_id: int, anchor_ref: str, **fields) -> int:
+    """Legacy Q&A-series wrapper around upsert_by_source."""
+    return upsert_by_source(conn, "qa", f"qa:{qa_id}", anchor_ref,
+                            qa_id=qa_id, **fields)
 
 
 def set_status(conn, qa_id: int, status: str, error: str | None = None) -> None:

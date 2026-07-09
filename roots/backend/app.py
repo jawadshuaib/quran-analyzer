@@ -19104,6 +19104,7 @@ def admin_qa_videos_list():
         rows = [dict(r) for r in conn.execute(
             "SELECT id, qa_id, anchor_ref, title, theme, status, filename, "
             "       file_size, punch_ok, match_ok, error_message, rendering, "
+            "       source_type, source_key, angle, self_score, "
             "       youtube_video_id, uploaded_to_youtube, created_at, "
             "       completed_at, script_json "
             "FROM qa_videos ORDER BY id DESC"

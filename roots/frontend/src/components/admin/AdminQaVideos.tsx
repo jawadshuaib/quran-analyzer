@@ -8,6 +8,15 @@ import {
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// The four Studio series. Every card carries its source chip; the tabs
+// filter by series.
+const SERIES: Record<string, { label: string; chip: string }> = {
+  qa: { label: 'Q&A', chip: 'bg-sky-50 text-sky-600 border border-sky-200' },
+  exegesis: { label: 'Gem', chip: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  root: { label: 'Roots', chip: 'bg-violet-50 text-violet-600 border border-violet-200' },
+  poetry: { label: 'Poetry', chip: 'bg-orange-50 text-orange-700 border border-orange-200' },
+};
+
 const STATUS_STYLE: Record<string, string> = {
   gate_passed: 'bg-sky-100 text-sky-700',
   approved: 'bg-emerald-100 text-emerald-700',
@@ -29,6 +38,7 @@ export default function AdminQaVideos() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [seriesFilter, setSeriesFilter] = useState<string>('all');
   const pollRef = useRef<number | undefined>(undefined);
 
   const refresh = useCallback(async () => {
@@ -83,9 +93,10 @@ export default function AdminQaVideos() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-stone-800">Q&amp;A Video Bank</h1>
+        <h1 className="text-xl font-semibold text-stone-800">Video Studio</h1>
         <p className="mt-1 text-sm text-stone-500">
-          Read the script, edit inline if needed (every edit re-runs the
+          Scripts from four sources — Q&amp;A, exegesis gems, root analysis,
+          pre-Islamic poetry. Read, edit inline (every edit re-runs the
           gates), approve — approved scripts render and publish themselves
           on schedule.
         </p>
@@ -95,6 +106,24 @@ export default function AdminQaVideos() {
               {s}: {n}
             </span>
           ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+          {['all', ...Object.keys(SERIES)].map((key) => {
+            const n = key === 'all' ? videos.length
+              : videos.filter((v) => (v.source_type || 'qa') === key).length;
+            const active = seriesFilter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setSeriesFilter(key)}
+                className={`rounded-md px-2.5 py-1 font-medium transition-colors ${
+                  active ? 'bg-stone-800 text-white' : 'bg-stone-100 text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                {key === 'all' ? 'All' : SERIES[key].label} ({n})
+              </button>
+            );
+          })}
         </div>
       </header>
 
@@ -123,9 +152,11 @@ export default function AdminQaVideos() {
         </p>
       ) : (
         <ul className="space-y-4">
-          {videos.map((v) => (
-            <ScriptCard key={v.id} video={v} busy={busyId === v.id} onAct={act} />
-          ))}
+          {videos
+            .filter((v) => seriesFilter === 'all' || (v.source_type || 'qa') === seriesFilter)
+            .map((v) => (
+              <ScriptCard key={v.id} video={v} busy={busyId === v.id} onAct={act} />
+            ))}
         </ul>
       )}
     </div>
@@ -284,7 +315,10 @@ function ScriptCard({
                 rendering…
               </span>
             )}
-            <span className="text-[11px] text-stone-400">#{video.id} · {video.anchor_ref} · qa {video.qa_id}</span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${(SERIES[video.source_type || 'qa'] || SERIES.qa).chip}`}>
+              {(SERIES[video.source_type || 'qa'] || SERIES.qa).label}
+            </span>
+            <span className="text-[11px] text-stone-400">#{video.id} · {video.anchor_ref}</span>
             <span className="text-[11px] text-emerald-600">gates ✓</span>
             {video.filename && !isRendering && (
               <span className="text-[11px] text-stone-400">preview rendered</span>

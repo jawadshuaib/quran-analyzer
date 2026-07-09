@@ -171,7 +171,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   },
   {
     href: '/admin/qa-videos',
-    label: 'Q&A Videos',
+    label: 'Video Studio',
     description: 'Pre-generated shorts bank: watch rendered videos, approve or reject; the scheduler publishes only approved ones.',
     matches: (r) => r === 'qa-videos',
   },

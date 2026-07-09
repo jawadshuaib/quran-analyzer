@@ -2721,6 +2721,10 @@ export interface QaVideoItem {
   match_ok: number | null;
   error_message: string | null;
   rendering: number;
+  source_type: string;
+  source_key: string | null;
+  angle: string | null;
+  self_score: number | null;
   youtube_video_id: string | null;
   uploaded_to_youtube: number;
   created_at: string;
