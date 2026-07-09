@@ -85,6 +85,18 @@ def precheck(conn, script: dict, payload: dict, *, cited_refs: list[str] | None 
     if m:
         issues.append(f"post-Quranic terminology: {m.group(0)!r} (render Arabic terms transliterated + glossed)")
 
+    # Spoken-style check (operator rule, 2026-07-09): the narration is
+    # SPEECH — it is read aloud and shown as captions. Em/en dashes and
+    # colon/semicolon constructions are written-register tics (and read
+    # as AI prose); a voice can't say them. Titles are exempt (not spoken).
+    for ch, name in (("\u2014", "em-dash"), ("\u2013", "en-dash"),
+                     (":", "colon"), (";", "semicolon")):
+        n = narration.count(ch)
+        if n:
+            issues.append(
+                f"written-register punctuation in narration: {n}x {name} — "
+                f"rewrite as speech (short sentences, no {name}s)")
+
     if (script.get("anchor_ref") or "") != "39:42":
         low = narration.lower()
         leaked = next((fp for fp in _EXEMPLAR_FINGERPRINTS if fp.lower() in low), None)

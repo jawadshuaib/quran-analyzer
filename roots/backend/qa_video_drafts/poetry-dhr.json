@@ -5,11 +5,11 @@
  "beats": [
   {
    "kind": "hook",
-   "narration": "Before this book, what destroyed every human life? Arabia's poets had one answer: Time."
+   "narration": "Before this book, what destroyed every human life? Arabia's poets had one answer. Time."
   },
   {
    "kind": "poetry",
-   "narration": "In the poets' mouths, Time — ad-dahr — was never a calendar. It was a power. Tarafa watches life as a treasure that wanes each night. Antara addresses Time like a person. An-Nabigha gives it claws. A blind fate that destroys everyone and answers to no one.",
+   "narration": "In the poets' mouths, Time, ad-dahr, was never a calendar. It was a power. Tarafa watches life as a treasure that wanes each night, and what Time diminishes must run out.",
    "poetry": {
     "arabic": "أَرى العَيشَ كَنزاً ناقِصاً كُلَّ لَيلَةٍ وَما تَنقُصِ الأَيّامُ وَالدَهرُ يَنفَدِ",
     "english": "life is a treasure that wanes each night; what the days and Time diminish must run out",
@@ -17,24 +17,42 @@
    }
   },
   {
+   "kind": "poetry",
+   "narration": "Antara goes further. He addresses Time like a person. O Time, spare me nothing.",
+   "poetry": {
+    "arabic": "يا دَهرُ لا تُبقِ عَلَيَّ فَقَد دَنا ما كُنتُ أَطلُبُ قَبلَ ذا وَأُريدُ",
+    "english": "O Time, spare me nothing! for what I long sought has drawn near",
+    "poet": "Antara ibn Shaddad"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "And an-Nabigha gives it claws. Whom Time hunts, its claws overtake. A blind fate that destroys everyone and answers to no one.",
+   "poetry": {
+    "arabic": "مَن يَطلِبِ الدَهرُ تُدرِكهُ مَخالِبُهُ وَالدَهرُ بِالوِترِ ناجٍ غَيرُ مَطلوبِ",
+    "english": "whom Time hunts, its claws overtake; Time takes its vengeance and is never itself pursued",
+    "poet": "an-Nabigha adh-Dhubyani"
+   }
+  },
+  {
    "kind": "turn",
-   "narration": "Then one verse quotes that whole creed back — in the deniers' own mouths: nothing destroys us but Time. And answers in the same breath: of that they have no knowledge. They only assume.",
+   "narration": "Then one verse quotes that whole creed back, in the deniers' own mouths. Nothing destroys us but Time. And it answers in the same breath. Of that they have no knowledge. They only assume.",
    "verse": {
     "ref": "45:24",
     "highlight_words_ar": [
      "يُهْلِكُنَا إِلَّا الدَّهْرُ"
     ],
-    "highlight_phrase_en": "nothing makes us perish except time",
     "word_indices": [
      10,
      11,
      12
-    ]
+    ],
+    "highlight_phrase_en": "nothing makes us perish except time"
    }
   },
   {
    "kind": "land",
-   "narration": "The poets' sovereign destroyer, demoted in a single verse — from the power that hunts every life to a mere stretch of duration in the hand of the One who gives life and death."
+   "narration": "The poets' sovereign destroyer, demoted in a single verse. From the power that hunts every life to a mere stretch of duration, in the hand of the One who gives life and death."
   }
  ]
 }

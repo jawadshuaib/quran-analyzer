@@ -88,6 +88,22 @@ For each verse beat you name the word(s) to light up on screen:
 
 ---
 
+## WRITE LIKE SPEECH (the narration is read aloud)
+
+Every narration is spoken by a voice and shown as captions. Write it the
+way a good teacher talks, not the way essays are written:
+
+- **No em-dashes or en-dashes** in narration. No colons, no semicolons.
+  The gate rejects them. Use short sentences instead. (Titles are exempt.)
+- Read every beat aloud before submitting. If a sentence needs
+  punctuation to make sense, it will fail as audio. Rewrite it.
+- Contractions are welcome. Rhetorical questions are welcome. Fragments
+  are fine when a speaker would actually pause there.
+- Avoid stock AI cadences ("It's not just X, it's Y", triads for their
+  own sake, "here's the thing").
+
+---
+
 ## DYNAMIC SLIDES — pick the visual that fits the insight
 
 Beyond plain verse beats, three optional beat kinds break the

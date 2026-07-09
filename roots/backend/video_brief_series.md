@@ -50,6 +50,11 @@ theologization, reassignment, elevation…).
 - The `poetry` beat is MANDATORY — the bayt VERBATIM from the
   comparison's quoted lines (the gate corpus-checks it; composing or
   editing a bayt is impossible). Include english + poet when present.
+- **EVIDENCE RULE: every poet or line the narration references must be
+  ON SCREEN.** If the narration mentions three poets, the script carries
+  three consecutive `poetry` beats, one bayt each, narration split so
+  each line is spoken over its own slide. Never describe a quote the
+  viewer can't see.
 - Standard order: hook → poetry (the world before) → verse (the move) →
   land. The root beat is optional garnish when letters help the viewer
   track the word across the bayt and the verse.

@@ -39,22 +39,40 @@ import json, sqlite3
 data = json.load(open('/tmp/studio_sync_payload.json'))
 conn = sqlite3.connect('/app/data/quran.db')
 inserted = {"qa_videos": 0, "video_candidates": 0}
+updated = {"qa_videos": 0, "video_candidates": 0}
+# Content columns a draft refresh may update on an UNREVIEWED prod row.
+# Status and review outcome stay prod-owned, always.
+REFRESH = ["title", "theme", "angle", "self_score", "script_json",
+           "payload_json", "match_snapshot", "punch_ok", "match_ok",
+           "error_message"]
 for table in ("qa_videos", "video_candidates"):
     cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
-    existing = {r[0] for r in conn.execute(
-        f"SELECT source_key FROM {table} WHERE source_key IS NOT NULL").fetchall()}
+    prod = {r[0]: r[1] for r in conn.execute(
+        f"SELECT source_key, {'status' if 'status' in cols else 'NULL'} "
+        f"FROM {table} WHERE source_key IS NOT NULL").fetchall()}
     for row in data[table]:
         key = row.get("source_key")
-        if not key or key in existing:
-            continue                      # INSERT-ONLY: never touch prod rows
-        common = [c for c in row if c in cols]
-        conn.execute(
-            f"INSERT INTO {table} ({', '.join(common)}) "
-            f"VALUES ({', '.join('?' * len(common))})",
-            [row[c] for c in common])
-        inserted[table] += 1
+        if not key:
+            continue
+        if key not in prod:
+            common = [c for c in row if c in cols]
+            conn.execute(
+                f"INSERT INTO {table} ({', '.join(common)}) "
+                f"VALUES ({', '.join('?' * len(common))})",
+                [row[c] for c in common])
+            inserted[table] += 1
+        elif table == "qa_videos" and prod[key] == "gate_passed" \
+                and row.get("status") == "gate_passed":
+            # Draft refresh on an unreviewed script: update content, clear
+            # any stale preview render.
+            sets = [c for c in REFRESH if c in cols and c in row]
+            conn.execute(
+                f"UPDATE {table} SET {', '.join(f'{c}=?' for c in sets)}, "
+                f"filename=NULL, file_size=NULL WHERE source_key=?",
+                [row[c] for c in sets] + [key])
+            updated[table] += 1
 conn.commit()
-print(json.dumps(inserted))
+print(json.dumps({"inserted": inserted, "updated": updated}))
 PYEOF
 scp -o BatchMode=yes /tmp/studio_sync_apply.py $HOST:/tmp/studio_sync_apply.py >/dev/null
 

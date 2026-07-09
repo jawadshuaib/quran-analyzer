@@ -5,11 +5,11 @@
  "beats": [
   {
    "kind": "hook",
-   "narration": "This chapter calls God 'One' — but avoids the everyday Arabic word for one. Why?"
+   "narration": "This chapter calls God 'One'. But it avoids the everyday Arabic word for one. Why?"
   },
   {
    "kind": "set",
-   "narration": "Arabic has an ordinary word for one: wahid. The one that starts a count — one, two, three. The Quran uses it freely: your god is one god.",
+   "narration": "Arabic has an ordinary word for one. Wahid. The one that starts a count. One, two, three. The Quran uses it freely. Your god is one god.",
    "verse": {
     "ref": "2:163",
     "highlight_words_ar": [
@@ -20,7 +20,7 @@
   },
   {
    "kind": "contrast",
-   "narration": "But this chapter chooses a different word: ahad. Elsewhere, ahad lives inside denial — not anyone, no one at all. And watch the chapter's own frame: it opens by calling God ahad, and it closes by denying that any ahad stands beside Him. The same word, both doors.",
+   "narration": "But this chapter chooses a different word. Ahad. Everywhere else, ahad lives inside denial. Not anyone. No one at all. And watch the chapter's own frame. It opens by calling God ahad, and it closes by denying that any ahad stands beside Him. The same word guards both doors.",
    "verses": [
     {
      "ref": "112:1",
@@ -40,7 +40,7 @@
   },
   {
    "kind": "land",
-   "narration": "Wahid would have counted Him — one, as against many. Ahad clears the count of every rival before it begins. The opening title is read backward from the chapter's own last line."
+   "narration": "Wahid would have counted Him, one as against many. Ahad clears the count of every rival before it begins. The opening title is read backward from the chapter's own last line."
   }
  ]
 }
