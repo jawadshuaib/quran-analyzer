@@ -29,7 +29,9 @@ every few minutes and must obey every rail below.
 7. **Persist + sync**: copy the passing draft to
    `qa_video_drafts/<source_key with ':'→'-'>.json`, commit with a one-line
    message, and sync the two tables to prod:
-   `./sync_tables_to_prod.sh qa_videos && ./sync_tables_to_prod.sh video_candidates`.
+   `./sync_studio_to_prod.sh` — INSERT-ONLY by source_key; NEVER use
+   sync_tables_to_prod.sh for these two tables (it REPLACEs by id and
+   would clobber operator statuses and edits on prod).
 8. **Ledger**: every ~10 ticks, emit one summary line per series
    (mined / killed / drafted / queued) so the operator can audit taste.
 
