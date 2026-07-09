@@ -19134,8 +19134,17 @@ def admin_qa_videos_list():
             ).fetchall()]
         except Exception:
             candidates = []
+        try:
+            lessons = [dict(r) for r in conn.execute(
+                "SELECT id, lesson_key, lesson, source, evidence, status "
+                "FROM studio_lessons "
+                "ORDER BY (status='flagged') DESC, (status='active') DESC, id"
+            ).fetchall()]
+        except Exception:
+            lessons = []
         return jsonify({"videos": rows, "publish_schedule": prefs,
-                        "voices": voices, "candidates": candidates})
+                        "voices": voices, "candidates": candidates,
+                        "lessons": lessons})
     finally:
         conn.close()
 
@@ -19516,6 +19525,36 @@ def admin_video_candidate_patch(cand_id: int):
             (status, (f"operator: {note}" if note else ""), cand_id))
         conn.commit()
         return jsonify({"ok": True, "id": cand_id, "status": status})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/studio-lessons/<int:lesson_id>", methods=["PATCH"])
+@admin_required
+def admin_studio_lesson_patch(lesson_id: int):
+    """Operator sovereignty over the learned doctrine: retire a lesson
+    that over-generalized, edit one that is half-right, reactivate a
+    retired one. Prod is truth for existing lessons' text and status."""
+    body = request.get_json(silent=True) or {}
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT id FROM studio_lessons WHERE id=?", (lesson_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        sets, vals = [], []
+        if body.get("status") in ("active", "retired", "flagged"):
+            sets.append("status=?"); vals.append(body["status"])
+        if isinstance(body.get("lesson"), str) and body["lesson"].strip():
+            sets.append("lesson=?"); vals.append(body["lesson"].strip())
+        if not sets:
+            return jsonify({"error": "nothing to update"}), 400
+        sets.append("updated_at=datetime('now')")
+        conn.execute(f"UPDATE studio_lessons SET {', '.join(sets)} WHERE id=?",
+                     (*vals, lesson_id))
+        conn.commit()
+        return jsonify({"ok": True, "id": lesson_id})
     finally:
         conn.close()
 

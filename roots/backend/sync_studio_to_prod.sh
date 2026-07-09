@@ -26,9 +26,15 @@ def dump(table, key):
         r.pop('edit_token_hash', None)    # tokens are per-environment
         r.pop('edit_token_expires', None)
     return rows
+def dump_lessons():
+    rows = [dict(r) for r in conn.execute("SELECT * FROM studio_lessons").fetchall()]
+    for r in rows:
+        r.pop('id', None)
+    return rows
 print(json.dumps({
     "qa_videos": dump("qa_videos", "source_key"),
     "video_candidates": dump("video_candidates", "source_key"),
+    "studio_lessons": dump_lessons(),
 }, ensure_ascii=False))
 PYEOF
 
@@ -45,6 +51,31 @@ updated = {"qa_videos": 0, "video_candidates": 0}
 REFRESH = ["title", "theme", "angle", "self_score", "script_json",
            "payload_json", "match_snapshot", "punch_ok", "match_ok",
            "error_message", "quality_report"]
+# Lessons: INSERT new keys only — prod owns text+status of existing keys.
+# Bootstrap the table when the app migration hasn't landed there yet.
+conn.execute("""CREATE TABLE IF NOT EXISTS studio_lessons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lesson_key TEXT NOT NULL UNIQUE,
+    lesson TEXT NOT NULL,
+    source TEXT NOT NULL,
+    evidence TEXT,
+    status TEXT DEFAULT 'active',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT)""")
+inserted["studio_lessons"] = 0
+lcols = {r[1] for r in conn.execute("PRAGMA table_info(studio_lessons)").fetchall()}
+if lcols:
+    have = {r[0] for r in conn.execute("SELECT lesson_key FROM studio_lessons").fetchall()}
+    for row in data.get("studio_lessons", []):
+        key = row.get("lesson_key")
+        if not key or key in have:
+            continue
+        common = [c for c in row if c in lcols]
+        conn.execute(f"INSERT INTO studio_lessons ({', '.join(common)}) "
+                     f"VALUES ({', '.join('?' * len(common))})",
+                     [row[c] for c in common])
+        inserted["studio_lessons"] += 1
+
 for table in ("qa_videos", "video_candidates"):
     cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
     prod = {r[0]: r[1] for r in conn.execute(

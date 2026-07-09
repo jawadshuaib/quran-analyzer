@@ -27,7 +27,8 @@ the end, holds the one who set it" — no license, fail). Pure imagery
 that asserts nothing is fine.
 
 ### 2. calibration-judge  (HARD)
-Input: script + the CALIBRATION LOG section of video_rubric.md.
+Input: script + the CALIBRATION LOG section of video_rubric.md + the
+ACTIVE learned lessons (`python3 video_lessons.py active`).
 Task: check each calibration rule as a checklist. Sermon-landing,
 translator meta-commentary, coyness where directness is possible,
 structure that never resolves into felt meaning, unlicensed land
@@ -96,3 +97,20 @@ chapter with a genuinely different insight = pass with a note.
 - The operator's approve/reject on panel-passed scripts is the panel's
   own calibration signal — when the operator rejects a panel-passed
   script, the loop's ledger must note which agent should have caught it.
+
+## Distiller (runs in the loop, step 9)
+
+A separate agent that turns verdicts into doctrine. Inputs: new operator
+verdicts since last run, draft-vs-approved script diffs (git holds the
+drafts, prod holds the operator's finals), panel findings, and the
+current ledger (`video_lessons.py list`). Output: `add` / `flag` calls.
+
+Rules:
+- Every lesson cites evidence (the CLI rejects evidence-free adds).
+- STRENGTHEN an existing lesson before minting a new one; the CLI
+  enforces a hard cap of 15 active lessons.
+- When a new approval contradicts an active lesson, FLAG the lesson
+  (never silently retire it) — the operator reviews flags in the Studio.
+- One strong lesson beats five vague ones. Prefer lessons that name a
+  checkable pattern ("hook templates must vary across a series") over
+  taste adjectives ("be more engaging").

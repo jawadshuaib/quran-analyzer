@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getQaVideos, renderQaVideo, approveQaVideo, rejectQaVideo,
   saveQaPublishSchedule, fetchQaVideoObjectUrl, editQaVideoScript,
-  mintQaEditToken, patchVideoCandidate,
+  mintQaEditToken, patchVideoCandidate, patchStudioLesson,
   type QaVideoItem, type QaPublishSchedule, type QaVideoBeat, type QaVoice,
-  type QaCandidate,
+  type QaCandidate, type StudioLesson,
 } from '../../api/admin';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -37,6 +37,7 @@ export default function AdminQaVideos() {
   const [schedule, setSchedule] = useState<QaPublishSchedule | null>(null);
   const [voices, setVoices] = useState<QaVoice[]>([]);
   const [candidates, setCandidates] = useState<QaCandidate[]>([]);
+  const [lessons, setLessons] = useState<StudioLesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -50,6 +51,7 @@ export default function AdminQaVideos() {
       setSchedule(data.publish_schedule);
       setVoices(data.voices || []);
       setCandidates(data.candidates || []);
+      setLessons(data.lessons || []);
       setError('');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -145,6 +147,10 @@ export default function AdminQaVideos() {
         <IdeaBacklog candidates={candidates} onChanged={refresh} />
       )}
 
+      {lessons.length > 0 && (
+        <LessonsPanel lessons={lessons} onChanged={refresh} />
+      )}
+
       {error && (
         <div className="whitespace-pre-line rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
       )}
@@ -164,6 +170,108 @@ export default function AdminQaVideos() {
             .map((v) => (
               <ScriptCard key={v.id} video={v} busy={busyId === v.id} onAct={act} />
             ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Learned doctrine: lessons distilled from the operator's verdicts and
+ * edits plus panel findings. Injected into every future draft and into
+ * the calibration judge. Retire what over-generalized; flagged lessons
+ * (contradicted by a recent approval) surface first for review.
+ */
+function LessonsPanel({
+  lessons,
+  onChanged,
+}: {
+  lessons: StudioLesson[];
+  onChanged: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState<number | null>(null);
+  const [busy, setBusy] = useState<number | null>(null);
+  const active = lessons.filter((l) => l.status === 'active').length;
+  const flagged = lessons.filter((l) => l.status === 'flagged').length;
+
+  async function setStatus(id: number, status: 'active' | 'retired') {
+    setBusy(id);
+    try {
+      await patchStudioLesson(id, { status });
+      await onChanged();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const STATUS_CHIP: Record<string, string> = {
+    active: 'bg-emerald-50 text-emerald-600',
+    flagged: 'bg-amber-100 text-amber-700',
+    retired: 'bg-stone-100 text-stone-400',
+  };
+
+  return (
+    <div className="rounded-xl border border-stone-200 bg-white p-4">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between text-left">
+        <div>
+          <h2 className="text-sm font-semibold text-stone-700">
+            Learned lessons{' '}
+            <span className="font-normal text-stone-400">
+              ({active} active{flagged > 0 ? `, ${flagged} flagged for review` : ''})
+            </span>
+          </h2>
+          <p className="text-xs text-stone-400">
+            Distilled from your verdicts and edits. Every future script is drafted and judged against these.
+          </p>
+        </div>
+        <span className="text-stone-400">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <ul className="mt-3 space-y-2">
+          {lessons.map((l) => (
+            <li key={l.id} className="rounded-lg bg-stone-50 px-3 py-2 text-xs">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <span className={`mr-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${STATUS_CHIP[l.status] || ''}`}>
+                    {l.status}
+                  </span>
+                  <span className="text-[10px] text-stone-400">{l.lesson_key} · {l.source}</span>
+                  <p className="mt-0.5 text-stone-700">{l.lesson}</p>
+                  {expanded === l.id && l.evidence && (
+                    <p className="mt-1 border-l-2 border-stone-200 pl-2 text-[11px] text-stone-400">{l.evidence}</p>
+                  )}
+                </div>
+                <div className="flex shrink-0 gap-1.5">
+                  {l.evidence && (
+                    <button
+                      onClick={() => setExpanded(expanded === l.id ? null : l.id)}
+                      className="rounded-md px-2 py-1 text-[11px] text-stone-400 hover:bg-stone-100"
+                    >
+                      evidence
+                    </button>
+                  )}
+                  {l.status !== 'retired' ? (
+                    <button
+                      onClick={() => setStatus(l.id, 'retired')}
+                      disabled={busy === l.id}
+                      className="rounded-md px-2 py-1 text-[11px] text-rose-500 hover:bg-rose-50 disabled:opacity-40"
+                    >
+                      retire
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setStatus(l.id, 'active')}
+                      disabled={busy === l.id}
+                      className="rounded-md px-2 py-1 text-[11px] text-emerald-600 hover:bg-emerald-50 disabled:opacity-40"
+                    >
+                      reactivate
+                    </button>
+                  )}
+                </div>
+              </div>
+            </li>
+          ))}
         </ul>
       )}
     </div>

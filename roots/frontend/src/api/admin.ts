@@ -2749,6 +2749,15 @@ export interface QaVoice {
   voice_id: string;
 }
 
+export interface StudioLesson {
+  id: number;
+  lesson_key: string;
+  lesson: string;
+  source: string;
+  evidence: string | null;
+  status: string;
+}
+
 export interface QaCandidate {
   id: number;
   source_type: string;
@@ -2765,6 +2774,7 @@ export async function getQaVideos(): Promise<{
   publish_schedule: QaPublishSchedule;
   voices: QaVoice[];
   candidates: QaCandidate[];
+  lessons: StudioLesson[];
 }> {
   const res = await authFetch(`${BASE}/qa-videos`);
   const data = await res.json();
@@ -2854,6 +2864,19 @@ export async function patchVideoCandidate(
   const res = await authFetch(`${BASE}/video-candidates/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ status, reason }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
+}
+
+
+/** Operator sovereignty over learned doctrine: retire/reactivate/edit a lesson. */
+export async function patchStudioLesson(
+  id: number,
+  patch: { status?: 'active' | 'retired' | 'flagged'; lesson?: string },
+): Promise<void> {
+  const res = await authFetch(`${BASE}/studio-lessons/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
 }

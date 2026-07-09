@@ -8,6 +8,9 @@ every few minutes and must obey every rail below.
 
 ## Tick procedure
 
+0. **Pull operator state**: `./pull_studio_from_prod.sh` — mirrors the
+   operator's verdicts, edited scripts, lesson edits/retirements, and
+   backlog stars/kills into the local DB. Never reason from stale state.
 1. **Backpressure first.** Count `status='gate_passed'` rows in
    qa_videos (local). If ≥ 10, or `video_candidates.status='proposed'`
    ≥ 25, do NOTHING this tick — schedule the next wakeup long (≥ 30 min)
@@ -21,7 +24,9 @@ every few minutes and must obey every rail below.
    kills included. Check the angle against existing bank titles/angles —
    near-duplicates are `rejected_score` with the duplicate named.
 5. **Draft the single best survivor** (score ≥ 8): pull
-   `video_candidates.py context <source_key>`, write TWO drafts per
+   `video_candidates.py context <source_key>` AND the learned doctrine
+   (`python3 video_lessons.py active` — paste the block into the drafting
+   frame; lessons are BINDING), write TWO drafts per
    video_brief_series.md + qa_video_brief.md, keep the punchier, submit:
    `video_candidates.py submit --source-key <key> --file <draft> --score N --angle "..."`.
 6. **On gate rejection**: fix per the issue text, ≤ 2 repair attempts,
@@ -40,7 +45,16 @@ every few minutes and must obey every rail below.
    `./sync_studio_to_prod.sh` — INSERT-ONLY by source_key; NEVER use
    sync_tables_to_prod.sh for these two tables (it REPLACEs by id and
    would clobber operator statuses and edits on prod).
-9. **Ledger**: every ~10 ticks, emit one summary line per series
+9. **LESSON DISTILLER**: whenever the pull in step 0 brings NEW operator
+   verdicts or edits (or a panel produced findings this tick), spawn the
+   distiller agent (see video_quality_panel.md, "Distiller"): inputs are
+   the new verdicts, the draft-vs-approved script diffs, the panel
+   findings, and the current `video_lessons.py list`. It proposes
+   STRENGTHEN-or-ADD (evidence quotes required, prefer strengthening,
+   cap 15 active enforced by the CLI) and FLAGS any active lesson a new
+   approval contradicts. Apply via `video_lessons.py add/flag`, then
+   `./sync_studio_to_prod.sh` so the ledger shows in the Studio.
+10. **Ledger**: every ~10 ticks, emit one summary line per series
    (mined / killed / drafted / panel-failed / queued) so the operator can
    audit taste. When the operator rejects a panel-passed script, note in
    the ledger which agent should have caught it.

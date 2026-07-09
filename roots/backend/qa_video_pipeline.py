@@ -100,6 +100,23 @@ CREATE TABLE IF NOT EXISTS video_candidates (
     updated_at TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_video_candidates_status ON video_candidates(status);
+
+-- The lessons ledger: editorial doctrine LEARNED from operator verdicts,
+-- operator edits, and panel findings. Active lessons are injected into
+-- every drafting context AND the calibration-judge's checklist, so each
+-- verdict permanently improves future scripts. The operator can retire
+-- or edit lessons on prod (prod is truth for text+status of existing
+-- keys; the loop only creates new ones).
+CREATE TABLE IF NOT EXISTS studio_lessons (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    lesson_key TEXT NOT NULL UNIQUE,
+    lesson TEXT NOT NULL,
+    source TEXT NOT NULL,        -- operator_reject|operator_edit|panel|seed|manual
+    evidence TEXT,               -- the verdict/edit/finding that taught it, quoted
+    status TEXT DEFAULT 'active',-- active|retired|flagged
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT
+);
 """
 
 
