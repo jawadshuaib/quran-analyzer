@@ -24,10 +24,23 @@ import qa_video_common as C
 # Post-Quranic terminology that must never appear in narration (the
 # label-scan from the Q&A doctrine). Transliterated Quranic terms WITH a
 # gloss are fine; these Latin identity/era labels are not.
-_POST_QURANIC = re.compile(
-    r"\b(Muslims?|Islamic|Islam|halal|haram|hadith|sunnah|caliph|"
-    r"sharia|mosque|imam|madhhab|fiqh)\b",
+_POST_QURANIC_TERMS = (
+    r"Muslims?|Islamic|Islam|halal|haram|hadith|sunnah|caliph|"
+    r"sharia|mosque|imam|madhhab|fiqh"
+)
+_POST_QURANIC = re.compile(rf"\b({_POST_QURANIC_TERMS})\b", re.IGNORECASE)
+# Use-mention distinction (operator rule, 2026-07-09): DISCUSSING a term as
+# a word is legitimate — a video about the word 'muslim' may name its
+# subject. An explicit mention frame ("the word Muslim", "the term halal")
+# is allowed in narration and title; a bare quoted mention ("Muslim") is
+# allowed in the title only (quotes don't survive TTS). Anachronistic
+# USE ("what Islam teaches...") stays banned everywhere.
+_MENTION_FRAMED = re.compile(
+    rf"\bthe\s+(?:word|term|name)\s+['\"]?({_POST_QURANIC_TERMS})\b['\"]?",
     re.IGNORECASE,
+)
+_MENTION_QUOTED = re.compile(
+    rf"['\"]({_POST_QURANIC_TERMS})['\"]", re.IGNORECASE,
 )
 # "pre-Islamic" is a period label, not post-Quranic vocabulary — the site's
 # own public feature is titled "Pre-Islamic Poetry" and the bayt slide's
@@ -81,9 +94,15 @@ def precheck(conn, script: dict, payload: dict, *, cited_refs: list[str] | None 
     if dur > MAX_DURATION_SEC:
         issues.append(f"too long: ~{dur:.0f}s estimated (> {MAX_DURATION_SEC:.0f}s); trim the script")
 
-    m = _POST_QURANIC.search(_PRE_ISLAMIC.sub(" ", narration + " " + (script.get("title") or "")))
+    narr_scan = _MENTION_FRAMED.sub(" ", _PRE_ISLAMIC.sub(" ", narration))
+    title_scan = _MENTION_QUOTED.sub(" ", _MENTION_FRAMED.sub(
+        " ", _PRE_ISLAMIC.sub(" ", script.get("title") or "")))
+    m = _POST_QURANIC.search(narr_scan + " " + title_scan)
     if m:
-        issues.append(f"post-Quranic terminology: {m.group(0)!r} (render Arabic terms transliterated + glossed)")
+        issues.append(
+            f"post-Quranic terminology: {m.group(0)!r} (render Arabic terms "
+            f"transliterated + glossed; discussing a term as a word is fine — "
+            f"frame it as: the word {m.group(0)})")
 
     # Spoken-style check (operator rule, 2026-07-09): the narration is
     # SPEECH — it is read aloud and shown as captions. Em/en dashes and

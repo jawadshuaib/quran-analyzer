@@ -99,6 +99,9 @@ way a good teacher talks, not the way essays are written:
   punctuation to make sense, it will fail as audio. Rewrite it.
 - Contractions are welcome. Rhetorical questions are welcome. Fragments
   are fine when a speaker would actually pause there.
+- Discussing a term AS A WORD is allowed with an explicit mention frame,
+  "the word muslim", "the term halal" (and quoted mentions in titles).
+  Anachronistic use ("what Islam teaches...") stays banned everywhere.
 - Avoid stock AI cadences ("It's not just X, it's Y", triads for their
   own sake, "here's the thing").
 
