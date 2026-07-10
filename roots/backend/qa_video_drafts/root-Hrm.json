@@ -1,0 +1,51 @@
+{
+ "anchor_ref": "2:173",
+ "title": "Who gets to say the word haram?",
+ "theme": "root-hrm-who-forbids",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The poet Antara made a rule for himself. Sleep is forbidden to me. Forbidden by whom? By Antara. In the old poetry, the word haram could come from a man's own mouth."
+  },
+  {
+   "kind": "poetry",
+   "narration": "He says it in grief, to the daughter of Malik. His bedding is embers. How could he rest? So he forbids himself sleep, in his own voice.",
+   "poetry": {
+    "arabic": "حَرامٌ عَلَيَّ النَومُ يا اِبنَةَ مالِكٍ وَمِن فَرشُهُ جَمرُ الغَضا كَيفَ يَرقُدُ",
+    "english": "Sleep is forbidden to me, O daughter of Mālik — and his bedding is the embers of the ghaḍā shrub; how could he rest?",
+    "poet": "Antara ibn Shaddad"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "Imru al-Qays points the same word outward. A woman wheels to throw him down. Hold back, he says. Bringing me down is forbidden to you. One man, drawing a line.",
+   "poetry": {
+    "arabic": "جالَت لِتَصرَعَني فَقُلتُ لَها اِقصِري إِنّي اِمرُؤٌ صَرعي عَلَيكِ حَرامِ",
+    "english": "She wheeled to throw me down, and I said to her: hold back — I am a man whose felling is forbidden to you.",
+    "poet": "Imru' al-Qays"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is ha ra meem. Off-limits. What is barred to a person. And what none may violate. The same word guards the sanctuary and the sacred month.",
+   "root": {
+    "arabic": "ح ر م",
+    "label": "h-r-m",
+    "meaning": "off-limits — barred to a person, or too protected to violate"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran keeps the word's whole family and narrows one thing. The forbidder. Listen to the verse. He has only forbidden dead animals, blood, the flesh of swine, and what is dedicated to other than God. The one forbidding, again and again, is God.",
+   "verse": {
+    "ref": "2:173",
+    "highlight_words_ar": ["حَرَّمَ"],
+    "highlight_phrase_en": "He has only forbidden"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The word survived whole. What narrowed is the voice that forbids. And for those who kept forbidding on their own claim, the Quran saves a question. Who has forbidden the adornment of God, the good things He brought out for His servants?"
+  }
+ ]
+}
