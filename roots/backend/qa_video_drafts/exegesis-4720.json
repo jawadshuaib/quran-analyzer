@@ -1,0 +1,38 @@
+{
+ "anchor_ref": "90:12",
+ "title": "Why does mercy get the question reserved for the unfathomable?",
+ "theme": "gem-register-transfer",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The Quran keeps one question for things too vast to be guessed at. The question is, what can make you know what it is. It asks that about the Day of Judgment. Then one chapter asks it about a steep pass. And the pass turns out to be feeding the hungry. Why does plain mercy get the question reserved for the unfathomable?"
+  },
+  {
+   "kind": "set",
+   "narration": "Listen to the question's usual company. The verse asks, and what can make you know what is the Night of Decree. The same words open onto the crushing Fire. Each time the answer is held back. You cannot guess these things. They have to be given.",
+   "verse": {
+    "ref": "97:2",
+    "highlight_words_ar": [
+     "أَدْرَىٰكَ"
+    ],
+    "highlight_phrase_en": "what can make you know"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Then comes the pass. The verse asks, and what can make you know what is the difficult pass. A reader braces for another immensity of the heavens. But the next lines unpack the climb without a single cosmic image. The freeing of a slave. Feeding, on a day of severe hunger, an orphan of near kin. Or a needy person in misery. The vast unfathomable thing resolves into a freed captive and a fed neighbor.",
+   "verse": {
+    "ref": "90:12",
+    "highlight_words_ar": [
+     "أَدْرَىٰكَ",
+     "ٱلْعَقَبَةُ"
+    ],
+    "highlight_phrase_en": "the difficult pass"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The question itself is the argument. The verse spends the same awe on plain mercy that it spends on the Day of Reckoning. It refuses to let that mercy look small. The climb cannot be guessed at. It has to be given. And it is this. The costly, ordinary turn toward another person's hunger."
+  }
+ ]
+}
