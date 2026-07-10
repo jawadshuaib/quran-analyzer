@@ -1,0 +1,38 @@
+{
+ "anchor_ref": "93:5",
+ "title": "Why does this promise never name the gift?",
+ "theme": "gem-the-unnamed-gift",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One verse of the Quran makes a promise and skips the middle. Your Lord will give you. Give you what? The verse never says. Then it finishes. And you will be satisfied. Why leave the gift out?"
+  },
+  {
+   "kind": "set",
+   "narration": "The verb names a giver. Your Lord. A receiver. You. And then no gift. The line moves straight past the missing thing to its result. So you will be satisfied, the verse says.",
+   "verse": {
+    "ref": "93:5",
+    "highlight_words_ar": [
+     "يُعْطِيكَ"
+    ],
+    "highlight_phrase_en": "is going to give you"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The gap is conspicuous, because every verse that follows fills exactly this slot. He found you an orphan, and sheltered you. Found you lost, and guided you. Found you in want, and made you free of need. Three gifts, each one named. And at the summit of the promise, the gift is withheld.",
+   "verse": {
+    "ref": "93:6",
+    "highlight_words_ar": [
+     "يَجِدْكَ",
+     "يَتِيمًا"
+    ],
+    "highlight_phrase_en": "find you an orphan"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "Watch what the withholding does. To name the gift would be to measure it. Leaving it out removes the ceiling. The promise is not, I will give you this. It is, I will give until you have nothing left to want. No point where you could stop and ask, was that all."
+  }
+ ]
+}
