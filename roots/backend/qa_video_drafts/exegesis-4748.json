@@ -1,0 +1,46 @@
+{
+ "anchor_ref": "104:3",
+ "title": "What does the man counting his money actually believe?",
+ "theme": "gem-akhlada-counting-forever",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The Quran shows a man amassing wealth and tallying it up. What does he think all that counting buys?"
+  },
+  {
+   "kind": "set",
+   "narration": "The verse before it shows the deed. He amassed wealth and tallied it up.",
+   "verse": {
+    "ref": "104:2",
+    "highlight_words_ar": [
+     "وَعَدَّدَهُ"
+    ],
+    "highlight_phrase_en": "tallied it up"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Then the next verse names his real belief. He reckons that his wealth has made him last. The verb is built on kha lam dal. In the Quran, that category belongs past death. Khuld names a permanence no earthly thing supplies. His private accounting borrows it and pins it on a heap of coins.",
+   "verse": {
+    "ref": "104:3",
+    "highlight_words_ar": [
+     "أَخْلَدَهُ"
+    ],
+    "highlight_phrase_en": "made him last"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "Kha lam dal. To last, to abide. The same verb returns at seven one seven six, for a man who clung to the earth as if it could hold him.",
+   "root": {
+    "arabic": "خ ل د",
+    "label": "kh-l-d",
+    "meaning": "to last, to abide — a permanence no earthly thing supplies"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The verse never calls him greedy. It catches a man taking the perishable for the abiding, and asking a pile of coins for the one thing granted only beyond the grave."
+  }
+ ]
+}
