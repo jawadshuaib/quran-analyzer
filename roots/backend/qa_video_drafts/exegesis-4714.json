@@ -1,0 +1,39 @@
+{
+ "anchor_ref": "89:17",
+ "title": "Why does 'No' follow 'My Lord has honored me'?",
+ "theme": "gem-honor-changes-hands",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "When life is good, a man in the Quran says, My Lord has honored me. The Quran answers, No. But you do not honor the orphan. Same word. Honor. It just changed hands. What did the man get wrong?"
+  },
+  {
+   "kind": "set",
+   "narration": "Listen to how the man measures. When his Lord is generous to him, he concludes, I have been honored. Honor, on his ledger, is something that lands. It is measured in what he receives.",
+   "verse": {
+    "ref": "89:15",
+    "highlight_words_ar": [
+     "فَأَكْرَمَهُ",
+     "أَكْرَمَنِ"
+    ],
+    "highlight_phrase_en": "My Lord has honored me"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Then the answer breaks in. No. And the same word comes back, except it has changed hands. No longer done to him. Done by you. You do not honor the orphan. The question is not whether you were honored. It is whether you honor anyone. And the target is exact. The orphan. The one figure with nothing to hand back.",
+   "verse": {
+    "ref": "89:17",
+    "highlight_words_ar": [
+     "تُكْرِمُونَ",
+     "ٱلْيَتِيمَ"
+    ],
+    "highlight_phrase_en": "you do not honor the orphan"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The wording relocates the honor rather than denying it. If honor were only what you receive, the man's sum would balance. But the word turns around. It aims at the person who can give nothing back. And it redraws the equation. The honor that earns the name is not what dropped into his hands. It is what he lets pass through them."
+  }
+ ]
+}
