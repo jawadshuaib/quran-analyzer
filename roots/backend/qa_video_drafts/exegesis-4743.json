@@ -1,0 +1,47 @@
+{
+ "anchor_ref": "99:8",
+ "title": "Why is good repaid ten to one, but evil only once?",
+ "theme": "gem-seen-evenly-paid-unevenly",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "Two mirrored verses promise that every atom of good will be seen. And every atom of evil. Even, atom for atom. Then another verse pays good ten to one, and evil only once. Which is it?"
+  },
+  {
+   "kind": "contrast",
+   "narration": "The two verses are built as exact mirrors. The same atom's weight. The same last word. He will see it. Built so nothing can hide between them. Good and evil surface alike. Atom for atom.",
+   "verses": [
+    {
+     "ref": "99:7",
+     "highlight_words_ar": [
+      "يَرَهُ"
+     ],
+     "highlight_phrase_en": "will see it"
+    },
+    {
+     "ref": "99:8",
+     "highlight_words_ar": [
+      "يَرَهُ"
+     ],
+     "highlight_phrase_en": "will see it"
+    }
+   ]
+  },
+  {
+   "kind": "turn",
+   "narration": "Then this verse tilts the scale. Ten times the like of it for a good deed. For an evil one, only its like. But the two promises use two different verbs. The mirror verses are about seeing, and this verse is about paying. Seeing is disclosure. Every atom brought into view. Paying comes one step later, done with a deed already seen.",
+   "verse": {
+    "ref": "6:160",
+    "highlight_words_ar": [
+     "عَشْرُ",
+     "أَمْثَالِهَا"
+    ],
+    "highlight_phrase_en": "ten times the like thereof"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So the seeing is even, exactly, atom for atom. Then the paying begins. A good deed, already seen, is multiplied. An evil one is capped at its own size. Exposure is exact. Repayment leans toward grace."
+  }
+ ]
+}
