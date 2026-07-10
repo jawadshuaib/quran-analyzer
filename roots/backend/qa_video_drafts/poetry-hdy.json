@@ -1,0 +1,51 @@
+{
+ "anchor_ref": "22:37",
+ "title": "What does the Quran lead from here to there?",
+ "theme": "poetry-hdy-three-led-things",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One root, in the old poetry, means to lead from here to there. A caravan across the waste. A present to a door. A beast to the sanctuary. What is left for the Quran to lead?"
+  },
+  {
+   "kind": "poetry",
+   "narration": "The first leading is the guide's. Zuhayr paints a blind trackless waste that none crosses but one man. The resolute one, stout of heart. The hadi. Whoever goes first, so the rest are not lost.",
+   "poetry": {
+    "arabic": "وَتَنوفَةٍ عَمياءَ لا يَجتازُها إِلّا المُشَيَّعُ ذو الفُؤادِ الهادي",
+    "english": "And many a blind trackless waste none crosses but the resolute one, stout of heart, the guide.",
+    "poet": "Zuhayr ibn Abi Sulma"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "The root's darkest face is a sister word. The hady. The animal led to an appointed end. The poets could use it for a doomed man. Al-Mutalammis grieves the poet Tarafa. He was the offering they led.",
+   "poetry": {
+    "arabic": "كَطُرَيفَةَ بنِ العَبدِ كانَ هَدِيَّهُم ضَربوا قَذالَةَ رَأسِهِ بِمُهَنَّدِ",
+    "english": "Like Ṭarafa son of al-ʿAbd, who was their led offering — they struck the back of his skull with a sharp blade.",
+    "poet": "al-Mutalammis"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is ha dal ya. To lead from here to there. A caravan, a beast, a present. One word for every leading.",
+   "root": {
+    "arabic": "ه د ي",
+    "label": "h-d-y",
+    "meaning": "to lead from here to there — a caravan, a beast, a present"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran keeps all three. And one verse holds the offering and the guidance in a single breath. The animal is still led. What arrives is something else. Their meat will not reach God, nor their blood. What reaches Him is piety from you. Then the verse reaches for the old word. That you may glorify God for that to which He has guided you.",
+   "verse": {
+    "ref": "22:37",
+    "highlight_words_ar": ["هَدَىكُمْ"],
+    "highlight_phrase_en": "He has guided you"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The gift still goes to the door. The offering still goes to the sanctuary. And the Quran opens with a prayer on the same wayfinding verb. Guide us. The heart, from here to there."
+  }
+ ]
+}
