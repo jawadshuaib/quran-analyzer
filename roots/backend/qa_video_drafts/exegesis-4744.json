@@ -1,0 +1,38 @@
+{
+ "anchor_ref": "101:9",
+ "title": "Whose mother is the abyss?",
+ "theme": "gem-umm-hawiya-belonging",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One verse hands Arabic's warmest word to the worst place. His mother, it says, is the plunging chasm. Not an address. His mother. What is that word doing there?"
+  },
+  {
+   "kind": "set",
+   "narration": "The verse is about a man whose deeds are weighed, and come up light. On screen the English says refuge. The Arabic word is umm. Mother. Where one comes from. The first shelter. The term of belonging.",
+   "verse": {
+    "ref": "101:9",
+    "highlight_words_ar": [
+     "فَأُمُّهُ"
+    ],
+    "highlight_phrase_en": "His refuge"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran keeps this use of umm for something weighty. The mother of the Book. The source a thing refers back to, and is measured against. Read the word that way here. Two verses up, a man whose scales are heavy is held by a pleasing life. This man is held by the pit. Not where he ends up. Where he belongs.",
+   "verse": {
+    "ref": "101:7",
+    "highlight_words_ar": [
+     "عِيشَةٍ",
+     "رَّاضِيَةٍ"
+    ],
+    "highlight_phrase_en": "a pleasant life"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The line is not assigning an address. It is naming a belonging. The falling-place was, all along, the source this life answered to. And a mother, unlike a house, is what one is taken back into."
+  }
+ ]
+}
