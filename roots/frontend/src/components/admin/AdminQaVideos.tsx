@@ -24,7 +24,7 @@ SETUP (in this order, before anything else):
    These learned lessons are BINDING on every draft and every judgment.
 
 THEN RUN THE LOOP:
-Execute the tick procedure from video_loop.md repeatedly, self-paced. Roughly 3 to 5 minutes between working ticks. When backpressure holds (10 or more gate_passed scripts awaiting review, or 25+ proposed candidates), sleep 30+ minutes instead. Ceiling of about 4 banked scripts per day. Run the quality panel and the distiller as parallel subagents on the Claude subscription — NEVER call the paid Anthropic API for content.
+Execute the tick procedure from video_loop.md repeatedly, self-paced, until the sources are exhausted (all four miners empty and no rated candidate above 8 undrafted). Token pacing: one banking tick (mine, rate, draft, panel) per 45 to 60 minutes; in between, wakeups only pull and distill. When backpressure holds (10 or more gate_passed scripts awaiting review), pull and distill only and sleep 60+ minutes. Run the quality panel and the distiller as parallel subagents on the Claude subscription — NEVER call the paid Anthropic API for content.
 
 CONTENT DOCTRINE (non-negotiable, also encoded in the gates): meaning comes from the Quran's own usage and the pre-Islamic corpus only; never post-Quranic terms (Islam, Muslim, hadith, ...) except as explicit word-mentions; narration is speech (no em-dashes, colons, or semicolons); poetry bayts verbatim from the corpus; every claim licensed by the source material.
 

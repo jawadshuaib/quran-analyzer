@@ -69,9 +69,14 @@ every few minutes and must obey every rail below.
   but do not lean on the gate — quote exactly.
 - On two consecutive sync failures: stop the loop and report.
 - On any schema/gate error you don't recognize: stop the loop and report.
-- Wakeup pacing: ~4 scripts/day at steady state is the ceiling; sleep
-  270s while working through a series batch, 1200s+ when backpressure
-  holds or the day's ceiling is reached.
+- Wakeup pacing (operator directive 2026-07-10): NO daily count ceiling —
+  the loop runs until the sources are exhausted. Token pacing instead:
+  ONE banking tick (mine+rate+draft+panel) per ~45-60 minutes; between
+  banking ticks, wakeups only pull+distill. Backpressure unchanged and
+  primary: ≥10 gate_passed awaiting review → pull+distill only, sleep
+  60+ min. EXHAUSTION: when all four miners return zero new candidates
+  AND no proposed candidate ≥8 remains undrafted, report exhaustion to
+  the operator and drop to a daily heartbeat.
 
 ## Kickoff (when the operator says go)
 
