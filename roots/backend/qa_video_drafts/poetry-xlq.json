@@ -1,0 +1,42 @@
+{
+ "anchor_ref": "29:17",
+ "title": "What do hands that never finish actually make?",
+ "theme": "poetry-xlq-fashioning-and-fabrication",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "An old poet drew a line between two kinds of men. You carry through what you fashion, he said. Some men fashion, and never finish. The verb is khalaqa. To fashion. To create. What do hands that never finish make?"
+  },
+  {
+   "kind": "poetry",
+   "narration": "The poet is Zuhayr, and in the old poetry his verb is human-sized. The build of a body. The build of a character. The thing a man contrives. And when the contrived thing is empty, the verb bends darker. To make up. To concoct a lie.",
+   "poetry": {
+    "arabic": "فَلَأَنتَ تَفري ما خَلَقتَ وَبَعضُ القَومِ يَخلُقُ ثُمَّ لا يَفري",
+    "english": "You carry through whatever you fashion, while some men fashion a thing and then never see it through.",
+    "poet": "Zuhayr ibn Abi Sulma"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is kha lam qaf. To fashion. A frame. A temper. A thing contrived. And when the fashioning is empty, a fabrication.",
+   "root": {
+    "arabic": "خ ل ق",
+    "label": "kh-l-q",
+    "meaning": "to fashion — a frame, a temper, a contrived thing; when empty, a fabrication"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "In the Quran, khalaqa is the verb of creation itself. He created you and those before you. Then listen to the same verb land in a human mouth. You only worship idols besides God, and you fashion a lie. The fashioning is real. What it fashions is the falsehood.",
+   "verse": {
+    "ref": "29:17",
+    "highlight_words_ar": ["وَتَخْلُقُونَ"],
+    "highlight_phrase_en": "you produce a falsehood"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So one verb holds both fates. In the old poetry, hands that fashion and carry through. In this verse, hands that fashion nothing but a lie. Zuhayr said it first. Some men fashion, and never finish."
+  }
+ ]
+}
