@@ -1,0 +1,44 @@
+{
+ "anchor_ref": "14:7",
+ "title": "What does a disbeliever refuse to say?",
+ "theme": "poetry-shkr-kufr-ingratitude",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "Disbelief. The Quran's word is kufr. In the old poetry, that word named something else. Taking a favour, and covering it over. No thanks given. How did an ingrate become a disbeliever?"
+  },
+  {
+   "kind": "poetry",
+   "narration": "The old world ran on favours. A great man gave. Open thanks came back. And the old poet Antara turns the dark side into a maxim. Ingratitude, kufr, is a foulness to the benefactor's very soul. The stain reaches even the man who gave.",
+   "poetry": {
+    "arabic": "نِبِّئتُ عَمرواً غَيرَ شاكِرِ نِعمَتي وَالكُفرُ مَخبَثَةٌ لَنَفسِ المُنعِمِ",
+    "english": "I am told ʿAmr is ungrateful for my favour — and ingratitude (al-kufr) is a foulness to the benefactor's very soul.",
+    "poet": "Antara ibn Shaddad"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is kaf. fa. ra. To cover over. For the old poets, the covered thing was a favour. A gift taken, thanks withheld.",
+   "root": {
+    "arabic": "ك ف ر",
+    "label": "k-f-r",
+    "meaning": "to cover over — a favour received, its thanks withheld"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran keeps the old pairing in one verse. Your Lord proclaims, it says. If you are grateful, I will surely increase you. But if you deny, My punishment is severe. The word translated deny is kafartum. Antara's word for ingratitude. In the old poetry it wronged a benefactor. Here it faces the source of every favour.",
+   "verse": {
+    "ref": "14:7",
+    "highlight_words_ar": [
+     "كَفَرْتُمْ"
+    ],
+    "highlight_phrase_en": "if you deny"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So the word for disbelief keeps its old picture. A favour taken, and covered over. The thanks never spoken. To disbelieve, in the Quran's grammar, is at root to be the man who took the gift and would not say thank you."
+  }
+ ]
+}
