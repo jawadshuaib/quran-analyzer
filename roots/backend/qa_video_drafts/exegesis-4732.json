@@ -1,0 +1,41 @@
+{
+ "anchor_ref": "94:5",
+ "title": "Why does the Quran say this line twice in a row?",
+ "theme": "gem-one-hardship-two-eases",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One line of the Quran promises relief. Then the very next verse repeats it, word for word. Not a slip. By design. What does saying it twice change?"
+  },
+  {
+   "kind": "contrast",
+   "narration": "With the hardship, an ease. The English on screen hides the two little words. The Arabic shows them. The trouble carries the definite article. The hardship. A particular, bounded thing. The relief comes without it. An ease. Open, unquantified.",
+   "verses": [
+    {
+     "ref": "94:5",
+     "highlight_words_ar": [
+      "ٱلْعُسْرِ",
+      "يُسْرًا"
+     ],
+     "highlight_phrase_en": "with hardship [will be] ease"
+    },
+    {
+     "ref": "94:6",
+     "highlight_words_ar": [
+      "ٱلْعُسْرِ",
+      "يُسْرًا"
+     ],
+     "highlight_phrase_en": "with hardship [will be] ease"
+    }
+   ]
+  },
+  {
+   "kind": "turn",
+   "narration": "Now run the language's ordinary rule. A definite noun said twice ordinarily points back to the same thing. One hardship, in both verses. An indefinite noun said twice ordinarily opens onto a second thing. An ease. Then a second ease, uncounted. One bounded trouble. Relief, twice over."
+  },
+  {
+   "kind": "land",
+   "narration": "And the small word in the middle seals it. Ma'a. With. The ease is not promised after the hardship. It sits with it. The trouble is bounded. Outnumbered. And already in company."
+  }
+ ]
+}
