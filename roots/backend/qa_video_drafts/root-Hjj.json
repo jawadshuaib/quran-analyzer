@@ -1,0 +1,51 @@
+{
+ "anchor_ref": "2:158",
+ "title": "How does a road become a calendar?",
+ "theme": "root-hjj-road-calendar-argument",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The poet Zuhayr counted twenty years at a ruin. His word for a year was hijja. A word named after one yearly journey. How does a road become a calendar?"
+  },
+  {
+   "kind": "poetry",
+   "narration": "He stands at the ruined campsite. After twenty hijja, he can barely recognize it. Here the word means years. Nothing more. But its name remembers the once-a-year heading-out that fixed the season.",
+   "poetry": {
+    "arabic": "وَقَفتُ بِها مِن بَعدِ عِشرينَ حِجَّةً فَلَأياً عَرَفتُ الدارَ بَعدَ التَوَهُّمِ",
+    "english": "I halted there after twenty years (ḥijja) had passed, and only with effort did I know the abode after doubting.",
+    "poet": "Zuhayr ibn Abi Sulma"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "Nabigha paints that heading-out. Unkempt travellers, bent on their pilgrimage. Each year the throng set out for a revered place. And the calendar turned around that journey.",
+   "poetry": {
+    "arabic": "عَلَيهِنَّ شُعثٌ عامِدونَ لِحَجِّهِم فَهُنَّ كَأَطرافِ الحَنيِّ خَواضِعُ",
+    "english": "Upon them are unkempt men, bent purposefully on their pilgrimage, so they are like the bowed ends of a curved bow.",
+    "poet": "an-Nabigha adh-Dhubyani"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is ha jeem jeem. A heading-out to a revered place. The throng on that road. And the year, counted by its return.",
+   "root": {
+    "arabic": "ح ج ج",
+    "label": "h-j-j",
+    "meaning": "the heading-out to a revered place — and the year counted by it"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran keeps this road in plain view. Whoever makes the hajj to the House, one verse says. Then it widens the root where the old poetry goes silent. Hujja. An argument. A proof. Humankind, says another verse, is left with no argument against God.",
+   "verse": {
+    "ref": "2:158",
+    "highlight_words_ar": ["حَجَّ"],
+    "highlight_phrase_en": "whoever makes hajj to the House"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The Quran kept the road. It kept the count of years. And it opened the same root into work this old poetry never shows. To argue. To prove. The journey stayed. The word kept traveling."
+  }
+ ]
+}
