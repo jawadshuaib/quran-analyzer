@@ -1,0 +1,49 @@
+{
+ "anchor_ref": "31:13",
+ "title": "What does doing wrong have to do with the dark of night?",
+ "theme": "poetry-zlm-wrong-and-dark",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "What does doing wrong have to do with the dark of night? In Arabic, one root."
+  },
+  {
+   "kind": "poetry",
+   "narration": "The old poets kept the two senses apart. Zulm was the wrong. Zalam was the night. The two touched only as cover. The poet Hatim swears an oath on it. If he ever crept toward his neighbor's wife so the darkness might hide him, may he never be hidden again.",
+   "poetry": {
+    "arabic": "إِذا ما بِتُّ أَختِلُ عِرسَ جاري لِيُخفِيَني الظَلامُ فَلا خَفيتُ",
+    "english": "If ever I spent the night stealing toward my neighbour's wife so the darkness might hide me — then may I never be hidden [safe] again!",
+    "poet": "Hatim al-Ta'i"
+   }
+  },
+  {
+   "kind": "set",
+   "narration": "For the poets the gravest wrong put a cousin or a clan on the other side. The Quran stands it upright. In Luqman's counsel to his son, the tremendous zulm is giving God a partner.",
+   "verse": {
+    "ref": "31:13",
+    "highlight_words_ar": [
+     "لَظُلْمٌ عَظِيمٌ"
+    ],
+    "highlight_phrase_en": "a tremendous wrongdoing"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Then the two senses stop being a coincidence of spelling. To do zulm is to dwell in zalam. The wrongdoer is simply not in the light. So the rescue is spoken in exactly those words. He brings them out from the darknesses into the light.",
+   "verse": {
+    "ref": "2:257",
+    "highlight_words_ar": [
+     "الظُّلُمَتِ"
+    ],
+    "word_indices": [
+     7
+    ],
+    "highlight_phrase_en": "the darknesses"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "For the poets, night was a cloak a man stepped into. Here the dark is a state he is in, until light is given him."
+  }
+ ]
+}
