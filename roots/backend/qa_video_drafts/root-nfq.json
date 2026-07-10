@@ -1,0 +1,44 @@
+{
+ "anchor_ref": "4:145",
+ "title": "How is the Quran's word for a hypocrite tied to an animal's burrow?",
+ "theme": "root-nfq-two-mouthed-tunnel",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The Quran's word for a hypocrite shares its letters with an animal's burrow. How?"
+  },
+  {
+   "kind": "poetry",
+   "narration": "A nafaq is an underground run with an opening at each end. The old poets used the word for animals' burrows. In Alqama's line, the mouse is flushed from its burrows, like driving rain riddling the ground.",
+   "poetry": {
+    "arabic": "خَفى الفَأرَ مِن أَنفاقِهِ فَكَأَنَّما تَخَلَّلَهُ شُؤبوبُ غَيثٍ مُنقِّبِ",
+    "english": "He flushed the mouse from its burrows, as though a burst of driving rain had riddled the ground.",
+    "poet": "Alqama al-Fahl"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is n-f-q. From the same letters the poets also had nifaq, plain double-dealing. The image carried over. A man who shows one face and works by another.",
+   "root": {
+    "arabic": "ن ف ق",
+    "label": "n-f-q",
+    "meaning": "an underground run with two openings — and nifaq, double-dealing"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran keeps the poets' double-dealer and sharpens him. The munafiqeen. The hypocrites. One face professed among believers, another working underneath. And this verse places them in the lowest tier of the Fire.",
+   "verse": {
+    "ref": "4:145",
+    "highlight_words_ar": [
+     "الْمُنَفِقِينَ"
+    ],
+    "highlight_phrase_en": "the hypocrites"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "An underground run keeps an opening at each end. One face at one mouth. Another at the other."
+  }
+ ]
+}
