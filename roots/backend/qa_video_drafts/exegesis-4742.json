@@ -1,0 +1,38 @@
+{
+ "anchor_ref": "100:8",
+ "title": "Why does the Quran call his wealth 'the good'?",
+ "theme": "gem-khayr-the-cravers-own-word",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One verse describes a man gripped by love of wealth. But the Arabic never says wealth. It says the good. Why would the Quran call his money that?"
+  },
+  {
+   "kind": "set",
+   "narration": "The English says wealth. The Arabic says al-khayr. The good. One of the most luminous words the Quran owns. In the chapter just before, it meant an atom's weight of pure good. And the verse could have said mal. Plain wealth. It did not.",
+   "verse": {
+    "ref": "100:8",
+    "highlight_words_ar": [
+     "ٱلْخَيْرِ"
+    ],
+    "highlight_phrase_en": "wealth"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "One other verse ties this exact phrase to the same love. Listen to Solomon. I loved the love of the good, away from the remembrance of my Lord. So why this word? Because that is how the craver names his hoard. To him, his wealth simply is the good. The one thing worth wanting.",
+   "verse": {
+    "ref": "38:32",
+    "highlight_words_ar": [
+     "حُبَّ",
+     "ٱلْخَيْرِ"
+    ],
+    "highlight_phrase_en": "the love of good"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So the verse writes the rebuke in his own vocabulary. One word holds the moral good and the material goods in one breath. And you feel what has been quietly swapped for what. And who has been eclipsed. His own Lord."
+  }
+ ]
+}
