@@ -1,0 +1,42 @@
+{
+ "anchor_ref": "98:4",
+ "title": "Why did the proof arrive before the split?",
+ "theme": "gem-division-after-evidence",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "Clear proof is supposed to end an argument. One verse of the Quran says the opposite happened. The people did not become divided until after the proof arrived. Why would clarity divide anyone?"
+  },
+  {
+   "kind": "set",
+   "narration": "The verse speaks of those who were given the Scripture. They did not become divided, it says, until after the clear evidence had come to them. Before the proof, there was no fracture. The break lands exactly where the argument should have ended.",
+   "verse": {
+    "ref": "98:4",
+    "highlight_words_ar": [
+     "ٱلْبَيِّنَةُ"
+    ],
+    "highlight_phrase_en": "clear evidence"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The Quran repeats this backwards order elsewhere, and names the cause. They did not become divided until after knowledge had come to them, out of jealous animosity between themselves. The cause is not the evidence. It is the rivalry that was there all along. The clarity did not manufacture the fracture. It removed the cover that had hidden it.",
+   "verse": {
+    "ref": "42:14",
+    "highlight_words_ar": [
+     "بَغْيًا",
+     "بَيْنَهُمْ"
+    ],
+    "highlight_phrase_en": "out of jealous animosity between themselves",
+    "word_indices": [
+     9,
+     10
+    ]
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So division after the evidence is not the evidence failing. It is the evidence working. While the proof was absent, there was still the appearance of unity. Once it arrived, the excuse fell away. The proof did not divide the people. It disclosed the dividers."
+  }
+ ]
+}
