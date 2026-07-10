@@ -11,28 +11,28 @@
    "kind": "set",
    "narration": "The verse is about a man whose deeds are weighed, and come up light. On screen the English says refuge. The Arabic word is umm. Mother. Where one comes from. The first shelter. The term of belonging.",
    "verse": {
-    "ref": "101:9",
+    "highlight_phrase_en": "His refuge",
     "highlight_words_ar": [
      "فَأُمُّهُ"
     ],
-    "highlight_phrase_en": "His refuge"
+    "ref": "101:9"
    }
   },
   {
    "kind": "turn",
    "narration": "The Quran keeps this use of umm for something weighty. The mother of the Book. The source a thing refers back to, and is measured against. Read the word that way here. Two verses up, a man whose scales are heavy is held by a pleasing life. This man is held by the pit. Not where he ends up. Where he belongs.",
    "verse": {
-    "ref": "101:7",
+    "highlight_phrase_en": "a pleasant life",
     "highlight_words_ar": [
      "عِيشَةٍ",
      "رَّاضِيَةٍ"
     ],
-    "highlight_phrase_en": "a pleasant life"
+    "ref": "101:7"
    }
   },
   {
    "kind": "land",
-   "narration": "The line is not assigning an address. It is naming a belonging. The falling-place was, all along, the source this life answered to. And a mother, unlike a house, is what one is taken back into."
+   "narration": "So the verse is not telling him where he will end up. It is telling him where he belongs. The pit was the thing his whole life answered to. A house is only where you stay. A mother is what takes you back."
   }
  ]
 }
