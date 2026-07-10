@@ -1,0 +1,37 @@
+{
+ "anchor_ref": "91:9",
+ "title": "What is the opposite of purifying a soul?",
+ "theme": "gem-zakka-dassa-up-or-under",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The Quran says the soul that succeeds is the one its owner helps grow. And the soul that fails is the one its owner buries. Grows. Buries. Why these two pictures?"
+  },
+  {
+   "kind": "set",
+   "narration": "The verse says, he has succeeded who purifies it. But the verb underneath carries two motions in one word. To cleanse. And to grow. A translation must drop one at the door. This is the same root as zakah. The purifying portion given from wealth. Give a share away, and what stays is reckoned cleaner. And increased. Cultivation, not scrubbing.",
+   "verse": {
+    "ref": "91:9",
+    "highlight_words_ar": [
+     "زَكَّىٰهَا"
+    ],
+    "highlight_phrase_en": "purifies it"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The true opposite of this purifying is not soiling. It is burial. The verb is dassa. Once here, and nowhere else in the Quran. On screen the English says instills with corruption. The verb's own picture is plainer. He buried it. Heaped earth on it to make it disappear. And the one who buried it is the owner. The only hands that held it.",
+   "verse": {
+    "ref": "91:10",
+    "highlight_words_ar": [
+     "دَسَّىٰهَا"
+    ],
+    "highlight_phrase_en": "instills it [with corruption]"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So the fork the chapter offers is a direction. The self is a growing thing, and a growing thing belongs in the open. Success is letting it rise into the light. Failure is packing it back into the dark. Up, or under."
+  }
+ ]
+}
