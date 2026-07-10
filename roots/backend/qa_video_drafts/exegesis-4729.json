@@ -1,0 +1,33 @@
+{
+ "anchor_ref": "93:3",
+ "title": "Why does this reassurance arrive doubled?",
+ "theme": "gem-two-fears-two-denials",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "One verse of the Quran denies two things in a row. Your Lord has not taken leave of you. And He has not detested you. It sounds like one idea said twice for weight. What fear does the second denial answer that the first one cannot?"
+  },
+  {
+   "kind": "set",
+   "narration": "The reassurance arrives doubled. The first verb comes from a root of departure. The going away that leaves an empty space behind. The second verb refuses to be a synonym for the first. The verse denies the going away. Then it denies something harsher.",
+   "verse": {
+    "ref": "93:3",
+    "highlight_words_ar": ["وَدَّعَكَ", "قَلَىٰ"],
+    "highlight_phrase_en": "taken leave of you"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "That harsher word is rare. The Quran reaches for this root in only one other place. There, a prophet names himself one of those who detest what a people do. That is not distance. That is active distaste. A heart turned against. So the verse is answering two different fears. Being left. And the worse one underneath it. That the leaving was a verdict.",
+   "verse": {
+    "ref": "26:168",
+    "highlight_words_ar": ["ٱلْقَالِينَ"],
+    "highlight_phrase_en": "of those who detest"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "Now watch the order. The fear of being left is answered first. The fear of being detested is answered second. A mind reassured that it has not been deserted will still whisper the worse fear. Perhaps He is displeased. That is the door the mind keeps trying. So the verse closes it last."
+  }
+ ]
+}
