@@ -29,14 +29,16 @@
    "kind": "turn",
    "narration": "In the Quran, khalaqa is the verb of creation itself. He created you and those before you. Then listen to the same verb land in a human mouth. You only worship idols besides God, and you fashion a lie. The fashioning is real. What it fashions is the falsehood.",
    "verse": {
-    "ref": "29:17",
-    "highlight_words_ar": ["وَتَخْلُقُونَ"],
-    "highlight_phrase_en": "you produce a falsehood"
+    "highlight_phrase_en": "you produce a falsehood",
+    "highlight_words_ar": [
+     "وَتَخْلُقُونَ"
+    ],
+    "ref": "29:17"
    }
   },
   {
    "kind": "land",
-   "narration": "So one verb holds both fates. In the old poetry, hands that fashion and carry through. In this verse, hands that fashion nothing but a lie. Zuhayr said it first. Some men fashion, and never finish."
+   "narration": "Zuhayr measured men by their making. Carry through what you fashion, or fashion and never finish. The verse weighs the same verb in a human mouth, and it comes up worse than unfinished. You fashion a lie. The poet asked whether hands complete the work. The Quran asks whether the work is true."
   }
  ]
 }
