@@ -1,0 +1,37 @@
+{
+ "anchor_ref": "102:8",
+ "title": "Why does the chapter of the Fire end by asking about your comforts?",
+ "theme": "gem-naim-asked-after",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "This chapter marches you to the Fire. Then its final question is about your comforts. Why?"
+  },
+  {
+   "kind": "set",
+   "narration": "It opens with at-takathur. The piling up of increase, the race to have more. And it climbs toward the Blaze, seen with the eye of certainty.",
+   "verse": {
+    "ref": "102:1",
+    "highlight_words_ar": [
+     "التَّكَاثُرُ"
+    ],
+    "highlight_phrase_en": "The piling up of increase"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "So you brace for a question about sins. Instead it falls on an-na'im. The pleasant ease. The same word the Quran uses for the gardens of bliss. You will be stopped over your good things, not your worst.",
+   "verse": {
+    "ref": "102:8",
+    "highlight_words_ar": [
+     "النَّعِيمِ"
+    ],
+    "highlight_phrase_en": "the pleasant ease"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "And the design closes. The thing that diverted you is the very thing you answer for. The bounty was never a neutral hoard."
+  }
+ ]
+}
