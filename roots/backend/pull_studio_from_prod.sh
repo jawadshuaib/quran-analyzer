@@ -52,16 +52,17 @@ for row in data["qa_videos"]:
         (row["source_key"],)).fetchone()
     if not cur:
         continue
-    if row["status"] != "gate_passed":
-        # Operator decided (or the scheduler uploaded): mirror status AND
-        # the operator-edited script.
-        conn.execute(
-            "UPDATE qa_videos SET status=?, title=?, script_json=?, "
-            "error_message=? WHERE source_key=?",
-            (row["status"], row["title"], row["script_json"],
-             row["error_message"], row["source_key"]))
-        if (cur[0] or "") != row["status"]:
-            applied["verdicts"] += 1
+    # Prod is truth at pull time for ALL rows: statuses the operator set,
+    # and script content (which the operator may have edited inline or via
+    # Ask-AI even while a row is still gate_passed). The loop only writes
+    # local content when drafting, which happens after this pull.
+    conn.execute(
+        "UPDATE qa_videos SET status=?, title=?, script_json=?, "
+        "error_message=? WHERE source_key=?",
+        (row["status"], row["title"], row["script_json"],
+         row["error_message"], row["source_key"]))
+    if (cur[0] or "") != row["status"]:
+        applied["verdicts"] += 1
 
 for row in data["studio_lessons"]:
     cur = conn.execute(
