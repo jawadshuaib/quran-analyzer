@@ -1,0 +1,40 @@
+{
+ "anchor_ref": "106:4",
+ "title": "Why does this chapter thank God for exactly two things?",
+ "theme": "qa-hunger-fear-dyad",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "Hunger. And fear. At the end of one tiny chapter of the Quran, God is thanked for removing exactly these two. Out of everything that afflicts us, why these two?"
+  },
+  {
+   "kind": "set",
+   "narration": "Fed, out of hunger. Secured, from fear. Together they cover the two sides of human vulnerability. The body's need from without. The heart's unrest from within. To be freed of both is to lack nothing essential.",
+   "verse": {
+    "ref": "106:4",
+    "highlight_words_ar": [
+     "جُوعٍ",
+     "خَوْفٍ"
+    ],
+    "highlight_phrase_en": "hunger and secured them from fear"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "And the Quran holds a mirror to this exact pair. It presents a city that was secure, its provision coming in abundance. But it denied the favors of God. So God made it taste hunger and fear, wrapped around it like a garment. The same two gifts, stripped away. Stripped away for ingratitude.",
+   "verse": {
+    "ref": "16:112",
+    "highlight_words_ar": [
+     "لِبَاسَ",
+     "ٱلْجُوعِ",
+     "وَٱلْخَوْفِ"
+    ],
+    "highlight_phrase_en": "the envelopment of hunger and fear"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "Set beside that city, the chapter's ending gains an edge. A quiet warning inside the thanksgiving. The two named gifts are exactly the two that can be reversed. A security that is given. Not owed."
+  }
+ ]
+}
