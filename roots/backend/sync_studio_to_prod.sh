@@ -63,18 +63,32 @@ conn.execute("""CREATE TABLE IF NOT EXISTS studio_lessons (
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT)""")
 inserted["studio_lessons"] = 0
+updated["studio_lessons"] = 0
 lcols = {r[1] for r in conn.execute("PRAGMA table_info(studio_lessons)").fetchall()}
 if lcols:
-    have = {r[0] for r in conn.execute("SELECT lesson_key FROM studio_lessons").fetchall()}
+    have = {r[0]: r[1] for r in conn.execute(
+        "SELECT lesson_key, status FROM studio_lessons").fetchall()}
     for row in data.get("studio_lessons", []):
         key = row.get("lesson_key")
-        if not key or key in have:
+        if not key:
             continue
-        common = [c for c in row if c in lcols]
-        conn.execute(f"INSERT INTO studio_lessons ({', '.join(common)}) "
-                     f"VALUES ({', '.join('?' * len(common))})",
-                     [row[c] for c in common])
-        inserted["studio_lessons"] += 1
+        if key not in have:
+            common = [c for c in row if c in lcols]
+            conn.execute(f"INSERT INTO studio_lessons ({', '.join(common)}) "
+                         f"VALUES ({', '.join('?' * len(common))})",
+                         [row[c] for c in common])
+            inserted["studio_lessons"] += 1
+        elif have[key] == "active" and row.get("status") == "active":
+            # Distiller STRENGTHEN: text+evidence flow to prod for lessons
+            # that are active on both sides. Status stays prod-owned —
+            # retired/flagged lessons are never touched.
+            conn.execute(
+                "UPDATE studio_lessons SET lesson=?, evidence=?, "
+                "updated_at=datetime('now') WHERE lesson_key=? "
+                "AND (lesson != ? OR COALESCE(evidence,'') != ?)",
+                (row["lesson"], row.get("evidence"), key,
+                 row["lesson"], row.get("evidence") or ""))
+            updated["studio_lessons"] += 1
 
 for table in ("qa_videos", "video_candidates"):
     cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
