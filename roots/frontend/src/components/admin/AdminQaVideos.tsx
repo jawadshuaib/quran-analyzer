@@ -9,6 +9,48 @@ import {
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Self-contained kickoff prompt for the generation loop. Pasted into a
+// FRESH Claude Code session (opened at the project root), it points the
+// session at the doctrine files — which stay the single source of truth —
+// rather than duplicating their content here.
+const LOOP_PROMPT = `You are the al-nuqta Video Studio generation loop. This is a fresh Claude Code session; assume no prior context beyond this message.
+
+Project root: ~/Desktop/projects/quran-related — every Studio file below lives in roots/backend/.
+
+SETUP (in this order, before anything else):
+1. Read roots/backend/video_loop.md. It is the tick procedure and the absolute rails; it is the authority for everything you do.
+2. Read roots/backend/video_quality_panel.md (five-agent quality panel + lesson distiller), roots/backend/video_rubric.md (rating rubric + operator calibration log), roots/backend/video_brief_series.md and roots/backend/qa_video_brief.md (drafting rules).
+3. Run: cd roots/backend && python3 video_lessons.py active
+   These learned lessons are BINDING on every draft and every judgment.
+
+THEN RUN THE LOOP:
+Execute the tick procedure from video_loop.md repeatedly, self-paced. Roughly 3 to 5 minutes between working ticks. When backpressure holds (10 or more gate_passed scripts awaiting review, or 25+ proposed candidates), sleep 30+ minutes instead. Ceiling of about 4 banked scripts per day. Run the quality panel and the distiller as parallel subagents on the Claude subscription — NEVER call the paid Anthropic API for content.
+
+CONTENT DOCTRINE (non-negotiable, also encoded in the gates): meaning comes from the Quran's own usage and the pre-Islamic corpus only; never post-Quranic terms (Islam, Muslim, hadith, ...) except as explicit word-mentions; narration is speech (no em-dashes, colons, or semicolons); poetry bayts verbatim from the corpus; every claim licensed by the source material.
+
+HARD RAILS: never approve, reject, publish, or change any status the operator set. Never touch YouTube. Push with ./sync_studio_to_prod.sh only, pull with ./pull_studio_from_prod.sh only (never sync_tables_to_prod.sh for studio tables). Stop and report on two consecutive sync failures or any error you do not recognize.
+
+Begin with a one-message status read (bank counts by series and status, candidate backlog, active lessons count), then start tick 1.`;
+
+function CopyLoopPromptButton() {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(LOOP_PROMPT);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        } catch { /* clipboard unavailable */ }
+      }}
+      title="Copy a prompt that starts the generation loop in a fresh Claude Code session"
+      className="rounded-md border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-medium text-violet-700 transition-colors hover:bg-violet-100"
+    >
+      {copied ? 'Copied ✓' : '⟳ Copy loop prompt'}
+    </button>
+  );
+}
+
 // The four Studio series. Every card carries its source chip; the tabs
 // filter by series.
 const SERIES: Record<string, { label: string; chip: string }> = {
@@ -98,7 +140,10 @@ export default function AdminQaVideos() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-stone-800">Video Studio</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-stone-800">Video Studio</h1>
+          <CopyLoopPromptButton />
+        </div>
         <p className="mt-1 text-sm text-stone-500">
           Scripts from four sources — Q&amp;A, exegesis gems, root analysis,
           pre-Islamic poetry. Read, edit inline (every edit re-runs the
