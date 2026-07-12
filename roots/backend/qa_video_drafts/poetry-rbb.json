@@ -1,0 +1,54 @@
+{
+ "anchor_ref": "114:1",
+ "title": "Their god is my Lord.",
+ "theme": "poetry-rbb-possessive-widened",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "A poet in old Arabia collapsed all the gods of his people into one line. Their god is my Lord, and my Lord is their god. One Lord, behind all of them. The word he used, rabb, was already pointing at the sky. The Quran kept his line and changed one thing. What was it?"
+  },
+  {
+   "kind": "poetry",
+   "narration": "This is Hatim. The word rabb, lord, usually belonged to chiefs and owners of things. Here he lifts it higher. One line, and all the gods of his people fold into one Lord.",
+   "poetry": {
+    "arabic": "إِلَهُهُمُ رَبّي وَرَبّي إِلَهُهُم فَأَقسَمتُ لا أَرسو وَلا أَتَمَعَّدُ",
+    "english": "Their god is my Lord and my Lord is their god; so I have sworn I will neither settle nor turn Maʿaddite.",
+    "poet": "Hatim al-Ta'i"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "And he was not alone. Tarafa hands his whole lot to a single deciding will. Had my Lord willed, I would have been Qays son of Khalid. Had my Lord willed, I would have been Amr son of Marthad. The word for God as Lord was already lying in the language.",
+   "poetry": {
+    "arabic": "فَلَو شاءَ رَبّي كُنتُ قَيسَ بنَ خالِدٍ وَلَو شاءَ رَبّي كُنتُ عَمروَ بنَ مَرثَدِ",
+    "english": "Had my Lord willed, I would have been Qays b. Khālid; and had my Lord willed, I would have been ʿAmr b. Marthad.",
+    "poet": "Tarafa ibn al-Abd"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is ra ba ba. Rabb. Lord. In the poets, mostly a man. A chief, an owner. And in a quieter strand, already the Lord in heaven.",
+   "root": {
+    "arabic": "ر ب ب",
+    "label": "r-b-b",
+    "meaning": "lord, master — and in a quieter poetic strand, already the Lord in heaven"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Now listen to what Hatim's line still carried. Their god. My Lord. One Lord, still tied to his own tribe. The Quran keeps his instinct. And it widens the title past every tribe. Say, I seek refuge in the Lord of mankind.",
+   "verse": {
+    "ref": "114:1",
+    "highlight_words_ar": [
+     "بِرَبِّ",
+     "ٱلنَّاسِ"
+    ],
+    "highlight_phrase_en": "the Lord of mankind"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So the Quran does not argue with Hatim. It keeps what he saw. Behind the many gods, one Lord. What it strips away is the tribal limit. The little words fall away, their and my. What remains is Lord of mankind. Lord of the worlds. The Quran makes the poet's seed universal."
+  }
+ ]
+}
