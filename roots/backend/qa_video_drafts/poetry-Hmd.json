@@ -1,0 +1,54 @@
+{
+ "anchor_ref": "1:2",
+ "title": "What happened to the price of praise?",
+ "theme": "poetry-Hmd-praise-repriced",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "In old Arabia, praise had a price. Poets sold it. Chiefs bought it with coin. The Quran opens on that same word, praise. What happened to the price?"
+  },
+  {
+   "kind": "poetry",
+   "narration": "The word is hamd. In the poets, it is a thing bought and sold. A praise-song went to a patron, and the patron paid. Alqama states the economics plainly. Praise is not acquired except at a price. A known price, from what souls are stingy to give.",
+   "poetry": {
+    "arabic": "وَالحَمدُ لا يُشتَرى إِلّا لَهُ ثَمَنٌ مِمّا تَضِنُّ بِهِ النُفوسُ مَعلومُ",
+    "english": "And praise is not acquired except at a price — a known price, from that which souls are stingy to give.",
+    "poet": "Alqama al-Fahl"
+   }
+  },
+  {
+   "kind": "poetry",
+   "narration": "And the poets knew the limit of what they sold. Zuhayr looked the trade in the eye. Had praise been able to immortalize men, they would not die. But the praise of men grants no immortality. Praise could buy a reputation. It could not buy eternity.",
+   "poetry": {
+    "arabic": "فَلَو كانَ حَمدٌ يُخلِدُ الناسَ لَم تَمُت وَلَكِنَّ حَمدَ الناسِ لَيسَ بِمُخلِدِ",
+    "english": "Had praise been able to immortalise men, they would not die — but the praise of men grants no immortality.",
+    "poet": "Zuhayr ibn Abi Sulma"
+   }
+  },
+  {
+   "kind": "root",
+   "narration": "The root is ha mim dal. To praise. And the noun hamd. The praise itself. In the old poetry, a currency between men.",
+   "root": {
+    "arabic": "ح م د",
+    "label": "h-m-d",
+    "meaning": "to praise — hamd, the praise itself; in the old poetry a currency between men"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Now hear the Quran's opening. All praise is due to Allah, Lord of the worlds. The little words do the work. Not some praise. All of it. And not for a paying chief. Belonging to God. And elsewhere the Quran pairs two of His names. The Free of need. The Praiseworthy. Praised, while needing nothing from anyone.",
+   "verse": {
+    "ref": "1:2",
+    "highlight_words_ar": [
+     "ٱلْحَمْدُ",
+     "لِلَّهِ"
+    ],
+    "highlight_phrase_en": "praise is [due] to Allah"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So the word is not abolished. It is redirected. The poets sold praise to chiefs who paid. The Quran's praise is owed to the One who cannot be paid. Zuhayr said the praise of men grants no immortality. The Quran takes the word he sold and turns it toward the One beyond all need. Praise to Him is no transaction at all."
+  }
+ ]
+}
