@@ -1,0 +1,38 @@
+{
+ "anchor_ref": "90:4",
+ "title": "Created in hardship, not for it.",
+ "theme": "gem-toil-as-medium",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The Quran swears three oaths in a row. Then comes the payoff the oaths were building toward. We have certainly created man into hardship. That is where it lands? An oath-heavy build-up, ending on strain. Why swear your way to something so bleak?"
+  },
+  {
+   "kind": "set",
+   "narration": "The weight sits in two places. The word for hardship, kabad, appears nowhere else in the Quran. Its root names what presses and bears down. It is the root behind the liver, the body's heavy inner organ. Not a passing misfortune. A structural strain.",
+   "verse": {
+    "ref": "90:4",
+    "highlight_words_ar": [
+     "كَبَدٍ"
+    ],
+    "highlight_phrase_en": "into hardship"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "The second place is a single small preposition. The English on screen says into hardship. Underneath it sits one small word, fi. In. The verse does not say created for hardship. Not with a leaning toward it. Created in it. Hardship as the medium a person is set down within. Not an event that finds you. Where the human was placed.",
+   "verse": {
+    "ref": "90:4",
+    "highlight_words_ar": [
+     "فِى",
+     "كَبَدٍ"
+    ],
+    "highlight_phrase_en": "into hardship"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "And that changes what the bleak sentence is doing. It is a clearing of illusion, not a complaint. Strain is the baseline of being human. Not the exception. The surah needed that ground cleared. Because a few lines on, it turns and asks what a person does with such a life."
+  }
+ ]
+}
