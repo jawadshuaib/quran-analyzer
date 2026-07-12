@@ -1,0 +1,38 @@
+{
+ "anchor_ref": "85:8",
+ "title": "The charge-sheet had one line.",
+ "theme": "gem-one-item-indictment",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "A charge is read out against believers in the Quran, and it has exactly one item on it. No crime. Just this. They believed in God. That is the whole indictment. What does a charge like that prove?"
+  },
+  {
+   "kind": "set",
+   "narration": "On screen, the word is resented. The Arabic verb is heavier. Naqama is not bruised feelings. It is reprisal. Making someone the target of punitive vengeance. So the line says the only thing avenged upon them was their faith. And the grammar seals it. Nothing, except one thing. Every other motive is shut out.",
+   "verse": {
+    "ref": "85:8",
+    "highlight_words_ar": [
+     "نَقَمُوا",
+     "يُؤْمِنُوا"
+    ],
+    "highlight_phrase_en": "resented them not except because they believed"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "And the same sentence shape appears in another mouth, under another power. Facing Pharaoh, the same charge, the same grammar. The believers tell him. And you do not resent us except because we believed in the signs of our Lord. The verse is tracking a pattern. Force that needs a crime, finds none, and prosecutes belief itself.",
+   "verse": {
+    "ref": "7:126",
+    "highlight_words_ar": [
+     "تَنقِمُ"
+    ],
+    "highlight_phrase_en": "you do not resent us except"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So read the one-line charge again. Every other motive is sealed off. What survives is faith, and only faith. And when faith is the sole entry on the charge-sheet, the document has already convicted the one who drew it up."
+  }
+ ]
+}
