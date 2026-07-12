@@ -7,12 +7,13 @@ import {
   getAllEducationalSchedules, getAllEducationalScheduleRuns,
   upsertEducationalSchedule,
   getServerTime,
+  getQaPublishStatus, saveQaPublishSchedule,
 } from '../../api/admin';
 import type {
   PipelineSchedule, PipelineScheduleRun,
   YoutubeUploadSchedule, YoutubeUploadRun,
   EducationalScheduleListItem, EducationalScheduleRunGlobal,
-  ServerTime,
+  ServerTime, QaPublishStatus,
 } from '../../api/admin';
 import { useConfirm } from './shared/useConfirm';
 
@@ -33,6 +34,65 @@ const HASH_TO_TAB: Record<string, TabKey> = {
 function readHashTab(): TabKey {
   if (typeof window === 'undefined') return 'overview';
   return HASH_TO_TAB[window.location.hash] ?? 'overview';
+}
+
+/** One shared fetch of the shorts publish status for the whole page
+ *  (tab dot, hero panel, next-fire aggregate, up-next list). Polls
+ *  every 60s; re-fetches when refreshKey bumps (any save on the page)
+ *  or when reload() is called (hero toggle). skewMs = server − client
+ *  clock difference, captured per fetch, so countdowns tick against
+ *  the server's clock. */
+function usePublishStatus(refreshKey: number): {
+  status: QaPublishStatus | null;
+  error: boolean;
+  loading: boolean;
+  skewMs: number;
+  reload: () => void;
+} {
+  const [status, setStatus] = useState<QaPublishStatus | null>(null);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const skewRef = useRef(0);
+
+  const reload = useCallback(async () => {
+    try {
+      const s = await getQaPublishStatus();
+      skewRef.current = new Date(s.server_now).getTime() - Date.now();
+      setStatus(s);
+      setError(false);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    reload();
+    const poll = setInterval(reload, 60_000);
+    return () => clearInterval(poll);
+  }, [reload, refreshKey]);
+
+  return { status, error, loading, skewMs: skewRef.current, reload };
+}
+
+const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function shortsDaysLabel(days: number[]): string {
+  const valid = (days || []).filter((d) => d >= 0 && d <= 6).sort((a, b) => a - b);
+  return valid.length ? valid.map((d) => DAY_SHORT[d]).join(' · ') : 'no days set';
+}
+
+function relativeTimeFrom(iso: string): string {
+  // SQLite stamps completed_at in UTC without a zone suffix.
+  const t = new Date(iso.includes('T') || iso.endsWith('Z') ? iso : iso.replace(' ', 'T') + 'Z');
+  const mins = Math.round((Date.now() - t.getTime()) / 60_000);
+  if (!isFinite(mins)) return iso;
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const h = Math.round(mins / 60);
+  if (h < 48) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
 }
 
 /**
@@ -74,21 +134,27 @@ export default function SchedulerPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), []);
 
+  const publish = usePublishStatus(refreshKey);
+
   return (
     <div>
       <div className="mb-4">
         <h1 className="text-xl font-semibold text-stone-800 mb-1">Scheduler</h1>
         <p className="text-sm text-stone-500">
-          Automate pipeline video generation and YouTube upload on daily
-          schedules. All times are in server local time.
+          Live shorts publishing plus the legacy generation pipelines.
+          Pipeline times are in server local time; shorts slots are UTC.
         </p>
       </div>
 
-      <TabBar current={tab} onChange={changeTab} />
+      <TabBar current={tab} onChange={changeTab} publish={publish.status} />
 
       <div className="mt-6">
         {tab === 'overview' && (
-          <OverviewTab refreshKey={refreshKey} onTabChange={changeTab} />
+          <OverviewTab
+            refreshKey={refreshKey}
+            onTabChange={changeTab}
+            publish={publish}
+          />
         )}
         {tab === 'youtube' && (
           <YoutubeUploadSection refreshTrigger={refreshKey} onSaved={bumpRefresh} />
@@ -107,14 +173,22 @@ export default function SchedulerPage() {
 /* ------------------------------------------------------------ */
 
 function TabBar({
-  current, onChange,
-}: { current: TabKey; onChange: (t: TabKey) => void }) {
+  current, onChange, publish,
+}: {
+  current: TabKey;
+  onChange: (t: TabKey) => void;
+  publish: QaPublishStatus | null;
+}) {
   const tabs: { key: TabKey; label: string; sub: string }[] = [
-    { key: 'overview',    label: 'Overview',     sub: 'status & next-up' },
-    { key: 'youtube',     label: 'YouTube',      sub: 'upload schedule' },
-    { key: 'recitation',  label: 'Recitation',   sub: 'English / Arabic' },
-    { key: 'educational', label: 'Educational',  sub: 'grammar / word origins' },
+    { key: 'overview',    label: 'Overview',     sub: 'shorts publishing & status' },
+    { key: 'youtube',     label: 'YouTube',      sub: 'legacy · upload slots' },
+    { key: 'recitation',  label: 'Recitation',   sub: 'legacy · EN / AR' },
+    { key: 'educational', label: 'Educational',  sub: 'legacy · grammar / origins' },
   ];
+  const shortsDot = publish
+    ? (publish.prefs.enabled && !publish.health.breaker_open
+        ? 'bg-emerald-500' : 'bg-amber-400')
+    : null;
   return (
     <div className="border-b border-stone-200">
       <nav className="-mb-px flex flex-wrap gap-1" aria-label="Scheduler sections">
@@ -133,6 +207,14 @@ function TabBar({
               }`}
             >
               <span>{t.label}</span>
+              {t.key === 'overview' && shortsDot && (
+                <span
+                  className={`w-1.5 h-1.5 rounded-full inline-block ml-1.5 align-middle ${shortsDot}`}
+                  title={shortsDot === 'bg-emerald-500'
+                    ? 'Shorts publishing is live'
+                    : 'Shorts publishing needs attention'}
+                />
+              )}
               <span className={`block text-[10px] mt-0.5 ${active ? 'text-stone-500' : 'text-stone-400'}`}>
                 {t.sub}
               </span>
@@ -155,20 +237,335 @@ function TabBar({
  */
 
 function OverviewTab({
-  refreshKey, onTabChange,
-}: { refreshKey: number; onTabChange: (t: TabKey) => void }) {
+  refreshKey, onTabChange, publish,
+}: {
+  refreshKey: number;
+  onTabChange: (t: TabKey) => void;
+  publish: ReturnType<typeof usePublishStatus>;
+}) {
   return (
     <div className="space-y-6">
-      <ServerClockPanel />
-      <AutoPublishStatusPanel refreshKey={refreshKey} />
-      <UpNextPanel onTabChange={onTabChange} />
+      <ShortsPublishPanel publish={publish} />
+      <ServerClockPanel publish={publish} />
+      <UpNextPanel onTabChange={onTabChange} publish={publish} />
+      <LegacySystemsPanel refreshKey={refreshKey} onTabChange={onTabChange} />
     </div>
   );
 }
 
 /* ------------------------------------------------------------ */
+/*  Shorts publishing hero — the live pipeline. Answers, at a    */
+/*  glance: is it on, when is the next upload, what will it be,  */
+/*  how deep is the queue, did the last one work.                */
+/* ------------------------------------------------------------ */
 
-function ServerClockPanel() {
+const SERIES_CHIP: Record<string, string> = {
+  poetry: 'bg-rose-100 text-rose-700',
+  root: 'bg-emerald-100 text-emerald-700',
+  exegesis: 'bg-violet-100 text-violet-700',
+  qa: 'bg-amber-100 text-amber-700',
+};
+
+function ShortsPublishPanel({
+  publish,
+}: { publish: ReturnType<typeof usePublishStatus> }) {
+  const { status, error, loading, skewMs, reload } = publish;
+  const [, setTick] = useState(0);
+  const [confirmResume, setConfirmResume] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="rounded-xl border border-stone-200 bg-white p-5">
+        <div className="h-4 w-40 bg-stone-100 rounded animate-pulse mb-3" />
+        <div className="h-8 w-64 bg-stone-100 rounded animate-pulse" />
+      </section>
+    );
+  }
+  if (error || !status) {
+    return (
+      <section className="rounded-xl border border-red-200 border-l-4 border-l-red-500 bg-white p-5">
+        <h2 className="text-base font-semibold text-stone-800">Shorts publishing</h2>
+        <p className="text-sm text-red-600 mt-2">Couldn't load publishing status.</p>
+        <button
+          type="button"
+          onClick={reload}
+          className="mt-2 text-sm font-medium text-stone-700 underline decoration-dotted underline-offset-2 cursor-pointer"
+        >
+          Retry
+        </button>
+      </section>
+    );
+  }
+
+  const { prefs, counts, health, next_up, next_slot, last_upload } = status;
+  const state: 'blocked' | 'paused' | 'empty' | 'live' =
+    health.breaker_open ? 'blocked'
+    : !prefs.enabled ? 'paused'
+    : counts.approved === 0 ? 'empty'
+    : 'live';
+
+  const pill = {
+    live:    { label: 'LIVE',        cls: 'bg-emerald-50 text-emerald-700' },
+    paused:  { label: 'PAUSED',      cls: 'bg-amber-50 text-amber-700' },
+    blocked: { label: 'BLOCKED',     cls: 'bg-red-50 text-red-700' },
+    empty:   { label: 'QUEUE EMPTY', cls: 'bg-amber-50 text-amber-700' },
+  }[state];
+  const accent = {
+    live: 'border-l-emerald-500',
+    paused: 'border-l-amber-400',
+    blocked: 'border-l-red-500',
+    empty: 'border-l-amber-400',
+  }[state];
+
+  const serverNowMs = Date.now() + skewMs;
+  const slotMs = next_slot ? new Date(next_slot).getTime() - serverNowMs : null;
+  const firedToday = !!prefs.last_fired_date &&
+    prefs.last_fired_date === new Date(serverNowMs).toISOString().slice(0, 10);
+  const publishDays = Math.max(1, (prefs.days || []).length);
+  const runwayWeeks = Math.ceil(counts.approved / publishDays);
+
+  async function toggleEnabled(next: boolean) {
+    setSaving(true);
+    try {
+      await saveQaPublishSchedule({ enabled: next });
+      setConfirmResume(false);
+      reload();
+    } catch {
+      // leave the switch as-is; next poll shows truth
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const healthChips: { text: string; cls: string; href?: string }[] = [];
+  if (health.breaker_open) {
+    healthChips.push({ text: 'Upload breaker OPEN', cls: 'bg-red-50 text-red-700', href: '/admin/settings' });
+  } else if (health.oauth_failures > 0) {
+    healthChips.push({ text: `${health.oauth_failures} recent YouTube failure${health.oauth_failures === 1 ? '' : 's'}`, cls: 'bg-amber-50 text-amber-700', href: '/admin/settings' });
+  }
+  if (!health.elevenlabs_ok) {
+    healthChips.push({ text: 'ElevenLabs key missing — voice render will fail at publish time', cls: 'bg-amber-50 text-amber-700', href: '/admin/settings' });
+  }
+  if (!health.voice_ok) {
+    healthChips.push({ text: 'No narration voice configured', cls: 'bg-amber-50 text-amber-700', href: '/admin/qa-videos' });
+  }
+
+  return (
+    <section
+      id="shorts-publish-panel"
+      className={`rounded-xl border border-stone-200 border-l-4 ${accent} bg-white p-5`}
+    >
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <h2 className="text-base font-semibold text-stone-800">Shorts publishing</h2>
+          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wider ${pill.cls}`}>
+            {pill.label}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {confirmResume ? (
+            <span className="text-xs text-stone-600 flex items-center gap-2">
+              Resume {prefs.privacy} publishing {shortsDaysLabel(prefs.days)} {prefs.time} UTC?
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => toggleEnabled(true)}
+                className="font-semibold text-emerald-700 hover:text-emerald-800 cursor-pointer disabled:opacity-50"
+              >
+                Resume
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmResume(false)}
+                className="text-stone-500 hover:text-stone-700 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </span>
+          ) : (
+            <label className="flex items-center gap-2 text-xs text-stone-500 cursor-pointer">
+              Publishing
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.enabled}
+                disabled={saving}
+                onClick={() => prefs.enabled ? toggleEnabled(false) : setConfirmResume(true)}
+                className={`relative h-5 w-9 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${prefs.enabled ? 'bg-emerald-500' : 'bg-stone-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${prefs.enabled ? 'translate-x-4' : ''}`} />
+              </button>
+            </label>
+          )}
+          <a
+            href="/admin/qa-videos"
+            className="text-xs font-medium text-stone-600 hover:text-stone-900 underline decoration-dotted underline-offset-2"
+          >
+            Edit schedule →
+          </a>
+        </div>
+      </div>
+
+      <p className="text-xs text-stone-500 mt-1.5">
+        {shortsDaysLabel(prefs.days)} at {prefs.time} UTC · round-robin across 4 series
+        · uploads {prefs.privacy}
+        {health.voice_name ? ` · voice: ${health.voice_name}` : ''}
+        {firedToday && <span className="text-emerald-600 font-medium"> · fired today ✓</span>}
+      </p>
+
+      {state === 'paused' && (
+        <div className="mt-3 rounded-md bg-amber-50 text-amber-800 text-xs px-3 py-2">
+          Publishing is paused — approved scripts will accumulate but nothing uploads.
+        </div>
+      )}
+      {state === 'blocked' && (
+        <div className="mt-3 rounded-md bg-red-50 text-red-700 text-xs px-3 py-2">
+          Uploads halted — circuit breaker opened after {health.oauth_failures} consecutive
+          YouTube failures. Slots are skipped until it's fixed.{' '}
+          <a href="/admin/settings" className="font-semibold underline underline-offset-2">Fix credentials →</a>
+        </div>
+      )}
+      {state === 'empty' && (
+        <div className="mt-3 rounded-md bg-amber-50 text-amber-800 text-xs px-3 py-2">
+          0 approved scripts — nothing will publish at the next slot.
+          {counts.awaiting_review > 0 && (
+            <>
+              {' '}
+              <a href="/admin/qa-videos" className="font-semibold underline underline-offset-2">
+                Review {counts.awaiting_review} waiting script{counts.awaiting_review === 1 ? '' : 's'} →
+              </a>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className={`mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 ${state === 'paused' ? 'opacity-60' : ''}`}>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-stone-400">Next upload</div>
+          {state === 'paused' || !next_slot ? (
+            <div className="text-3xl font-mono text-stone-400 mt-1">—</div>
+          ) : slotMs !== null && slotMs <= 0 ? (
+            <>
+              <div className="text-3xl font-mono font-semibold text-stone-800 mt-1">due now</div>
+              <div className="text-xs text-stone-500 mt-1">
+                waiting for scheduler (grace {prefs.grace_minutes ?? 120} min)
+                {state === 'blocked' && <span className="text-red-600 font-medium"> · this slot will be skipped</span>}
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                className="text-3xl font-mono font-semibold text-stone-800 mt-1"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
+                {humanizeCountdown(slotMs ?? 0)}
+              </div>
+              <div className="text-xs text-stone-500 mt-1">
+                {new Date(next_slot).toLocaleString(undefined, {
+                  weekday: 'short', month: 'short', day: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
+                })}
+                {state === 'blocked' && <span className="text-red-600 font-medium"> · this slot will be skipped</span>}
+              </div>
+            </>
+          )}
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-stone-400">Will publish</div>
+          {next_up ? (
+            <a href="/admin/qa-videos" className="block group mt-1">
+              <div className="text-sm font-medium text-stone-800 group-hover:text-stone-950 leading-snug">
+                {next_up.title}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${SERIES_CHIP[next_up.source_type] || 'bg-sky-100 text-sky-700'}`}>
+                  {next_up.source_type}
+                </span>
+                <span className="text-[11px] text-stone-400">{next_up.anchor_ref}</span>
+              </div>
+              <div className="text-[10px] text-stone-400 mt-1">
+                Chosen by the same round-robin picker the scheduler runs.
+              </div>
+            </a>
+          ) : counts.approved > 0 ? (
+            <div className="text-sm text-stone-400 mt-1">Determining next video…</div>
+          ) : (
+            <div className="text-sm text-stone-400 mt-1">Nothing approved yet.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-x-6 gap-y-2 mt-4 pt-4 border-t border-stone-100 text-sm">
+        <a href="/admin/qa-videos" className="text-stone-700 hover:text-stone-900">
+          <span className="font-semibold">{counts.approved}</span> approved
+          <span className="text-stone-400 text-xs"> · ≈{runwayWeeks} week{runwayWeeks === 1 ? '' : 's'} at {publishDays}/week</span>
+        </a>
+        <a href="/admin/qa-videos" className="text-stone-700 hover:text-stone-900">
+          <span className={`font-semibold ${counts.approved < 3 && counts.awaiting_review > 0 ? 'text-amber-600' : ''}`}>
+            {counts.awaiting_review}
+          </span> awaiting review
+        </a>
+        <span className="text-stone-700">
+          <span className="font-semibold">{counts.uploaded}</span> uploaded
+        </span>
+      </div>
+
+      <div className="mt-3 text-xs text-stone-500">
+        {last_upload ? (
+          <span className="inline-flex items-center gap-1.5 flex-wrap">
+            <svg className="w-3.5 h-3.5 text-emerald-500 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            Last upload: {last_upload.title}
+            {last_upload.completed_at && <> · {relativeTimeFrom(last_upload.completed_at)}</>}
+            {last_upload.youtube_video_id && (
+              <a
+                href={`https://youtube.com/watch?v=${last_upload.youtube_video_id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-stone-700 hover:text-stone-900 underline decoration-dotted underline-offset-2"
+              >
+                Watch →
+              </a>
+            )}
+          </span>
+        ) : (
+          <span>No uploads yet — the first will go at the next slot.</span>
+        )}
+      </div>
+
+      {healthChips.length > 0 ? (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {healthChips.map((c, i) => c.href ? (
+            <a key={i} href={c.href} className={`text-[11px] font-medium px-2 py-1 rounded ${c.cls} underline decoration-dotted underline-offset-2`}>
+              {c.text}
+            </a>
+          ) : (
+            <span key={i} className={`text-[11px] font-medium px-2 py-1 rounded ${c.cls}`}>{c.text}</span>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3">
+          <span className="text-[11px] font-medium px-2 py-1 rounded bg-emerald-50 text-emerald-700">
+            All systems ok
+          </span>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------ */
+
+function ServerClockPanel({
+  publish,
+}: { publish: ReturnType<typeof usePublishStatus> }) {
   // Anchor on a server-time fetch then tick locally. Re-sync every
   // 5 minutes (clock drift is tiny, but a long-open tab will drift
   // a few seconds an hour from the server's wall clock). Operator
@@ -233,7 +630,7 @@ function ServerClockPanel() {
             })}
           </div>
         </div>
-        <NextFireCountdown />
+        <NextFireCountdown publish={publish.status} />
       </div>
       {!serverTime && (
         <p className="mt-3 text-[11px] text-amber-600">
@@ -247,18 +644,20 @@ function ServerClockPanel() {
 /* ------------------------------------------------------------ */
 
 interface UpcomingFire {
-  source: 'youtube' | 'recitation' | 'educational';
+  source: 'shorts' | 'youtube' | 'recitation' | 'educational';
   pipelineName: string;     // human label for "what" will fire
   pipelineId?: number;
   /** Computed next-fire moment, in the server's clock. */
   nextDate: Date;
   /** ms until fire, computed against server-now. */
   msUntil: number;
+  /** Shorts only: queue has nothing approved. */
+  queueEmpty?: boolean;
 }
 
-function NextFireCountdown() {
-  // Aggregates next-fire across the three schedule families and
-  // shows a live countdown to the very soonest one.
+function NextFireCountdown({ publish }: { publish: QaPublishStatus | null }) {
+  // Aggregates next-fire across the shorts publisher and the three
+  // legacy schedule families; shows a live countdown to the soonest.
   const [next, setNext] = useState<UpcomingFire | null>(null);
   const [, setTick] = useState(0);
 
@@ -269,12 +668,12 @@ function NextFireCountdown() {
         getPipelineSchedules().catch(() => []),
         getAllEducationalSchedules().catch(() => []),
       ]);
-      const all = collectUpcoming(yt, rec, edu);
+      const all = collectUpcoming(yt, rec, edu, publish);
       setNext(all[0] || null);
     } catch {
       setNext(null);
     }
-  }, []);
+  }, [publish]);
 
   useEffect(() => {
     load();
@@ -318,14 +717,17 @@ function NextFireCountdown() {
 function humanizeCountdown(ms: number): string {
   if (ms <= 0) return '00:00:00';
   const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
+  const d = Math.floor(totalSec / 86_400);
+  const h = Math.floor((totalSec % 86_400) / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  const hms = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return d > 0 ? `${d}d ${hms}` : hms;
 }
 
 function sourceLabel(s: UpcomingFire['source']): string {
-  return s === 'youtube' ? 'YouTube upload'
+  return s === 'shorts' ? 'Shorts publish'
+    : s === 'youtube' ? 'YouTube upload'
     : s === 'recitation' ? 'Recitation'
     : 'Educational';
 }
@@ -334,9 +736,26 @@ function collectUpcoming(
   yt: YoutubeUploadSchedule | null,
   rec: PipelineSchedule[],
   edu: EducationalScheduleListItem[],
+  publish: QaPublishStatus | null = null,
   now: Date = new Date(),
 ): UpcomingFire[] {
   const out: UpcomingFire[] = [];
+  // Shorts publisher: use the server-computed next_slot verbatim —
+  // it honors the M/W/F day set, the grace window, and today's
+  // already-fired flag. nextFireFromTimes is daily-only and would
+  // invent fires on off days.
+  if (publish && publish.prefs.enabled && publish.next_slot) {
+    const d = new Date(publish.next_slot);
+    out.push({
+      source: 'shorts',
+      pipelineName: publish.next_up
+        ? `Publish: ${publish.next_up.title}`
+        : 'Publish (queue empty)',
+      nextDate: d,
+      msUntil: d.getTime() - now.getTime(),
+      queueEmpty: !publish.next_up,
+    });
+  }
   if (yt && yt.enabled && yt.times.length > 0) {
     const n = nextFireFromTimes(yt.times, now);
     if (n) {
@@ -378,8 +797,14 @@ function collectUpcoming(
   return out;
 }
 
-function UpNextPanel({ onTabChange }: { onTabChange: (t: TabKey) => void }) {
+function UpNextPanel({
+  onTabChange, publish,
+}: {
+  onTabChange: (t: TabKey) => void;
+  publish: ReturnType<typeof usePublishStatus>;
+}) {
   const [items, setItems] = useState<UpcomingFire[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [, setTick] = useState(0);
 
   const load = useCallback(async () => {
@@ -389,11 +814,13 @@ function UpNextPanel({ onTabChange }: { onTabChange: (t: TabKey) => void }) {
         getPipelineSchedules().catch(() => []),
         getAllEducationalSchedules().catch(() => []),
       ]);
-      setItems(collectUpcoming(yt, rec, edu).slice(0, 8));
+      setItems(collectUpcoming(yt, rec, edu, publish.status).slice(0, 8));
+      setFailed(false);
     } catch {
       setItems([]);
+      setFailed(true);
     }
-  }, []);
+  }, [publish.status]);
 
   useEffect(() => {
     load();
@@ -414,18 +841,22 @@ function UpNextPanel({ onTabChange }: { onTabChange: (t: TabKey) => void }) {
       <div className="rounded-xl border border-stone-200 bg-white p-5">
         <div className="text-base font-semibold text-stone-800 mb-1">Up next</div>
         <p className="text-sm text-stone-500">
-          Nothing scheduled. Enable a pipeline or the YouTube upload to start firing.
+          {failed
+            ? "Couldn't load schedules."
+            : 'Nothing scheduled. Enable shorts publishing above, or a legacy pipeline, to start firing.'}
         </p>
       </div>
     );
   }
+
+  const onlyShorts = items.every((it) => it.source === 'shorts');
 
   return (
     <section className="rounded-xl border border-stone-200 bg-white p-5">
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-stone-800">Up next</h2>
         <span className="text-[11px] text-stone-400">
-          Across all schedules. Click a row to jump to its tab.
+          Across all schedules. Click a row to jump to its section.
         </span>
       </div>
       <ul className="divide-y divide-stone-100">
@@ -434,14 +865,22 @@ function UpNextPanel({ onTabChange }: { onTabChange: (t: TabKey) => void }) {
           return (
             <li
               key={`${it.source}-${it.pipelineId ?? 'yt'}-${i}`}
-              onClick={() => onTabChange(it.source === 'youtube' ? 'youtube'
-                : it.source === 'recitation' ? 'recitation' : 'educational')}
+              onClick={() => {
+                if (it.source === 'shorts') {
+                  onTabChange('overview');
+                  document.getElementById('shorts-publish-panel')?.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                  onTabChange(it.source === 'youtube' ? 'youtube'
+                    : it.source === 'recitation' ? 'recitation' : 'educational');
+                }
+              }}
               className="py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-stone-50 -mx-2 px-2 rounded-md"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                    it.source === 'youtube' ? 'bg-red-100 text-red-700'
+                    it.source === 'shorts' ? 'bg-sky-100 text-sky-700'
+                    : it.source === 'youtube' ? 'bg-red-100 text-red-700'
                     : it.source === 'recitation' ? 'bg-emerald-100 text-emerald-700'
                     : 'bg-violet-100 text-violet-700'
                   }`}>
@@ -450,6 +889,11 @@ function UpNextPanel({ onTabChange }: { onTabChange: (t: TabKey) => void }) {
                   <span className="text-sm text-stone-700 truncate">
                     {it.pipelineName}
                   </span>
+                  {it.queueEmpty && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+                      queue empty
+                    </span>
+                  )}
                 </div>
                 <div className="text-[11px] text-stone-400 mt-0.5 font-mono">
                   {formatTimeOfDay(it.nextDate)}
@@ -466,7 +910,28 @@ function UpNextPanel({ onTabChange }: { onTabChange: (t: TabKey) => void }) {
           );
         })}
       </ul>
+      {onlyShorts && (
+        <p className="mt-3 text-[11px] text-stone-400">
+          Recitation, Educational and upload-slot pipelines are paused — see their tabs.
+        </p>
+      )}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------ */
+/*  One-line pointer shown at the top of a legacy tab when that  */
+/*  family is fully off — self-removes when anything re-enables. */
+/* ------------------------------------------------------------ */
+
+function LegacyPointerBar() {
+  return (
+    <div className="text-xs text-stone-500 bg-stone-50 rounded-md px-3 py-2 mb-4">
+      This legacy pipeline is paused. Live shorts publishing runs from the{' '}
+      <a href="#overview" className="underline decoration-dotted underline-offset-2 hover:text-stone-700">
+        Overview tab
+      </a>.
+    </div>
   );
 }
 
@@ -518,6 +983,7 @@ function RecitationSection({ onSaved }: { onSaved: () => void }) {
           {err}
         </div>
       )}
+      {schedules.length > 0 && schedules.every((s) => !s.enabled) && <LegacyPointerBar />}
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-stone-800">Recitation pipelines (English / Arabic)</h2>
         <span className="text-xs text-stone-400">
@@ -950,6 +1416,7 @@ function EducationalScheduleSection({
 
   return (
     <section>
+      {schedules.length > 0 && schedules.every((s) => !s.enabled) && <LegacyPointerBar />}
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-stone-800">
           Educational pipelines (word origins / translation hides / grammar insights)
@@ -1391,6 +1858,7 @@ function YoutubeUploadSection({
 
   return (
     <section>
+      {schedule && !schedule.enabled && <LegacyPointerBar />}
       <div className="flex items-baseline justify-between mb-3">
         <h2 className="text-base font-semibold text-stone-800">YouTube upload</h2>
         <span className="text-xs text-stone-400">
@@ -1992,7 +2460,9 @@ interface HealthCell {
   fixLabel?: string;
 }
 
-function AutoPublishStatusPanel({ refreshKey = 0 }: { refreshKey?: number }) {
+function LegacySystemsPanel({
+  refreshKey = 0, onTabChange,
+}: { refreshKey?: number; onTabChange: (t: TabKey) => void }) {
   const [creds, setCreds] = useState<{ ok: boolean; tokenAgeDays?: number } | null>(null);
   const [pipelineCount, setPipelineCount] = useState<{
     enabledWithTimes: number;
@@ -2000,6 +2470,17 @@ function AutoPublishStatusPanel({ refreshKey = 0 }: { refreshKey?: number }) {
     total: number;
   } | null>(null);
   const [upload, setUpload] = useState<YoutubeUploadSchedule | null>(null);
+  const [open, setOpen] = useState<boolean>(() => {
+    try { return localStorage.getItem('scheduler.legacyPanelOpen') === '1'; }
+    catch { return false; }
+  });
+  function toggleOpen() {
+    setOpen((o) => {
+      try { localStorage.setItem('scheduler.legacyPanelOpen', o ? '0' : '1'); }
+      catch { /* private mode */ }
+      return !o;
+    });
+  }
 
   // refreshKey is bumped by the parent on every save. Listing it as
   // a dep makes the panel re-fetch on any save anywhere on the page.
@@ -2088,7 +2569,7 @@ function AutoPublishStatusPanel({ refreshKey = 0 }: { refreshKey?: number }) {
     });
   } else if (pipelineCount.enabledWithTimes === 0 && pipelineCount.enabledNoTimes === 0) {
     cells.push({
-      label: 'Pipeline schedules',
+      label: 'Generation schedules (legacy)',
       state: 'bad',
       detail: `${pipelineCount.total} pipeline(s) exist but none are scheduled — no videos will be generated.`,
       fixHref: '/admin/pipelines',
@@ -2096,85 +2577,91 @@ function AutoPublishStatusPanel({ refreshKey = 0 }: { refreshKey?: number }) {
     });
   } else if (pipelineCount.enabledNoTimes > 0) {
     cells.push({
-      label: 'Pipeline schedules',
+      label: 'Generation schedules (legacy)',
       state: 'warn',
       detail: `${pipelineCount.enabledNoTimes} schedule(s) enabled but missing times — they'll never fire.`,
     });
   } else {
     cells.push({
-      label: 'Pipeline schedules',
+      label: 'Generation schedules (legacy)',
       state: 'ok',
       detail: `${pipelineCount.enabledWithTimes} schedule(s) firing.`,
     });
   }
 
-  // 3. YouTube upload schedule (drains the queue → publishes)
-  const next = upload && upload.enabled ? nextFireFromTimes(upload.times) : null;
+  // 3. YouTube upload schedule (drains the legacy queue → publishes)
   if (!upload.enabled) {
     cells.push({
-      label: 'Upload schedule',
-      state: 'bad',
-      detail: 'Disabled — generated videos will queue up but never publish.',
+      label: 'Upload-slot drainer (legacy)',
+      state: 'warn',
+      detail: 'Disabled — legacy generated videos would queue up without publishing.',
     });
   } else if (upload.times.length === 0) {
     cells.push({
-      label: 'Upload schedule',
+      label: 'Upload-slot drainer (legacy)',
       state: 'bad',
       detail: 'Enabled but no times set — nothing will publish.',
     });
   } else {
     cells.push({
-      label: 'Upload schedule',
+      label: 'Upload-slot drainer (legacy)',
       state: 'ok',
       detail: `${upload.times.length} slot${upload.times.length === 1 ? '' : 's'}/day, privacy: ${upload.privacy}.`,
     });
   }
 
-  // Aggregate. ONE bad → ✕ Off. ONE warn → ⚠ Setup incomplete. All ok → ✓ Running.
-  const aggregate: 'ok' | 'warn' | 'bad' =
-    cells.some((c) => c.state === 'bad') ? 'bad'
-    : cells.some((c) => c.state === 'warn') ? 'warn'
-    : 'ok';
-
-  const aggregateUI = {
-    ok:   { label: 'Running', dot: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', ring: 'ring-emerald-200' },
-    warn: { label: 'Setup incomplete', dot: 'bg-amber-500', text: 'text-amber-700', bg: 'bg-amber-50', ring: 'ring-amber-200' },
-    bad:  { label: 'Not publishing', dot: 'bg-red-500', text: 'text-red-700', bg: 'bg-red-50', ring: 'ring-red-200' },
-  }[aggregate];
+  // The legacy family counts as ACTIVE when anything in it is switched
+  // on. Demotion is data-driven: the panel collapses only while all of
+  // it is off, and re-expands by itself the moment something is enabled.
+  const active =
+    pipelineCount.enabledWithTimes + pipelineCount.enabledNoTimes > 0 ||
+    upload.enabled;
+  const effectiveOpen = open || active;
+  const enabledCount = pipelineCount.enabledWithTimes + pipelineCount.enabledNoTimes;
 
   return (
-    <section>
-      <div className={`rounded-xl border border-stone-200 bg-white p-5 ring-1 ${aggregateUI.ring}`}>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 rounded-full ${aggregateUI.dot}`} />
-              <h2 className="text-base font-semibold text-stone-800">Auto-publishing to YouTube</h2>
-              <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${aggregateUI.bg} ${aggregateUI.text}`}>
-                {aggregateUI.label}
-              </span>
-            </div>
-            <p className="text-xs text-stone-500 mt-1.5 max-w-xl">
-              Three pieces have to be configured for a video to reach YouTube on its own:
-              YouTube credentials, at least one pipeline schedule with daily times, and the
-              global upload schedule below.
-            </p>
-          </div>
-          {aggregate === 'ok' && next && (
-            <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider text-stone-400">Next upload</div>
-              <div className="text-lg font-semibold text-stone-800">{formatTimeOfDay(next.date)}</div>
-              <div className="text-xs text-stone-500">{next.isTomorrow ? `tomorrow · ${next.human}` : next.human}</div>
-            </div>
-          )}
-        </div>
+    <section className="rounded-xl border border-stone-200 bg-white overflow-hidden">
+      <button
+        type="button"
+        onClick={toggleOpen}
+        disabled={active}
+        aria-expanded={effectiveOpen}
+        className={`w-full flex items-center gap-2 px-5 py-3.5 text-left bg-stone-50 ${active ? '' : 'cursor-pointer hover:bg-stone-100'}`}
+      >
+        <svg
+          className={`w-3.5 h-3.5 text-stone-400 shrink-0 transition-transform ${effectiveOpen ? 'rotate-90' : ''}`}
+          viewBox="0 0 20 20" fill="currentColor" aria-hidden
+        >
+          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+        </svg>
+        <span className="text-sm font-semibold text-stone-700">Legacy pipelines</span>
+        <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${
+          active ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-200 text-stone-600'
+        }`}>
+          {active ? 'ACTIVE' : 'PAUSED'}
+        </span>
+        <span className="text-xs text-stone-500 truncate">
+          recitation &amp; educational generation, upload-slot drainer
+          · {enabledCount} of {pipelineCount.total} schedules enabled
+          · drainer {upload.enabled ? 'on' : 'off'}
+        </span>
+      </button>
 
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {cells.map((c, i) => (
-            <HealthCellView key={i} cell={c} />
-          ))}
+      {effectiveOpen && (
+        <div className="px-5 pb-5 pt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {cells.map((c, i) => (
+              <HealthCellView key={i} cell={c} />
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-stone-400">
+            Manage in the{' '}
+            <button type="button" onClick={() => onTabChange('youtube')} className="underline decoration-dotted underline-offset-2 cursor-pointer hover:text-stone-600">YouTube</button>,{' '}
+            <button type="button" onClick={() => onTabChange('recitation')} className="underline decoration-dotted underline-offset-2 cursor-pointer hover:text-stone-600">Recitation</button> and{' '}
+            <button type="button" onClick={() => onTabChange('educational')} className="underline decoration-dotted underline-offset-2 cursor-pointer hover:text-stone-600">Educational</button> tabs above.
+          </p>
         </div>
-      </div>
+      )}
     </section>
   );
 }

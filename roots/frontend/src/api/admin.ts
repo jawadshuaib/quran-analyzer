@@ -2803,6 +2803,32 @@ export async function rejectQaVideo(id: number, reason?: string): Promise<void> 
   if (!res.ok) throw new Error(data.error || 'Reject failed');
 }
 
+export interface QaPublishStatus {
+  prefs: Pick<QaPublishSchedule,
+    'enabled' | 'days' | 'time' | 'grace_minutes' | 'privacy' | 'last_fired_date'>;
+  server_now: string;
+  next_slot: string | null;
+  next_up: {
+    id: number; title: string; source_type: string; anchor_ref: string;
+  } | null;
+  counts: { approved: number; awaiting_review: number; uploaded: number };
+  last_upload: {
+    id: number; title: string; source_type: string;
+    youtube_video_id: string; completed_at: string;
+  } | null;
+  health: {
+    oauth_failures: number; breaker_open: boolean;
+    elevenlabs_ok: boolean; voice_ok: boolean; voice_name: string | null;
+  };
+}
+
+export async function getQaPublishStatus(): Promise<QaPublishStatus> {
+  const res = await authFetch(`${BASE}/qa-videos/publish-status`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load publish status');
+  return data;
+}
+
 export async function saveQaPublishSchedule(
   patch: Partial<QaPublishSchedule>,
 ): Promise<QaPublishSchedule> {

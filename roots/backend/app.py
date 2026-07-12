@@ -19665,6 +19665,126 @@ def _qa_upload_to_youtube(conn, row: dict, privacy: str) -> dict:
     return {"ok": True, "video_id": vid}
 
 
+def _qa_publish_pick(conn):
+    """The publish scheduler's video picker, shared with the status
+    endpoint so the admin UI shows exactly what the next slot will do.
+    Round-robin across series so subscribers get variety: pick the
+    series whose last upload is oldest (never-uploaded series first,
+    in cycle order), then the oldest approved script within it."""
+    _CYCLE = ["poetry", "root", "exegesis", "qa"]
+    last_up = {r["source_type"]: r["m"] for r in conn.execute(
+        "SELECT source_type, MAX(completed_at) AS m FROM qa_videos "
+        "WHERE status='uploaded' GROUP BY source_type").fetchall()}
+    stocked = [r["source_type"] for r in conn.execute(
+        "SELECT DISTINCT source_type FROM qa_videos WHERE status='approved'"
+    ).fetchall()]
+    stocked.sort(key=lambda t: (last_up.get(t) or "", _CYCLE.index(t)
+                                if t in _CYCLE else 9))
+    if not stocked:
+        return None
+    return conn.execute(
+        "SELECT * FROM qa_videos WHERE status='approved' "
+        "AND source_type=? ORDER BY id ASC LIMIT 1", (stocked[0],)
+    ).fetchone()
+
+
+def _qa_publish_next_slot(prefs, now):
+    """Next datetime (UTC) the publish scheduler will fire, or None when
+    disabled / no days configured. Mirrors _qa_publish_tick's gating:
+    a day whose slot already fired (last_fired_date) or whose grace
+    window has passed no longer counts."""
+    from datetime import datetime, timedelta, timezone
+    if not prefs.get("enabled"):
+        return None
+    days = [d for d in (prefs.get("days") or []) if isinstance(d, int) and 0 <= d <= 6]
+    if not days:
+        return None
+    try:
+        hh, mm = map(int, str(prefs.get("time") or "16:00").split(":"))
+    except Exception:
+        hh, mm = 16, 0
+    grace = int(prefs.get("grace_minutes") or 120)
+    for offset in range(0, 8):
+        day = now + timedelta(days=offset)
+        if day.weekday() not in days:
+            continue
+        slot = day.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        if offset == 0:
+            if prefs.get("last_fired_date") == now.strftime("%Y-%m-%d"):
+                continue  # today's slot already consumed
+            if now > slot + timedelta(minutes=grace):
+                continue  # today's window missed
+        return slot
+    return None
+
+
+@app.route("/api/admin/qa-videos/publish-status", methods=["GET"])
+@admin_required
+def admin_qa_publish_status():
+    """Light status payload for the scheduler Overview: what the Shorts
+    publish scheduler will do next, queue depth, last upload, health.
+    Server-computed via the same picker the scheduler itself uses."""
+    from datetime import datetime, timezone
+    conn = get_db()
+    try:
+        _ensure_qa_videos_table(conn)
+        prefs = _qa_publish_prefs(conn)
+        now = datetime.now(timezone.utc)
+        next_slot = _qa_publish_next_slot(prefs, now)
+        pick = _qa_publish_pick(conn)
+        counts = {r["status"]: r["n"] for r in conn.execute(
+            "SELECT status, COUNT(*) AS n FROM qa_videos GROUP BY status"
+        ).fetchall()}
+        last = conn.execute(
+            "SELECT id, title, source_type, anchor_ref, youtube_video_id, completed_at "
+            "FROM qa_videos WHERE status='uploaded' "
+            "ORDER BY completed_at DESC LIMIT 1"
+        ).fetchone()
+        el = conn.execute(
+            "SELECT value FROM admin_preferences WHERE key='elevenlabs_api_key'"
+        ).fetchone()
+        oauth_failures = _youtube_oauth_failure_count(conn)
+        voice_id = _qa_resolve_voice(conn)
+        voice_name = None
+        if voice_id:
+            vrow = conn.execute(
+                "SELECT name FROM admin_voices WHERE voice_id=?", (voice_id,)
+            ).fetchone()
+            voice_name = vrow["name"] if vrow else voice_id
+        return jsonify({
+            "prefs": {k: prefs.get(k) for k in
+                      ("enabled", "days", "time", "grace_minutes", "privacy",
+                       "last_fired_date")},
+            "server_now": now.isoformat(),
+            "next_slot": next_slot.isoformat() if next_slot else None,
+            "next_up": ({
+                "id": pick["id"], "title": pick["title"],
+                "source_type": pick["source_type"],
+                "anchor_ref": pick["anchor_ref"],
+            } if pick else None),
+            "counts": {
+                "approved": counts.get("approved", 0),
+                "awaiting_review": counts.get("gate_passed", 0),
+                "uploaded": counts.get("uploaded", 0),
+            },
+            "last_upload": ({
+                "id": last["id"], "title": last["title"],
+                "source_type": last["source_type"],
+                "youtube_video_id": last["youtube_video_id"],
+                "completed_at": last["completed_at"],
+            } if last else None),
+            "health": {
+                "oauth_failures": oauth_failures,
+                "breaker_open": oauth_failures >= OAUTH_CIRCUIT_BREAKER_THRESHOLD,
+                "elevenlabs_ok": bool(el and el["value"]),
+                "voice_ok": bool(voice_id),
+                "voice_name": voice_name,
+            },
+        })
+    finally:
+        conn.close()
+
+
 def _qa_publish_tick():
     """Publish-only scheduler: on configured days (default Mon/Wed/Fri
     16:00 UTC) upload the OLDEST human-approved video. Never generates,
@@ -19697,24 +19817,7 @@ def _qa_publish_tick():
         if _youtube_oauth_failure_count(conn) >= OAUTH_CIRCUIT_BREAKER_THRESHOLD:
             print("[qa-publish] OAuth circuit breaker open — skipping slot")
             return
-        # Round-robin across series so subscribers get variety: pick the
-        # series whose last upload is oldest (never-uploaded series first,
-        # in cycle order), then the oldest approved script within it.
-        _CYCLE = ["poetry", "root", "exegesis", "qa"]
-        last_up = {r["source_type"]: r["m"] for r in conn.execute(
-            "SELECT source_type, MAX(completed_at) AS m FROM qa_videos "
-            "WHERE status='uploaded' GROUP BY source_type").fetchall()}
-        stocked = [r["source_type"] for r in conn.execute(
-            "SELECT DISTINCT source_type FROM qa_videos WHERE status='approved'"
-        ).fetchall()]
-        stocked.sort(key=lambda t: (last_up.get(t) or "", _CYCLE.index(t)
-                                    if t in _CYCLE else 9))
-        row = None
-        if stocked:
-            row = conn.execute(
-                "SELECT * FROM qa_videos WHERE status='approved' "
-                "AND source_type=? ORDER BY id ASC LIMIT 1", (stocked[0],)
-            ).fetchone()
+        row = _qa_publish_pick(conn)
         if not row:
             return
         rd = dict(row)
