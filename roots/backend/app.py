@@ -8273,6 +8273,17 @@ def _refresh_youtube_stats() -> dict:
             yid = r["youtube_video_id"]
             if yid not in id_to_source:
                 id_to_source[yid] = ("admin_pipeline_videos", int(r["id"]))
+        # Shorts published by the Q&A/Studio scheduler — the live
+        # pipeline. Collected last with unconditional assignment so a
+        # qa_videos row wins any id collision with the legacy tables.
+        try:
+            for r in conn.execute(
+                "SELECT id, youtube_video_id FROM qa_videos "
+                "WHERE youtube_video_id IS NOT NULL AND youtube_video_id != ''"
+            ).fetchall():
+                id_to_source[r["youtube_video_id"]] = ("qa_videos", int(r["id"]))
+        except sqlite3.OperationalError:
+            pass
     finally:
         conn.close()
 
