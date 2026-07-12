@@ -95,6 +95,43 @@ export interface GrammarNotesData {
   created_at: string;
 }
 
+export interface VerseExegesisData {
+  surah: number;
+  ayah: number;
+  exegesis_markdown: string;
+  source_scores: number[] | null;
+  created_at: string;
+  edited_at: string | null;
+}
+
+/** One authenticated pre-Islamic poetry line quoted in a verse note. */
+export interface PoetryQuotedLine {
+  line_root_id: number;
+  poet?: string;
+  arabic?: string;
+  surface_word?: string;
+  english?: string;
+  translit?: string;
+  note?: string;
+  /** Where this line lives in the poem library — lets an inline quote link to
+   *  the website's /poem/<poem_id>#line-<line_no>. */
+  poem_id?: number;
+  line_no?: number;
+}
+
+/** Verse-level pre-Islamic poetry note shown below the exegesis. */
+export interface VersePoetryNote {
+  surah: number;
+  ayah: number;
+  focus_root_buckwalter?: string | null;
+  note_markdown: string;
+  quoted_lines: PoetryQuotedLine[];
+  continuity: boolean;
+  confidence?: number | null;
+  auth_tier_max?: string | null;
+  created_at?: string | null;
+}
+
 export interface WordMeaningBrief {
   meaning_short: string;
   has_detail: boolean;

@@ -5,6 +5,8 @@ import type {
   AITranslationData,
   GrammarNotesData,
   WordMeaningsResponse,
+  VerseExegesisData,
+  VersePoetryNote,
 } from '../types/index.ts';
 
 import { API_BASE } from '../config.ts';
@@ -58,6 +60,26 @@ export async function fetchWordMeanings(
   const data: WordMeaningsResponse = await res.json();
   if (!data.meanings || Object.keys(data.meanings).length === 0) return null;
   return data;
+}
+
+export async function fetchVerseExegesis(
+  surah: number,
+  ayah: number,
+): Promise<VerseExegesisData | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/exegesis`);
+  if (res.status === 404) return null;
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function fetchVersePoetry(
+  surah: number,
+  ayah: number,
+): Promise<VersePoetryNote | null> {
+  const res = await fetch(`${BASE}/verse/${surah}:${ayah}/poetry`);
+  if (res.status === 404) return null;
+  if (!res.ok) return null;
+  return res.json();
 }
 
 export async function fetchGrammarNotes(

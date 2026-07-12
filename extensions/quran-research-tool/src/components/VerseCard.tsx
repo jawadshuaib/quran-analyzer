@@ -1,24 +1,20 @@
 import { useState, useEffect, useRef } from 'react';
-import type { VerseData, AITranslationData, GrammarNotesData, Word, WordMeaningBrief } from '../types/index.ts';
+import type { VerseData, AITranslationData, GrammarNotesData, Word, WordMeaningBrief, VerseExegesisData, VersePoetryNote } from '../types/index.ts';
 import WordTooltip from './WordTooltip.tsx';
 import GrammarNotesSection from './GrammarNotesSection.tsx';
+import ExegesisSection from './ExegesisSection.tsx';
+import PoetrySection from './PoetrySection.tsx';
+import NoteText from './NoteText.tsx';
+import { FRONTEND_BASE } from '../config.ts';
 
 interface Props {
   verse: VerseData;
   aiTranslation: AITranslationData | null;
   grammarNotes: GrammarNotesData | null;
   wordMeanings: Record<string, WordMeaningBrief>;
+  exegesis: VerseExegesisData | null;
+  poetry: VersePoetryNote | null;
 }
-
-import { FRONTEND_BASE } from '../config.ts';
-
-// Matches "56:74" or "96:1-4"
-const VERSE_REF_RE = /(\d{1,3}:\d{1,3}(?:[–\-]\d{1,3})?)/g;
-// Matches spaced Arabic root letters like "ر ح م"
-const ARABIC_ROOT_RE = /([\u0621-\u064A][ \-][\u0621-\u064A](?:[ \-][\u0621-\u064A]){0,3})/g;
-const ARABIC_CHAR_RE = /[\u0621-\u0652\u0670\u0671]/;
-// Matches quoted strings
-const QUOTED_RE = /["\u201C][^"\u201D]+["\u201D]/g;
 
 /** Split departure notes into separate lines at " - " when preceded by "." within 3 chars. */
 function splitDepartureNotes(text: string): string[] {
@@ -26,93 +22,7 @@ function splitDepartureNotes(text: string): string[] {
   return processed.split('\n');
 }
 
-/** Render text with verse refs as links and Arabic roots as links, quoted text as italic. */
-function NoteText({ text }: { text: string }) {
-  type Part = { type: 'text' | 'ref' | 'root' | 'quoted'; value: string };
-  const matches: { index: number; length: number; type: 'ref' | 'root' | 'quoted'; value: string }[] = [];
-
-  VERSE_REF_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = VERSE_REF_RE.exec(text)) !== null) {
-    matches.push({ index: m.index, length: m[0].length, type: 'ref', value: m[1] });
-  }
-
-  ARABIC_ROOT_RE.lastIndex = 0;
-  while ((m = ARABIC_ROOT_RE.exec(text)) !== null) {
-    const charBefore = m.index > 0 ? text[m.index - 1] : '';
-    const charAfter = text[m.index + m[0].length] ?? '';
-    if (ARABIC_CHAR_RE.test(charBefore) || ARABIC_CHAR_RE.test(charAfter)) continue;
-    const overlaps = matches.some(
-      (prev) => m!.index < prev.index + prev.length && m!.index + m![0].length > prev.index,
-    );
-    if (!overlaps) {
-      matches.push({ index: m.index, length: m[0].length, type: 'root', value: m[1] });
-    }
-  }
-
-  QUOTED_RE.lastIndex = 0;
-  while ((m = QUOTED_RE.exec(text)) !== null) {
-    const overlaps = matches.some(
-      (prev) => m!.index < prev.index + prev.length && m!.index + m![0].length > prev.index,
-    );
-    if (!overlaps) {
-      matches.push({ index: m.index, length: m[0].length, type: 'quoted', value: m[0] });
-    }
-  }
-
-  matches.sort((a, b) => a.index - b.index);
-  if (matches.length === 0) return <span>{text}</span>;
-
-  const parts: Part[] = [];
-  let lastIndex = 0;
-  for (const match of matches) {
-    if (match.index > lastIndex) parts.push({ type: 'text', value: text.slice(lastIndex, match.index) });
-    parts.push({ type: match.type, value: match.value });
-    lastIndex = match.index + match.length;
-  }
-  if (lastIndex < text.length) parts.push({ type: 'text', value: text.slice(lastIndex) });
-
-  return (
-    <span>
-      {parts.map((part, i) =>
-        part.type === 'ref' ? (
-          <span
-            key={i}
-            className="text-violet-600 underline decoration-violet-300 underline-offset-2 cursor-pointer hover:text-violet-800 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              const [surah, rest] = part.value.split(':');
-              const ayah = rest.split(/[–\-]/)[0];
-              chrome.tabs.create({ url: `${FRONTEND_BASE}/verse/${surah}:${ayah}` });
-            }}
-          >
-            {part.value}
-          </span>
-        ) : part.type === 'root' ? (
-          <span
-            key={i}
-            dir="rtl"
-            lang="ar"
-            className="font-arabic text-emerald-700 underline decoration-emerald-300 underline-offset-2 cursor-pointer hover:text-emerald-900 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              const letters = part.value.replace(/[ \-]/g, '');
-              chrome.tabs.create({ url: `${FRONTEND_BASE}/root/${encodeURIComponent(letters)}` });
-            }}
-          >
-            {part.value}
-          </span>
-        ) : part.type === 'quoted' ? (
-          <span key={i} className="italic">{part.value}</span>
-        ) : (
-          <span key={i}>{part.value}</span>
-        ),
-      )}
-    </span>
-  );
-}
-
-export default function VerseCard({ verse, aiTranslation, grammarNotes, wordMeanings }: Props) {
+export default function VerseCard({ verse, aiTranslation, grammarNotes, wordMeanings, exegesis, poetry }: Props) {
   const [activePos, setActivePos] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -196,6 +106,12 @@ export default function VerseCard({ verse, aiTranslation, grammarNotes, wordMean
           </div>
         </div>
       )}
+
+      {/* Exegesis — approved teacher-voice commentary, below the notes */}
+      {exegesis && <ExegesisSection data={exegesis} />}
+
+      {/* Pre-Islamic poetry note — tap an underlined fragment for the full line */}
+      {poetry && <PoetrySection data={poetry} />}
 
       {/* Grammar notes — click any underlined term to see its definition */}
       {grammarNotes && <GrammarNotesSection data={grammarNotes} />}
