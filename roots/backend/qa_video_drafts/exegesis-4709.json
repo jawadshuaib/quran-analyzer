@@ -1,0 +1,37 @@
+{
+ "anchor_ref": "89:11",
+ "title": "Why do the tyrants get a water verb?",
+ "theme": "gem-overflow-poured-back",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The Quran names Aad, Thamud, and Pharaoh, and does not list their crimes one by one. One verb covers them all. And elsewhere in the Quran, that same verb describes a flood. Why describe them with a flood?"
+  },
+  {
+   "kind": "set",
+   "narration": "The verb is tagha. On screen it reads oppressed. The root's picture is wider. Exceeding the bound. The overstepping life. Another verse uses it for water. When the water overflowed. The same verb. A flood breaking past its banks. That is the verb laid over these peoples.",
+   "verse": {
+    "ref": "89:11",
+    "highlight_words_ar": [
+     "طَغَوْا"
+    ],
+    "highlight_phrase_en": "oppressed within the lands"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Then the chapter closes the loop with its own hand. Two verses on, the punishment arrives in the same element. The verse reads, so your Lord poured upon them a scourge of punishment. Poured. Sabba. A second water verb, answering the first.",
+   "verse": {
+    "ref": "89:13",
+    "highlight_words_ar": [
+     "فَصَبَّ"
+    ],
+    "highlight_phrase_en": "poured upon them"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So the sentence runs in one element. They overflowed their limit. And what came back over them was an overflow. Lives that broke every bank. Until the very element of their excess was poured back upon them."
+  }
+ ]
+}
