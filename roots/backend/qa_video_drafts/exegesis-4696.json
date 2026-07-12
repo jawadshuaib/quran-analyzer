@@ -1,0 +1,45 @@
+{
+ "anchor_ref": "84:11",
+ "title": "What kind of prayer asks for destruction?",
+ "theme": "gem-prayer-verb-inverted",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "A man in the Quran is handed his record, and he does not scream. He does not plead for mercy. He calls out. The same verb the Quran uses everywhere for prayer. And what he calls for is his own destruction. What kind of prayer is that?"
+  },
+  {
+   "kind": "set",
+   "narration": "On screen it reads, cry out. The Arabic verb is daa. The Quran's ordinary word for calling on someone. The verb a person uses to call upon his Lord. Here the same lips petition for destruction. He turns the grammar of prayer against his own existence, and begs to be undone.",
+   "verse": {
+    "ref": "84:11",
+    "highlight_words_ar": [
+     "يَدْعُوا",
+     "ثُبُورًا"
+    ],
+    "highlight_phrase_en": "cry out for destruction"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "Now the other word. Destruction. It is nearly unique to this scene. It surfaces only once more. The damned, packed into a narrow place, call out for destruction. And they are told. Do not cry this Day for one destruction. Cry for much destruction. Not a one-time shriek. A petition, made again and again, and never granted.",
+   "verse": {
+    "ref": "25:14",
+    "highlight_words_ar": [
+     "وَٱدْعُوا",
+     "ثُبُورًا",
+     "كَثِيرًا"
+    ],
+    "highlight_phrase_en": "cry for much destruction",
+    "word_indices": [
+     6,
+     7,
+     8
+    ]
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So watch what happened to the verb. It was made for calling on the Lord. Here a man uses it to call for his own erasure. Ruin is asked for, again and again, and never granted. The one parallel the Quran gives us is a scene where exactly that call is heard. And refused."
+  }
+ ]
+}
