@@ -1,0 +1,37 @@
+{
+ "anchor_ref": "86:8",
+ "title": "What the sky gives back.",
+ "theme": "gem-evidence-by-echo",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "The deniers had a word for the resurrection. They scoffed. When we have died and have become dust? That is a distant return. One word. Return. The Quran takes that exact word and hangs it over something no one disputes. Why stamp one word on both?"
+  },
+  {
+   "kind": "set",
+   "narration": "First the claim itself. Just before, man was drawn from a spurting drop. Now he is one whom God is surely able to bring back. On screen it reads, to return him. The Arabic word is raj. The act of bringing back. This is the very thing the deniers call impossible.",
+   "verse": {
+    "ref": "86:8",
+    "highlight_words_ar": [
+     "رَجْعِهِ"
+    ],
+    "highlight_phrase_en": "to return him"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "A few lines later, the chapter swears an oath. By the sky which returns. The same word. The heaven that gives back, returning the water it drew up, season upon season. The doubted thing and a thing beyond doubt now carry one and the same word.",
+   "verse": {
+    "ref": "86:11",
+    "highlight_words_ar": [
+     "ٱلرَّجْعِ"
+    ],
+    "highlight_phrase_en": "which returns"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "The repetition is the argument. The word sits first inside the resurrection it is challenged to prove. Then it hangs over the sky's plainest, least disputed habit. Rain goes up. Rain comes back. And what returns overhead becomes the measure of what the deniers swear can never return below."
+  }
+ ]
+}
