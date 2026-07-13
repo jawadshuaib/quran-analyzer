@@ -1,0 +1,38 @@
+{
+ "anchor_ref": "84:15",
+ "theme": "gem-return-denied-answered-by-seeing",
+ "title": "The denial gets the wrong answer.",
+ "beats": [
+  {
+   "kind": "hook",
+   "narration": "A man in the Quran makes a flat denial. He was sure, the verse says, that he would never return to his Lord. You brace for the obvious reply. Yes, you will. But the verse does not give it. It answers his denial with something else entirely. What?"
+  },
+  {
+   "kind": "set",
+   "narration": "The answer is about God's eyes. His Lord had been watching him. Not a louder promise that he will return. A quiet fact about being seen. You cannot slip out of a reckoning held by One who never stopped watching.",
+   "verse": {
+    "ref": "84:15",
+    "highlight_words_ar": [
+     "بَصِيرًا"
+    ],
+    "highlight_phrase_en": "Seeing"
+   }
+  },
+  {
+   "kind": "turn",
+   "narration": "And the watching did not begin at the reckoning. Two verses earlier, the man is described. He had been happy among his people. In full view the whole time. Across the very stretch he thought no one saw.",
+   "verse": {
+    "ref": "84:13",
+    "highlight_words_ar": [
+     "أَهْلِهِ",
+     "مَسْرُورًا"
+    ],
+    "highlight_phrase_en": "among his people in happiness"
+   }
+  },
+  {
+   "kind": "land",
+   "narration": "So watch how the denial falls. Not under a louder promise of return. It falls under the impossibility of having gone unseen. He ruled out any return. The verse answers that he was never once out of sight."
+  }
+ ]
+}
