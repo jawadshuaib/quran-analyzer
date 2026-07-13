@@ -19796,6 +19796,101 @@ def admin_qa_publish_status():
         conn.close()
 
 
+def _qa_tiktok_caption(row: dict) -> str:
+    """Ready-to-paste TikTok caption for a Studio video. TikTok has no
+    approved API integration here, so the operator posts by hand; this
+    gives them a consistent caption to copy. Runs through the same
+    'no Islamic-adjective' guard the YouTube metadata uses."""
+    title = (row.get("title") or "").strip()
+    ref = (row.get("anchor_ref") or "").strip()
+    head = f"{title} ({ref})" if ref else title
+    caption = (
+        f"{head}\n\n"
+        "Root-by-root Quran analysis at al-nuqta.com\n"
+        "#Quran #QuranTranslation #QuranArabic #alnuqta"
+    )
+    return _strip_islamic_terms(caption).strip()
+
+
+# TikTok account we mirror to (public profile — no API, manual upload).
+_TIKTOK_ACCOUNT_URL = "https://www.tiktok.com/@al_nuqta_com"
+_TIKTOK_UPLOAD_URL = "https://www.tiktok.com/upload"
+
+
+@app.route("/api/admin/qa-videos/tiktok-queue", methods=["GET"])
+@admin_required
+def admin_qa_tiktok_queue():
+    """Manual TikTok mirror queue. A video becomes TikTok-ready once it
+    has been published to YouTube (status='uploaded'); the operator posts
+    it to TikTok by hand and marks it done. Oldest-first so the mirror
+    tracks the same Mon/Wed/Fri cadence as the YouTube publisher."""
+    conn = get_db()
+    try:
+        _ensure_qa_videos_table(conn)
+        pending = [dict(r) for r in conn.execute(
+            "SELECT id, title, anchor_ref, source_type, youtube_video_id, "
+            "       completed_at, (filename IS NOT NULL AND filename != '') AS has_file "
+            "FROM qa_videos "
+            "WHERE status='uploaded' AND COALESCE(posted_to_tiktok,0)=0 "
+            "ORDER BY completed_at ASC, id ASC"
+        ).fetchall()]
+        for p in pending:
+            p["has_file"] = bool(p["has_file"])
+            p["caption"] = _qa_tiktok_caption(p)
+        posted_count = conn.execute(
+            "SELECT COUNT(*) FROM qa_videos WHERE COALESCE(posted_to_tiktok,0)=1"
+        ).fetchone()[0]
+        last = conn.execute(
+            "SELECT title, tiktok_posted_at FROM qa_videos "
+            "WHERE COALESCE(posted_to_tiktok,0)=1 AND tiktok_posted_at IS NOT NULL "
+            "ORDER BY tiktok_posted_at DESC LIMIT 1"
+        ).fetchone()
+        return jsonify({
+            "pending": pending,
+            "counts": {"pending": len(pending), "posted": posted_count},
+            "last_posted": (dict(last) if last else None),
+            "account_url": _TIKTOK_ACCOUNT_URL,
+            "upload_url": _TIKTOK_UPLOAD_URL,
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/qa-videos/<int:row_id>/tiktok-posted", methods=["POST"])
+@admin_required
+def admin_qa_tiktok_mark(row_id: int):
+    """Mark (or unmark, for a mis-click) a video as manually posted to
+    TikTok. Only videos already on YouTube are eligible, so the mirror
+    can never run ahead of what the operator approved and published."""
+    body = request.get_json(silent=True) or {}
+    posted = body.get("posted", True)
+    conn = get_db()
+    try:
+        _ensure_qa_videos_table(conn)
+        row = conn.execute(
+            "SELECT status FROM qa_videos WHERE id=?", (row_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        if posted and row["status"] != "uploaded":
+            return jsonify({"error": f"only YouTube-published videos can be mirrored to TikTok (status={row['status']})"}), 409
+        if posted:
+            conn.execute(
+                "UPDATE qa_videos SET posted_to_tiktok=1, "
+                "  tiktok_posted_at=datetime('now') WHERE id=?",
+                (row_id,),
+            )
+        else:
+            conn.execute(
+                "UPDATE qa_videos SET posted_to_tiktok=0, tiktok_posted_at=NULL WHERE id=?",
+                (row_id,),
+            )
+        conn.commit()
+        return jsonify({"id": row_id, "posted_to_tiktok": bool(posted)})
+    finally:
+        conn.close()
+
+
 def _qa_publish_tick():
     """Publish-only scheduler: on configured days (default Mon/Wed/Fri
     16:00 UTC) upload the OLDEST human-approved video. Never generates,

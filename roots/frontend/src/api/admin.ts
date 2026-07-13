@@ -2851,6 +2851,47 @@ export async function fetchQaVideoObjectUrl(id: number): Promise<string> {
   return URL.createObjectURL(blob);
 }
 
+export interface QaTiktokPending {
+  id: number;
+  title: string;
+  anchor_ref: string;
+  source_type: string;
+  youtube_video_id: string | null;
+  completed_at: string | null;
+  has_file: boolean;
+  caption: string;
+}
+
+export interface QaTiktokQueue {
+  pending: QaTiktokPending[];
+  counts: { pending: number; posted: number };
+  last_posted: { title: string; tiktok_posted_at: string } | null;
+  account_url: string;
+  upload_url: string;
+}
+
+/** Manual TikTok mirror queue: videos already on YouTube, not yet posted
+ *  to TikTok by hand, oldest first. */
+export async function getQaTiktokQueue(): Promise<QaTiktokQueue> {
+  const res = await authFetch(`${BASE}/qa-videos/tiktok-queue`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load TikTok queue');
+  return data;
+}
+
+/** Mark (or, with posted=false, unmark) a video as manually posted to TikTok. */
+export async function markQaTiktokPosted(
+  id: number, posted = true,
+): Promise<{ id: number; posted_to_tiktok: boolean }> {
+  const res = await authFetch(`${BASE}/qa-videos/${id}/tiktok-posted`, {
+    method: 'POST',
+    body: JSON.stringify({ posted }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update');
+  return data;
+}
+
 /** Inline script edit — the server re-runs ALL gates on the edited script
  *  and rejects with {issues} if anything fails. Only title/theme/beats are
  *  editable; a successful edit clears any stale rendered file. */

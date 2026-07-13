@@ -3,8 +3,9 @@ import {
   getQaVideos, renderQaVideo, approveQaVideo, rejectQaVideo,
   saveQaPublishSchedule, fetchQaVideoObjectUrl, editQaVideoScript,
   mintQaEditToken, patchVideoCandidate, patchStudioLesson,
+  getQaTiktokQueue, markQaTiktokPosted,
   type QaVideoItem, type QaPublishSchedule, type QaVideoBeat, type QaVoice,
-  type QaCandidate, type StudioLesson,
+  type QaCandidate, type StudioLesson, type QaTiktokQueue, type QaTiktokPending,
 } from '../../api/admin';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -188,6 +189,8 @@ export default function AdminQaVideos() {
         />
       )}
 
+      <TikTokMirrorCard />
+
       {candidates.length > 0 && (
         <IdeaBacklog candidates={candidates} onChanged={refresh} />
       )}
@@ -320,6 +323,186 @@ function LessonsPanel({
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * Post-to-TikTok mirror. We have no TikTok API credentials (and unapproved
+ * apps can only post privately anyway), so this is a manual queue: once a
+ * video is live on YouTube it shows up here, oldest first, with its file to
+ * download and a ready caption to paste. The operator posts by hand on
+ * tiktok.com and clicks "Mark posted". Cadence mirrors YouTube (3x/week)
+ * because each YouTube publish adds exactly one item here.
+ */
+function TikTokMirrorCard() {
+  const [queue, setQueue] = useState<QaTiktokQueue | null>(null);
+  const [err, setErr] = useState('');
+  const [busyId, setBusyId] = useState<number | null>(null);
+  const [dl, setDl] = useState<number | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setQueue(await getQaTiktokQueue());
+      setErr('');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to load');
+    }
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  async function download(item: QaTiktokPending) {
+    setDl(item.id);
+    try {
+      const url = await fetchQaVideoObjectUrl(item.id);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(item.source_type || 'qa')}-${item.anchor_ref || item.id}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Give the download a beat to start before revoking the blob URL.
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } catch {
+      setErr('Video file not available on the server for this one.');
+    } finally {
+      setDl(null);
+    }
+  }
+
+  async function copyCaption(item: QaTiktokPending) {
+    try {
+      await navigator.clipboard.writeText(item.caption);
+      setCopied(item.id);
+      setTimeout(() => setCopied((c) => (c === item.id ? null : c)), 1800);
+    } catch { /* clipboard blocked; the textarea is selectable as fallback */ }
+  }
+
+  async function mark(id: number, posted: boolean) {
+    setBusyId(id);
+    try {
+      await markQaTiktokPosted(id, posted);
+      await load();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Failed to update');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  if (!queue) {
+    return (
+      <section className="rounded-xl border border-stone-200 bg-white p-5 text-sm text-stone-400">
+        {err || 'Loading TikTok queue…'}
+      </section>
+    );
+  }
+
+  const { pending, counts, last_posted, upload_url, account_url } = queue;
+
+  return (
+    <section className="rounded-xl border border-stone-200 border-l-4 border-l-rose-400 bg-white p-5">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-sm font-semibold text-stone-700">Post to TikTok</h2>
+          <p className="mt-1 text-xs text-stone-500 max-w-xl">
+            Manual mirror — no TikTok API. Each video already on YouTube waits
+            here, oldest first. Download it, copy the caption, upload it on{' '}
+            <a href={account_url} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-stone-700">@al_nuqta_com</a>,
+            then mark it posted.
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="text-2xl font-semibold text-stone-800">{counts.pending}</div>
+          <div className="text-[11px] uppercase tracking-wider text-stone-400">to post</div>
+          {counts.posted > 0 && (
+            <div className="text-[11px] text-stone-400 mt-0.5">{counts.posted} posted</div>
+          )}
+        </div>
+      </div>
+
+      {err && <div className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs text-red-700">{err}</div>}
+
+      {pending.length === 0 ? (
+        <div className="mt-3 rounded-md bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          All caught up — nothing waiting for TikTok.
+          {last_posted && <span className="text-emerald-600/80"> Last posted: {last_posted.title}.</span>}
+        </div>
+      ) : (
+        <ul className="mt-4 space-y-3">
+          {pending.map((item, i) => (
+            <li
+              key={item.id}
+              className={`rounded-lg border p-3 ${i === 0 ? 'border-rose-200 bg-rose-50/40' : 'border-stone-200'}`}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                {i === 0 && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-100 text-rose-700">
+                    next up
+                  </span>
+                )}
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${SERIES[item.source_type]?.chip || 'bg-stone-100 text-stone-600'}`}>
+                  {SERIES[item.source_type]?.label || item.source_type}
+                </span>
+                <span className="text-[11px] text-stone-400 font-mono">{item.anchor_ref}</span>
+                {item.youtube_video_id && (
+                  <a
+                    href={`https://youtu.be/${item.youtube_video_id}`}
+                    target="_blank" rel="noreferrer"
+                    className="text-[11px] text-stone-400 underline decoration-dotted underline-offset-2 hover:text-stone-600"
+                  >
+                    on YouTube
+                  </a>
+                )}
+              </div>
+              <div className="mt-1 text-sm font-medium text-stone-800">{item.title}</div>
+
+              <textarea
+                readOnly
+                value={item.caption}
+                onFocus={(e) => e.currentTarget.select()}
+                rows={3}
+                className="mt-2 w-full rounded-md border border-stone-200 bg-stone-50 px-2 py-1.5 text-xs text-stone-600 font-mono resize-none"
+              />
+
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={!item.has_file || dl === item.id}
+                  onClick={() => download(item)}
+                  className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900 disabled:opacity-40 cursor-pointer"
+                  title={item.has_file ? 'Download the .mp4' : 'File not on server'}
+                >
+                  {dl === item.id ? 'Preparing…' : 'Download video'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => copyCaption(item)}
+                  className="rounded-md border border-stone-300 px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 cursor-pointer"
+                >
+                  {copied === item.id ? 'Copied ✓' : 'Copy caption'}
+                </button>
+                <a
+                  href={upload_url}
+                  target="_blank" rel="noreferrer"
+                  className="rounded-md border border-stone-300 px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50"
+                >
+                  Open TikTok upload →
+                </a>
+                <button
+                  type="button"
+                  disabled={busyId === item.id}
+                  onClick={() => mark(item.id, true)}
+                  className="ml-auto rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-40 cursor-pointer"
+                >
+                  {busyId === item.id ? 'Saving…' : 'Mark posted'}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

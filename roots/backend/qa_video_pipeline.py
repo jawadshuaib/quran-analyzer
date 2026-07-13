@@ -156,7 +156,13 @@ def ensure_tables(conn) -> None:
         conn.execute("ALTER TABLE qa_videos ADD COLUMN edit_token_expires TEXT")
     for col, ddl in (("source_type", "TEXT NOT NULL DEFAULT 'qa'"),
                      ("source_key", "TEXT"), ("angle", "TEXT"), ("self_score", "REAL"),
-                     ("quality_report", "TEXT")):
+                     ("quality_report", "TEXT"),
+                     # Manual TikTok mirror: we have no TikTok API creds, so
+                     # once a video is on YouTube the operator posts it to
+                     # TikTok by hand and marks it done here. These flags drive
+                     # the "Post to TikTok" queue in the admin.
+                     ("posted_to_tiktok", "INTEGER NOT NULL DEFAULT 0"),
+                     ("tiktok_posted_at", "TEXT")):
         if col not in cols:
             conn.execute(f"ALTER TABLE qa_videos ADD COLUMN {col} {ddl}")
     # Backfill the universal dedup handle for legacy Q&A rows, then
