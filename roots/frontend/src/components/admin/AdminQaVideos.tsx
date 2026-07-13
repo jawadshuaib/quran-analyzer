@@ -340,6 +340,7 @@ function TikTokMirrorCard() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [dl, setDl] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
+  const [promptCopied, setPromptCopied] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -378,6 +379,40 @@ function TikTokMirrorCard() {
     } catch { /* clipboard blocked; the textarea is selectable as fallback */ }
   }
 
+  // Paste-into-Claude-in-Chrome prompt: the agent fetches the video, fills
+  // the caption, and prepares the upload — then STOPS for you to click Post.
+  // We never author a prompt that auto-publishes public content; the human
+  // stays on the publish button (and clears any CAPTCHA).
+  function buildPrompt(item: QaTiktokPending): string {
+    const abs = item.download_url ? `${window.location.origin}${item.download_url}` : '';
+    return [
+      `Post a video to TikTok for me on my account @al_nuqta_com (I'm already signed in on this Chrome profile).`,
+      ``,
+      `Video: "${item.title}" (${item.anchor_ref})`,
+      `Download link (expires in a few hours): ${abs}`,
+      ``,
+      `Steps:`,
+      `1. Download the video from the link above.`,
+      `2. Open https://www.tiktok.com/upload and attach the downloaded video.`,
+      `3. Set the caption to exactly this:`,
+      `---`,
+      item.caption,
+      `---`,
+      `4. Leave the other settings at their defaults.`,
+      `5. STOP before publishing. Do NOT click Post yourself — get everything ready, tell me it's ready, and let me review and click Post.`,
+      ``,
+      `If TikTok shows a CAPTCHA, a login screen, or any human-verification step, pause and hand it back to me. Do not try to solve it.`,
+    ].join('\n');
+  }
+
+  async function copyPrompt(item: QaTiktokPending) {
+    try {
+      await navigator.clipboard.writeText(buildPrompt(item));
+      setPromptCopied(item.id);
+      setTimeout(() => setPromptCopied((c) => (c === item.id ? null : c)), 1800);
+    } catch { setErr('Clipboard blocked — allow clipboard access to copy the prompt.'); }
+  }
+
   async function mark(id: number, posted: boolean) {
     setBusyId(id);
     try {
@@ -407,9 +442,12 @@ function TikTokMirrorCard() {
           <h2 className="text-sm font-semibold text-stone-700">Post to TikTok</h2>
           <p className="mt-1 text-xs text-stone-500 max-w-xl">
             Manual mirror — no TikTok API. Each video already on YouTube waits
-            here, oldest first. Download it, copy the caption, upload it on{' '}
-            <a href={account_url} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-stone-700">@al_nuqta_com</a>,
-            then mark it posted.
+            here, oldest first. Fastest path: <strong>Copy upload prompt</strong>,
+            paste it into the Claude Chrome extension (signed in to{' '}
+            <a href={account_url} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-stone-700">@al_nuqta_com</a>)
+            — it downloads the video, fills the caption, and preps the upload, then
+            stops for you to click Post. Or do it by hand with the buttons below.
+            Either way, mark it posted here.
           </p>
         </div>
         <div className="text-right shrink-0">
@@ -468,9 +506,20 @@ function TikTokMirrorCard() {
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
+                  disabled={!item.has_file}
+                  onClick={() => copyPrompt(item)}
+                  className="rounded-md bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-40 cursor-pointer"
+                  title={item.has_file
+                    ? 'Copy a prompt to paste into the Claude Chrome extension — it preps the upload, you click Post'
+                    : 'File not on server'}
+                >
+                  {promptCopied === item.id ? 'Copied ✓ — paste into Claude in Chrome' : 'Copy upload prompt'}
+                </button>
+                <button
+                  type="button"
                   disabled={!item.has_file || dl === item.id}
                   onClick={() => download(item)}
-                  className="rounded-md bg-stone-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-stone-900 disabled:opacity-40 cursor-pointer"
+                  className="rounded-md border border-stone-300 px-2.5 py-1 text-xs font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-40 cursor-pointer"
                   title={item.has_file ? 'Download the .mp4' : 'File not on server'}
                 >
                   {dl === item.id ? 'Preparing…' : 'Download video'}

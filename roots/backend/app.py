@@ -19796,6 +19796,49 @@ def admin_qa_publish_status():
         conn.close()
 
 
+def _tiktok_asset_sig(video_id: int, exp: int) -> str:
+    """Keyed MAC over (video_id, expiry) so a short-lived, unauthenticated
+    download link can be handed to the Claude Chrome agent without exposing
+    the admin token. blake2b keyed hashing avoids an extra hmac import."""
+    msg = f"{video_id}:{exp}".encode()
+    return hashlib.blake2b(
+        msg, key=app.config["SECRET_KEY"].encode(), digest_size=16
+    ).hexdigest()
+
+
+def _tiktok_asset_path(video_id: int, ttl_hours: int = 8) -> str:
+    exp = int(time.time()) + ttl_hours * 3600
+    return f"/api/tiktok-asset/{video_id}?exp={exp}&sig={_tiktok_asset_sig(video_id, exp)}"
+
+
+@app.route("/api/tiktok-asset/<int:video_id>", methods=["GET"])
+def tiktok_asset(video_id: int):
+    """Short-lived signed .mp4 download for the manual TikTok flow. Public
+    but tokened: the signature and expiry are minted only inside the
+    admin-authed tiktok-queue response, and only YouTube-published videos
+    are ever served (they are public content already)."""
+    exp = request.args.get("exp", type=int)
+    sig = request.args.get("sig", "")
+    if not exp or time.time() > exp:
+        return jsonify({"error": "link expired"}), 403
+    if not secrets.compare_digest(sig, _tiktok_asset_sig(video_id, exp)):
+        return jsonify({"error": "bad signature"}), 403
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT filename, status FROM qa_videos WHERE id=?", (video_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if not row or not row["filename"] or row["status"] != "uploaded":
+        return jsonify({"error": "not available"}), 404
+    return send_from_directory(
+        _qa_videos_dir(), row["filename"], mimetype="video/mp4",
+        as_attachment=True, download_name=f"al-nuqta-{video_id}.mp4",
+        conditional=True,
+    )
+
+
 def _qa_tiktok_caption(row: dict) -> str:
     """Ready-to-paste TikTok caption for a Studio video. TikTok has no
     approved API integration here, so the operator posts by hand; this
@@ -19837,6 +19880,9 @@ def admin_qa_tiktok_queue():
         for p in pending:
             p["has_file"] = bool(p["has_file"])
             p["caption"] = _qa_tiktok_caption(p)
+            # Short-lived signed link so the paste-into-Claude prompt can
+            # hand the Chrome agent a fetchable .mp4 without the admin token.
+            p["download_url"] = _tiktok_asset_path(p["id"]) if p["has_file"] else None
         posted_count = conn.execute(
             "SELECT COUNT(*) FROM qa_videos WHERE COALESCE(posted_to_tiktok,0)=1"
         ).fetchone()[0]

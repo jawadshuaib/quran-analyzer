@@ -2860,6 +2860,9 @@ export interface QaTiktokPending {
   completed_at: string | null;
   has_file: boolean;
   caption: string;
+  /** Short-lived signed .mp4 link (path); null when the file isn't on the
+   *  server. Prepend the origin for an absolute URL. */
+  download_url: string | null;
 }
 
 export interface QaTiktokQueue {
