@@ -22,9 +22,9 @@ import {
   removeSavedItem,
   isSaved,
   getSavedItemSource,
+  getItemFolderIds,
 } from './saved-items';
 import { getSurahName } from './surah-names';
-import { notifySavedItemsChanged } from '../components/SavedItemsPanel';
 
 // ----- Colors --------------------------------------------------------------
 
@@ -211,15 +211,15 @@ function ensureSavedForHighlight(verseKey: string, meta?: VerseMeta): void {
     arabic: meta?.arabic,
     translation: meta?.translation,
   });
-  notifySavedItemsChanged();
 }
 
 function maybeUnsaveAfterClear(verseKey: string): void {
   if (hasHighlights(verseKey)) return;
-  if (getSavedItemSource('verse', verseKey) === 'highlight') {
-    removeSavedItem('verse', verseKey);
-    notifySavedItemsChanged();
-  }
+  if (getSavedItemSource('verse', verseKey) !== 'highlight') return;
+  // Filed into a folder = curated; keep the save even though the last
+  // highlight is gone.
+  if (getItemFolderIds('verse', verseKey).length > 0) return;
+  removeSavedItem('verse', verseKey);
 }
 
 // ----- Writes --------------------------------------------------------------

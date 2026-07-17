@@ -5272,6 +5272,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/settings/?$", path):
         return True
+    if re.match(r"^/saved/?$", path):
+        return True
     if re.match(r"^/developers/?$", path):
         return True
     if re.match(r"^/methodology/?$", path):

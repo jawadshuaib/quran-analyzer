@@ -19,6 +19,7 @@ import PoemPage from './components/PoemPage';
 import PoemsIndex from './components/PoemsIndex';
 import MeterPage from './components/MeterPage';
 import MetersIndex from './components/MetersIndex';
+import SavedPage from './components/saved/SavedPage';
 import NotFound from './components/NotFound';
 import BadGateway from './components/BadGateway';
 import ApiPage from './components/ApiPage';
@@ -157,6 +158,7 @@ function isKnownRoute(): boolean {
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
   if (/^\/meter\/[a-z]+\/?$/.test(path)) return true;
   if (/^\/meters\/?$/.test(path)) return true;
+  if (/^\/saved\/?$/.test(path)) return true;
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
   if (/^\/read\/\d+(:\d+(-\d+)?)?\/?$/.test(path)) return true;
   if (/^\/settings\/?$/.test(path)) return true;
@@ -392,6 +394,20 @@ export default function App() {
         <div className="flex-1"><MetersIndex /></div>
         <SiteFooter />
         <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  if (/^\/saved\/?$/.test(currentPath)) {
+    // Deliberately no <SavedItemsPanel/> here — the floating quick panel is
+    // redundant on the full Saved page and its pill would cover the content.
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1"><SavedPage /></div>
+        <SiteFooter />
       </div>
     );
   }

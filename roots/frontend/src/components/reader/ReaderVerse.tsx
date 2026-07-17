@@ -1,14 +1,16 @@
-import { forwardRef, Fragment, useEffect, useState } from 'react';
+import { forwardRef, Fragment, useEffect, useRef, useState } from 'react';
 import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote } from '../../types';
-import { toggleManualSave, isSaved } from '../../utils/saved-items';
+import {
+  toggleManualSave,
+  isSaved,
+  getItemFolderIds,
+  subscribeToSavedItems,
+} from '../../utils/saved-items';
 import { useVerseHighlights } from '../../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../../utils/verse-highlights';
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../../utils/copy-context';
 import HighlightCross from '../HighlightCross';
-import {
-  notifySavedItemsChanged,
-  SAVED_ITEMS_CHANGED,
-} from '../SavedItemsPanel';
+import FolderPopover, { type FolderPopoverMode } from '../folders/FolderPopover';
 import { getNote, setNote, subscribeToNotes } from '../../utils/user-notes';
 import { getSurahName } from '../../utils/surah-names';
 import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry } from '../../api/quran';
@@ -73,6 +75,14 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   const verseKey = `${surah}:${verse.verse}`;
   const [note, setNoteState] = useState<string>(() => getNote(surah, verse.verse));
   const [saved, setSaved] = useState<boolean>(() => isSaved('verse', verseKey));
+  const [inFolders, setInFolders] = useState<boolean>(
+    () => getItemFolderIds('verse', verseKey).length > 0,
+  );
+  // Folder popover (anchored right of the gutter icons so it never covers
+  // the Arabic). 'save' auto-opens after a save; 'edit' via the folder icon.
+  const [folderPopover, setFolderPopover] = useState<FolderPopoverMode | null>(null);
+  const saveIconRef = useRef<HTMLSpanElement>(null);
+  const folderIconRef = useRef<HTMLSpanElement>(null);
   // Personal-note editor is per-verse; the translation/grammar/exegesis notes
   // are a GLOBAL toggle (one click shows them under every verse), remembered
   // in localStorage and synced across verses via the reader-prefs event.
@@ -123,15 +133,10 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }, [surah, verse.verse]);
 
   useEffect(() => {
-    function refreshSaved() {
+    return subscribeToSavedItems(() => {
       setSaved(isSaved('verse', verseKey));
-    }
-    window.addEventListener(SAVED_ITEMS_CHANGED, refreshSaved);
-    window.addEventListener('storage', refreshSaved);
-    return () => {
-      window.removeEventListener(SAVED_ITEMS_CHANGED, refreshSaved);
-      window.removeEventListener('storage', refreshSaved);
-    };
+      setInFolders(getItemFolderIds('verse', verseKey).length > 0);
+    });
   }, [verseKey]);
 
   useEffect(() => {
@@ -156,7 +161,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
       translation: verse.translation,
     });
     setSaved(isSavedNow);
-    notifySavedItemsChanged();
+    setFolderPopover(isSavedNow ? 'save' : null);
   }
 
   function handleSaveNote(text: string) {
@@ -241,15 +246,42 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
               </svg>
             </GutterIcon>
           )}
-          <GutterIcon
-            label={saved ? 'Unsave verse' : 'Save verse'}
-            active={saved}
-            onClick={handleSave}
-          >
-            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
-              <path d="M4 1.5h8a.5.5 0 01.5.5v12L8 11l-4.5 3V2a.5.5 0 01.5-.5z" />
-            </svg>
-          </GutterIcon>
+          <span ref={saveIconRef} className="inline-flex">
+            <GutterIcon
+              label={saved ? 'Unsave verse' : 'Save verse'}
+              active={saved}
+              onClick={handleSave}
+            >
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+                <path d="M4 1.5h8a.5.5 0 01.5.5v12L8 11l-4.5 3V2a.5.5 0 01.5-.5z" />
+              </svg>
+            </GutterIcon>
+          </span>
+          {saved && (
+            <span ref={folderIconRef} className="inline-flex">
+              <GutterIcon
+                label="Add to folder"
+                active={inFolders}
+                onClick={() => setFolderPopover((p) => (p === 'edit' ? null : 'edit'))}
+              >
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill={inFolders ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5">
+                  <path d="M1.75 4A1.25 1.25 0 013 2.75h2.6c.33 0 .65.13.88.37l1.1 1.13H13A1.25 1.25 0 0114.25 5.5v6.5A1.25 1.25 0 0113 13.25H3A1.25 1.25 0 011.75 12V4z" strokeLinejoin="round" />
+                </svg>
+              </GutterIcon>
+            </span>
+          )}
+          {folderPopover !== null && (
+            <FolderPopover
+              anchorEl={
+                (folderPopover === 'edit' ? folderIconRef.current : saveIconRef.current) ??
+                saveIconRef.current
+              }
+              item={{ type: 'verse', key: verseKey }}
+              mode={folderPopover}
+              placement="right"
+              onClose={() => setFolderPopover(null)}
+            />
+          )}
           <GutterIcon
             label={hasNote ? 'Edit your note' : 'Add a note'}
             active={activePanel === 'note' || hasNote}

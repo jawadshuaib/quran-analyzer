@@ -108,6 +108,72 @@ export function buildCopyPayload(
   }
 }
 
+// ----- Multi-verse copy (folders / bulk selection on the /saved page) -------
+
+export type MultiCopyFormat = 'arabic' | 'translation' | 'highlighted';
+
+export interface MultiCopySource {
+  /** "surah:ayah" */
+  verseKey: string;
+  /** Missing on legacy saved items — those verses are skipped and counted. */
+  arabic?: string;
+  translation?: string;
+  surahName: string;
+}
+
+export interface MultiCopyResult {
+  payload: CopyPayload;
+  /** Verses included. */
+  copied: number;
+  /** Verses skipped because their Arabic text isn't stored locally. */
+  skipped: number;
+}
+
+/**
+ * Build one clipboard payload covering many verses (e.g. every verse in a
+ * study folder). Reuses the single-verse builders per verse and joins with
+ * blank lines; the 'highlighted' format also produces rich HTML so pasted
+ * output keeps the user's highlight colors.
+ */
+export function buildMultiVerseCopyPayload(
+  sources: MultiCopySource[],
+  format: MultiCopyFormat,
+  opts: { includeReference: boolean },
+): MultiCopyResult {
+  const usable = sources.filter((s) => !!s.arabic);
+  const texts: string[] = [];
+  const htmls: string[] = [];
+
+  for (const s of usable) {
+    const ctx: CopyContext = {
+      verseKey: s.verseKey,
+      startPos: 1,
+      endPos: splitWords(s.arabic!).length,
+      arabic: s.arabic!,
+      translation: s.translation ?? '',
+      surahName: s.surahName,
+    };
+    const single = buildCopyPayload(
+      format === 'arabic' ? 'full' : format,
+      ctx,
+      opts,
+    );
+    texts.push(single.text);
+    if (format === 'highlighted' && single.html) htmls.push(single.html);
+  }
+
+  return {
+    payload: {
+      text: texts.join('\n\n'),
+      html: htmls.length > 0
+        ? htmls.join('<div style="height:0.75em"></div>')
+        : undefined,
+    },
+    copied: usable.length,
+    skipped: sources.length - usable.length,
+  };
+}
+
 /** Write a payload to the clipboard. Uses rich (html+plain) when html is
  *  present and supported; falls back to writeText, then to a hidden textarea. */
 export async function copyToClipboard(payload: CopyPayload): Promise<boolean> {

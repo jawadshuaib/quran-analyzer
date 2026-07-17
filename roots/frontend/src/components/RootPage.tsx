@@ -8,7 +8,6 @@ import AskAssistant from './AskAssistant';
 import { buildRootContext } from '../utils/context-builders';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
-import { notifySavedItemsChanged } from './SavedItemsPanel';
 import PoetryComparison from './PoetryComparison';
 import FormattedText, { FormattedInline } from './FormattedText';
 
@@ -126,7 +125,6 @@ export default function RootPage({ rootBw }: Props) {
                 label={`Root ${data.root_arabic} (${data.root_buckwalter})`}
                 href={`/root/${encodeURIComponent(rootBw)}`}
                 subtitle={data.primary_meaning || undefined}
-                onToggle={() => notifySavedItemsChanged()}
               />
             </div>
             <a

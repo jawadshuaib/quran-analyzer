@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback, useRef, Fragment, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import {
   getSavedItems,
-  removeSavedItem,
   getSavedCount,
-  updateSavedItemContent,
+  subscribeToSavedItems,
   type SavedItem,
   type SavedItemType,
 } from '../utils/saved-items';
-import { useVerseHighlights } from '../hooks/useVerseHighlights';
-import { HIGHLIGHT_BG, clearVerseHighlights } from '../utils/verse-highlights';
+import { removeSavedItemAndCleanup } from '../utils/saved-item-actions';
+import SavedVerseContent from './saved/SavedVerseContent';
+import { useVerseThemes, groupItemsByTheme } from '../hooks/useGroupedByTheme';
 import {
   getAllNotes as userNotesGetAll,
   deleteNote as userNotesDelete,
@@ -43,29 +43,16 @@ const TYPE_ICONS: Record<SavedItemType, ReactNode> = {
   ),
 };
 
-/** Global event name to notify when saved items change */
-export const SAVED_ITEMS_CHANGED = 'saved-items-changed';
+// Compat re-export: the change event now lives in the store itself (every
+// mutation auto-notifies). Existing imports from this file keep working.
+export { SAVED_ITEMS_CHANGED, notifySavedItemsChanged } from '../utils/saved-items';
 
 /** Open the saved-items panel from anywhere. Optional `tab` hint will
  *  pre-select a tab once the panel grows tabs (Phase C). */
 export const OPEN_SAVED_PANEL = 'open-saved-panel';
 
-/** Call this from any component after toggling a save to refresh the panel */
-export function notifySavedItemsChanged() {
-  window.dispatchEvent(new CustomEvent(SAVED_ITEMS_CHANGED));
-}
-
 export function openSavedPanel(tab: 'saved' | 'notes' = 'saved') {
   window.dispatchEvent(new CustomEvent(OPEN_SAVED_PANEL, { detail: { tab } }));
-}
-
-interface ThemeData {
-  theme: string;
-  confidence: number;
-}
-
-interface VerseThemes {
-  [verseKey: string]: ThemeData[];
 }
 
 interface Props {
@@ -79,7 +66,6 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
   const [items, setItems] = useState<SavedItem[]>([]);
   const [count, setCount] = useState(() => getSavedCount());
   const [filter, setFilter] = useState<FilterValue>('all');
-  const [verseThemes, setVerseThemes] = useState<VerseThemes>({});
   const [groupByTheme, setGroupByTheme] = useState(true);
   // User notes (mirrored from quranExplorer.notes). Updated reactively
   // so toggling between Saved + Notes tabs reflects current state.
@@ -93,41 +79,17 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     setCount(all.length);
   }, []);
 
-  // Fetch themes for saved verses
-  const fetchThemes = useCallback(async (verseItems: SavedItem[]) => {
-    if (verseItems.length === 0) {
-      setVerseThemes({});
-      return;
-    }
-    const newThemes: VerseThemes = {};
-    await Promise.all(
-      verseItems.map(async (item) => {
-        if (verseThemes[item.key]) {
-          newThemes[item.key] = verseThemes[item.key];
-          return;
-        }
-        try {
-          const resp = await fetch(`/api/verse/${item.key}/themes`);
-          if (resp.ok) {
-            const data = await resp.json();
-            newThemes[item.key] = data.themes || [];
-          }
-        } catch { /* ignore */ }
-      }),
-    );
-    setVerseThemes(newThemes);
-  }, [verseThemes]);
+  // Themes for saved verses (shared hook; fetches only while the panel is
+  // open with grouping on).
+  const verseThemes = useVerseThemes(
+    open ? items.filter((i) => i.type === 'verse').map((i) => i.key) : [],
+    open && groupByTheme,
+  );
 
   // Initial load + listen for changes from other components
   useEffect(() => {
     refresh();
-    const handler = () => refresh();
-    window.addEventListener(SAVED_ITEMS_CHANGED, handler);
-    window.addEventListener('storage', handler);
-    return () => {
-      window.removeEventListener(SAVED_ITEMS_CHANGED, handler);
-      window.removeEventListener('storage', handler);
-    };
+    return subscribeToSavedItems(refresh);
   }, [refresh]);
 
   // Open the panel when something fires the global open event (e.g. the
@@ -150,13 +112,9 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     return subscribeToNotes(() => setNotesMap(userNotesGetAll()));
   }, []);
 
-  // Fetch themes when panel opens or items change
+  // Re-read items when the panel opens (themes fetch via useVerseThemes)
   useEffect(() => {
-    if (open) {
-      refresh();
-      const verses = getSavedItems().filter((i) => i.type === 'verse');
-      fetchThemes(verses);
-    }
+    if (open) refresh();
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close panel on outside click
@@ -173,12 +131,7 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
 
   const handleRemove = useCallback(
     (type: SavedItemType, key: string) => {
-      // Removing a verse from Saved also clears its highlights, so a verse is
-      // never left highlighted-but-unsaved (highlighting auto-saves; removing
-      // here is the user saying "drop this verse and its marks").
-      if (type === 'verse') clearVerseHighlights(key);
-      removeSavedItem(type, key);
-      notifySavedItemsChanged();
+      removeSavedItemAndCleanup(type, key);
     },
     [],
   );
@@ -220,7 +173,7 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
   const hasMixedTypes = verseCount > 0 && nonVerseCount > 0;
   const shouldGroup = filter !== 'notes' && groupByTheme && (verseCount >= 2 || hasMixedTypes) && (filter === 'all' || filter === 'verse');
 
-  const groupedContent = useGroupedByTheme(filtered, verseThemes, shouldGroup);
+  const groupedContent = groupItemsByTheme(filtered, verseThemes, shouldGroup);
 
   // Don't render anything if no saved items AND no notes
   if (count === 0 && notesCount === 0 && !open) return null;
@@ -429,6 +382,16 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
           </ul>
         )}
       </div>
+
+      {/* Footer — bridge to the full management page */}
+      <div className="border-t border-stone-100 bg-stone-50/60 px-4 py-2 text-right">
+        <a
+          href="/saved"
+          className="text-xs text-stone-500 hover:text-rose-600 transition-colors"
+        >
+          Open Saved page →
+        </a>
+      </div>
     </div>
   );
 }
@@ -494,117 +457,6 @@ function SavedItemRow({
   );
 }
 
-/**
- * Renders a saved verse inside the panel: the Arabic (word tokens, with any
- * highlights drawn in their colors) and the translation. If the saved item
- * predates the stored text fields, it lazily fetches the verse once and
- * backfills the store so the next open is instant.
- */
-function SavedVerseContent({ item }: { item: SavedItem }) {
-  const verseKey = item.key;
-  const { posMap } = useVerseHighlights(verseKey);
-  // Stored fields win; otherwise fall back to what we fetched. (Deriving from
-  // props avoids a props→state mirror effect.)
-  const [fetched, setFetched] = useState<{ arabic?: string; translation?: string } | null>(null);
-  const arabic = item.arabic ?? fetched?.arabic;
-  const translation = item.translation ?? fetched?.translation;
-
-  // Fallback for items saved before the arabic/translation fields existed.
-  useEffect(() => {
-    if (item.arabic) return;
-    let cancelled = false;
-    fetch(`/api/verse/${verseKey}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (cancelled || !d) return;
-        setFetched({ arabic: d.text_uthmani, translation: d.translation });
-        updateSavedItemContent('verse', verseKey, {
-          arabic: d.text_uthmani,
-          translation: d.translation,
-        });
-      })
-      .catch(() => { /* offline / not found — just show what we have */ });
-    return () => { cancelled = true; };
-  }, [verseKey, item.arabic]);
-
-  const words = arabic ? arabic.split(/\s+/).filter(Boolean) : [];
-
-  return (
-    <span className="block">
-      {words.length > 0 && (
-        <span dir="rtl" lang="ar" className="block font-arabic text-lg leading-[1.9] text-stone-800 mt-0.5">
-          {words.map((w, idx) => {
-            const pos = idx + 1;
-            const hl = posMap.get(pos);
-            return (
-              <Fragment key={pos}>
-                <span className={hl ? `${HIGHLIGHT_BG[hl.color]} rounded` : ''}>{w}</span>
-                {idx < words.length - 1 ? ' ' : ''}
-              </Fragment>
-            );
-          })}
-        </span>
-      )}
-      {translation && (
-        <span className="block text-xs text-stone-500 italic mt-1 line-clamp-2 leading-relaxed">
-          {translation}
-        </span>
-      )}
-    </span>
-  );
-}
-
-/** Group saved items by verse theme */
-function useGroupedByTheme(
-  items: SavedItem[],
-  verseThemes: VerseThemes,
-  enabled: boolean,
-): { theme: string; items: SavedItem[] }[] {
-  if (!enabled) return [];
-
-  const verses = items.filter((i) => i.type === 'verse');
-  const nonVerses = items.filter((i) => i.type !== 'verse');
-
-  // Need at least 2 verses OR a mix of verses + non-verses to group
-  if (verses.length === 0 && nonVerses.length === 0) return [];
-  if (verses.length < 2 && nonVerses.length === 0) return [];
-
-  // Build theme → verses map using primary (highest confidence) theme
-  const themeMap = new Map<string, SavedItem[]>();
-  const ungrouped: SavedItem[] = [];
-
-  for (const verse of verses) {
-    const themes = verseThemes[verse.key];
-    if (themes && themes.length > 0) {
-      const primaryTheme = themes[0].theme;
-      const existing = themeMap.get(primaryTheme) || [];
-      existing.push(verse);
-      themeMap.set(primaryTheme, existing);
-    } else {
-      ungrouped.push(verse);
-    }
-  }
-
-  // Build sorted groups (largest first)
-  const groups: { theme: string; items: SavedItem[] }[] = [];
-  for (const [theme, themeItems] of themeMap) {
-    groups.push({ theme, items: themeItems });
-  }
-  groups.sort((a, b) => b.items.length - a.items.length);
-
-  // Add ungrouped verses
-  if (ungrouped.length > 0) {
-    groups.push({ theme: 'Other', items: ungrouped });
-  }
-
-  // Add non-verse items in their own group
-  if (nonVerses.length > 0) {
-    groups.push({ theme: 'Words & Roots', items: nonVerses });
-  }
-
-  return groups;
-}
-
 function FilterTab({
   label,
   count,
@@ -631,10 +483,11 @@ function FilterTab({
 }
 
 // --------------------------------------------------------------------
-// NoteRow — one entry in the Notes filter tab.
+// NoteRow — one entry in the Notes filter tab. Exported so the /saved
+// page's Notes section renders identical rows.
 // --------------------------------------------------------------------
 
-function NoteRow({
+export function NoteRow({
   refKey,
   text,
   onNavigate,

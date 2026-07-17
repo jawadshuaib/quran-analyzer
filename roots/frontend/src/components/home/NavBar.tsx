@@ -1,8 +1,7 @@
 import { useState, useEffect, type RefObject } from 'react';
 import UnifiedSearch from '../UnifiedSearch';
 import { getNotesCount, subscribeToNotes } from '../../utils/user-notes';
-import { getSavedCount } from '../../utils/saved-items';
-import { SAVED_ITEMS_CHANGED, openSavedPanel } from '../SavedItemsPanel';
+import { getSavedCount, subscribeToSavedItems } from '../../utils/saved-items';
 
 /**
  * Sticky top nav. On scroll past a threshold (or past an explicitly-
@@ -73,15 +72,7 @@ export default function NavBar({
     return subscribeToNotes(() => setNotesCount(getNotesCount()));
   }, []);
   useEffect(() => {
-    function refreshSaved() {
-      setSavedCount(getSavedCount());
-    }
-    window.addEventListener(SAVED_ITEMS_CHANGED, refreshSaved);
-    window.addEventListener('storage', refreshSaved);
-    return () => {
-      window.removeEventListener(SAVED_ITEMS_CHANGED, refreshSaved);
-      window.removeEventListener('storage', refreshSaved);
-    };
+    return subscribeToSavedItems(() => setSavedCount(getSavedCount()));
   }, []);
 
   const handleNavigateVerse =
@@ -95,13 +86,13 @@ export default function NavBar({
       window.location.href = `/?q=${encodeURIComponent(query)}`;
     });
 
-  // Notes + Saved appear ONLY when the user has something there. Both
-  // open the same SavedItemsPanel via a global event (so we don't
-  // duplicate the panel UI). Phase C will wire a Notes tab inside the
-  // panel; for now the tab hint is just a forward-compat field.
-  const dynamicButtons: Array<{ label: string; count: number; tab: 'saved' | 'notes' }> = [];
-  if (notesCount > 0) dynamicButtons.push({ label: 'Notes', count: notesCount, tab: 'notes' });
-  if (savedCount > 0) dynamicButtons.push({ label: 'Saved', count: savedCount, tab: 'saved' });
+  // Saved is a real page now (/saved) — the link is always visible so the
+  // feature is discoverable (the page has a proper empty state), with the
+  // count badge preserving the "you have n things" signal. Notes deep-links
+  // into the page's Notes section and stays count-gated as before.
+  const navLinks: Array<{ label: string; href: string; count: number }> = [];
+  if (notesCount > 0) navLinks.push({ label: 'Notes', href: '/saved?tab=notes', count: notesCount });
+  navLinks.push({ label: 'Saved', href: '/saved', count: savedCount });
 
   return (
     <nav className="w-full bg-cream/90 backdrop-blur-sm border-b border-card-border sticky top-0 z-30">
@@ -121,18 +112,21 @@ export default function NavBar({
             }`}
             aria-hidden={compact}
           >
-            {dynamicButtons.map((b) => (
-              <button
+            {navLinks.map((b) => (
+              <a
                 key={b.label}
-                type="button"
-                onClick={() => openSavedPanel(b.tab)}
-                className="hover:text-ink transition-colors inline-flex items-center gap-1 cursor-pointer"
+                href={b.href}
+                className={`hover:text-ink transition-colors inline-flex items-center gap-1 ${
+                  currentPath.startsWith('/saved') ? 'text-ink font-medium' : ''
+                }`}
               >
                 {b.label}
-                <span className="text-[10px] text-ink-muted bg-ink/5 rounded-full px-1.5 py-0.5 leading-none">
-                  {b.count}
-                </span>
-              </button>
+                {b.count > 0 && (
+                  <span className="text-[10px] text-ink-muted bg-ink/5 rounded-full px-1.5 py-0.5 leading-none">
+                    {b.count}
+                  </span>
+                )}
+              </a>
             ))}
             {STATIC_LINKS.map((link) => {
               const isActive =

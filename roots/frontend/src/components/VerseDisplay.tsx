@@ -12,7 +12,6 @@ import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
 import VersePlayButton from './VersePlayButton';
 import HighlightCross from './HighlightCross';
-import { notifySavedItemsChanged } from './SavedItemsPanel';
 import { splitDepartureNotes } from '../utils/departure-notes';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { useVerseHighlights } from '../hooks/useVerseHighlights';
@@ -346,7 +345,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           subtitle={data.translation}
           arabic={data.text_uthmani}
           translation={data.translation}
-          onToggle={() => notifySavedItemsChanged()}
         />
         <VersePlayButton surah={data.surah} ayah={data.ayah} />
         <NoteButton surah={data.surah} ayah={data.ayah} accent="violet" />
