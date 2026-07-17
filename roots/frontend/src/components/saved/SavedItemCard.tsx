@@ -6,6 +6,7 @@ import {
 } from '../../utils/saved-items';
 import { removeSavedItemAndCleanup } from '../../utils/saved-item-actions';
 import SavedVerseContent from './SavedVerseContent';
+import VerseNoteBlock from './VerseNoteBlock';
 import FolderPopover from '../folders/FolderPopover';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
 
@@ -14,16 +15,17 @@ interface Props {
   folders: Folder[];
   selected: boolean;
   onToggleSelect: () => void;
-  /** True when the verse has a personal note (verse items only). */
-  hasNote?: boolean;
+  /** The verse's personal note (verse items only) — rendered under the verse. */
+  note?: string;
 }
 
 /**
- * One saved item on the /saved page: selectable, navigable, with its folder
- * chips inline (× unfiles from that folder — never unsaves; the trash is
- * what removes entirely, clearing verse highlights via the shared helper).
+ * One saved item on the /saved page: selectable, navigable, with its note
+ * rendered beneath the verse and its folder chips inline (× unfiles from
+ * that folder — never unsaves; the trash removes entirely, clearing verse
+ * highlights AND deleting the note via the shared helper, with a confirm).
  */
-export default function SavedItemCard({ item, folders, selected, onToggleSelect, hasNote }: Props) {
+export default function SavedItemCard({ item, folders, selected, onToggleSelect, note }: Props) {
   const [editFolders, setEditFolders] = useState(false);
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const isVerse = item.type === 'verse';
@@ -33,10 +35,13 @@ export default function SavedItemCard({ item, folders, selected, onToggleSelect,
     .filter((f): f is Folder => !!f);
 
   function handleRemove() {
+    const verseExtras = note
+      ? ' Its highlights are cleared and its note is deleted too.'
+      : ' Its highlights are cleared too.';
     if (
       window.confirm(
         `Remove ${isVerse ? `verse ${item.key}` : item.label} from Saved?${
-          isVerse ? ' Its highlights are cleared too.' : ''
+          isVerse ? verseExtras : ''
         }`,
       )
     ) {
@@ -64,18 +69,8 @@ export default function SavedItemCard({ item, folders, selected, onToggleSelect,
         <a href={item.href} className="flex-1 min-w-0 block">
           {isVerse ? (
             <>
-              <span className="flex items-center gap-1.5 text-[11px] font-medium text-rose-600/80">
+              <span className="block text-[11px] font-medium text-rose-600/80">
                 {item.label}
-                {hasNote && (
-                  <svg
-                    viewBox="0 0 16 16"
-                    className="h-3 w-3 text-violet-400"
-                    fill="currentColor"
-                    aria-label="Has a note"
-                  >
-                    <path d="M11.5 1.7L14.3 4.5 5 13.8l-3 .5.5-3z" />
-                  </svg>
-                )}
               </span>
               <SavedVerseContent item={item} />
             </>
@@ -106,6 +101,13 @@ export default function SavedItemCard({ item, folders, selected, onToggleSelect,
           </svg>
         </button>
       </div>
+
+      {/* Personal note — lives under its verse */}
+      {isVerse && note && (
+        <div className="pl-6">
+          <VerseNoteBlock verseKey={item.key} note={note} />
+        </div>
+      )}
 
       {/* Folder chips */}
       <div className="mt-2 flex flex-wrap items-center gap-1 pl-6">

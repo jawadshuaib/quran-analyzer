@@ -11,7 +11,8 @@ import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../../utils/vers
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../../utils/copy-context';
 import HighlightCross from '../HighlightCross';
 import FolderPopover, { type FolderPopoverMode } from '../folders/FolderPopover';
-import { getNote, setNote, subscribeToNotes } from '../../utils/user-notes';
+import { getNote, subscribeToNotes } from '../../utils/user-notes';
+import { setVerseNote } from '../../utils/saved-item-actions';
 import { getSurahName } from '../../utils/surah-names';
 import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry } from '../../api/quran';
 import {
@@ -165,7 +166,10 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }
 
   function handleSaveNote(text: string) {
-    setNote(surah, verse.verse, text);
+    // Coupled write: a non-empty note auto-saves this verse (source 'note')
+    // so the note lives under its verse in Saved; emptying releases a pure
+    // note-save. The gutter bookmark fills via the store subscription.
+    setVerseNote(surah, verse.verse, text);
     setNoteState(text);
   }
 

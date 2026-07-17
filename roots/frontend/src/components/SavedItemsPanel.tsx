@@ -6,17 +6,18 @@ import {
   type SavedItem,
   type SavedItemType,
 } from '../utils/saved-items';
-import { removeSavedItemAndCleanup } from '../utils/saved-item-actions';
+import {
+  removeSavedItemAndCleanup,
+  ensureNotedVersesSaved,
+} from '../utils/saved-item-actions';
 import SavedVerseContent from './saved/SavedVerseContent';
+import VerseNoteBlock from './saved/VerseNoteBlock';
 import { useVerseThemes, groupItemsByTheme } from '../hooks/useGroupedByTheme';
 import {
   getAllNotes as userNotesGetAll,
-  deleteNote as userNotesDelete,
-  setNote as userNotesSet,
+  getNote,
   subscribeToNotes,
 } from '../utils/user-notes';
-import { getSurahName } from '../utils/surah-names';
-import NoteEditor from './NoteEditor';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 
 const TYPE_LABELS: Record<SavedItemType, string> = {
@@ -86,6 +87,13 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     open && groupByTheme,
   );
 
+  // One-time: attach any pre-coupling "detached" notes to auto-saved verse
+  // cards (idempotent, flagged) — the panel is mounted on nearly every route,
+  // so this runs early no matter where the user lands.
+  useEffect(() => {
+    ensureNotedVersesSaved();
+  }, []);
+
   // Initial load + listen for changes from other components
   useEffect(() => {
     refresh();
@@ -131,6 +139,17 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
 
   const handleRemove = useCallback(
     (type: SavedItemType, key: string) => {
+      // Removing a verse also deletes its note (the note lives under the
+      // verse), so a noted verse asks first. Un-noted removal stays instant.
+      if (type === 'verse') {
+        const [s, v] = key.split(':').map(Number);
+        if (
+          getNote(s, v) &&
+          !window.confirm(`Remove verse ${key} from Saved? Its note is deleted too.`)
+        ) {
+          return;
+        }
+      }
       removeSavedItemAndCleanup(type, key);
     },
     [],
@@ -148,10 +167,14 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     [onNavigate],
   );
 
+  // Notes live UNDER their verses — the Notes tab is a filter over saved
+  // verses that carry a note, not a separate list.
   const filtered =
-    filter === 'all' || filter === 'notes'
+    filter === 'all'
       ? items
-      : items.filter((i) => i.type === filter);
+      : filter === 'notes'
+        ? items.filter((i) => i.type === 'verse' && !!notesMap[i.key])
+        : items.filter((i) => i.type === filter);
 
   // Count by type for filter badges
   const countByType: Record<SavedItemType, number> = { verse: 0, word: 0, root: 0 };
@@ -159,13 +182,7 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
     countByType[item.type]++;
   }
 
-  // Notes — sorted by ref for stable display
-  const notesEntries = Object.entries(notesMap).sort(([a], [b]) => {
-    const [as, av] = a.split(':').map(Number);
-    const [bs, bv] = b.split(':').map(Number);
-    return as !== bs ? as - bs : av - bv;
-  });
-  const notesCount = notesEntries.length;
+  const notesCount = Object.keys(notesMap).length;
 
   // Group verses by theme (or separate types when mixed) — only on Saved tab
   const verseCount = countByType.verse;
@@ -302,47 +319,36 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
 
       {/* Items list */}
       <div className="flex-1 overflow-y-auto overscroll-contain" style={{ maxHeight: '60vh' }}>
-        {filter === 'notes' ? (
-          notesEntries.length === 0 ? (
+        {filtered.length === 0 ? (
+          filter === 'notes' ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <p className="text-sm text-stone-400">No notes yet</p>
               <p className="text-xs text-stone-300 mt-1">
-                Tap the pencil on any verse to add one
+                Tap the pencil on any verse to add one — it will appear here under its verse
               </p>
             </div>
           ) : (
-            <ul className="divide-y divide-stone-100">
-              {notesEntries.map(([key, text]) => (
-                <NoteRow
-                  key={key}
-                  refKey={key}
-                  text={text}
-                  onNavigate={() => handleNavigate(`/verse/${key}`)}
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1}
+                stroke="currentColor"
+                className="w-10 h-10 text-stone-200 mb-3"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21.75 8.25c0-3.15-2.35-5.25-5.437-5.25A5.5 5.5 0 0012 5.052 5.5 5.5 0 007.688 3C4.6 3 2.25 5.1 2.25 8.25c0 7.22 9.75 12.75 9.75 12.75s9.75-5.53 9.75-12.75z"
                 />
-              ))}
-            </ul>
+              </svg>
+              <p className="text-sm text-stone-400">No saved items yet</p>
+              <p className="text-xs text-stone-300 mt-1">
+                Tap the heart on any verse to save it
+              </p>
+            </div>
           )
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1}
-              stroke="currentColor"
-              className="w-10 h-10 text-stone-200 mb-3"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21.75 8.25c0-3.15-2.35-5.25-5.437-5.25A5.5 5.5 0 0012 5.052 5.5 5.5 0 007.688 3C4.6 3 2.25 5.1 2.25 8.25c0 7.22 9.75 12.75 9.75 12.75s9.75-5.53 9.75-12.75z"
-              />
-            </svg>
-            <p className="text-sm text-stone-400">No saved items yet</p>
-            <p className="text-xs text-stone-300 mt-1">
-              Tap the heart on any verse to save it
-            </p>
-          </div>
         ) : shouldGroup && groupedContent.length > 0 ? (
           /* Grouped by theme view */
           <div className="divide-y divide-stone-100">
@@ -360,6 +366,7 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
                     <SavedItemRow
                       key={`${item.type}-${item.key}`}
                       item={item}
+                      note={item.type === 'verse' ? notesMap[item.key] : undefined}
                       onNavigate={handleNavigate}
                       onRemove={handleRemove}
                     />
@@ -375,6 +382,7 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
               <SavedItemRow
                 key={`${item.type}-${item.key}`}
                 item={item}
+                note={item.type === 'verse' ? notesMap[item.key] : undefined}
                 onNavigate={handleNavigate}
                 onRemove={handleRemove}
               />
@@ -399,10 +407,13 @@ export default function SavedItemsPanel({ onNavigate }: Props) {
 /** Single saved item row */
 function SavedItemRow({
   item,
+  note,
   onNavigate,
   onRemove,
 }: {
   item: SavedItem;
+  /** The verse's personal note (verse rows only) — rendered under the verse. */
+  note?: string;
   onNavigate: (href: string) => void;
   onRemove: (type: SavedItemType, key: string) => void;
 }) {
@@ -453,6 +464,14 @@ function SavedItemRow({
           </svg>
         </button>
       </div>
+
+      {/* Personal note — lives under its verse (outside the navigate button
+          so its Edit/Delete controls stay clickable) */}
+      {isVerse && note && (
+        <div className="px-4 pb-3 pl-11 -mt-1">
+          <VerseNoteBlock verseKey={item.key} note={note} />
+        </div>
+      )}
     </li>
   );
 }
@@ -479,93 +498,5 @@ function FilterTab({
       {label}
       <span className="ml-1 text-[10px] opacity-70">{count}</span>
     </button>
-  );
-}
-
-// --------------------------------------------------------------------
-// NoteRow — one entry in the Notes filter tab. Exported so the /saved
-// page's Notes section renders identical rows.
-// --------------------------------------------------------------------
-
-export function NoteRow({
-  refKey,
-  text,
-  onNavigate,
-}: {
-  refKey: string;
-  text: string;
-  onNavigate: () => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [surahN, verseN] = refKey.split(':').map(Number);
-
-  function handleSave(newText: string) {
-    if (newText.trim()) {
-      userNotesSet(surahN, verseN, newText);
-    } else {
-      userNotesDelete(surahN, verseN);
-    }
-  }
-
-  if (editing) {
-    return (
-      <li className="px-3 py-3 bg-stone-50/50">
-        <div className="flex items-baseline justify-between mb-2">
-          <span className="text-[11px] font-medium text-rose-600">
-            {getSurahName(surahN)} · {refKey}
-          </span>
-        </div>
-        <NoteEditor
-          initial={text}
-          onSave={handleSave}
-          onClose={() => setEditing(false)}
-          accent="violet"
-        />
-      </li>
-    );
-  }
-
-  return (
-    <li className="group flex items-start gap-2 px-3 py-3 hover:bg-stone-50">
-      <div
-        className="flex-1 min-w-0 cursor-pointer"
-        onClick={onNavigate}
-      >
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-[11px] font-medium text-rose-600">
-            {getSurahName(surahN)} · {refKey}
-          </span>
-        </div>
-        <p className="text-xs text-stone-700 leading-relaxed line-clamp-3 whitespace-pre-line">
-          {wrapArabicRuns(text)}
-        </p>
-      </div>
-      <div className="flex flex-col items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setEditing(true);
-          }}
-          className="text-[10px] text-stone-400 hover:text-violet-600"
-          aria-label="Edit note"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (confirm('Delete this note? This cannot be undone.')) {
-              userNotesDelete(surahN, verseN);
-            }
-          }}
-          className="text-[10px] text-stone-400 hover:text-red-600"
-          aria-label="Delete note"
-        >
-          Delete
-        </button>
-      </div>
-    </li>
   );
 }

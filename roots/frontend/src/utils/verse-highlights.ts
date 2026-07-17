@@ -25,6 +25,7 @@ import {
   getItemFolderIds,
 } from './saved-items';
 import { getSurahName } from './surah-names';
+import { getNote } from './user-notes';
 
 // ----- Colors --------------------------------------------------------------
 
@@ -219,6 +220,9 @@ function maybeUnsaveAfterClear(verseKey: string): void {
   // Filed into a folder = curated; keep the save even though the last
   // highlight is gone.
   if (getItemFolderIds('verse', verseKey).length > 0) return;
+  // A note also keeps the verse — notes live under their verse in Saved.
+  const [s, v] = verseKey.split(':').map(Number);
+  if (getNote(s, v)) return;
   removeSavedItem('verse', verseKey);
 }
 

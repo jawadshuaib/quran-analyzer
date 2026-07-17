@@ -34,9 +34,12 @@ export interface SavedItem {
    *   - 'highlight' — auto-saved because the user highlighted part of the
    *                   verse; auto-removed when the verse's last highlight is
    *                   cleared (unless promoted to 'manual' in the meantime)
+   *   - 'note'      — auto-saved because the user wrote a note on the verse
+   *                   (a note lives UNDER its verse in the Saved UI); released
+   *                   when the note is deleted, unless something else keeps it
    * Absent on items saved before this field existed → treated as 'manual'.
    */
-  source?: 'manual' | 'highlight';
+  source?: 'manual' | 'highlight' | 'note';
   /** Verse-only: the Uthmani Arabic text, so the Saved panel can show the
    *  verse itself (and render highlights over its word tokens) without a
    *  network round-trip. */
@@ -274,12 +277,13 @@ export function updateSavedItemContent(
 }
 
 /**
- * Verse-aware Save toggle that understands the highlight coupling:
- *   - not saved         → save as a sticky 'manual' item        → true
- *   - saved 'highlight' → PROMOTE to 'manual' (stays saved)     → true
- *   - saved 'manual'    → remove                                → false
+ * Verse-aware Save toggle that understands the auto-save couplings:
+ *   - not saved              → save as a sticky 'manual' item   → true
+ *   - saved 'highlight'/'note' → PROMOTE to 'manual' (stays)    → true
+ *   - saved 'manual'         → remove                           → false
  * The middle case means pressing Save on a verse that was auto-saved by a
- * highlight makes the save sticky instead of paradoxically unsaving it.
+ * highlight or a note makes the save sticky instead of paradoxically
+ * unsaving it.
  */
 export function toggleManualSave(item: Omit<SavedItem, 'savedAt' | 'source'>): boolean {
   const source = getSavedItemSource(item.type, item.key);
@@ -287,7 +291,7 @@ export function toggleManualSave(item: Omit<SavedItem, 'savedAt' | 'source'>): b
     saveItem({ ...item, source: 'manual' });
     return true;
   }
-  if (source === 'highlight') {
+  if (source === 'highlight' || source === 'note') {
     promoteSavedItemToManual(item.type, item.key, {
       label: item.label,
       href: item.href,

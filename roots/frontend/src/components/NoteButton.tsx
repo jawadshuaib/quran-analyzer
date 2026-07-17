@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getNote, setNote, subscribeToNotes } from '../utils/user-notes';
+import { getNote, subscribeToNotes } from '../utils/user-notes';
+import { setVerseNote } from '../utils/saved-item-actions';
 import NoteEditor from './NoteEditor';
 
 interface Props {
@@ -28,7 +29,10 @@ export default function NoteButton({ surah, ayah, accent = 'violet' }: Props) {
   }, [surah, ayah]);
 
   function handleSave(text: string) {
-    setNote(surah, ayah, text);
+    // Coupled write: a non-empty note auto-saves the verse (source 'note')
+    // so it appears in Saved with the note under it; emptying releases a
+    // pure note-save.
+    setVerseNote(surah, ayah, text);
     setNoteState(text);
   }
 

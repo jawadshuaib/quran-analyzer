@@ -13,7 +13,7 @@ import {
   type SavedItemRef,
   type SavedItemType,
 } from '../../utils/saved-items';
-import { removeSavedItemsAndCleanup } from '../../utils/saved-item-actions';
+import { removeSavedItemsAndCleanup, ensureNotedVersesSaved } from '../../utils/saved-item-actions';
 import {
   buildMultiVerseCopyPayload,
   copyToClipboard,
@@ -24,7 +24,6 @@ import { getAllNotes, subscribeToNotes } from '../../utils/user-notes';
 import { getSurahName } from '../../utils/surah-names';
 import { useVerseThemes, groupItemsByTheme } from '../../hooks/useGroupedByTheme';
 import { useSEO } from '../../hooks/useSEO';
-import { NoteRow } from '../SavedItemsPanel';
 import FolderChips from './FolderChips';
 import SavedItemCard from './SavedItemCard';
 import BulkBar from './BulkBar';
@@ -140,9 +139,12 @@ export default function SavedPage() {
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
 
-  // Live store subscriptions
+  // Live store subscription + one-time note migration. Order matters: the
+  // subscription must be attached BEFORE ensureNotedVersesSaved runs, so the
+  // verse cards it creates for pre-coupling "detached" notes land in state
+  // (its saveItem calls notify through this very subscription).
   useEffect(() => {
-    return subscribeToSavedItems(() => {
+    const unsubscribe = subscribeToSavedItems(() => {
       const next = getSavedItems();
       setItems(next);
       setFolders(getFolders());
@@ -156,6 +158,8 @@ export default function SavedPage() {
         return pruned.size === prev.size ? prev : pruned;
       });
     });
+    ensureNotedVersesSaved();
+    return unsubscribe;
   }, []);
   useEffect(() => subscribeToNotes(() => setNotesMap(getAllNotes())), []);
 
@@ -189,7 +193,15 @@ export default function SavedPage() {
 
   // ----- Derived visible items ----------------------------------------------
   const scoped = activeFolderId ? getItemsInFolder(activeFolderId) : items;
-  const searched = q.trim() ? scoped.filter((i) => matchesQuery(i, q.trim())) : scoped;
+  const qt = q.trim();
+  const searched = qt
+    ? scoped.filter(
+        (i) =>
+          matchesQuery(i, qt) ||
+          // A verse's note is part of the verse — search it too.
+          (i.type === 'verse' && (notesMap[i.key] ?? '').toLowerCase().includes(qt.toLowerCase())),
+      )
+    : scoped;
 
   const byType: Record<SavedItemType, SavedItem[]> = { verse: [], root: [], word: [] };
   for (const item of searched) byType[item.type].push(item);
@@ -200,20 +212,11 @@ export default function SavedPage() {
   };
 
   const activeFolder = folders.find((f) => f.id === activeFolderId) ?? null;
-  const showNotes = tab === 'all' || tab === 'notes';
 
-  const notesEntries = Object.entries(notesMap)
-    .filter(([key, text]) => {
-      if (activeFolderId) return false; // notes aren't foldered in v1
-      if (!q.trim()) return true;
-      const needle = q.trim().toLowerCase();
-      return key.includes(needle) || text.toLowerCase().includes(needle);
-    })
-    .sort(([a], [b]) => {
-      const [as, av] = a.split(':').map(Number);
-      const [bs, bv] = b.split(':').map(Number);
-      return as !== bs ? as - bs : av - bv;
-    });
+  // Verses that carry a personal note — the Notes tab is a FILTER over the
+  // verse cards (a note lives under its verse), so notes inherit the active
+  // folder scope and the search like everything else.
+  const notedVerses = sortedByType.verse.filter((i) => !!notesMap[i.key]);
 
   // Theme grouping (Verses section, All/Verses tabs, ≥2 verses)
   const groupingActive =
@@ -225,12 +228,13 @@ export default function SavedPage() {
   const verseGroups = groupItemsByTheme(sortedByType.verse, verseThemes, groupingActive);
 
   // How many rows the CURRENT tab actually renders — drives the empty state
-  // per-tab (a type tab shows only its section; the notes tab only notes).
+  // per-tab (a type tab shows only its section; the notes tab shows only
+  // verses that carry a note).
   const visibleForTab =
     tab === 'notes'
-      ? notesEntries.length
+      ? notedVerses.length
       : tab === 'all'
-        ? searched.length + notesEntries.length
+        ? searched.length
         : sortedByType[tab].length;
 
   // ----- Selection ------------------------------------------------------------
@@ -315,8 +319,9 @@ export default function SavedPage() {
       label,
       count: sortedByType[type].length,
     })).filter((t) => t.count > 0),
-    ...(notesEntries.length > 0 && !activeFolderId
-      ? [{ value: 'notes' as TabValue, label: 'Notes', count: notesEntries.length }]
+    // Notes = verses that carry a note; scoped by folder + search like the rest.
+    ...(notedVerses.length > 0
+      ? [{ value: 'notes' as TabValue, label: 'Notes', count: notedVerses.length }]
       : []),
   ];
 
@@ -340,7 +345,7 @@ export default function SavedPage() {
                     folders={folders}
                     selected={selection.has(refKey(item))}
                     onToggleSelect={() => toggleSelect(item)}
-                    hasNote={!!notesMap[item.key]}
+                    note={notesMap[item.key]}
                   />
                 ))}
               </div>
@@ -358,7 +363,7 @@ export default function SavedPage() {
             folders={folders}
             selected={selection.has(refKey(item))}
             onToggleSelect={() => toggleSelect(item)}
-            hasNote={!!notesMap[item.key]}
+            note={notesMap[item.key]}
           />
         ))}
       </div>
@@ -487,16 +492,20 @@ export default function SavedPage() {
               <p className="text-sm text-stone-500">
                 {q.trim()
                   ? 'Nothing matches your filter'
-                  : activeFolder
-                    ? `No items in "${activeFolder.name}" yet`
-                    : 'Nothing here yet'}
+                  : tab === 'notes'
+                    ? 'No notes yet'
+                    : activeFolder
+                      ? `No items in "${activeFolder.name}" yet`
+                      : 'Nothing here yet'}
               </p>
               <p className="text-xs text-stone-400 mt-1 max-w-xs">
                 {q.trim()
                   ? 'Try a different word or reference.'
-                  : activeFolder
-                    ? 'Bookmark any verse, then tick this folder in the popup.'
-                    : ''}
+                  : tab === 'notes'
+                    ? 'Tap the pencil on any verse to add one — it will appear here under its verse.'
+                    : activeFolder
+                      ? 'Bookmark any verse, then tick this folder in the popup.'
+                      : ''}
               </p>
               {activeFolder && !q.trim() && (
                 <button
@@ -539,25 +548,26 @@ export default function SavedPage() {
               );
             })}
 
-            {/* Notes — All view (no folder filter) or the Notes tab */}
-            {showNotes && !activeFolderId && notesEntries.length > 0 && (
+            {/* Notes tab — verse cards filtered to those carrying a note
+                (each renders its note beneath it) */}
+            {tab === 'notes' && notedVerses.length > 0 && (
               <section>
                 <h2 className="mb-2 text-sm font-semibold text-stone-700">
-                  Notes
-                  <span className="ml-1.5 text-xs font-normal text-stone-400">{notesEntries.length}</span>
+                  Verses with notes
+                  <span className="ml-1.5 text-xs font-normal text-stone-400">{notedVerses.length}</span>
                 </h2>
-                <ul className="divide-y divide-stone-100 rounded-lg border border-stone-200 bg-white">
-                  {notesEntries.map(([key, text]) => (
-                    <NoteRow
-                      key={key}
-                      refKey={key}
-                      text={text}
-                      onNavigate={() => {
-                        window.location.href = `/verse/${key}`;
-                      }}
+                <div className="space-y-2">
+                  {notedVerses.map((item) => (
+                    <SavedItemCard
+                      key={refKey(item)}
+                      item={item}
+                      folders={folders}
+                      selected={selection.has(refKey(item))}
+                      onToggleSelect={() => toggleSelect(item)}
+                      note={notesMap[item.key]}
                     />
                   ))}
-                </ul>
+                </div>
               </section>
             )}
           </div>
