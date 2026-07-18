@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { setVerseNote } from '../../utils/saved-item-actions';
 import NoteEditor from '../NoteEditor';
-import { wrapArabicRuns } from '../../utils/arabic-runs';
+import { FormattedInline } from '../FormattedText';
 
 interface Props {
   /** "surah:ayah" of the verse this note annotates. */
@@ -44,9 +44,21 @@ export default function VerseNoteBlock({ verseKey, note }: Props) {
         >
           <path d="M11.5 1.7L14.3 4.5 5 13.8l-3 .5.5-3z" />
         </svg>
-        <p className="flex-1 min-w-0 text-xs leading-relaxed text-stone-700 whitespace-pre-line">
-          {wrapArabicRuns(note)}
-        </p>
+        {/* FormattedInline per line = the same auto-linking the translation
+            notes and exegesis get: verse refs (2:155), spaced root letters
+            (s b r / س ب ر), and Arabic glyphs — while keeping the note's
+            plain-text line breaks. */}
+        <div className="flex-1 min-w-0 text-xs leading-relaxed text-stone-700">
+          {note.split('\n').map((line, i) =>
+            line.trim() === '' ? (
+              <div key={i} className="h-2" />
+            ) : (
+              <p key={i}>
+                <FormattedInline text={line} />
+              </p>
+            ),
+          )}
+        </div>
         <span className="flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover/note:opacity-100 group-focus-within/note:opacity-100">
           <button
             type="button"

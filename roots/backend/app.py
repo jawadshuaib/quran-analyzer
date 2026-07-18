@@ -2621,6 +2621,51 @@ def save_assistant_qa():
         return jsonify({"error": f"Failed to save: {str(e)[:200]}"}), 500
 
 
+@app.route("/api/assistant/session-qa")
+def get_assistant_session_qa():
+    """All of ONE browser session's own verse Q&A, for the /saved page.
+
+    The session_id is the per-browser UUID the assistant already uses — it
+    acts as the bearer here (same trust model as /api/assistant/save), so a
+    user only ever sees the questions they themselves asked. Verse-anchored
+    rows only; admin-hidden rows are withheld.
+    """
+    session_id = request.args.get("session_id", "")
+    if not session_id:
+        return jsonify({"qa": []})
+    try:
+        limit = min(int(request.args.get("limit", 300)), 500)
+    except (ValueError, TypeError):
+        limit = 300
+
+    conn = get_db()
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(assistant_conversations)")]
+        has_hidden = "hidden" in cols
+        sql = (
+            "SELECT id, page_key, question, answer, created_at "
+            "FROM assistant_conversations "
+            "WHERE session_id = ? AND page_type = 'verse' "
+            + ("  AND COALESCE(hidden, 0) = 0 " if has_hidden else "")
+            + "ORDER BY created_at DESC LIMIT ?"
+        )
+        rows = conn.execute(sql, (session_id, limit)).fetchall()
+        return jsonify({
+            "qa": [
+                {
+                    "id": r["id"],
+                    "page_key": r["page_key"],
+                    "question": r["question"],
+                    "answer": r["answer"],
+                    "created_at": r["created_at"],
+                }
+                for r in rows
+            ]
+        })
+    finally:
+        conn.close()
+
+
 @app.route("/api/assistant/history")
 def get_assistant_history():
     """Get shared Q&A for a page (visible to all users)."""

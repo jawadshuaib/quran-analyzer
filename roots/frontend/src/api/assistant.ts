@@ -13,6 +13,35 @@ export interface QAEntry {
   created_at: string;
 }
 
+/** One of the user's OWN Ask-the-Quran Q&A rows, verse-anchored — shown
+ *  under the saved verse on the /saved page like an AI-produced note. */
+export interface SessionQAEntry {
+  id: number;
+  /** "surah:ayah" the question was asked on. */
+  page_key: string;
+  question: string;
+  answer: string;
+  created_at: string;
+}
+
+/** Fetch every verse Q&A this browser session has asked (newest first).
+ *  The session id is the same per-browser UUID the assistant uses, so this
+ *  only ever returns the user's own questions. */
+export async function fetchSessionQA(limit = 300): Promise<SessionQAEntry[]> {
+  try {
+    const params = new URLSearchParams({
+      session_id: getSessionId(),
+      limit: String(limit),
+    });
+    const res = await fetch(`${API_BASE}/api/assistant/session-qa?${params}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.qa || [];
+  } catch {
+    return [];
+  }
+}
+
 export interface SaveResult {
   ok: boolean;
   id?: number;

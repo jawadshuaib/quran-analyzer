@@ -21,6 +21,7 @@ import {
   type MultiCopySource,
 } from '../../utils/verse-copy';
 import { getAllNotes, subscribeToNotes } from '../../utils/user-notes';
+import { fetchSessionQA, type SessionQAEntry } from '../../api/assistant';
 import { getSurahName } from '../../utils/surah-names';
 import { useVerseThemes, groupItemsByTheme } from '../../hooks/useGroupedByTheme';
 import { useSEO } from '../../hooks/useSEO';
@@ -138,6 +139,22 @@ export default function SavedPage() {
   const [groupTheme, setGroupTheme] = useState(initialPrefs.groupByTheme);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
+  // The user's own Ask-the-Quran Q&A, grouped by verse key — rendered under
+  // saved verse cards like an AI-produced note.
+  const [qaMap, setQaMap] = useState<Record<string, SessionQAEntry[]>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSessionQA().then((rows) => {
+      if (cancelled) return;
+      const map: Record<string, SessionQAEntry[]> = {};
+      for (const row of rows) {
+        (map[row.page_key] ??= []).push(row);
+      }
+      setQaMap(map);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // Live store subscription + one-time note migration. Order matters: the
   // subscription must be attached BEFORE ensureNotedVersesSaved runs, so the
@@ -198,8 +215,15 @@ export default function SavedPage() {
     ? scoped.filter(
         (i) =>
           matchesQuery(i, qt) ||
-          // A verse's note is part of the verse — search it too.
-          (i.type === 'verse' && (notesMap[i.key] ?? '').toLowerCase().includes(qt.toLowerCase())),
+          // A verse's note and its Ask-the-Quran Q&A are part of the verse —
+          // search them too.
+          (i.type === 'verse' &&
+            ((notesMap[i.key] ?? '').toLowerCase().includes(qt.toLowerCase()) ||
+              (qaMap[i.key] ?? []).some(
+                (x) =>
+                  x.question.toLowerCase().includes(qt.toLowerCase()) ||
+                  x.answer.toLowerCase().includes(qt.toLowerCase()),
+              ))),
       )
     : scoped;
 
@@ -346,6 +370,7 @@ export default function SavedPage() {
                     selected={selection.has(refKey(item))}
                     onToggleSelect={() => toggleSelect(item)}
                     note={notesMap[item.key]}
+                    qa={qaMap[item.key]}
                   />
                 ))}
               </div>
@@ -364,6 +389,7 @@ export default function SavedPage() {
             selected={selection.has(refKey(item))}
             onToggleSelect={() => toggleSelect(item)}
             note={notesMap[item.key]}
+            qa={qaMap[item.key]}
           />
         ))}
       </div>
@@ -565,6 +591,7 @@ export default function SavedPage() {
                       selected={selection.has(refKey(item))}
                       onToggleSelect={() => toggleSelect(item)}
                       note={notesMap[item.key]}
+                      qa={qaMap[item.key]}
                     />
                   ))}
                 </div>

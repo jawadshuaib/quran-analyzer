@@ -7,8 +7,10 @@ import {
 import { removeSavedItemAndCleanup } from '../../utils/saved-item-actions';
 import SavedVerseContent from './SavedVerseContent';
 import VerseNoteBlock from './VerseNoteBlock';
+import VerseQABlock from './VerseQABlock';
 import FolderPopover from '../folders/FolderPopover';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
+import type { SessionQAEntry } from '../../api/assistant';
 
 interface Props {
   item: SavedItem;
@@ -17,6 +19,8 @@ interface Props {
   onToggleSelect: () => void;
   /** The verse's personal note (verse items only) — rendered under the verse. */
   note?: string;
+  /** The user's own Ask-the-Quran Q&A on this verse (verse items only). */
+  qa?: SessionQAEntry[];
 }
 
 /**
@@ -25,7 +29,7 @@ interface Props {
  * that folder — never unsaves; the trash removes entirely, clearing verse
  * highlights AND deleting the note via the shared helper, with a confirm).
  */
-export default function SavedItemCard({ item, folders, selected, onToggleSelect, note }: Props) {
+export default function SavedItemCard({ item, folders, selected, onToggleSelect, note, qa }: Props) {
   const [editFolders, setEditFolders] = useState(false);
   const addBtnRef = useRef<HTMLButtonElement>(null);
   const isVerse = item.type === 'verse';
@@ -106,6 +110,13 @@ export default function SavedItemCard({ item, folders, selected, onToggleSelect,
       {isVerse && note && (
         <div className="pl-6">
           <VerseNoteBlock verseKey={item.key} note={note} />
+        </div>
+      )}
+
+      {/* The user's own Ask-the-Quran answers — an AI note under the verse */}
+      {isVerse && qa && qa.length > 0 && (
+        <div className="pl-6">
+          <VerseQABlock items={qa} />
         </div>
       )}
 
