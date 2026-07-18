@@ -8,8 +8,10 @@ import AskAssistant from './AskAssistant';
 import { buildRootContext } from '../utils/context-builders';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
+import NoteButton from './NoteButton';
 import PoetryComparison from './PoetryComparison';
 import FormattedText, { FormattedInline } from './FormattedText';
+import type { NoteDescriptor } from '../utils/saved-item-actions';
 
 interface Props {
   rootBw: string;
@@ -99,6 +101,23 @@ export default function RootPage({ rootBw }: Props) {
     );
   }
 
+  // Shared by Save + Note so a note auto-saves the root under it, and the saved
+  // card can render the dictionary entry without a fetch.
+  const rootDescriptor: NoteDescriptor = {
+    type: 'root',
+    key: rootBw,
+    label: `Root ${data.root_arabic} (${data.root_buckwalter})`,
+    href: `/root/${encodeURIComponent(rootBw)}`,
+    subtitle: data.primary_meaning || undefined,
+    arabic: data.root_arabic,
+    meta: {
+      rootBuckwalter: data.root_buckwalter,
+      semanticField: data.semantic_field ?? undefined,
+      occurrences: data.total_occurrences,
+      lemmaCount: data.lemmas.length,
+    },
+  };
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-10 overflow-x-hidden">
       {/* Header */}
@@ -122,10 +141,15 @@ export default function RootPage({ rootBw }: Props) {
               <SaveButton
                 type="root"
                 itemKey={rootBw}
-                label={`Root ${data.root_arabic} (${data.root_buckwalter})`}
-                href={`/root/${encodeURIComponent(rootBw)}`}
-                subtitle={data.primary_meaning || undefined}
+                label={rootDescriptor.label}
+                href={rootDescriptor.href}
+                subtitle={rootDescriptor.subtitle}
+                arabic={data.root_arabic}
+                meta={rootDescriptor.meta}
               />
+            </div>
+            <div className="relative rounded-full bg-white shadow-sm">
+              <NoteButton item={rootDescriptor} accent="violet" />
             </div>
             <a
               href={`/learning/root/${encodeURIComponent(rootBw)}`}

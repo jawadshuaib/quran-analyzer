@@ -4,9 +4,13 @@ import {
   toggleSavedItem,
   toggleManualSave,
   getItemFolderIds,
+  getSavedItemSource,
   subscribeToSavedItems,
   type SavedItemType,
+  type SavedItemMeta,
 } from '../utils/saved-items';
+import { removeSavedItemAndCleanup } from '../utils/saved-item-actions';
+import { getItemNote } from '../utils/user-notes';
 import FolderPopover, { type FolderPopoverMode } from './folders/FolderPopover';
 
 interface Props {
@@ -15,9 +19,12 @@ interface Props {
   label: string;
   href: string;
   subtitle?: string;
-  /** Verse-only: stored so the Saved panel can show the verse + highlights. */
+  /** The Arabic to store for instant Saved rendering: verse Uthmani text,
+   *  word host-verse text, or root glyph. */
   arabic?: string;
   translation?: string;
+  /** Structured extras for rich word/root cards (root/lemma/field/counts). */
+  meta?: SavedItemMeta;
   /** Called after toggle so parent can update counts */
   onToggle?: (nowSaved: boolean) => void;
 }
@@ -41,6 +48,7 @@ export default function SaveButton({
   subtitle,
   arabic,
   translation,
+  meta,
   onToggle,
 }: Props) {
   const [saved, setSaved] = useState(() => isSaved(type, itemKey));
@@ -66,12 +74,32 @@ export default function SaveButton({
     (e: React.MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      // Verses use the highlight-aware toggle (promote a highlight-save to a
-      // sticky manual save instead of unsaving it); other kinds toggle plainly.
+
+      // Will this press REMOVE the item? Non-verse types toggle plainly (saved
+      // → removed). A verse only removes when it's a sticky manual save; a
+      // highlight/note auto-save PROMOTES instead (stays saved), so it can't
+      // orphan a note.
+      const currentlySaved = isSaved(type, itemKey);
+      const source = currentlySaved ? getSavedItemSource(type, itemKey) : undefined;
+      const willRemove =
+        currentlySaved && (type !== 'verse' || source === 'manual' || source === undefined);
+
+      // Removing an item that carries a note must delete the note too, else it
+      // is orphaned and would resurrect on re-save. Confirm first (notes are
+      // user data), then clean up highlights + note + the item together.
+      if (willRemove && getItemNote(type, itemKey)) {
+        if (!window.confirm('Remove this from Saved and delete its note?')) return;
+        removeSavedItemAndCleanup(type, itemKey);
+        setSaved(false);
+        onToggle?.(false);
+        setPopover(null);
+        return;
+      }
+
       const nowSaved =
         type === 'verse'
-          ? toggleManualSave({ type, key: itemKey, label, href, subtitle, arabic, translation })
-          : toggleSavedItem({ type, key: itemKey, label, href, subtitle });
+          ? toggleManualSave({ type, key: itemKey, label, href, subtitle, arabic, translation, meta })
+          : toggleSavedItem({ type, key: itemKey, label, href, subtitle, arabic, translation, meta });
       setSaved(nowSaved);
       onToggle?.(nowSaved);
       setPopover(nowSaved ? 'save' : null);
@@ -81,7 +109,7 @@ export default function SaveButton({
         setTimeout(() => setAnimating(false), 400);
       }
     },
-    [type, itemKey, label, href, subtitle, arabic, translation, onToggle],
+    [type, itemKey, label, href, subtitle, arabic, translation, meta, onToggle],
   );
 
   return (

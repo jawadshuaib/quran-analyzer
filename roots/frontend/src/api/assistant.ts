@@ -13,20 +13,23 @@ export interface QAEntry {
   created_at: string;
 }
 
-/** One of the user's OWN Ask-the-Quran Q&A rows, verse-anchored — shown
- *  under the saved verse on the /saved page like an AI-produced note. */
+/** One of the user's OWN Ask-the-Quran Q&A rows — shown under the saved
+ *  verse/word/root on the /saved page like an AI-produced note. */
 export interface SessionQAEntry {
   id: number;
-  /** "surah:ayah" the question was asked on. */
+  /** Which kind of page it was asked on. */
+  page_type: 'verse' | 'word' | 'root';
+  /** The page's key: verse "s:a", word "s:a/pos", root buckwalter. Matches the
+   *  saved item's own key, so (page_type, page_key) ↔ (item.type, item.key). */
   page_key: string;
   question: string;
   answer: string;
   created_at: string;
 }
 
-/** Fetch every verse Q&A this browser session has asked (newest first).
- *  The session id is the same per-browser UUID the assistant uses, so this
- *  only ever returns the user's own questions. */
+/** Fetch every verse/word/root Q&A this browser session has asked (newest
+ *  first). The session id is the same per-browser UUID the assistant uses, so
+ *  this only ever returns the user's own questions. */
 export async function fetchSessionQA(limit = 300): Promise<SessionQAEntry[]> {
   try {
     const params = new URLSearchParams({

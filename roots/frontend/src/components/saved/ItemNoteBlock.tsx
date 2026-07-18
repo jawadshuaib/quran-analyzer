@@ -1,24 +1,36 @@
 import { useState } from 'react';
-import { setVerseNote } from '../../utils/saved-item-actions';
+import { setItemNote } from '../../utils/saved-item-actions';
+import type { SavedItem } from '../../utils/saved-items';
 import NoteEditor from '../NoteEditor';
 import { FormattedInline } from '../FormattedText';
 
 interface Props {
-  /** "surah:ayah" of the verse this note annotates. */
-  verseKey: string;
+  /** The saved item this note annotates (any type). */
+  item: SavedItem;
   note: string;
 }
 
 /**
- * A verse's personal note, rendered UNDER its verse in the Saved surfaces
- * (page cards + quick panel rows) — a note is part of its verse, not a
- * detached list entry. Violet accent matches the note affordances elsewhere.
- * Edits/deletes go through the coupled write path, so deleting the note of a
- * verse that was only saved FOR the note releases the verse card too.
+ * A saved item's personal note, rendered UNDER its card in the Saved surfaces
+ * (page cards + quick panel rows) — a note is part of its item, not a detached
+ * list entry. Works for verses, words, and roots: edits/deletes go through the
+ * coupled write path (setItemNote), so deleting the note of an item that was
+ * only saved FOR the note releases the card too. Violet accent matches the note
+ * affordances elsewhere; FormattedInline auto-links verse refs + roots per line.
  */
-export default function VerseNoteBlock({ verseKey, note }: Props) {
+export default function ItemNoteBlock({ item, note }: Props) {
   const [editing, setEditing] = useState(false);
-  const [surah, verse] = verseKey.split(':').map(Number);
+
+  const descriptor = {
+    type: item.type,
+    key: item.key,
+    label: item.label,
+    href: item.href,
+    subtitle: item.subtitle,
+    arabic: item.arabic,
+    translation: item.translation,
+    meta: item.meta,
+  };
 
   if (editing) {
     return (
@@ -26,7 +38,7 @@ export default function VerseNoteBlock({ verseKey, note }: Props) {
         <NoteEditor
           initial={note}
           accent="violet"
-          onSave={(text) => setVerseNote(surah, verse, text)}
+          onSave={(text) => setItemNote(descriptor, text)}
           onClose={() => setEditing(false)}
         />
       </div>
@@ -44,10 +56,6 @@ export default function VerseNoteBlock({ verseKey, note }: Props) {
         >
           <path d="M11.5 1.7L14.3 4.5 5 13.8l-3 .5.5-3z" />
         </svg>
-        {/* FormattedInline per line = the same auto-linking the translation
-            notes and exegesis get: verse refs (2:155), spaced root letters
-            (s b r / س ب ر), and Arabic glyphs — while keeping the note's
-            plain-text line breaks. */}
         <div className="flex-1 min-w-0 text-xs leading-relaxed text-stone-700">
           {note.split('\n').map((line, i) =>
             line.trim() === '' ? (
@@ -67,7 +75,7 @@ export default function VerseNoteBlock({ verseKey, note }: Props) {
               setEditing(true);
             }}
             className="text-[10px] text-stone-400 hover:text-violet-600 cursor-pointer"
-            aria-label={`Edit note on ${verseKey}`}
+            aria-label={`Edit note on ${item.label}`}
           >
             Edit
           </button>
@@ -76,11 +84,11 @@ export default function VerseNoteBlock({ verseKey, note }: Props) {
             onClick={(e) => {
               e.stopPropagation();
               if (window.confirm('Delete this note? This cannot be undone.')) {
-                setVerseNote(surah, verse, '');
+                setItemNote(descriptor, '');
               }
             }}
             className="text-[10px] text-stone-400 hover:text-red-600 cursor-pointer"
-            aria-label={`Delete note on ${verseKey}`}
+            aria-label={`Delete note on ${item.label}`}
           >
             Delete
           </button>

@@ -15,9 +15,18 @@ interface Props {
   /** Optional accent — `gold` (default) on the reader, `violet` to
    *  match the research-view color palette. */
   accent?: 'gold' | 'violet';
+  /** Placeholder text — defaults to the verse wording; word/root pages pass
+   *  a generic string so it doesn't say "verse". */
+  placeholder?: string;
 }
 
-export default function NoteEditor({ initial, onSave, onClose, accent = 'gold' }: Props) {
+export default function NoteEditor({
+  initial,
+  onSave,
+  onClose,
+  accent = 'gold',
+  placeholder = 'Your note for this verse — saved locally, never sent anywhere.',
+}: Props) {
   const [text, setText] = useState(initial);
 
   const buttonAccent =
@@ -43,7 +52,7 @@ export default function NoteEditor({ initial, onSave, onClose, accent = 'gold' }
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Your note for this verse — saved locally, never sent anywhere."
+        placeholder={placeholder}
         rows={4}
         className={`w-full bg-white border border-card-border rounded-md px-3 py-2 text-sm leading-relaxed focus:outline-none focus:ring-2 ${focusRing}`}
         autoFocus

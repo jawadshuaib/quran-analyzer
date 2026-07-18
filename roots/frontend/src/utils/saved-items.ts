@@ -40,14 +40,41 @@ export interface SavedItem {
    * Absent on items saved before this field existed → treated as 'manual'.
    */
   source?: 'manual' | 'highlight' | 'note';
-  /** Verse-only: the Uthmani Arabic text, so the Saved panel can show the
-   *  verse itself (and render highlights over its word tokens) without a
-   *  network round-trip. */
+  /** The Arabic to render in the Saved surfaces without a network round-trip:
+   *  verse → the Uthmani text (highlights drawn over its word tokens);
+   *  word  → the HOST verse's Uthmani text (for the one-line context snippet);
+   *  root  → the Arabic root glyph. */
   arabic?: string;
-  /** Verse-only: the English translation shown under the Arabic in the panel. */
+  /** The gloss/meaning line: verse → English translation; word/root can also
+   *  carry their meaning here (or in `subtitle`). */
   translation?: string;
+  /** Extra structured fields for rich display of word/root cards (see
+   *  SavedItemMeta). Optional + additive — no migration. */
+  meta?: SavedItemMeta;
   /** Ids of folders this item belongs to. Absent or empty = unfiled. */
   folders?: string[];
+}
+
+/**
+ * Structured extras that let a saved WORD render as a vocabulary flashcard and
+ * a saved ROOT as a mini dictionary entry, without refetching. All optional;
+ * lazily backfilled for items saved before this existed.
+ */
+export interface SavedItemMeta {
+  /** Word: the word's own Arabic form (the flashcard headline glyph). */
+  wordArabic?: string;
+  /** Word/root: the Arabic root glyph (e.g. the spaced root). */
+  rootArabic?: string;
+  /** Word/root: the Buckwalter root — powers the /root/<bw> chip link. */
+  rootBuckwalter?: string;
+  /** Word: the lemma's Arabic. */
+  lemmaArabic?: string;
+  /** Word/root: comma-separated semantic-field tags (first shown, rest in title). */
+  semanticField?: string;
+  /** Root: total occurrences across the Qur'an. */
+  occurrences?: number;
+  /** Root: number of distinct lemmas. */
+  lemmaCount?: number;
 }
 
 export type SavedItemSource = NonNullable<SavedItem['source']>;
@@ -243,7 +270,7 @@ export function getSavedItemSource(
 export function promoteSavedItemToManual(
   type: SavedItemType,
   key: string,
-  patch?: Pick<SavedItem, 'label' | 'href' | 'subtitle' | 'arabic' | 'translation'>,
+  patch?: Pick<SavedItem, 'label' | 'href' | 'subtitle' | 'arabic' | 'translation' | 'meta'>,
 ): void {
   const store = load();
   const item = findItem(store, type, key);
@@ -255,6 +282,7 @@ export function promoteSavedItemToManual(
     if (patch.subtitle !== undefined) item.subtitle = patch.subtitle;
     if (patch.arabic) item.arabic = patch.arabic;
     if (patch.translation) item.translation = patch.translation;
+    if (patch.meta) item.meta = { ...item.meta, ...patch.meta };
   }
   save(store);
 }
@@ -265,7 +293,7 @@ export function promoteSavedItemToManual(
 export function updateSavedItemContent(
   type: SavedItemType,
   key: string,
-  content: { arabic?: string; translation?: string },
+  content: { arabic?: string; translation?: string; subtitle?: string; meta?: SavedItemMeta },
 ): void {
   const store = load();
   const item = findItem(store, type, key);
@@ -273,6 +301,18 @@ export function updateSavedItemContent(
   let changed = false;
   if (content.arabic && item.arabic !== content.arabic) { item.arabic = content.arabic; changed = true; }
   if (content.translation && item.translation !== content.translation) { item.translation = content.translation; changed = true; }
+  if (content.subtitle && item.subtitle !== content.subtitle) { item.subtitle = content.subtitle; changed = true; }
+  if (content.meta) {
+    const next = { ...item.meta };
+    let metaChanged = false;
+    for (const [k, v] of Object.entries(content.meta) as [keyof SavedItemMeta, unknown][]) {
+      if (v !== undefined && v !== null && (next as Record<string, unknown>)[k] !== v) {
+        (next as Record<string, unknown>)[k] = v;
+        metaChanged = true;
+      }
+    }
+    if (metaChanged) { item.meta = next; changed = true; }
+  }
   if (changed) save(store);
 }
 
@@ -298,6 +338,7 @@ export function toggleManualSave(item: Omit<SavedItem, 'savedAt' | 'source'>): b
       subtitle: item.subtitle,
       arabic: item.arabic,
       translation: item.translation,
+      meta: item.meta,
     });
     return true;
   }

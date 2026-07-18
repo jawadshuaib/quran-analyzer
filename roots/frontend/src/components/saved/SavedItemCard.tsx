@@ -6,10 +6,11 @@ import {
 } from '../../utils/saved-items';
 import { removeSavedItemAndCleanup } from '../../utils/saved-item-actions';
 import SavedVerseContent from './SavedVerseContent';
-import VerseNoteBlock from './VerseNoteBlock';
+import SavedWordContent from './SavedWordContent';
+import SavedRootContent from './SavedRootContent';
+import ItemNoteBlock from './ItemNoteBlock';
 import VerseQABlock from './VerseQABlock';
 import FolderPopover from '../folders/FolderPopover';
-import { wrapArabicRuns } from '../../utils/arabic-runs';
 import type { SessionQAEntry } from '../../api/assistant';
 
 interface Props {
@@ -39,16 +40,12 @@ export default function SavedItemCard({ item, folders, selected, onToggleSelect,
     .filter((f): f is Folder => !!f);
 
   function handleRemove() {
-    const verseExtras = note
-      ? ' Its highlights are cleared and its note is deleted too.'
-      : ' Its highlights are cleared too.';
-    if (
-      window.confirm(
-        `Remove ${isVerse ? `verse ${item.key}` : item.label} from Saved?${
-          isVerse ? verseExtras : ''
-        }`,
-      )
-    ) {
+    let extra = '';
+    if (isVerse && note) extra = ' Its highlights and note are removed too.';
+    else if (isVerse) extra = ' Its highlights are cleared too.';
+    else if (note) extra = ' Its note is deleted too.';
+    const name = isVerse ? `verse ${item.key}` : item.label;
+    if (window.confirm(`Remove ${name} from Saved?${extra}`)) {
       removeSavedItemAndCleanup(item.type, item.key);
     }
   }
@@ -69,26 +66,19 @@ export default function SavedItemCard({ item, folders, selected, onToggleSelect,
           className="mt-1 h-3.5 w-3.5 shrink-0 accent-rose-500 cursor-pointer"
         />
 
-        {/* Content — navigates */}
+        {/* Content — navigates. Each type has its own rich body. */}
         <a href={item.href} className="flex-1 min-w-0 block">
-          {isVerse ? (
+          {item.type === 'verse' ? (
             <>
               <span className="block text-[11px] font-medium text-rose-600/80">
                 {item.label}
               </span>
               <SavedVerseContent item={item} />
             </>
+          ) : item.type === 'word' ? (
+            <SavedWordContent item={item} />
           ) : (
-            <>
-              <span className="text-sm font-medium text-stone-700 line-clamp-1">
-                {wrapArabicRuns(item.label)}
-              </span>
-              {item.subtitle && (
-                <span className="block text-xs text-stone-400 mt-0.5 line-clamp-2 leading-relaxed">
-                  {wrapArabicRuns(item.subtitle)}
-                </span>
-              )}
-            </>
+            <SavedRootContent item={item} />
           )}
         </a>
 
@@ -106,15 +96,15 @@ export default function SavedItemCard({ item, folders, selected, onToggleSelect,
         </button>
       </div>
 
-      {/* Personal note — lives under its verse */}
-      {isVerse && note && (
+      {/* Personal note — lives under its item (verse, word, or root) */}
+      {note && (
         <div className="pl-6">
-          <VerseNoteBlock verseKey={item.key} note={note} />
+          <ItemNoteBlock item={item} note={note} />
         </div>
       )}
 
-      {/* The user's own Ask-the-Quran answers — an AI note under the verse */}
-      {isVerse && qa && qa.length > 0 && (
+      {/* The user's own Ask-the-Quran answers — an AI note under the item */}
+      {qa && qa.length > 0 && (
         <div className="pl-6">
           <VerseQABlock items={qa} />
         </div>

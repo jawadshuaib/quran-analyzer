@@ -5,9 +5,12 @@ import { verseUrl, ejtaalUrl } from '../utils/urls';
 import CognateTable from './CognateTable';
 import VerseRefText from './VerseRefText';
 import AskAssistant from './AskAssistant';
+import SaveButton from './SaveButton';
+import NoteButton from './NoteButton';
 import { buildWordContext } from '../utils/context-builders';
 import { TranslationWithChips } from './TermChip';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import type { NoteDescriptor } from '../utils/saved-item-actions';
 
 interface Props {
   surah: number;
@@ -107,6 +110,30 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
   const mainPos = mainSeg?.pos;
   const formArabic = mainSeg?.form_arabic;
 
+  const meaning =
+    data.ai_meaning?.preferred_translation ||
+    data.ai_meaning?.meaning_short ||
+    data.conventional_gloss ||
+    undefined;
+  const wordKey = `${surah}:${ayah}/${pos}`;
+  // Shared by Save + Note so a note auto-saves the word under it, and the saved
+  // card can render the flashcard without a fetch.
+  const wordDescriptor: NoteDescriptor = {
+    type: 'word',
+    key: wordKey,
+    label: formArabic ? `${formArabic} — ${surah}:${ayah}` : `Word ${wordKey}`,
+    href: `/word/${wordKey}`,
+    subtitle: meaning,
+    arabic: data.text_uthmani,
+    meta: {
+      wordArabic: formArabic,
+      rootArabic: data.root_arabic ?? undefined,
+      rootBuckwalter: data.root_buckwalter ?? undefined,
+      lemmaArabic: data.lemma_arabic ?? undefined,
+      semanticField: data.ai_meaning?.semantic_field ?? undefined,
+    },
+  };
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       {/* Header */}
@@ -160,6 +187,24 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                 {mainPos}
               </span>
             )}
+          </div>
+
+          {/* Save + note — mirrors the root page's actions cluster */}
+          <div className="ml-auto flex items-center gap-2 self-start">
+            <div className="rounded-full bg-white shadow-sm">
+              <SaveButton
+                type="word"
+                itemKey={wordKey}
+                label={wordDescriptor.label}
+                href={wordDescriptor.href}
+                subtitle={meaning}
+                arabic={data.text_uthmani}
+                meta={wordDescriptor.meta}
+              />
+            </div>
+            <div className="relative rounded-full bg-white shadow-sm">
+              <NoteButton item={wordDescriptor} accent="violet" />
+            </div>
           </div>
         </div>
       </header>

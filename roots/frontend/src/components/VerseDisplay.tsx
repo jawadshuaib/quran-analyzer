@@ -347,7 +347,18 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           translation={data.translation}
         />
         <VersePlayButton surah={data.surah} ayah={data.ayah} />
-        <NoteButton surah={data.surah} ayah={data.ayah} accent="violet" />
+        <NoteButton
+          item={{
+            type: 'verse',
+            key: `${data.surah}:${data.ayah}`,
+            label: `Surah ${data.surah_name} ${data.surah}:${data.ayah}`,
+            href: `/verse/${data.surah}:${data.ayah}`,
+            subtitle: data.translation,
+            arabic: data.text_uthmani,
+            translation: data.translation,
+          }}
+          accent="violet"
+        />
         {copyActive && (
           <span data-copy-icon className="animate-chip-pop">
             <button

@@ -1,48 +1,51 @@
 import { useState, useEffect } from 'react';
-import { getNote, subscribeToNotes } from '../utils/user-notes';
-import { setVerseNote } from '../utils/saved-item-actions';
+import { getItemNote, subscribeToNotes } from '../utils/user-notes';
+import { setItemNote, type NoteDescriptor } from '../utils/saved-item-actions';
 import NoteEditor from './NoteEditor';
 
 interface Props {
-  surah: number;
-  ayah: number;
+  /** The item this note annotates (verse, word, or root). Carries the display
+   *  fields so a first note can auto-save the item under it. */
+  item: NoteDescriptor;
   /** Tone used by both the button and the inline editor — `gold` on the
-   *  reader, `violet` on the research view. */
+   *  reader, `violet` on the research/word/root views. */
   accent?: 'gold' | 'violet';
 }
 
+const NOUN: Record<NoteDescriptor['type'], string> = {
+  verse: 'verse',
+  word: 'word',
+  root: 'root',
+};
+
 /**
- * Floating note button shown on /verse/<ref> next to the SaveButton.
- * Click toggles an inline editor that opens BELOW the button at the
- * top-left of the verse card. Notes persist to localStorage via
- * utils/user-notes — the same store the reader's gutter editor uses,
- * so any note written in either view shows up in both.
+ * Floating note button shown next to the SaveButton on verse / word / root
+ * pages. Click toggles an inline editor that opens BELOW the button. Notes
+ * persist to localStorage via utils/user-notes; writing a note auto-saves the
+ * item so it appears in Saved with the note under it (coupled write path).
  */
-export default function NoteButton({ surah, ayah, accent = 'violet' }: Props) {
-  const [note, setNoteState] = useState<string>(() => getNote(surah, ayah));
+export default function NoteButton({ item, accent = 'violet' }: Props) {
+  const [note, setNoteState] = useState<string>(() => getItemNote(item.type, item.key));
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
     return subscribeToNotes(() => {
-      setNoteState(getNote(surah, ayah));
+      setNoteState(getItemNote(item.type, item.key));
     });
-  }, [surah, ayah]);
+  }, [item.type, item.key]);
 
   function handleSave(text: string) {
-    // Coupled write: a non-empty note auto-saves the verse (source 'note')
-    // so it appears in Saved with the note under it; emptying releases a
-    // pure note-save.
-    setVerseNote(surah, ayah, text);
+    setItemNote(item, text);
     setNoteState(text);
   }
 
   const hasNote = !!note.trim();
-  const buttonColor =
-    hasNote
-      ? accent === 'violet'
-        ? 'text-violet-600 hover:text-violet-700'
-        : 'text-gold hover:text-gold-hover'
-      : 'text-stone-300 hover:text-stone-500';
+  const noun = NOUN[item.type];
+  const buttonColor = hasNote
+    ? accent === 'violet'
+      ? 'text-violet-600 hover:text-violet-700'
+      : 'text-gold hover:text-gold-hover'
+    : 'text-stone-300 hover:text-stone-500';
 
   return (
     <>
@@ -53,7 +56,7 @@ export default function NoteButton({ surah, ayah, accent = 'violet' }: Props) {
           e.preventDefault();
           setOpen(!open);
         }}
-        aria-label={hasNote ? 'Edit your note for this verse' : 'Add a note to this verse'}
+        aria-label={hasNote ? `Edit your note for this ${noun}` : `Add a note to this ${noun}`}
         aria-pressed={hasNote}
         className={`flex items-center justify-center rounded-full w-7 h-7 transition-colors ${buttonColor}`}
         title={hasNote ? 'Your note' : 'Add a note'}
@@ -71,10 +74,9 @@ export default function NoteButton({ surah, ayah, accent = 'violet' }: Props) {
       </button>
 
       {open && (
-        // Anchored to the floating-button pill, but the pill itself is
-        // only ~100px wide — without an explicit width the editor would
-        // collapse to that. Use a fixed width that fits a typical verse
-        // card, capped to viewport so it doesn't overflow on mobile.
+        // Anchored to the floating-button pill, but the pill itself is only
+        // ~100px wide — use a fixed width that fits a typical card, capped to
+        // viewport so it doesn't overflow on mobile.
         <div
           className="absolute z-20 left-0 top-8 w-[min(28rem,calc(100vw-2.5rem))]"
           onClick={(e) => e.stopPropagation()}
@@ -84,6 +86,7 @@ export default function NoteButton({ surah, ayah, accent = 'violet' }: Props) {
             onSave={handleSave}
             onClose={() => setOpen(false)}
             accent={accent}
+            placeholder={`Your note for this ${noun} — saved locally, never sent anywhere.`}
           />
         </div>
       )}

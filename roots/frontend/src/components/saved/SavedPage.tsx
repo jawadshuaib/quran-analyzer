@@ -20,7 +20,7 @@ import {
   type MultiCopyFormat,
   type MultiCopySource,
 } from '../../utils/verse-copy';
-import { getAllNotes, subscribeToNotes } from '../../utils/user-notes';
+import { getAllNotes, getNotesByType, subscribeToNotes } from '../../utils/user-notes';
 import { fetchSessionQA, type SessionQAEntry } from '../../api/assistant';
 import { getSurahName } from '../../utils/surah-names';
 import { useVerseThemes, groupItemsByTheme } from '../../hooks/useGroupedByTheme';
@@ -104,6 +104,11 @@ function matchesQuery(item: SavedItem, q: string): boolean {
 
 const refKey = (r: SavedItemRef) => `${r.type} ${r.key}`;
 
+/** Composite key that matches a Q&A row to its saved item across all types:
+ *  (page_type, page_key) ↔ (item.type, item.key). Built and compared only —
+ *  never split — so the colon inside a word key ("word:57:20/17") is safe. */
+const qaKey = (type: string, key: string) => `${type}:${key}`;
+
 const TYPE_SECTIONS: Array<{ type: SavedItemType; label: string }> = [
   { type: 'verse', label: 'Verses' },
   { type: 'root', label: 'Roots' },
@@ -139,8 +144,8 @@ export default function SavedPage() {
   const [groupTheme, setGroupTheme] = useState(initialPrefs.groupByTheme);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<string | null>(null);
-  // The user's own Ask-the-Quran Q&A, grouped by verse key — rendered under
-  // saved verse cards like an AI-produced note.
+  // The user's own Ask-the-Quran Q&A, keyed by qaKey(type,key) — rendered under
+  // the matching saved verse/word/root card like an AI-produced note.
   const [qaMap, setQaMap] = useState<Record<string, SessionQAEntry[]>>({});
 
   useEffect(() => {
@@ -149,7 +154,7 @@ export default function SavedPage() {
       if (cancelled) return;
       const map: Record<string, SessionQAEntry[]> = {};
       for (const row of rows) {
-        (map[row.page_key] ??= []).push(row);
+        (map[qaKey(row.page_type, row.page_key)] ??= []).push(row);
       }
       setQaMap(map);
     });
@@ -209,21 +214,30 @@ export default function SavedPage() {
   }
 
   // ----- Derived visible items ----------------------------------------------
+  // Notes indexed by the item's OWN key, per type (the store de-namespaces),
+  // so each section/card looks its note up as notesByType[type][item.key].
+  const notesByType = useMemo(
+    () => ({
+      verse: getNotesByType('verse'),
+      word: getNotesByType('word'),
+      root: getNotesByType('root'),
+    }),
+    [notesMap],
+  );
+
   const scoped = activeFolderId ? getItemsInFolder(activeFolderId) : items;
   const qt = q.trim();
+  const lc = qt.toLowerCase();
   const searched = qt
     ? scoped.filter(
         (i) =>
           matchesQuery(i, qt) ||
-          // A verse's note and its Ask-the-Quran Q&A are part of the verse —
-          // search them too.
-          (i.type === 'verse' &&
-            ((notesMap[i.key] ?? '').toLowerCase().includes(qt.toLowerCase()) ||
-              (qaMap[i.key] ?? []).some(
-                (x) =>
-                  x.question.toLowerCase().includes(qt.toLowerCase()) ||
-                  x.answer.toLowerCase().includes(qt.toLowerCase()),
-              ))),
+          // An item's note and its Ask-the-Quran Q&A are part of it — search too.
+          (notesByType[i.type][i.key] ?? '').toLowerCase().includes(lc) ||
+          (qaMap[qaKey(i.type, i.key)] ?? []).some(
+            (x) =>
+              x.question.toLowerCase().includes(lc) || x.answer.toLowerCase().includes(lc),
+          ),
       )
     : scoped;
 
@@ -237,10 +251,12 @@ export default function SavedPage() {
 
   const activeFolder = folders.find((f) => f.id === activeFolderId) ?? null;
 
-  // Verses that carry a personal note — the Notes tab is a FILTER over the
-  // verse cards (a note lives under its verse), so notes inherit the active
-  // folder scope and the search like everything else.
-  const notedVerses = sortedByType.verse.filter((i) => !!notesMap[i.key]);
+  // Items that carry a personal note — the Notes tab is a FILTER over these
+  // cards (a note lives under its item), so notes inherit the active folder
+  // scope and the search like everything else. All three types can be noted.
+  const notedItems = [...sortedByType.verse, ...sortedByType.root, ...sortedByType.word].filter(
+    (i) => !!notesByType[i.type][i.key],
+  );
 
   // Theme grouping (Verses section, All/Verses tabs, ≥2 verses)
   const groupingActive =
@@ -256,7 +272,7 @@ export default function SavedPage() {
   // verses that carry a note).
   const visibleForTab =
     tab === 'notes'
-      ? notedVerses.length
+      ? notedItems.length
       : tab === 'all'
         ? searched.length
         : sortedByType[tab].length;
@@ -344,8 +360,8 @@ export default function SavedPage() {
       count: sortedByType[type].length,
     })).filter((t) => t.count > 0),
     // Notes = verses that carry a note; scoped by folder + search like the rest.
-    ...(notedVerses.length > 0
-      ? [{ value: 'notes' as TabValue, label: 'Notes', count: notedVerses.length }]
+    ...(notedItems.length > 0
+      ? [{ value: 'notes' as TabValue, label: 'Notes', count: notedItems.length }]
       : []),
   ];
 
@@ -369,8 +385,8 @@ export default function SavedPage() {
                     folders={folders}
                     selected={selection.has(refKey(item))}
                     onToggleSelect={() => toggleSelect(item)}
-                    note={notesMap[item.key]}
-                    qa={qaMap[item.key]}
+                    note={notesByType[item.type][item.key]}
+                    qa={qaMap[qaKey(item.type, item.key)]}
                   />
                 ))}
               </div>
@@ -388,8 +404,8 @@ export default function SavedPage() {
             folders={folders}
             selected={selection.has(refKey(item))}
             onToggleSelect={() => toggleSelect(item)}
-            note={notesMap[item.key]}
-            qa={qaMap[item.key]}
+            note={notesByType[item.type][item.key]}
+            qa={qaMap[qaKey(item.type, item.key)]}
           />
         ))}
       </div>
@@ -528,7 +544,7 @@ export default function SavedPage() {
                 {q.trim()
                   ? 'Try a different word or reference.'
                   : tab === 'notes'
-                    ? 'Tap the pencil on any verse to add one — it will appear here under its verse.'
+                    ? 'Tap the pencil on any verse, word, or root to add one — it appears here under its item.'
                     : activeFolder
                       ? 'Bookmark any verse, then tick this folder in the popup.'
                       : ''}
@@ -566,6 +582,8 @@ export default function SavedPage() {
                           folders={folders}
                           selected={selection.has(refKey(item))}
                           onToggleSelect={() => toggleSelect(item)}
+                          note={notesByType[item.type][item.key]}
+                          qa={qaMap[qaKey(item.type, item.key)]}
                         />
                       ))}
                     </div>
@@ -574,24 +592,24 @@ export default function SavedPage() {
               );
             })}
 
-            {/* Notes tab — verse cards filtered to those carrying a note
+            {/* Notes tab — cards (any type) filtered to those carrying a note
                 (each renders its note beneath it) */}
-            {tab === 'notes' && notedVerses.length > 0 && (
+            {tab === 'notes' && notedItems.length > 0 && (
               <section>
                 <h2 className="mb-2 text-sm font-semibold text-stone-700">
-                  Verses with notes
-                  <span className="ml-1.5 text-xs font-normal text-stone-400">{notedVerses.length}</span>
+                  Notes
+                  <span className="ml-1.5 text-xs font-normal text-stone-400">{notedItems.length}</span>
                 </h2>
                 <div className="space-y-2">
-                  {notedVerses.map((item) => (
+                  {notedItems.map((item) => (
                     <SavedItemCard
                       key={refKey(item)}
                       item={item}
                       folders={folders}
                       selected={selection.has(refKey(item))}
                       onToggleSelect={() => toggleSelect(item)}
-                      note={notesMap[item.key]}
-                      qa={qaMap[item.key]}
+                      note={notesByType[item.type][item.key]}
+                      qa={qaMap[qaKey(item.type, item.key)]}
                     />
                   ))}
                 </div>

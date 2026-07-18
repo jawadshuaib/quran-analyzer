@@ -2623,12 +2623,13 @@ def save_assistant_qa():
 
 @app.route("/api/assistant/session-qa")
 def get_assistant_session_qa():
-    """All of ONE browser session's own verse Q&A, for the /saved page.
+    """All of ONE browser session's own Q&A (verse/word/root), for the /saved page.
 
     The session_id is the per-browser UUID the assistant already uses — it
     acts as the bearer here (same trust model as /api/assistant/save), so a
-    user only ever sees the questions they themselves asked. Verse-anchored
-    rows only; admin-hidden rows are withheld.
+    user only ever sees the questions they themselves asked. Anchored to the
+    three saveable page types; admin-hidden rows are withheld. page_type is
+    returned so the client can match each row to its saved verse/word/root.
     """
     session_id = request.args.get("session_id", "")
     if not session_id:
@@ -2643,9 +2644,9 @@ def get_assistant_session_qa():
         cols = [r[1] for r in conn.execute("PRAGMA table_info(assistant_conversations)")]
         has_hidden = "hidden" in cols
         sql = (
-            "SELECT id, page_key, question, answer, created_at "
+            "SELECT id, page_type, page_key, question, answer, created_at "
             "FROM assistant_conversations "
-            "WHERE session_id = ? AND page_type = 'verse' "
+            "WHERE session_id = ? AND page_type IN ('verse', 'word', 'root') "
             + ("  AND COALESCE(hidden, 0) = 0 " if has_hidden else "")
             + "ORDER BY created_at DESC LIMIT ?"
         )
@@ -2654,6 +2655,7 @@ def get_assistant_session_qa():
             "qa": [
                 {
                     "id": r["id"],
+                    "page_type": r["page_type"],
                     "page_key": r["page_key"],
                     "question": r["question"],
                     "answer": r["answer"],
