@@ -1,6 +1,5 @@
 import { useState, useEffect, type RefObject } from 'react';
 import UnifiedSearch from '../UnifiedSearch';
-import { getNotesCount, subscribeToNotes } from '../../utils/user-notes';
 import { getSavedCount, subscribeToSavedItems } from '../../utils/saved-items';
 
 /**
@@ -15,12 +14,11 @@ import { getSavedCount, subscribeToSavedItems } from '../../utils/saved-items';
  * without their own search use the default 80px scroll threshold.
  *
  * Right-side links:
- *   - Notes (only when user has notes)
- *   - Saved (only when user has saved items)
- *   - Learn
+ *   - Saved (always; badge shows the count)
  *   - Methodology
  *   - Settings
- *   (Grammar + API moved to footer to make room for Notes / Saved.)
+ *   (Learn, Metres, Grammar + API live in the footer; Notes live inside
+ *   the Saved page under their verses, so there's no top-nav Notes link.)
  */
 interface Props {
   currentPath: string;
@@ -30,8 +28,6 @@ interface Props {
 }
 
 const STATIC_LINKS = [
-  { label: 'Learn', href: '/learning' },
-  { label: 'Metres', href: '/meters' },
   { label: 'Methodology', href: '/methodology' },
   { label: 'Settings', href: '/settings' },
 ];
@@ -45,7 +41,6 @@ export default function NavBar({
   onFullSemanticSearch,
 }: Props) {
   const [compact, setCompact] = useState(false);
-  const [notesCount, setNotesCount] = useState(() => getNotesCount());
   const [savedCount, setSavedCount] = useState(() => getSavedCount());
 
   useEffect(() => {
@@ -67,10 +62,7 @@ export default function NavBar({
     };
   }, [searchAnchorRef]);
 
-  // Refresh nav badges when notes / saved items change in this tab or another.
-  useEffect(() => {
-    return subscribeToNotes(() => setNotesCount(getNotesCount()));
-  }, []);
+  // Refresh the Saved badge when saved items change in this tab or another.
   useEffect(() => {
     return subscribeToSavedItems(() => setSavedCount(getSavedCount()));
   }, []);
@@ -88,11 +80,11 @@ export default function NavBar({
 
   // Saved is a real page now (/saved) — the link is always visible so the
   // feature is discoverable (the page has a proper empty state), with the
-  // count badge preserving the "you have n things" signal. Notes deep-links
-  // into the page's Notes section and stays count-gated as before.
-  const navLinks: Array<{ label: string; href: string; count: number }> = [];
-  if (notesCount > 0) navLinks.push({ label: 'Notes', href: '/saved?tab=notes', count: notesCount });
-  navLinks.push({ label: 'Saved', href: '/saved', count: savedCount });
+  // count badge preserving the "you have n things" signal. Notes live inside
+  // the Saved page (under their verses), so there's no separate Notes link.
+  const navLinks: Array<{ label: string; href: string; count: number }> = [
+    { label: 'Saved', href: '/saved', count: savedCount },
+  ];
 
   return (
     <nav className="w-full bg-cream/90 backdrop-blur-sm border-b border-card-border sticky top-0 z-30">

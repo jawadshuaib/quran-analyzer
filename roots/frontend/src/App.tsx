@@ -245,6 +245,10 @@ function SiteFooter() {
   return (
     <footer className="py-6 border-t border-card-border text-center text-[11.5px] text-ink-muted tracking-wide">
       <div>
+        <a href="/learning" className="hover:text-ink-secondary">Learn</a>
+        <span className="mx-2">&middot;</span>
+        <a href="/meters" className="hover:text-ink-secondary">Metres</a>
+        <span className="mx-2">&middot;</span>
         <a href="/grammar-glossary" className="hover:text-ink-secondary">Grammar</a>
         <span className="mx-2">&middot;</span>
         <a href="/developers" className="hover:text-ink-secondary">API</a>
