@@ -203,7 +203,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               />
             </div>
             <div className="relative rounded-full bg-white shadow-sm">
-              <NoteButton item={wordDescriptor} accent="violet" />
+              <NoteButton item={wordDescriptor} accent="violet" align="right" />
             </div>
           </div>
         </div>

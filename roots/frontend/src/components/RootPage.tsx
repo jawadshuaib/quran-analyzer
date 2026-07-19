@@ -149,7 +149,7 @@ export default function RootPage({ rootBw }: Props) {
               />
             </div>
             <div className="relative rounded-full bg-white shadow-sm">
-              <NoteButton item={rootDescriptor} accent="violet" />
+              <NoteButton item={rootDescriptor} accent="violet" align="right" />
             </div>
             <a
               href={`/learning/root/${encodeURIComponent(rootBw)}`}
