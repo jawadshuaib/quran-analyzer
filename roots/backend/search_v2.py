@@ -40,7 +40,26 @@ LEXICAL_CAP = 200           # max verses the lexical arm scores per query
 _ARABIC_RE = re.compile(r"[؀-ۿ]")
 _TASHKEEL_RE = re.compile(r"[ً-ْٰـ]")
 
-# --- Voyage API key: mirrors app._get_claude_api_key (admin_pref → env, 60s) -
+# --- Voyage API key: admin_preferences → env → local .env, 60s cache ---------
+def _load_env_file_once():
+    """Load roots/backend/.env into os.environ (dev parity; no-op on prod, whose
+    key comes from admin_preferences). Never overwrites a real env var."""
+    path = os.path.join(HERE, ".env")
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+    except Exception:
+        pass
+
+
+_load_env_file_once()
 _VOYAGE_KEY_ENV = os.environ.get("VOYAGE_API_KEY", "")
 _voyage_key_cache = {"key": None, "ts": 0.0}
 
@@ -95,13 +114,18 @@ def load_matrices_v2(model_name=None, dim=None):
     conn = sqlite3.connect(DB_PATH, timeout=30)
     conn.row_factory = sqlite3.Row
     try:
-        has = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='verse_embeddings_v2'"
-        ).fetchone()
-        if not has:
-            print("[search_v2] verse_embeddings_v2 absent — dense v2 disabled (fallback active)")
-            _v2_ready = False
-            return
+        # Self-heal: ensure the table exists (empty is fine — stays in fallback
+        # until a sync populates it). This makes a table-only prod sync work
+        # without a manual CREATE, and survives a DB reset.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS verse_embeddings_v2 (
+                chapter INTEGER NOT NULL, verse INTEGER NOT NULL, doc_type TEXT NOT NULL,
+                model_name TEXT NOT NULL, dim INTEGER NOT NULL, embedding BLOB NOT NULL,
+                text_used TEXT, text_hash TEXT, created_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (chapter, verse, doc_type, model_name)
+            )
+        """)
+        conn.commit()
         # If a dim wasn't given, discover it from the stored rows.
         rows = conn.execute(
             "SELECT chapter, verse, doc_type, dim, embedding FROM verse_embeddings_v2 "

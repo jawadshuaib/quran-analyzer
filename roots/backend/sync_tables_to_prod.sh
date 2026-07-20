@@ -105,6 +105,18 @@ with open(out_path, "w") as f:
         cols = [r[1] for r in conn.execute(f"PRAGMA table_info({t})")]
         col_str = ",".join(cols)
         f.write(f"\n-- Table: {t}\n")
+        # Ship the schema too (idempotent), so a table that does not yet exist
+        # on prod is created, not just filled. Existing tables are untouched.
+        srow = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (t,)
+        ).fetchone()
+        if srow and srow["sql"]:
+            f.write(srow["sql"].replace("CREATE TABLE ", "CREATE TABLE IF NOT EXISTS ", 1) + ";\n")
+        for irow in conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='index' AND tbl_name=? AND sql IS NOT NULL",
+            (t,),
+        ):
+            f.write(irow["sql"].replace("CREATE INDEX ", "CREATE INDEX IF NOT EXISTS ", 1) + ";\n")
         rows = conn.execute(f"SELECT * FROM {t}").fetchall()
         for r in rows:
             vals = [r[c] for c in cols]

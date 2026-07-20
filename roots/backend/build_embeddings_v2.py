@@ -156,7 +156,7 @@ def text_hash(text):
 # Voyage
 # --------------------------------------------------------------------------
 
-def voyage_embed(texts, model, input_type, output_dim, api_key, max_retries=6):
+def voyage_embed(texts, model, input_type, output_dim, api_key, max_retries=10):
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     body = {"input": texts, "model": model, "input_type": input_type, "output_dtype": "float"}
     if output_dim:
@@ -165,8 +165,14 @@ def voyage_embed(texts, model, input_type, output_dim, api_key, max_retries=6):
     for attempt in range(max_retries):
         try:
             r = requests.post(VOYAGE_URL, headers=headers, json=body, timeout=(6.05, 120))
-            if r.status_code == 429 or r.status_code >= 500:
-                last_err = f"HTTP {r.status_code}: {r.text[:200]}"
+            if r.status_code == 429:
+                # Free-tier accounts (no payment method) are capped at 3 RPM /
+                # 10K TPM — wait a large part of the minute window, not seconds.
+                last_err = f"HTTP 429: {r.text[:160]}"
+                time.sleep(min(25 + attempt * 10, 90))
+                continue
+            if r.status_code >= 500:
+                last_err = f"HTTP {r.status_code}: {r.text[:160]}"
                 time.sleep(min(2 ** attempt, 30))
                 continue
             r.raise_for_status()
@@ -200,6 +206,9 @@ def main():
                     help="re-embed even if an unchanged embedding exists")
     ap.add_argument("--dry-run", action="store_true",
                     help="build the doc texts and report counts; no API calls")
+    ap.add_argument("--pace-tpm", type=int, default=9000,
+                    help="proactively pace requests to this tokens/min budget "
+                         "(free-tier cap is 10K TPM; 0 disables pacing)")
     args = ap.parse_args()
 
     doc_types = [d.strip() for d in args.doc_types.split(",") if d.strip() in DOC_TYPES]
@@ -270,6 +279,13 @@ def main():
         batch = todo[i:i + args.batch_size]
         vecs = voyage_embed([w[3] for w in batch], args.model, "document",
                             args.dim, api_key)
+        if args.pace_tpm:
+            # Sleep off this batch's token budget so the rolling tokens/min
+            # stays under the account cap (chars/3 overestimates tokens for
+            # Arabic, which keeps us safely below the limit). Also respect the
+            # free tier's 3 RPM: never fire more than one request per ~21s.
+            est_tokens = sum(len(w[3]) for w in batch) / 3
+            time.sleep(max(21.0, est_tokens / args.pace_tpm * 60))
         if len(vecs) != len(batch):
             raise RuntimeError(f"Voyage returned {len(vecs)} vecs for {len(batch)} inputs")
         for (ch, v, dt, text, h), vec in zip(batch, vecs):
