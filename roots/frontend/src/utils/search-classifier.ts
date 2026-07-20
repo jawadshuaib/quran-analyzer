@@ -7,10 +7,9 @@
  * semantic (by-meaning) search fires for anything that reads like a concept
  * word or phrase, not just long multi-word English.
  *
- * Phase A note: Arabic queries fan out to ROOT only. Semantic search for
- * Arabic is held for Phase B, when a multilingual (Arabic-aware) embedding
- * index exists — today's index is over English translations only, so an
- * Arabic query embedded against it returns noise.
+ * Phase B: Arabic queries now fan out to BOTH root and semantic — the v2
+ * engine (Voyage multilingual dense ar+en + lexical roots) understands Arabic,
+ * so a concept query like "آيات عن الصبر" reaches by-meaning search.
  */
 
 export interface ParsedVerseRef {
@@ -110,14 +109,19 @@ export function classifyInput(input: string): SearchPlan {
   const hasLatin = LATIN_RE.test(trimmed);
   const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
 
-  // 2. Arabic (or Arabic+Latin) → ROOT only for Phase A. Semantic held for Phase B.
+  // 2. Arabic (or Arabic+Latin). Phase B: the multilingual v2 engine (Voyage
+  // dense + lexical roots) makes Arabic → semantic work, so both arms fire. A
+  // single short word reads like a root lookup (root leads); a longer word or
+  // a phrase reads like a concept query (meaning leads).
   if (hasArabic) {
     const arabicLen = trimmed.replace(AR_MARKS_RE, '').length;
+    const conceptual = wordCount >= 2 || arabicLen >= 5;
     return {
       ...EMPTY_PLAN,
       script: hasLatin ? 'mixed' : 'arabic',
-      fire: { root: arabicLen >= 2, semantic: false },
-      lead: 'root',
+      fire: { root: arabicLen >= 2, semantic: arabicLen >= 2 },
+      lead: conceptual ? 'semantic' : 'root',
+      semanticDebounce: SEMANTIC_DEBOUNCE,
       looksLikeQuestion: question,
     };
   }

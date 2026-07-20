@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { searchRoots, semanticSearch, fetchVersePreview } from '../api/quran';
+import { searchRoots, searchV2, fetchVersePreview } from '../api/quran';
 import type { RootSearchResult, SemanticSearchResult, VersePreview } from '../api/quran';
 import { classifyInput } from '../utils/search-classifier';
 import type { SearchPlan, ParsedVerseRef } from '../utils/search-classifier';
@@ -251,7 +251,7 @@ export function useUnifiedSearch() {
         const controller = new AbortController();
         semanticAbortRef.current = controller;
         semanticQueryRef.current = trimmed;
-        semanticSearch(trimmed, 4, controller.signal)
+        searchV2(trimmed, 4, controller.signal)
           .then((data) => {
             if (semanticQueryRef.current === trimmed) {
               setState((p) => ({

@@ -406,6 +406,46 @@ export async function semanticSearch(
   return res.json();
 }
 
+/** Why a v2 result matched: dense (Voyage ar/en vector) and/or lexical (roots). */
+export interface MatchedBecause {
+  dense?: { score: number; doc_type: 'ar' | 'en' };
+  lexical?: { score: number };
+}
+
+export interface SearchV2Result extends SemanticSearchResult {
+  matched_because?: MatchedBecause;
+}
+
+export interface SearchV2Response {
+  query: string;
+  results: SearchV2Result[];
+  total: number;
+  /** true when Voyage/the v2 index was unavailable and the engine fell back. */
+  degraded?: boolean;
+  engine?: string;
+}
+
+/**
+ * Multilingual hybrid search (Voyage dense ar+en ⊕ lexical roots). Works for
+ * Arabic and English. Never 5xx: degrades to the English encoder + lexical arm
+ * and sets `degraded`. Drop-in shape-compatible with semanticSearch.
+ */
+export async function searchV2(
+  query: string,
+  limit = 15,
+  signal?: AbortSignal,
+): Promise<SearchV2Response> {
+  const res = await fetch(
+    `${BASE}/search/v2?q=${encodeURIComponent(query)}&limit=${limit}`,
+    { signal },
+  );
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string })?.error || `Search failed (${res.status})`);
+  }
+  return res.json();
+}
+
 /** Today's verse-of-the-day reference. The pool is admin-curated;
  * backend picks one entry deterministically by day-of-year, so the
  * same verse shows for the whole day across all visitors. The

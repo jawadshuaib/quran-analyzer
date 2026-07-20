@@ -1444,6 +1444,16 @@ def _load_embedding_matrix():
 
 _load_embedding_matrix()
 
+# Phase B: Voyage multilingual hybrid retrieval. Loads the v2 vector index from
+# the local DB (tolerant of a missing table — degrades to v1+lexical). No
+# network at import; the dense arm only calls Voyage at query time.
+try:
+    import search_v2
+    search_v2.load_matrices_v2()
+except Exception as _sv2_exc:  # never let search v2 break app startup
+    print(f"[search_v2] init skipped: {_sv2_exc}")
+    search_v2 = None
+
 
 def _get_embedding_model():
     """Lazy-load the sentence transformer model (thread-safe).
@@ -4572,6 +4582,96 @@ def semantic_search_api():
         })
     finally:
         conn.close()
+
+
+# --- Phase B: multilingual hybrid search -----------------------------------
+_search_v2_hits: dict = {}          # ip -> [timestamps]
+_SEARCH_V2_MAX = 30                 # per IP
+_SEARCH_V2_WINDOW = 60              # seconds
+
+
+def _search_v2_rate_limited(ip: str) -> bool:
+    now = time.time()
+    hits = [t for t in _search_v2_hits.get(ip, []) if now - t < _SEARCH_V2_WINDOW]
+    if len(_search_v2_hits) > 2000:  # bound memory
+        _search_v2_hits.clear()
+    hits.append(now)
+    _search_v2_hits[ip] = hits
+    return len(hits) > _SEARCH_V2_MAX
+
+
+@app.route("/api/search/v2")
+def search_v2_api():
+    """Multilingual hybrid search (dense ar+en Voyage ⊕ lexical roots, RRF).
+
+    GET /api/search/v2?q=verse+involving+satan+and+adam&limit=15
+    Works for Arabic and English. Never 5xx: if Voyage is unreachable or the v2
+    index isn't present, it degrades to the v1 English encoder + lexical arm and
+    sets "degraded": true. Response mirrors /api/semantic-search plus per-result
+    "matched_because" diagnostics and an "engine"/"degraded" flag.
+    """
+    query = request.args.get("q", "").strip()
+    if not query:
+        return jsonify({"error": "Missing query parameter 'q'"}), 400
+    if len(query) > 500:
+        return jsonify({"error": "Query too long (max 500 characters)"}), 400
+    try:
+        limit = min(int(request.args.get("limit", "15")), 50)
+    except (ValueError, TypeError):
+        return jsonify({"error": "limit must be a positive integer"}), 400
+
+    if _search_v2_rate_limited(_get_client_ip()):
+        return jsonify({"error": "Too many searches, slow down a moment."}), 429
+
+    if search_v2 is None:
+        # Module failed to import — fall back to v1 so search still works.
+        results = _semantic_search(query, limit=limit)
+        conn = get_db()
+        try:
+            out = []
+            for ch, v, score, snippet in results:
+                out.append(_shape_v2_result(conn, ch, v, round(score, 6), {}))
+            return jsonify({"query": query, "results": out, "total": len(out),
+                            "degraded": True, "engine": "v1-only"})
+        finally:
+            conn.close()
+
+    res = search_v2.hybrid_search(query, limit=limit)
+    conn = get_db()
+    try:
+        out = []
+        for r in res["results"]:
+            out.append(_shape_v2_result(conn, r["surah"], r["ayah"], r["score"],
+                                        r.get("matched_because", {})))
+        return jsonify({
+            "query": query,
+            "results": out,
+            "total": len(out),
+            "degraded": res.get("degraded", False),
+            "engine": res.get("engine", "v2-hybrid"),
+        })
+    finally:
+        conn.close()
+
+
+def _shape_v2_result(conn, ch, v, score, matched_because):
+    """Enrich a (chapter, verse) retrieval hit with display text, reusing the
+    same helpers as /api/semantic-search so the two endpoints agree."""
+    row = conn.execute(
+        "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?", (ch, v),
+    ).fetchone()
+    text = row["text_uthmani"] if row else ""
+    if text:
+        text = _strip_bismillah(text, ch, v)
+    return {
+        "surah": ch,
+        "ayah": v,
+        "surah_name": _surah_name(ch),
+        "text_uthmani": text,
+        "translation": _best_translation(conn, ch, v) or "",
+        "score": score,
+        "matched_because": matched_because,
+    }
 
 
 def _detail_excerpt(detailed: str | None, max_chars: int = 240) -> str | None:

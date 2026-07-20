@@ -1,18 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import UnifiedSearch from '../UnifiedSearch';
 import SaveButton from '../SaveButton';
-import { semanticSearch, type SemanticSearchResult } from '../../api/quran';
+import { searchV2, type SearchV2Result } from '../../api/quran';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
 import { useSEO } from '../../hooks/useSEO';
 import { addRecentSearch, SUGGESTED_QUERIES } from '../../utils/recent-searches';
 
 const PAGE_SIZE = 15;
 type SortMode = 'relevance' | 'mushaf';
-
-// Meaning-based search runs on an English-translation index, so an Arabic
-// query returns noise. Held for Phase B (multilingual embeddings); until then
-// Arabic is pointed at root search. Mirrors the classifier's Phase-A rule.
-const ARABIC_RE = /[؀-ۿ]/;
 
 function readQueryFromUrl(): string {
   return new URLSearchParams(window.location.search).get('q')?.trim() ?? '';
@@ -36,10 +31,15 @@ function highlight(text: string, query: string): { text: string; bold: boolean }
   return parts.length ? parts : [{ text, bold: false }];
 }
 
-function ResultCard({ r, query }: { r: SemanticSearchResult; query: string }) {
+function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
   const verseKey = `${r.surah}:${r.ayah}`;
   const [copied, setCopied] = useState(false);
   const parts = useMemo(() => highlight(r.translation, query), [r.translation, query]);
+  // The visible "% match" is the dense (semantic) cosine, not the tiny RRF
+  // fusion score. Chips say WHY a verse matched: its Arabic vector, or its roots.
+  const dense = r.matched_because?.dense;
+  const hasLexical = !!r.matched_because?.lexical;
+  const pct = dense ? Math.round(dense.score * 100) : null;
 
   async function copy(e: React.MouseEvent) {
     e.preventDefault();
@@ -76,9 +76,25 @@ function ResultCard({ r, query }: { r: SemanticSearchResult; query: string }) {
             </p>
           )}
         </a>
-        <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700">
-          {Math.round(r.score * 100)}%
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {pct !== null && (
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700">
+              {pct}%
+            </span>
+          )}
+          <div className="flex gap-1">
+            {dense?.doc_type === 'ar' && (
+              <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[9px] font-medium text-sky-600">
+                Arabic
+              </span>
+            )}
+            {hasLexical && (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-medium text-emerald-600">
+                root
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Actions */}
@@ -119,11 +135,10 @@ function ResultCard({ r, query }: { r: SemanticSearchResult; query: string }) {
 
 export default function SearchPage() {
   const [query, setQuery] = useState(readQueryFromUrl);
-  const [results, setResults] = useState<SemanticSearchResult[]>([]);
+  const [results, setResults] = useState<SearchV2Result[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [ran, setRan] = useState(false);
-  const [arabicHeld, setArabicHeld] = useState(false);
   const [sort, setSort] = useState<SortMode>('relevance');
   const [surahFilter, setSurahFilter] = useState<number | null>(null);
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -141,29 +156,17 @@ export default function SearchPage() {
     const trimmed = q.trim();
     setSurahFilter(null);
     setVisible(PAGE_SIZE);
-    setArabicHeld(false);
     if (!trimmed) {
       setResults([]);
       setRan(false);
       setError('');
       return;
     }
-    // Arabic can't be meaning-searched yet (English index) — show a notice
-    // pointing at root search instead of a page of noise. Reached only via a
-    // shared /search?q=<arabic> link; the bar/dropdown gate Arabic upstream.
-    if (ARABIC_RE.test(trimmed)) {
-      setResults([]);
-      setRan(false);
-      setError('');
-      setLoading(false);
-      setArabicHeld(true);
-      return;
-    }
     setLoading(true);
     setError('');
     addRecentSearch(trimmed);
     try {
-      const data = await semanticSearch(trimmed, 50);
+      const data = await searchV2(trimmed, 50);
       setResults(data.results);
       setRan(true);
     } catch (err) {
@@ -358,22 +361,8 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Arabic held for Phase B — meaning search is English-only for now */}
-      {!loading && !error && arabicHeld && (
-        <div className="rounded-xl border border-stone-200 bg-white px-4 py-12 text-center">
-          <p className="text-sm text-stone-500">
-            Meaning-based search isn&rsquo;t available for Arabic yet.
-          </p>
-          <p className="mt-1 text-xs text-stone-400">
-            Search the root letters in the bar above to trace{' '}
-            <span dir="rtl" lang="ar" className="font-arabic">&ldquo;{query}&rdquo;</span>{' '}
-            through the Qur&rsquo;an.
-          </p>
-        </div>
-      )}
-
       {/* Idle (no query yet) */}
-      {!loading && !error && !ran && !arabicHeld && (
+      {!loading && !error && !ran && (
         <div className="rounded-xl border border-stone-200 bg-white px-4 py-12 text-center">
           <p className="text-sm text-stone-500">Search the Qur&rsquo;an by meaning, root, or reference.</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
