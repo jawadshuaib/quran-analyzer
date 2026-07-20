@@ -9,6 +9,11 @@ import { addRecentSearch, SUGGESTED_QUERIES } from '../../utils/recent-searches'
 const PAGE_SIZE = 15;
 type SortMode = 'relevance' | 'mushaf';
 
+// Meaning-based search runs on an English-translation index, so an Arabic
+// query returns noise. Held for Phase B (multilingual embeddings); until then
+// Arabic is pointed at root search. Mirrors the classifier's Phase-A rule.
+const ARABIC_RE = /[؀-ۿ]/;
+
 function readQueryFromUrl(): string {
   return new URLSearchParams(window.location.search).get('q')?.trim() ?? '';
 }
@@ -118,6 +123,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [ran, setRan] = useState(false);
+  const [arabicHeld, setArabicHeld] = useState(false);
   const [sort, setSort] = useState<SortMode>('relevance');
   const [surahFilter, setSurahFilter] = useState<number | null>(null);
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -135,10 +141,22 @@ export default function SearchPage() {
     const trimmed = q.trim();
     setSurahFilter(null);
     setVisible(PAGE_SIZE);
+    setArabicHeld(false);
     if (!trimmed) {
       setResults([]);
       setRan(false);
       setError('');
+      return;
+    }
+    // Arabic can't be meaning-searched yet (English index) — show a notice
+    // pointing at root search instead of a page of noise. Reached only via a
+    // shared /search?q=<arabic> link; the bar/dropdown gate Arabic upstream.
+    if (ARABIC_RE.test(trimmed)) {
+      setResults([]);
+      setRan(false);
+      setError('');
+      setLoading(false);
+      setArabicHeld(true);
       return;
     }
     setLoading(true);
@@ -340,8 +358,22 @@ export default function SearchPage() {
         </div>
       )}
 
+      {/* Arabic held for Phase B — meaning search is English-only for now */}
+      {!loading && !error && arabicHeld && (
+        <div className="rounded-xl border border-stone-200 bg-white px-4 py-12 text-center">
+          <p className="text-sm text-stone-500">
+            Meaning-based search isn&rsquo;t available for Arabic yet.
+          </p>
+          <p className="mt-1 text-xs text-stone-400">
+            Search the root letters in the bar above to trace{' '}
+            <span dir="rtl" lang="ar" className="font-arabic">&ldquo;{query}&rdquo;</span>{' '}
+            through the Qur&rsquo;an.
+          </p>
+        </div>
+      )}
+
       {/* Idle (no query yet) */}
-      {!loading && !error && !ran && (
+      {!loading && !error && !ran && !arabicHeld && (
         <div className="rounded-xl border border-stone-200 bg-white px-4 py-12 text-center">
           <p className="text-sm text-stone-500">Search the Qur&rsquo;an by meaning, root, or reference.</p>
           <div className="mt-4 flex flex-wrap justify-center gap-2">

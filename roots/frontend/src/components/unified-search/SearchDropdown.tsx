@@ -35,7 +35,10 @@ export default function SearchDropdown({
   const hasSurahs = surahMatches.length > 0;
   const hasRoots = rootResults.length > 0;
   const hasSemantic = semanticResults.length > 0;
-  const showFullSearchFooter = !showVerseRef && state.query.trim().length >= 3;
+  // Only offer the "search all verses by meaning" escape hatch when semantic
+  // actually fires — never for Arabic (held for Phase B; the English index
+  // would return noise). Arabic queries just show their root matches.
+  const showFullSearchFooter = !showVerseRef && plan.fire.semantic && state.query.trim().length >= 3;
   const hasAnything = showVerseRef || hasSurahs || hasRoots || hasSemantic || rootLoading || semanticLoading || showFullSearchFooter;
 
   if (!hasAnything) return null;

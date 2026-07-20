@@ -40,11 +40,15 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
   // Keep the recent-searches list fresh (also across tabs).
   useEffect(() => subscribeToRecentSearches(() => setRecents(getRecentSearches())), []);
 
-  // Prefill the bar's text once on mount (no search, no dropdown).
+  // Keep the bar's text in sync with the page's query prop — prefill on
+  // mount plus the updates the /search page drives from suggestion clicks
+  // and browser back/forward. setQueryText only sets the text (no search,
+  // no dropdown); typing doesn't refire this because the prop only changes
+  // on submit/popstate, not on every keystroke.
   useEffect(() => {
-    if (initialQuery) setQueryText(initialQuery);
+    if (initialQuery !== undefined) setQueryText(initialQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialQuery]);
 
   // Expose fill() to parent via handleRef
   useEffect(() => {
@@ -83,12 +87,14 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
 
   const handleSelectVerse = useCallback((ref: ParsedVerseRef) => {
     close();
+    setFocused(false);
     setQuery('');
     onNavigateVerse(ref.surah, ref.ayah);
   }, [close, setQuery, onNavigateVerse]);
 
   const handleSelectRoot = useCallback((root: RootSearchResult) => {
     close();
+    setFocused(false);
     setQuery('');
     window.location.href = `/root/${encodeURIComponent(root.root_buckwalter)}`;
   }, [close, setQuery]);
@@ -96,12 +102,14 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
   const handleSelectSemantic = useCallback((result: SemanticSearchResult) => {
     addRecentSearch(state.query);
     close();
+    setFocused(false);
     setQuery('');
     onNavigateVerse(result.surah, result.ayah);
   }, [state.query, close, setQuery, onNavigateVerse]);
 
   const handleSelectSurah = useCallback((surah: SurahMatch) => {
     close();
+    setFocused(false);
     setQuery('');
     // Surah → reader mode (not the verse-research view). Hard-navigate so
     // the page mounts fresh under /read/<n>.
@@ -154,12 +162,19 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           handleSelectSemantic(state.semanticResults[localIndex]);
         }
       } else {
-        // No selection — Enter submits: navigate a settled verse-ref, else
-        // run the full search (a partial "2:" ref does neither).
+        // No selection — Enter submits: navigate a settled verse-ref; else
+        // run the full "by meaning" search when semantic is in play. For
+        // Arabic (semantic held for Phase B) fall back to the top root match
+        // rather than sending Arabic to the English-only semantic index.
+        // (A partial "2:" ref does neither.)
         if (state.verseRef && !state.verseRef.partial) {
           handleSelectVerse(state.verseRef);
         } else if (!state.verseRef) {
-          handleFullSearch();
+          if (state.plan.fire.semantic) {
+            handleFullSearch();
+          } else if (state.rootResults[0]) {
+            handleSelectRoot(state.rootResults[0]);
+          }
         }
       }
     } else if (e.key === 'Escape') {
