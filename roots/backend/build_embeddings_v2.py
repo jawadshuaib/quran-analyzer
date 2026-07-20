@@ -227,17 +227,20 @@ def main():
             if t:
                 work.append((ch, v, "en", t, text_hash(t)))
 
-    # Skip already-embedded, unchanged docs (resumable) unless --force.
+    # Skip already-embedded, unchanged docs (resumable) unless --force. The key
+    # includes dim: `dim` is NOT part of the table PK, so a --dim change on the
+    # same model must re-embed everything (else the index mixes dimensions and
+    # load_matrices_v2 silently drops the odd rows).
     existing = {}
     if not args.force:
         for row in conn.execute(
-            "SELECT chapter, verse, doc_type, text_hash FROM verse_embeddings_v2 "
+            "SELECT chapter, verse, doc_type, text_hash, dim FROM verse_embeddings_v2 "
             "WHERE model_name = ?", (args.model,)
         ):
-            existing[(row["chapter"], row["verse"], row["doc_type"])] = row["text_hash"]
+            existing[(row["chapter"], row["verse"], row["doc_type"])] = (row["text_hash"], row["dim"])
 
     todo = [w for w in work
-            if args.force or existing.get((w[0], w[1], w[2])) != w[4]]
+            if args.force or existing.get((w[0], w[1], w[2])) != (w[4], args.dim)]
     print(f"{len(work)} docs total; {len(todo)} to embed "
           f"({len(work) - len(todo)} already current)")
 

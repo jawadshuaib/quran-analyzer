@@ -249,6 +249,25 @@ def _normalize_ar(tok):
     return tok
 
 
+# Normalized root skeletons ["رحم", …] paired with their Buckwalter key. The
+# root map is immutable after the IDF engine builds, so normalize once and
+# reuse — not per query token (that was O(roots × tokens) regex on hot path).
+_root_skeletons = None
+
+
+def _get_root_skeletons(app):
+    global _root_skeletons
+    if _root_skeletons is None:
+        rmap = getattr(app, "_root_arabic_map", {}) or {}
+        out = []
+        for rbw, rar in rmap.items():
+            skel = _normalize_ar((rar or "").replace(" ", ""))
+            if len(skel) >= 3:
+                out.append((rbw, skel))
+        _root_skeletons = out
+    return _root_skeletons
+
+
 def _term_to_roots(tok, conn, app):
     """Best-effort map ONE query token to a set of root_buckwalter, reusing the
     same signals as /api/roots/search (Buckwalter, Arabic morphology, English
@@ -261,11 +280,10 @@ def _term_to_roots(tok, conn, app):
             return roots
         # A word contains its root's consonantal skeleton (e.g. "الرحمة"→"رحمه"
         # contains "رحم"; "مغفرة"→"مغفره" contains "غفر"). Match against the
-        # in-memory root map — reliable across inflections and prefix-free.
-        root_ar_map = getattr(app, "_root_arabic_map", {})
-        for root_bw, root_ar in root_ar_map.items():
-            skel = _normalize_ar((root_ar or "").replace(" ", ""))
-            if len(skel) >= 3 and skel in norm:
+        # precomputed, normalized root skeletons — reliable across inflections
+        # and prefix-free (skeletons are cached once, not rebuilt per token).
+        for root_bw, skel in _get_root_skeletons(app):
+            if skel in norm:
                 roots.add(root_bw)
     else:
         if len(low) < 3:

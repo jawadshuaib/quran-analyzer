@@ -8998,6 +8998,8 @@ def admin_save_preferences():
         conn.commit()
         if "claude_api_key" in body:
             _invalidate_claude_key_cache()
+        if "voyage_api_key" in body and search_v2 is not None:
+            search_v2.invalidate_voyage_key_cache()
         if "google_analytics_id" in body:
             _ga_id_cache["id"] = None
             _ga_id_cache["ts"] = 0.0

@@ -77,12 +77,12 @@ class V1Retriever:
             ).fetchall()
         finally:
             conn.close()
+        if not rows:
+            raise SystemExit("verse_embeddings is empty — build it first.")
         self.keys = [(r["chapter"], r["verse"]) for r in rows]
         self.matrix = np.vstack(
             [np.frombuffer(r["embedding"], dtype=np.float32) for r in rows]
         )
-        if len(self.keys) == 0:
-            raise SystemExit("verse_embeddings is empty — build it first.")
 
     def retrieve(self, query, k):
         q = self.model.encode([query], normalize_embeddings=True)
