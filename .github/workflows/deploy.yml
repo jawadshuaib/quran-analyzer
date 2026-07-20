@@ -4,6 +4,15 @@ on:
   push:
     branches: [main]
 
+# Serialize deploys per branch so two runs can never race the :latest tag and
+# the force-recreate and clobber each other. A newer push cancels an older
+# still-pending or in-progress run, so the most recent commit always wins.
+# (Guards against the failure seen when a GitHub Actions outage released two
+# queued deploys at once and the older one deployed last.)
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/quran-root-analyzer
