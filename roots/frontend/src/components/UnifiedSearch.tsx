@@ -1,7 +1,9 @@
-import { useRef, useEffect, useCallback, type MutableRefObject } from 'react';
+import { useRef, useEffect, useState, useCallback, type MutableRefObject } from 'react';
 import { useUnifiedSearch, resolveIndex } from '../hooks/useUnifiedSearch';
 import SearchDropdown from './unified-search/SearchDropdown';
+import SearchEmptyState from './unified-search/SearchEmptyState';
 import { getSurahName } from '../utils/surah-names';
+import { addRecentSearch, getRecentSearches, subscribeToRecentSearches, removeRecentSearch, clearRecentSearches } from '../utils/recent-searches';
 import type { RootSearchResult, SemanticSearchResult } from '../api/quran';
 import type { ParsedVerseRef } from '../utils/search-classifier';
 import type { SurahMatch } from '../utils/surah-search';
@@ -21,14 +23,28 @@ interface Props {
   /** Compact variant for use inside the sticky NavBar — smaller padding,
    *  no centering, smaller font. */
   compact?: boolean;
+  /** Prefill the bar's text on mount without opening the dropdown or
+   *  re-running a search (used by the /search results page). */
+  initialQuery?: string;
 }
 
 const LISTBOX_ID = 'unified-search-listbox';
 
-export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, loading, handleRef, compact }: Props) {
-  const { state, setQuery, close, open, setActiveIndex, moveUp, moveDown } = useUnifiedSearch();
+export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, loading, handleRef, compact, initialQuery }: Props) {
+  const { state, setQuery, setQueryText, close, open, setActiveIndex, moveUp, moveDown } = useUnifiedSearch();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [focused, setFocused] = useState(false);
+  const [recents, setRecents] = useState<string[]>(getRecentSearches);
+
+  // Keep the recent-searches list fresh (also across tabs).
+  useEffect(() => subscribeToRecentSearches(() => setRecents(getRecentSearches())), []);
+
+  // Prefill the bar's text once on mount (no search, no dropdown).
+  useEffect(() => {
+    if (initialQuery) setQueryText(initialQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Expose fill() to parent via handleRef
   useEffect(() => {
@@ -50,6 +66,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
     function handleClick(e: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         close();
+        setFocused(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -77,10 +94,11 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
   }, [close, setQuery]);
 
   const handleSelectSemantic = useCallback((result: SemanticSearchResult) => {
+    addRecentSearch(state.query);
     close();
     setQuery('');
     onNavigateVerse(result.surah, result.ayah);
-  }, [close, setQuery, onNavigateVerse]);
+  }, [state.query, close, setQuery, onNavigateVerse]);
 
   const handleSelectSurah = useCallback((surah: SurahMatch) => {
     close();
@@ -93,9 +111,20 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
   const handleFullSearch = useCallback(() => {
     const trimmed = state.query.trim();
     if (!trimmed) return;
+    addRecentSearch(trimmed);
     close();
     onFullSemanticSearch(trimmed);
   }, [state.query, close, onFullSemanticSearch]);
+
+  /** Run a search from a picked recent/suggestion chip in the empty state. */
+  const handlePickQuery = useCallback((q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed) return;
+    addRecentSearch(trimmed);
+    setFocused(false);
+    close();
+    onFullSemanticSearch(trimmed);
+  }, [close, onFullSemanticSearch]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') {
@@ -125,15 +154,17 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           handleSelectSemantic(state.semanticResults[localIndex]);
         }
       } else {
-        // No selection — Enter submits
-        if (state.intent === 'verse_ref' && state.verseRef && !state.verseRef.partial) {
+        // No selection — Enter submits: navigate a settled verse-ref, else
+        // run the full search (a partial "2:" ref does neither).
+        if (state.verseRef && !state.verseRef.partial) {
           handleSelectVerse(state.verseRef);
-        } else if (state.intent !== 'verse_ref') {
+        } else if (!state.verseRef) {
           handleFullSearch();
         }
       }
     } else if (e.key === 'Escape') {
       close();
+      setFocused(false);
     }
   }
 
@@ -164,7 +195,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           value={state.query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => { if (state.query.trim()) open(); }}
+          onFocus={() => { setFocused(true); if (state.query.trim()) open(); }}
           placeholder='Search by verse, root, or phrase'
           role="combobox"
           aria-expanded={state.isOpen}
@@ -186,7 +217,14 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
         )}
       </div>
 
-      {state.isOpen && (
+      {focused && !state.query.trim() && recents.length > 0 ? (
+        <SearchEmptyState
+          recents={recents}
+          onPick={handlePickQuery}
+          onRemove={removeRecentSearch}
+          onClear={clearRecentSearches}
+        />
+      ) : state.isOpen ? (
         <SearchDropdown
           state={state}
           surahName={surahName}
@@ -198,7 +236,7 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
           onHoverIndex={setActiveIndex}
           listboxId={LISTBOX_ID}
         />
-      )}
+      ) : null}
     </div>
   );
 }

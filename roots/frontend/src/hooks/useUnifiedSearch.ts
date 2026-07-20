@@ -1,15 +1,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { searchRoots, semanticSearch, fetchVersePreview } from '../api/quran';
 import type { RootSearchResult, SemanticSearchResult, VersePreview } from '../api/quran';
-import { classifyInput, parseVerseRef } from '../utils/search-classifier';
-import type { SearchIntent, ParsedVerseRef } from '../utils/search-classifier';
+import { classifyInput } from '../utils/search-classifier';
+import type { SearchPlan, ParsedVerseRef } from '../utils/search-classifier';
 import { getSurahsForSearch, matchSurahs } from '../utils/surah-search';
 import type { SurahMatch } from '../utils/surah-search';
 import type { SurahInfo } from '../types';
 
 export interface UnifiedSearchState {
   query: string;
-  intent: SearchIntent;
+  plan: SearchPlan;
   verseRef: ParsedVerseRef | null;
   versePreview: VersePreview | null;
   versePreviewLoading: boolean;
@@ -37,12 +37,11 @@ export function totalItems(state: UnifiedSearchState): number {
 
 /**
  * Map a flat activeIndex to { category, localIndex }.
- * Order: verse ref → surah matches → roots → semantic results.
- * Surah matches come SECOND (right after a verse-ref preview) because
- * they're typically the most decisive answer when a user types a surah
- * name like "Ar-Rahman" — the user is unambiguously navigating, not
- * doing semantic exploration.
- * Returns null if index is out of bounds.
+ * Order: verse ref → surah matches → then root/semantic in `plan.lead` order
+ * (concept queries lead with "verse matches", root queries lead with roots).
+ * Verse-ref + surah come first because typing a reference or a surah name is
+ * unambiguous navigation. Returns null if index is out of bounds. The dropdown
+ * renders sections in this exact order so keyboard/flat indices stay in sync.
  */
 export function resolveIndex(state: UnifiedSearchState, idx: number): { category: 'verse' | 'surah' | 'root' | 'semantic'; localIndex: number } | null {
   if (idx < 0 || idx >= totalItems(state)) return null;
@@ -60,47 +59,37 @@ export function resolveIndex(state: UnifiedSearchState, idx: number): { category
   }
   offset += state.surahMatches.length;
 
-  if (idx - offset < state.rootResults.length) {
-    return { category: 'root', localIndex: idx - offset };
-  }
-  offset += state.rootResults.length;
+  const semanticFirst = state.plan.lead === 'semantic';
+  const first = semanticFirst
+    ? { cat: 'semantic' as const, arr: state.semanticResults }
+    : { cat: 'root' as const, arr: state.rootResults };
+  const second = semanticFirst
+    ? { cat: 'root' as const, arr: state.rootResults }
+    : { cat: 'semantic' as const, arr: state.semanticResults };
 
-  if (idx - offset < state.semanticResults.length) {
-    return { category: 'semantic', localIndex: idx - offset };
-  }
+  if (idx - offset < first.arr.length) return { category: first.cat, localIndex: idx - offset };
+  offset += first.arr.length;
+  if (idx - offset < second.arr.length) return { category: second.cat, localIndex: idx - offset };
 
   return null;
 }
 
 const ROOT_DEBOUNCE = 200;
-const SEMANTIC_DEBOUNCE = 400;
 const VERSE_PREVIEW_DEBOUNCE = 150;
+const SEMANTIC_MIN_LEN = 3;
 
-// Semantic-search gating — semantic is the expensive query (embedding
-// inference + vector search, ~200-500ms each). We only auto-fire it
-// when the input clearly looks like a phrase-meaning lookup, not a
-// root/name/transliteration. Cheaper categories (verse-ref + surah +
-// root) always run because they're either in-memory or a quick DB
-// lookup.
-//
-// Gates ALL must hold for auto-fire:
-//   1. Query has whitespace            (semantic is for phrases)
-//   2. >= 2 words                       (filters "Ar-Rahman" with hyphens)
-//   3. >= SEMANTIC_MIN_CHARS chars      (filters "the cow" — surah match
-//                                        already nails that case)
-//   4. No verse-ref + ayah parse        (user is navigating)
-//   5. No exact/prefix surah match      (user typed a surah name; that's
-//                                        the answer, no need to embed)
-//
-// User can ALWAYS bypass these with the dropdown's "Search all verses
-// for X" footer (Enter key), so the gates only suppress AUTO-fire,
-// never the manual fallback.
-const SEMANTIC_MIN_CHARS = 10;
+// Semantic (by-meaning) search fires whenever the classifier's plan says so
+// (`plan.fire.semantic`) — which now includes single-word English concepts
+// like "mercy" — as long as the query is ≥3 chars and isn't already answered
+// by a settled verse-ref or an EXACT surah-name match. The classifier owns the
+// what/when; the two suppressors below only stop redundant embeds. The
+// dropdown's "Search all verses for X" footer (Enter) is always the manual
+// escape hatch. Debounce comes from the plan (longer for likely-transliteration).
 
 export function useUnifiedSearch() {
   const [state, setState] = useState<UnifiedSearchState>({
     query: '',
-    intent: 'verse_ref',
+    plan: classifyInput(''),
     verseRef: null,
     versePreview: null,
     versePreviewLoading: false,
@@ -131,8 +120,8 @@ export function useUnifiedSearch() {
 
   const setQuery = useCallback((value: string) => {
     const trimmed = value.trim();
-    const intent = classifyInput(value);
-    const verseRef = intent === 'verse_ref' ? parseVerseRef(trimmed) : null;
+    const plan = classifyInput(value);
+    const verseRef = plan.verseRef;
 
     // Determine if dropdown should be open
     const hasContent = !!(verseRef && !verseRef.partial) || trimmed.length >= 1;
@@ -148,14 +137,14 @@ export function useUnifiedSearch() {
     setState((prev) => ({
       ...prev,
       query: value,
-      intent,
+      plan,
       verseRef,
       activeIndex: -1,
-      // Clear ALL categories that don't apply to new intent
-      rootResults: intent === 'root' || intent === 'root_and_semantic' ? prev.rootResults : [],
-      semanticResults: intent === 'root_and_semantic' ? prev.semanticResults : [],
+      // Clear categories the new plan doesn't fire
+      rootResults: plan.fire.root ? prev.rootResults : [],
+      semanticResults: plan.fire.semantic ? prev.semanticResults : [],
       surahMatches: initialSurahMatches,
-      versePreview: intent === 'verse_ref' ? prev.versePreview : null,
+      versePreview: verseRef ? prev.versePreview : null,
       versePreviewLoading: false,
       isOpen: hasContent,
     }));
@@ -183,7 +172,7 @@ export function useUnifiedSearch() {
     if (verseTimerRef.current) clearTimeout(verseTimerRef.current);
 
     // Fetch verse preview
-    if (intent === 'verse_ref' && verseRef && !verseRef.partial) {
+    if (verseRef && !verseRef.partial) {
       const refKey = `${verseRef.surah}:${verseRef.ayah}`;
       setState((p) => ({ ...p, versePreviewLoading: true }));
       verseTimerRef.current = setTimeout(() => {
@@ -214,7 +203,7 @@ export function useUnifiedSearch() {
     }
 
     // Fire root search
-    if ((intent === 'root' || intent === 'root_and_semantic') && trimmed.length >= 1) {
+    if (plan.fire.root && trimmed.length >= 1) {
       setState((p) => ({ ...p, rootLoading: true }));
       rootTimerRef.current = setTimeout(() => {
         rootAbortRef.current?.abort();
@@ -244,21 +233,16 @@ export function useUnifiedSearch() {
       setState((p) => ({ ...p, rootResults: [], rootLoading: false }));
     }
 
-    // Semantic search — applies the gates documented above.
-    const hasSpace = /\s/.test(trimmed);
-    const wordCount = hasSpace
-      ? trimmed.split(/\s+/).filter(Boolean).length
-      : (trimmed ? 1 : 0);
-    const hasStrongSurahMatch =
-      initialSurahMatches.length > 0 && initialSurahMatches[0].score <= 1;
+    // Semantic search — fire whenever the plan says so, unless a settled
+    // verse-ref or an EXACT surah-name match already answers the query.
+    const hasExactSurahMatch =
+      initialSurahMatches.length > 0 && initialSurahMatches[0].score === 0;
     const verseRefSettled = !!verseRef && !verseRef.partial;
     const semanticAutoFire =
-      intent === 'root_and_semantic' &&
-      hasSpace &&
-      wordCount >= 2 &&
-      trimmed.length >= SEMANTIC_MIN_CHARS &&
+      plan.fire.semantic &&
+      trimmed.length >= SEMANTIC_MIN_LEN &&
       !verseRefSettled &&
-      !hasStrongSurahMatch;
+      !hasExactSurahMatch;
 
     if (semanticAutoFire) {
       setState((p) => ({ ...p, semanticLoading: true }));
@@ -284,11 +268,17 @@ export function useUnifiedSearch() {
               setState((p) => ({ ...p, semanticResults: [], semanticLoading: false }));
             }
           });
-      }, SEMANTIC_DEBOUNCE);
+      }, plan.semanticDebounce);
     } else {
       semanticAbortRef.current?.abort();
       setState((p) => ({ ...p, semanticResults: [], semanticLoading: false }));
     }
+  }, []);
+
+  /** Set only the visible input text — no classify, no fetch, no dropdown.
+   *  Used to prefill the bar on the /search page without re-searching. */
+  const setQueryText = useCallback((text: string) => {
+    setState((p) => ({ ...p, query: text }));
   }, []);
 
   const close = useCallback(() => {
@@ -346,6 +336,7 @@ export function useUnifiedSearch() {
   return {
     state,
     setQuery,
+    setQueryText,
     close,
     open,
     setActiveIndex,

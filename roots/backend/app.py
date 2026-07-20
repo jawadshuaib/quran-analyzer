@@ -5321,6 +5321,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/saved/?$", path):
         return True
+    if re.match(r"^/search/?$", path):
+        return True
     if re.match(r"^/developers/?$", path):
         return True
     if re.match(r"^/methodology/?$", path):
@@ -5913,12 +5915,16 @@ def search_roots():
         # Check if query contains Arabic characters
         if any('\u0600' <= c <= '\u06FF' for c in q):
             # Look up the Arabic word in morphology to find its root
+            # Match the space-stripped root letters ("ص ب ر" -> "صبر") first —
+            # that's what a user typing root letters on a root explorer wants —
+            # then fall back to exact (diacritized) surface/lemma substrings.
             rows = conn.execute(
                 "SELECT DISTINCT root_buckwalter, root_arabic FROM morphology "
-                "WHERE (arabic_word LIKE ? OR lemma_arabic LIKE ?) "
+                "WHERE (REPLACE(root_arabic, ' ', '') LIKE ? "
+                "       OR form_arabic LIKE ? OR lemma_arabic LIKE ?) "
                 "AND root_buckwalter IS NOT NULL AND root_buckwalter != '' "
                 "LIMIT 20",
-                (f"%{q}%", f"%{q}%"),
+                (f"%{q}%", f"%{q}%", f"%{q}%"),
             ).fetchall()
             for r in rows:
                 rbw = r["root_buckwalter"]

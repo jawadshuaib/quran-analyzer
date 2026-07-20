@@ -75,7 +75,7 @@ export default function NavBar({
   const handleFullSemanticSearch =
     onFullSemanticSearch ??
     ((query: string) => {
-      window.location.href = `/?q=${encodeURIComponent(query)}`;
+      window.location.href = `/search?q=${encodeURIComponent(query)}`;
     });
 
   // Saved is a real page now (/saved) — the link is always visible so the

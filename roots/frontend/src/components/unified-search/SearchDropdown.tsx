@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { UnifiedSearchState } from '../../hooks/useUnifiedSearch';
 import type { RootSearchResult, SemanticSearchResult } from '../../api/quran';
 import type { ParsedVerseRef } from '../../utils/search-classifier';
@@ -29,23 +30,85 @@ export default function SearchDropdown({
   onHoverIndex,
   listboxId,
 }: Props) {
-  const { verseRef, rootResults, rootLoading, semanticResults, semanticLoading, surahMatches, activeIndex, intent } = state;
+  const { verseRef, rootResults, rootLoading, semanticResults, semanticLoading, surahMatches, activeIndex, plan } = state;
   const showVerseRef = verseRef && !verseRef.partial;
   const hasSurahs = surahMatches.length > 0;
   const hasRoots = rootResults.length > 0;
   const hasSemantic = semanticResults.length > 0;
-  const showFullSearchFooter = intent !== 'verse_ref' && state.query.trim().length >= 3;
+  const showFullSearchFooter = !showVerseRef && state.query.trim().length >= 3;
   const hasAnything = showVerseRef || hasSurahs || hasRoots || hasSemantic || rootLoading || semanticLoading || showFullSearchFooter;
 
   if (!hasAnything) return null;
 
-  // Pre-compute flat indices in the same order as resolveIndex():
-  //   verse-ref → surah matches → roots → semantic
+  // Flat indices in the SAME order resolveIndex() walks: verse-ref → surahs →
+  // then root/semantic in plan.lead order. Keeping these in sync is what makes
+  // keyboard navigation land on the visible row.
+  const semanticFirst = plan.lead === 'semantic';
   let nextIdx = 0;
   const verseIdx = showVerseRef ? nextIdx++ : -1;
   const surahIndices = surahMatches.map(() => nextIdx++);
-  const rootIndices = rootResults.map(() => nextIdx++);
-  const semanticIndices = semanticResults.map(() => nextIdx++);
+  let rootIndices: number[];
+  let semanticIndices: number[];
+  if (semanticFirst) {
+    semanticIndices = semanticResults.map(() => nextIdx++);
+    rootIndices = rootResults.map(() => nextIdx++);
+  } else {
+    rootIndices = rootResults.map(() => nextIdx++);
+    semanticIndices = semanticResults.map(() => nextIdx++);
+  }
+
+  const rootBlock: ReactNode = (hasRoots || rootLoading) ? (
+    <>
+      <li className="px-4 pt-3 pb-1 border-t border-stone-100" role="presentation">
+        <span className="border-l-2 border-emerald-300 pl-2 text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
+          Root matches
+        </span>
+      </li>
+      {rootResults.map((root, i) => (
+        <RootResultItem
+          key={root.root_buckwalter}
+          root={root}
+          active={activeIndex === rootIndices[i]}
+          onSelect={() => onSelectRoot(root)}
+          onHover={() => onHoverIndex(rootIndices[i])}
+          id={`search-item-${rootIndices[i]}`}
+        />
+      ))}
+      {rootLoading && !hasRoots && (
+        <li className="px-4 py-3 flex items-center gap-2" role="presentation">
+          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+          <span className="text-xs text-stone-400">Searching roots...</span>
+        </li>
+      )}
+    </>
+  ) : null;
+
+  const semanticBlock: ReactNode = (hasSemantic || semanticLoading) ? (
+    <>
+      <li className="px-4 pt-3 pb-1 border-t border-stone-100" role="presentation">
+        <span className="border-l-2 border-violet-300 pl-2 text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
+          Verse matches &middot; by meaning
+        </span>
+      </li>
+      {semanticResults.map((result, i) => (
+        <SemanticResultItem
+          key={`${result.surah}:${result.ayah}`}
+          result={result}
+          query={state.query}
+          active={activeIndex === semanticIndices[i]}
+          onSelect={() => onSelectSemantic(result)}
+          onHover={() => onHoverIndex(semanticIndices[i])}
+          id={`search-item-${semanticIndices[i]}`}
+        />
+      ))}
+      {semanticLoading && !hasSemantic && (
+        <li className="px-4 py-3 flex items-center gap-2" role="presentation">
+          <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
+          <span className="text-xs text-stone-400">Searching by meaning...</span>
+        </li>
+      )}
+    </>
+  ) : null;
 
   return (
     <ul
@@ -67,10 +130,8 @@ export default function SearchDropdown({
         />
       )}
 
-      {/* Surah-name matches — shown right after the verse-ref preview
-          because typing a surah name is an unambiguous navigation
-          intent ("take me to Ar-Rahman") and shouldn't be buried under
-          root or semantic results. */}
+      {/* Surah-name matches — pinned right after the verse-ref preview because
+          typing a surah name is unambiguous navigation. */}
       {hasSurahs && (
         <>
           <li className="px-4 pt-3 pb-1 border-t border-stone-100" role="presentation">
@@ -108,60 +169,8 @@ export default function SearchDropdown({
         </>
       )}
 
-      {/* Root results section */}
-      {(hasRoots || rootLoading) && (
-        <>
-          <li className="px-4 pt-3 pb-1 border-t border-stone-100" role="presentation">
-            <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
-              Root Matches
-            </span>
-          </li>
-          {rootResults.map((root, i) => (
-            <RootResultItem
-              key={root.root_buckwalter}
-              root={root}
-              active={activeIndex === rootIndices[i]}
-              onSelect={() => onSelectRoot(root)}
-              onHover={() => onHoverIndex(rootIndices[i])}
-              id={`search-item-${rootIndices[i]}`}
-            />
-          ))}
-          {rootLoading && !hasRoots && (
-            <li className="px-4 py-3 flex items-center gap-2" role="presentation">
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
-              <span className="text-xs text-stone-400">Searching roots...</span>
-            </li>
-          )}
-        </>
-      )}
-
-      {/* Semantic results section */}
-      {(hasSemantic || semanticLoading) && (
-        <>
-          <li className="px-4 pt-3 pb-1 border-t border-stone-100" role="presentation">
-            <span className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
-              Verse Matches
-            </span>
-          </li>
-          {semanticResults.map((result, i) => (
-            <SemanticResultItem
-              key={`${result.surah}:${result.ayah}`}
-              result={result}
-              query={state.query}
-              active={activeIndex === semanticIndices[i]}
-              onSelect={() => onSelectSemantic(result)}
-              onHover={() => onHoverIndex(semanticIndices[i])}
-              id={`search-item-${semanticIndices[i]}`}
-            />
-          ))}
-          {semanticLoading && !hasSemantic && (
-            <li className="px-4 py-3 flex items-center gap-2" role="presentation">
-              <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
-              <span className="text-xs text-stone-400">Searching by meaning...</span>
-            </li>
-          )}
-        </>
-      )}
+      {/* Root + semantic in plan.lead order */}
+      {semanticFirst ? <>{semanticBlock}{rootBlock}</> : <>{rootBlock}{semanticBlock}</>}
 
       {/* Full search footer */}
       {showFullSearchFooter && (

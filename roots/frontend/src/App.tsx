@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
-import type { SemanticSearchResponse } from './api/quran';
-import { fetchVerse, searchWords, semanticSearch } from './api/quran';
+import { fetchVerse, searchWords } from './api/quran';
 import { verseUrl } from './utils/urls';
 import UnifiedSearch from './components/UnifiedSearch';
 import NavBar from './components/home/NavBar';
@@ -12,7 +11,7 @@ import SurroundingContext from './components/SurroundingContext';
 import RelatedVerses from './components/RelatedVerses';
 import GrammarNotes from './components/GrammarNotes';
 import WordSearchResults from './components/WordSearchResults';
-import SemanticSearchResults from './components/SemanticSearchResults';
+import SearchPage from './components/search/SearchPage';
 import RootPage from './components/RootPage';
 import WordAnalysisPage from './components/WordAnalysisPage';
 import PoemPage from './components/PoemPage';
@@ -158,6 +157,7 @@ function isKnownRoute(): boolean {
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
   if (/^\/meter\/[a-z]+\/?$/.test(path)) return true;
   if (/^\/meters\/?$/.test(path)) return true;
+  if (/^\/search\/?$/.test(path)) return true;
   if (/^\/saved\/?$/.test(path)) return true;
   if (/^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(path)) return true;
   if (/^\/read\/\d+(:\d+(-\d+)?)?\/?$/.test(path)) return true;
@@ -270,6 +270,16 @@ export default function App() {
     return null;
   }
 
+  // Heal the legacy /?q= full-search link (emitted by NavBar's compact bar and
+  // any already-shared URLs) → the dedicated /search page. Idempotent.
+  if (typeof window !== 'undefined') {
+    const { pathname, search } = window.location;
+    if (pathname === '/' || pathname === '') {
+      const q = new URLSearchParams(search).get('q');
+      if (q) window.history.replaceState(null, '', `/search?q=${encodeURIComponent(q)}`);
+    }
+  }
+
   const [extensionInstalled, setExtensionInstalled] = useState(false);
   const [extensionCheckDone, setExtensionCheckDone] = useState(false);
   const [extensionConfig, setExtensionConfig] = useState<{ id: string; storeUrl: string }>({
@@ -371,6 +381,21 @@ export default function App() {
         <div className="flex-1"><PoemsIndex /></div>
         <SiteFooter />
         <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  if (/^\/search\/?$/.test(currentPath)) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1"><SearchPage /></div>
+        <SiteFooter />
+        <SavedItemsPanel />
+        <HighlightController />
+        <CopyModal />
       </div>
     );
   }
@@ -550,10 +575,6 @@ export default function App() {
   const [wordSearchLoading, setWordSearchLoading] = useState(false);
   const [wordSearchError, setWordSearchError] = useState('');
   const wordSearchRef = useRef<HTMLDivElement>(null);
-  const [semanticResults, setSemanticResults] = useState<SemanticSearchResponse | null>(null);
-  const [semanticLoading, setSemanticLoading] = useState(false);
-  const [semanticError, setSemanticError] = useState('');
-  const semanticRef = useRef<HTMLDivElement>(null);
   // Anchor used by NavBar to know when to swap its right-side links for
   // a compact search. Attached to whichever prominent search bar is
   // shown on the current page (hero on homepage, active-state search on
@@ -568,8 +589,6 @@ export default function App() {
     setData(null);
     setWordSearchResults(null);
     setWordSearchError('');
-    setSemanticResults(null);
-    setSemanticError('');
     try {
       const result = await fetchVerse(surah, ayah);
       setData(result);
@@ -642,36 +661,12 @@ export default function App() {
     }
   }, [wordSearchResults]);
 
-  // Scroll to semantic search results when they load
-  useEffect(() => {
-    if (semanticResults && semanticRef.current) {
-      semanticRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [semanticResults]);
-
-  async function handleSemanticSearch(query: string) {
-    setSemanticLoading(true);
-    setSemanticError('');
-    setSemanticResults(null);
-    // Clear verse display when doing semantic search
-    setData(null);
-    setError('');
-    setWordSearchResults(null);
-    try {
-      const result = await semanticSearch(query, 15);
-      setSemanticResults(result);
-      document.title = `Search: ${query} | al-nuqta`;
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Semantic search failed';
-      // Friendly message for 404 (endpoint not deployed yet) or network errors
-      if (msg.includes('404') || msg.includes('Failed to fetch')) {
-        setSemanticError('Semantic search is not available yet. Please try again later.');
-      } else {
-        setSemanticError(msg);
-      }
-    } finally {
-      setSemanticLoading(false);
-    }
+  function handleSemanticSearch(query: string) {
+    // Full search now lives on the dedicated /search page (filters, save,
+    // shareable URL). Navigate there instead of the old in-place panel.
+    const trimmed = query.trim();
+    if (!trimmed) return;
+    window.location.href = `/search?q=${encodeURIComponent(trimmed)}`;
   }
 
   async function handleWordSearch(terms: SearchTerm[], queryVerse: { surah: number; ayah: number }) {
@@ -688,7 +683,7 @@ export default function App() {
     }
   }
 
-  const isIdle = !data && !loading && !error && !semanticResults && !semanticLoading && !semanticError;
+  const isIdle = !data && !loading && !error;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -726,7 +721,7 @@ export default function App() {
           />
         </div>
 
-        {(loading || semanticLoading) && (
+        {loading && (
           <div className="flex justify-center py-12">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
           </div>
@@ -735,22 +730,6 @@ export default function App() {
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
             {error}
-          </div>
-        )}
-
-        {semanticError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">
-            {semanticError}
-          </div>
-        )}
-
-        {semanticResults && (
-          <div ref={semanticRef}>
-            <SemanticSearchResults
-              data={semanticResults}
-              onNavigate={handleSearch}
-              onClose={() => setSemanticResults(null)}
-            />
           </div>
         )}
 
