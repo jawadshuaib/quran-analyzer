@@ -189,7 +189,7 @@ function renderWithMarkers(text: string, terms: Record<string, GrammarTerm>) {
 // and flips horizontally if it would spill off screen.
 // --------------------------------------------------------------------
 
-function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: string }) {
+export function GrammarChip({ term, displayText }: { term: GrammarTerm; displayText: string }) {
   const [open, setOpen] = useState(false);
   // Viewport coordinates of where the tooltip should render.
   // Uses position: fixed so it escapes any overflow-hidden ancestor.

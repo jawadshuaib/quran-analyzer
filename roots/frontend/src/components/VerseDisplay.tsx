@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon } from '../types';
-import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry, fetchVerseRootLexicon } from '../api/quran';
+import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon, GrammarTerm } from '../types';
+import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry, fetchVerseRootLexicon, fetchAllGrammarTerms } from '../api/quran';
 import RootLexiconPanel from './RootLexiconPanel';
-import FormattedText, { FormattedInline } from './FormattedText';
+import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from './FormattedText';
+import { mentionsGrammarTerm, linkifyGrammarTermRefs, buildGrammarTermLookup } from '../utils/grammar-term-refs';
 import { TranslationWithChips, type WordContext } from './TermChip';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
@@ -46,8 +47,6 @@ function getContentSegment(word: Word) {
 export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, onNavigate }: Props) {
   const [hoveredPos, setHoveredPos] = useState<number | null>(null);
   const [selectedPositions, setSelectedPositions] = useState<Set<number>>(new Set());
-  const [selectedRoots, setSelectedRoots] = useState<Set<string>>(new Set());
-  const [hoveredRoot, setHoveredRoot] = useState<string | null>(null);
   const [expandedRoot, setExpandedRoot] = useState<string | null>(null);
   const [resultCount, setResultCount] = useState<number | null>(null);
   const [wordMeanings, setWordMeanings] = useState<Record<string, WordMeaningBrief>>({});
@@ -55,6 +54,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
   const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
   const [lexicon, setLexicon] = useState<VerseRootLexicon | null>(null);
+  const [grammarTerms, setGrammarTerms] = useState<Record<string, GrammarTerm> | null>(null);
   const [wordToWordEnabled, setWordToWordEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(WORD_TO_WORD_KEY) === '1';
@@ -78,19 +78,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   // Build position -> Word lookup (positions are 1-indexed)
   const wordMap = new Map<number, Word>();
   data.words.forEach((w) => wordMap.set(w.position, w));
-
-  // Build root_buckwalter -> set of word positions
-  const rootToPositions = new Map<string, Set<number>>();
-  data.words.forEach((w) => {
-    w.segments.forEach((seg) => {
-      if (seg.root_buckwalter) {
-        if (!rootToPositions.has(seg.root_buckwalter)) {
-          rootToPositions.set(seg.root_buckwalter, new Set());
-        }
-        rootToPositions.get(seg.root_buckwalter)!.add(w.position);
-      }
-    });
-  });
 
   // Build root_buckwalter -> cognate data lookup
   const rootCognateMap = new Map<string, CognateData>();
@@ -136,8 +123,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   // Reset state when verse changes
   useEffect(() => {
     setSelectedPositions(new Set());
-    setSelectedRoots(new Set());
-    setHoveredRoot(null);
     setExpandedRoot(null);
     setResultCount(null);
     setWordMeanings({});
@@ -161,6 +146,21 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     });
     return () => { cancelled = true; };
   }, [data.surah, data.ayah]);
+
+  // Translation Notes sometimes reference a grammar-glossary term (e.g.
+  // "causative form IV") that's opaque without a definition. Only fetch the
+  // (cached, ~600-term) glossary when the notes actually mention one of the
+  // curated terms — most verses won't, and the fetch is cheap to skip.
+  useEffect(() => {
+    setGrammarTerms(null);
+    const notes = aiTranslation?.departure_notes;
+    if (!notes || !mentionsGrammarTerm(notes)) return;
+    let cancelled = false;
+    fetchAllGrammarTerms().then((res) => {
+      if (!cancelled) setGrammarTerms(buildGrammarTermLookup(res.terms));
+    }).catch(() => { if (!cancelled) setGrammarTerms(null); });
+    return () => { cancelled = true; };
+  }, [aiTranslation?.departure_notes]);
 
   // Fetch the approved teacher-voice exegesis (if any) for this verse
   useEffect(() => {
@@ -197,7 +197,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     window.localStorage.setItem(WORD_TO_WORD_KEY, wordToWordEnabled ? '1' : '0');
   }, [wordToWordEnabled]);
 
-  const hasSelection = selectedPositions.size > 0 || selectedRoots.size > 0;
+  const hasSelection = selectedPositions.size > 0;
 
   // Click outside the card to dismiss all selections
   useEffect(() => {
@@ -205,54 +205,39 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setSelectedPositions(new Set());
-        setSelectedRoots(new Set());
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [hasSelection]);
 
-  // Build search terms from selected positions AND selected roots
+  // Build search terms from selected words — clicking a word searches by its
+  // ROOT (broadest match, every derived form), not the specific word/lemma.
+  // Words with no root (rare function words) contribute nothing to search.
   function buildAllSearchTerms(): SearchTerm[] {
     const terms: SearchTerm[] = [];
+    const seenRoots = new Set<string>();
 
-    // Word-based terms
     for (const pos of selectedPositions) {
       const word = wordMap.get(pos);
       if (!word) continue;
       const seg = getContentSegment(word);
-      if (!seg) continue;
-      const displayText = uthmaniWords[pos - 1] ?? seg.form_arabic;
-      terms.push({
-        lemma_bw: seg.lemma_buckwalter || null,
-        root_bw: seg.root_buckwalter || null,
-        form_bw: seg.form_buckwalter || null,
-        display_arabic: displayText,
-      });
-    }
-
-    // Root-based terms
-    for (const rbw of selectedRoots) {
-      // Skip if a selected word already covers this root
-      const alreadyCovered = terms.some((t) => t.root_bw === rbw);
-      if (alreadyCovered) continue;
-
-      const rootInfo = data.roots_summary.find((r) => r.root_buckwalter === rbw);
+      const rootBw = seg?.root_buckwalter;
+      if (!rootBw || seenRoots.has(rootBw)) continue;
+      seenRoots.add(rootBw);
       terms.push({
         lemma_bw: null,
-        root_bw: rbw,
+        root_bw: rootBw,
         form_bw: null,
-        display_arabic: rootInfo?.root_arabic ?? rbw,
+        display_arabic: seg!.root_arabic || uthmaniWords[pos - 1] || seg!.form_arabic,
       });
     }
 
     return terms;
   }
 
-  // Stable key for combined selection
-  const wordKey = Array.from(selectedPositions).sort((a, b) => a - b).join(',');
-  const rootKey = Array.from(selectedRoots).sort().join(',');
-  const selectionKey = `${wordKey}|${rootKey}`;
+  // Stable key for the current selection
+  const selectionKey = Array.from(selectedPositions).sort((a, b) => a - b).join(',');
 
   // Auto-count results when selection changes
   useEffect(() => {
@@ -277,29 +262,31 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionKey, data.surah, data.ayah]);
 
-  const highlightedByRoot = hoveredRoot ? rootToPositions.get(hoveredRoot) : null;
-
   // Find the root summary for the expanded root
   const expandedRootData: RootSummary | undefined = expandedRoot
     ? data.roots_summary.find((r) => r.root_buckwalter === expandedRoot)
     : undefined;
 
-  // Build selected word info for header
-  const selectedWordItems = Array.from(selectedPositions)
-    .sort((a, b) => a - b)
-    .map((pos) => ({
-      position: pos,
-      word: wordMap.get(pos)!,
-      displayText: uthmaniWords[pos - 1] ?? '',
-    }))
-    .filter((sw) => sw.word);
-
-  // Build selected root info for header
-  const selectedRootItems = Array.from(selectedRoots)
-    .map((rbw) => {
-      const info = data.roots_summary.find((r) => r.root_buckwalter === rbw);
-      return { root_buckwalter: rbw, root_arabic: info?.root_arabic ?? rbw };
-    });
+  // Build the header's root chips — one per distinct root among the selected
+  // words (mirrors buildAllSearchTerms's dedup), so the header always shows
+  // what's actually being searched (the root), not the clicked word's surface
+  // form. Each chip remembers every position that fed it, so removing the
+  // chip clears all of them.
+  const selectedRootItems = (() => {
+    const byRoot = new Map<string, { root_buckwalter: string; root_arabic: string; positions: number[] }>();
+    for (const pos of Array.from(selectedPositions).sort((a, b) => a - b)) {
+      const word = wordMap.get(pos);
+      if (!word) continue;
+      const seg = getContentSegment(word);
+      const rootBw = seg?.root_buckwalter;
+      if (!rootBw) continue;
+      if (!byRoot.has(rootBw)) {
+        byRoot.set(rootBw, { root_buckwalter: rootBw, root_arabic: seg!.root_arabic || rootBw, positions: [] });
+      }
+      byRoot.get(rootBw)!.positions.push(pos);
+    }
+    return Array.from(byRoot.values());
+  })();
 
   function handleSearch() {
     if (!onWordSearch) return;
@@ -310,7 +297,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
 
   function clearAll() {
     setSelectedPositions(new Set());
-    setSelectedRoots(new Set());
   }
 
   // Delegated hover over the Arabic line: surface the delete-× for whichever
@@ -378,19 +364,15 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
       </div>
       {hasSelection && (
         <SelectionHeader
-          selectedWords={selectedWordItems}
+          selectedWords={[]}
           selectedRoots={selectedRootItems}
-          onDeselectWord={(pos) => {
+          onDeselectWord={() => {}}
+          onDeselectRoot={(rbw) => {
+            const item = selectedRootItems.find((r) => r.root_buckwalter === rbw);
+            if (!item) return;
             setSelectedPositions((prev) => {
               const next = new Set(prev);
-              next.delete(pos);
-              return next;
-            });
-          }}
-          onDeselectRoot={(rbw) => {
-            setSelectedRoots((prev) => {
-              const next = new Set(prev);
-              next.delete(rbw);
+              item.positions.forEach((p) => next.delete(p));
               return next;
             });
           }}
@@ -498,9 +480,8 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           const isSelected = selectedPositions.has(pos);
           const isHovered = !hasSelection && hoveredPos === pos;
           const isActive = isSelected || isHovered;
-          const isRootHighlighted = highlightedByRoot?.has(pos) ?? false;
           // Persistent user highlight (shows at rest; the transient
-          // selection/hover/root-match colors take over while interacting).
+          // selection/hover colors take over while interacting).
           const hl = posMap.get(pos);
           const isHlStart = !!hl && pos === hl.start;
 
@@ -513,11 +494,9 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                   ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-400'
                   : isHovered
                     ? 'bg-emerald-100 text-emerald-900'
-                    : isRootHighlighted
-                      ? 'bg-amber-100 text-amber-900'
-                      : hl
-                        ? HIGHLIGHT_BG[hl.color]
-                        : 'hover:bg-stone-100'
+                    : hl
+                      ? HIGHLIGHT_BG[hl.color]
+                      : 'hover:bg-stone-100'
               }`}
               onMouseEnter={() => {
                 if (!hasSelection) setHoveredPos(pos);
@@ -585,119 +564,50 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
         />
       </p>
 
-      {data.roots_summary.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {data.roots_summary.map((r) => {
-            const isRootSelected = selectedRoots.has(r.root_buckwalter);
-            return (
-              <span
-                key={r.root_buckwalter}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1
-                           text-sm font-medium border cursor-pointer transition-colors duration-150 ${
-                  isRootSelected
-                    ? 'bg-sky-100 text-sky-800 border-sky-300 ring-1 ring-sky-400'
-                    : hoveredRoot === r.root_buckwalter
-                      ? 'bg-amber-100 text-amber-800 border-amber-300'
-                      : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                }`}
-                onMouseEnter={() => setHoveredRoot(r.root_buckwalter)}
-                onMouseLeave={() => setHoveredRoot(null)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedRoots((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(r.root_buckwalter)) {
-                      next.delete(r.root_buckwalter);
-                    } else {
-                      next.add(r.root_buckwalter);
-                    }
-                    return next;
-                  });
-                }}
-              >
-                <span dir="rtl" lang="ar" className="font-arabic text-base">
-                  {r.root_arabic}
-                </span>
-                <span
-                  className={`text-xs ${
-                    isRootSelected
-                      ? 'text-sky-500'
-                      : hoveredRoot === r.root_buckwalter
-                        ? 'text-amber-600'
-                        : 'text-emerald-500'
-                  }`}
-                >
-                  ({r.root_buckwalter})
-                </span>
-                {r.occurrences > 1 && (
-                  <span
-                    className={`text-xs ${
-                      isRootSelected
-                        ? 'text-sky-400'
-                        : hoveredRoot === r.root_buckwalter
-                          ? 'text-amber-500'
-                          : 'text-emerald-400'
-                    }`}
-                  >
-                    &times;{r.occurrences}
-                  </span>
-                )}
-                {r.cognate && (
-                  <span
-                    className={`text-xs italic ${
-                      isRootSelected
-                        ? 'text-sky-500'
-                        : hoveredRoot === r.root_buckwalter
-                          ? 'text-amber-600'
-                          : 'text-emerald-500'
-                    }`}
-                  >
-                    &middot; {r.cognate.concept}
-                  </span>
-                )}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {aiTranslation?.departure_notes && (
+      {/* Exegesis leads (it's the synthesis); Translation Notes follows as the
+          supporting detail. When exegesis prose refers to "the translation
+          notes", that phrase becomes a smooth-scroll link down to them. */}
+      {(exegesis || aiTranslation?.departure_notes) && (
         <div className="mt-4 rounded-lg bg-violet-50 border border-violet-100 p-3">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className="text-xs font-medium text-violet-600">Translation Notes</span>
-            <MethodologyTooltip />
-          </div>
-          <div className="text-sm text-violet-800 leading-relaxed">
-            {splitDepartureNotes(aiTranslation.departure_notes).map((line, i) => (
-              <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-                <FormattedInline text={line} />
-              </p>
-            ))}
-          </div>
-
           {exegesis && (
-            <div className="mt-3 pt-3 border-t border-violet-200/70">
-              <div className="text-xs font-medium text-violet-600 mb-1.5">Exegesis</div>
+            <div>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-xs font-medium text-violet-600">Exegesis</span>
+                <MethodologyTooltip />
+              </div>
               <FormattedText
-                text={exegesis.exegesis_markdown}
+                text={linkifyTranslationNotesRefs(exegesis.exegesis_markdown)}
+                translationNotesId={
+                  aiTranslation?.departure_notes
+                    ? `translation-notes-${data.surah}-${data.ayah}`
+                    : undefined
+                }
                 className="text-sm text-violet-900/90 leading-relaxed"
               />
             </div>
           )}
-        </div>
-      )}
 
-      {/* Exegesis can stand on its own when a verse has no departure notes yet */}
-      {exegesis && !aiTranslation?.departure_notes && (
-        <div className="mt-4 rounded-lg bg-violet-50 border border-violet-100 p-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className="text-xs font-medium text-violet-600">Exegesis</span>
-            <MethodologyTooltip />
-          </div>
-          <FormattedText
-            text={exegesis.exegesis_markdown}
-            className="text-sm text-violet-900/90 leading-relaxed"
-          />
+          {aiTranslation?.departure_notes && (
+            <div
+              id={`translation-notes-${data.surah}-${data.ayah}`}
+              className={`scroll-mt-6 ${exegesis ? 'mt-3 pt-3 border-t border-violet-200/70' : ''}`}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-xs font-medium text-violet-600">Translation Notes</span>
+                <MethodologyTooltip />
+              </div>
+              <div className="text-sm text-violet-800 leading-relaxed">
+                {splitDepartureNotes(aiTranslation.departure_notes).map((line, i) => (
+                  <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
+                    <FormattedInline
+                      text={linkifyGrammarTermRefs(line)}
+                      grammarTerms={grammarTerms ?? undefined}
+                    />
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

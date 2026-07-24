@@ -49,11 +49,6 @@ export default function VerseOfTheDay({ onNavigate }: Props) {
   if (!pick || !data) return null;
   const [surah, ayah] = pick;
 
-  // Get up to 4 meaningful roots (skip those without root_arabic)
-  const roots = data.roots_summary
-    .filter((r) => r.root_arabic)
-    .slice(0, 4);
-
   return (
     <div
       className="bg-white border border-card-border rounded-xl p-6 mb-8 cursor-pointer hover:border-gold/30 transition-colors"
@@ -79,34 +74,9 @@ export default function VerseOfTheDay({ onNavigate }: Props) {
       </p>
 
       {/* Translation */}
-      <p className="font-serif text-base leading-relaxed text-ink-secondary italic mb-4">
+      <p className="font-serif text-base leading-relaxed text-ink-secondary italic">
         {wrapArabicRuns(data.translation)}
       </p>
-
-      {/* Root pills — matching verse page style */}
-      {roots.length > 0 && (
-        <div className="border-t border-card-border pt-3 flex flex-wrap gap-2">
-          {roots.map((r) => (
-            <span
-              key={r.root_buckwalter}
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1
-                         text-sm font-medium border bg-emerald-50 text-emerald-700 border-emerald-200"
-            >
-              <span dir="rtl" lang="ar" className="font-arabic text-base">
-                {r.root_arabic}
-              </span>
-              <span className="text-xs text-emerald-500">
-                ({r.root_buckwalter})
-              </span>
-              {r.cognate && (
-                <span className="hidden sm:inline text-xs italic text-emerald-500">
-                  &middot; {wrapArabicRuns(r.cognate.concept)}
-                </span>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

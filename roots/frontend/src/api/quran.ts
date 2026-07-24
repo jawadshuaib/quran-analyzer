@@ -246,10 +246,24 @@ export interface GrammarGlossaryResponse {
   >;
 }
 
+// The full glossary (~600 terms, ~390KB uncompressed) rarely changes and is
+// now fetched from verse pages too (to resolve grammar-term chips inside
+// Translation Notes), not just the dedicated glossary page — so cache the
+// in-flight/completed request for the session instead of re-fetching it on
+// every verse navigation.
+let _grammarTermsCache: Promise<GrammarGlossaryResponse> | null = null;
+
 export async function fetchAllGrammarTerms(): Promise<GrammarGlossaryResponse> {
-  const res = await fetch(`${BASE}/grammar-terms`);
-  if (!res.ok) throw new Error('Failed to load grammar glossary');
-  return res.json();
+  if (!_grammarTermsCache) {
+    _grammarTermsCache = fetch(`${BASE}/grammar-terms`).then((res) => {
+      if (!res.ok) {
+        _grammarTermsCache = null; // allow retry on next call
+        throw new Error('Failed to load grammar glossary');
+      }
+      return res.json();
+    });
+  }
+  return _grammarTermsCache;
 }
 
 // ---------- Quran vocabulary (ritualistic terms) ----------

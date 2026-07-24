@@ -1,5 +1,5 @@
 import { forwardRef, Fragment, useEffect, useRef, useState } from 'react';
-import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote } from '../../types';
+import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote, GrammarTerm } from '../../types';
 import {
   toggleManualSave,
   isSaved,
@@ -14,13 +14,14 @@ import FolderPopover, { type FolderPopoverMode } from '../folders/FolderPopover'
 import { getNote, subscribeToNotes } from '../../utils/user-notes';
 import { setVerseNote } from '../../utils/saved-item-actions';
 import { getSurahName } from '../../utils/surah-names';
-import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry } from '../../api/quran';
+import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry, fetchAllGrammarTerms } from '../../api/quran';
+import { mentionsGrammarTerm, linkifyGrammarTermRefs, buildGrammarTermLookup } from '../../utils/grammar-term-refs';
 import {
   isReaderNotesVisible,
   setReaderNotesVisible,
   subscribeToReaderPrefs,
 } from '../../utils/reader-prefs';
-import FormattedText, { FormattedInline } from '../FormattedText';
+import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from '../FormattedText';
 import { NotesBody } from '../GrammarNotes';
 import { splitDepartureNotes } from '../../utils/departure-notes';
 import { TranslationWithChips } from '../TermChip';
@@ -553,6 +554,7 @@ function VerseNotesPanel({
   const [grammar, setGrammar] = useState<GrammarNotesData | null>(null);
   const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
   const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
+  const [glossaryTerms, setGlossaryTerms] = useState<Record<string, GrammarTerm> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -573,6 +575,15 @@ function VerseNotesPanel({
       setPoetry(p);
       setLoading(false);
       if (!t && !g && !ex && !p) setError('No notes available for this verse.');
+      // Translation Notes sometimes reference a grammar-glossary term (e.g.
+      // "causative form IV") — fetch the (cached) glossary only if it does.
+      if (t?.departure_notes && mentionsGrammarTerm(t.departure_notes)) {
+        fetchAllGrammarTerms().then((res) => {
+          if (!cancelled) setGlossaryTerms(buildGrammarTermLookup(res.terms));
+        }).catch(() => { if (!cancelled) setGlossaryTerms(null); });
+      } else {
+        setGlossaryTerms(null);
+      }
     });
     return () => { cancelled = true; };
   }, [surah, verse, hasTranslation, hasGrammar, hasExegesis, hasPoetry]);
@@ -598,8 +609,30 @@ function VerseNotesPanel({
 
   return (
     <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-4 space-y-4">
-      {translation?.departure_notes && (
+      {/* Exegesis leads (it's the synthesis); Translation Notes follows as the
+          supporting detail — same order as the research view. A "translation
+          notes" mention inside the exegesis prose becomes a smooth-scroll
+          link down to that section. */}
+      {exegesis?.exegesis_markdown && (
         <div>
+          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
+            Exegesis
+          </h4>
+          {/* FormattedText linkifies verse refs and transliterated roots
+              (e.g. f-l-q) with the same hover tooltips as the research view. */}
+          <div className="text-sm leading-relaxed text-ink-secondary">
+            <FormattedText
+              text={linkifyTranslationNotesRefs(exegesis.exegesis_markdown)}
+              translationNotesId={translation?.departure_notes ? `translation-notes-${surah}-${verse}` : undefined}
+            />
+          </div>
+        </div>
+      )}
+      {translation?.departure_notes && (
+        <div
+          id={`translation-notes-${surah}-${verse}`}
+          className={`scroll-mt-6 ${exegesis?.exegesis_markdown ? 'pt-3 border-t border-card-border/70' : ''}`}
+        >
           <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
             Translation Notes
           </h4>
@@ -610,21 +643,12 @@ function VerseNotesPanel({
           <div className="text-sm leading-relaxed text-ink-secondary">
             {splitDepartureNotes(translation.departure_notes).map((line, i) => (
               <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-                <FormattedInline text={line} />
+                <FormattedInline
+                  text={linkifyGrammarTermRefs(line)}
+                  grammarTerms={glossaryTerms ?? undefined}
+                />
               </p>
             ))}
-          </div>
-        </div>
-      )}
-      {exegesis?.exegesis_markdown && (
-        <div className={translation?.departure_notes ? 'pt-3 border-t border-card-border/70' : ''}>
-          <h4 className="text-[11px] uppercase tracking-wide font-medium text-gold mb-1.5">
-            Exegesis
-          </h4>
-          {/* FormattedText linkifies verse refs and transliterated roots
-              (e.g. f-l-q) with the same hover tooltips as the research view. */}
-          <div className="text-sm leading-relaxed text-ink-secondary">
-            <FormattedText text={exegesis.exegesis_markdown} />
           </div>
         </div>
       )}
