@@ -2,56 +2,1642 @@
   "_about": "Hand-labeled retrieval gold set for search v2 evaluation. Each item is a conceptual query with a set of clearly-relevant verses (qrels). Not exhaustive: recall@k measures whether the retriever surfaces the known-relevant verses. Refs are [chapter, verse]. Authored for Phase B of the al-nuqta search plan; verify with verify_gold.py.",
   "_version": 1,
   "items": [
-    {"id": "en-adam-satan", "lang": "en", "query": "verse involving satan and adam", "relevant": [[2,34],[2,35],[2,36],[7,11],[7,20],[7,22],[20,116],[20,120]], "note": "Iblis refuses to prostrate; the whispering and the fall"},
-    {"id": "en-creation-adam", "lang": "en", "query": "the creation of adam", "relevant": [[2,30],[2,31],[15,28],[15,29],[38,71],[38,72],[3,59]], "note": "Adam fashioned from clay; taught the names"},
-    {"id": "en-mercy-forgiveness", "lang": "en", "query": "god's mercy and forgiveness for sinners", "relevant": [[39,53],[7,156],[4,110],[6,54],[2,218]], "note": "Despair not of the mercy of God"},
-    {"id": "en-patience", "lang": "en", "query": "patience and steadfastness during trials", "relevant": [[2,153],[2,155],[2,156],[3,200],[94,5],[103,3],[39,10]], "note": "Seek help through patience and prayer"},
-    {"id": "en-charity-poor", "lang": "en", "query": "charity and helping the poor", "relevant": [[2,177],[2,261],[2,271],[9,60],[63,10]], "note": "Spending wealth on the needy"},
-    {"id": "en-intoxicants", "lang": "en", "query": "prohibition of wine and gambling", "relevant": [[5,90],[5,91],[2,219],[4,43]], "note": "Khamr and maysir"},
-    {"id": "en-judgment-day", "lang": "en", "query": "the day of resurrection and judgment", "relevant": [[99,1],[99,6],[75,1],[81,1],[82,1],[101,1]], "note": "The earthquake, the reckoning"},
-    {"id": "en-moses-pharaoh", "lang": "en", "query": "prophet moses confronting pharaoh", "relevant": [[20,24],[20,42],[20,44],[28,3],[7,103],[26,10]], "note": "Go to Pharaoh, he has transgressed"},
-    {"id": "en-joseph", "lang": "en", "query": "the story of prophet joseph and his brothers", "relevant": [[12,4],[12,23],[12,28],[12,88],[12,90]], "note": "Yusuf's dream, the shirt, the reunion"},
-    {"id": "en-birds-signs", "lang": "en", "query": "birds as a sign of god's power", "relevant": [[16,79],[67,19],[24,41],[27,16]], "note": "Birds held aloft in the sky"},
-    {"id": "en-mary-jesus", "lang": "en", "query": "the birth of jesus to mary", "relevant": [[19,16],[19,22],[19,29],[3,45],[3,47]], "note": "Maryam and the miraculous birth"},
-    {"id": "en-orphans", "lang": "en", "query": "the rights and treatment of orphans", "relevant": [[4,2],[4,6],[4,10],[93,9],[89,17]], "note": "Do not consume the orphan's wealth"},
-    {"id": "en-cave-sleepers", "lang": "en", "query": "the young men who slept in the cave", "relevant": [[18,9],[18,10],[18,13],[18,25]], "note": "Ashab al-Kahf"},
-    {"id": "en-noah-flood", "lang": "en", "query": "noah and the great flood", "relevant": [[11,25],[11,40],[71,1],[71,26],[7,59],[29,14]], "note": "The ark and the drowning of the deniers"},
-    {"id": "en-bee-honey", "lang": "en", "query": "the bee and honey as a healing", "relevant": [[16,68],[16,69]], "note": "A drink of varying colors wherein is healing"},
-    {"id": "en-spider-web", "lang": "en", "query": "the frailty of the spider's house", "relevant": [[29,41]], "note": "The flimsiest of houses"},
-    {"id": "en-elephant", "lang": "en", "query": "the army of the elephant destroyed by birds", "relevant": [[105,1],[105,3],[105,5]], "note": "Surah al-Fil"},
-    {"id": "en-night-vigil", "lang": "en", "query": "standing in prayer through the night", "relevant": [[73,1],[73,2],[17,79],[25,64],[51,17]], "note": "The night vigil, qiyam al-layl"},
-    {"id": "en-backbiting", "lang": "en", "query": "backbiting and slandering others", "relevant": [[49,12],[104,1],[68,11]], "note": "Do not backbite one another"},
-    {"id": "en-justice", "lang": "en", "query": "standing firm for justice and fairness", "relevant": [[4,58],[5,8],[16,90],[4,135]], "note": "Be maintainers of justice"},
-    {"id": "en-six-days", "lang": "en", "query": "the heavens and earth created in six days", "relevant": [[7,54],[10,3],[11,7],[25,59],[57,4]], "note": "Creation in six days then the establishment"},
-    {"id": "en-paradise-rivers", "lang": "en", "query": "gardens with rivers flowing beneath for the righteous", "relevant": [[2,25],[47,15],[55,46],[76,5],[18,31]], "note": "Rivers of water, milk, wine, honey"},
-    {"id": "en-trust-god", "lang": "en", "query": "trust and reliance upon god", "relevant": [[65,3],[3,159],[8,2],[9,51]], "note": "Whoever relies on God, He is sufficient"},
-    {"id": "en-parents-kindness", "lang": "en", "query": "kindness and respect toward parents", "relevant": [[17,23],[17,24],[31,14],[46,15],[29,8]], "note": "Say not a word of contempt to them"},
-    {"id": "en-abraham-idols", "lang": "en", "query": "abraham breaking the idols of his people", "relevant": [[21,57],[21,58],[21,63],[37,91],[37,93],[6,74]], "note": "Ibrahim shatters the idols"},
-    {"id": "en-light-verse", "lang": "en", "query": "god is the light of the heavens and the earth", "relevant": [[24,35]], "note": "Ayat an-Nur"},
-    {"id": "en-throne-verse", "lang": "en", "query": "his throne extends over the heavens and earth and he never tires", "relevant": [[2,255]], "note": "Ayat al-Kursi"},
-    {"id": "en-honeyless-fear-grief", "lang": "en", "query": "those with faith shall have no fear nor grief", "relevant": [[2,62],[2,112],[2,277],[10,62],[41,30]], "note": "No fear shall be upon them"},
-
-    {"id": "ar-sabr", "lang": "ar", "query": "آيات عن الصبر", "relevant": [[2,153],[2,155],[3,200],[103,3],[39,10],[16,127]], "note": "verses about patience"},
-    {"id": "ar-adam-iblis", "lang": "ar", "query": "قصة آدم وإبليس", "relevant": [[2,34],[2,35],[2,36],[7,11],[7,20],[20,116]], "note": "story of Adam and Iblis"},
-    {"id": "ar-rahma-maghfira", "lang": "ar", "query": "الرحمة والمغفرة من الله", "relevant": [[39,53],[7,156],[4,110],[6,54]], "note": "mercy and forgiveness"},
-    {"id": "ar-khalq-samawat", "lang": "ar", "query": "خلق السماوات والأرض", "relevant": [[7,54],[10,3],[25,59],[41,9],[41,11]], "note": "creation of the heavens and earth"},
-    {"id": "ar-yusuf", "lang": "ar", "query": "قصة يوسف وإخوته", "relevant": [[12,4],[12,23],[12,28],[12,88]], "note": "story of Joseph"},
-    {"id": "ar-musa-firaun", "lang": "ar", "query": "موسى وفرعون", "relevant": [[20,24],[20,42],[28,3],[7,103],[26,10]], "note": "Moses and Pharaoh"},
-    {"id": "ar-infaq", "lang": "ar", "query": "الإنفاق في سبيل الله", "relevant": [[2,261],[2,262],[2,274],[57,7]], "note": "spending in the way of God"},
-    {"id": "ar-qiyama", "lang": "ar", "query": "يوم القيامة والبعث", "relevant": [[99,1],[99,6],[75,1],[81,1],[82,1]], "note": "day of resurrection"},
-    {"id": "ar-birr-walidayn", "lang": "ar", "query": "بر الوالدين والإحسان إليهما", "relevant": [[17,23],[17,24],[31,14],[46,15]], "note": "kindness to parents"},
-    {"id": "ar-khamr", "lang": "ar", "query": "تحريم الخمر والميسر", "relevant": [[5,90],[5,91],[2,219]], "note": "prohibition of wine and gambling"},
-    {"id": "ar-adl", "lang": "ar", "query": "العدل والقسط بين الناس", "relevant": [[4,58],[5,8],[16,90],[4,135]], "note": "justice among people"},
-    {"id": "ar-salat", "lang": "ar", "query": "إقامة الصلاة", "relevant": [[2,238],[4,103],[20,14],[29,45]], "note": "establishing prayer"},
-    {"id": "ar-janna", "lang": "ar", "query": "نعيم الجنة وأنهارها", "relevant": [[55,46],[47,15],[76,12],[2,25]], "note": "the bliss and rivers of paradise"},
-    {"id": "ar-nuh-tufan", "lang": "ar", "query": "نوح والطوفان", "relevant": [[11,25],[11,40],[71,1],[7,59]], "note": "Noah and the flood"},
-    {"id": "ar-maryam-isa", "lang": "ar", "query": "مريم وولادة عيسى", "relevant": [[19,16],[19,22],[3,42],[3,45]], "note": "Mary and the birth of Jesus"},
-    {"id": "ar-kahf", "lang": "ar", "query": "أصحاب الكهف", "relevant": [[18,9],[18,10],[18,13],[18,25]], "note": "the people of the cave"},
-    {"id": "ar-nahl-asal", "lang": "ar", "query": "النحل والعسل والشفاء", "relevant": [[16,68],[16,69]], "note": "the bee, honey, and healing"},
-    {"id": "ar-ghiba", "lang": "ar", "query": "الغيبة والنميمة", "relevant": [[49,12],[104,1],[68,11]], "note": "backbiting and gossip"},
-    {"id": "ar-yatim", "lang": "ar", "query": "حقوق اليتيم", "relevant": [[4,2],[4,10],[93,9],[89,17]], "note": "rights of the orphan"},
-    {"id": "ar-tawakkul", "lang": "ar", "query": "التوكل على الله", "relevant": [[65,3],[3,159],[8,2]], "note": "reliance upon God"},
-    {"id": "ar-kursi", "lang": "ar", "query": "آية الكرسي وعظمة الله", "relevant": [[2,255]], "note": "the Throne verse"},
-    {"id": "ar-nur", "lang": "ar", "query": "الله نور السماوات والأرض", "relevant": [[24,35]], "note": "the Light verse"}
+    {
+      "id": "en-adam-satan",
+      "lang": "en",
+      "query": "verse involving satan and adam",
+      "relevant": [
+        [
+          2,
+          34
+        ],
+        [
+          2,
+          35
+        ],
+        [
+          2,
+          36
+        ],
+        [
+          7,
+          11
+        ],
+        [
+          7,
+          20
+        ],
+        [
+          7,
+          22
+        ],
+        [
+          20,
+          116
+        ],
+        [
+          20,
+          120
+        ]
+      ],
+      "note": "Iblis refuses to prostrate; the whispering and the fall"
+    },
+    {
+      "id": "en-creation-adam",
+      "lang": "en",
+      "query": "the creation of adam",
+      "relevant": [
+        [
+          2,
+          30
+        ],
+        [
+          2,
+          31
+        ],
+        [
+          15,
+          28
+        ],
+        [
+          15,
+          29
+        ],
+        [
+          38,
+          71
+        ],
+        [
+          38,
+          72
+        ],
+        [
+          3,
+          59
+        ]
+      ],
+      "note": "Adam fashioned from clay; taught the names"
+    },
+    {
+      "id": "en-mercy-forgiveness",
+      "lang": "en",
+      "query": "god's mercy and forgiveness for sinners",
+      "relevant": [
+        [
+          39,
+          53
+        ],
+        [
+          7,
+          156
+        ],
+        [
+          4,
+          110
+        ],
+        [
+          6,
+          54
+        ],
+        [
+          2,
+          218
+        ]
+      ],
+      "note": "Despair not of the mercy of God"
+    },
+    {
+      "id": "en-patience",
+      "lang": "en",
+      "query": "patience and steadfastness during trials",
+      "relevant": [
+        [
+          2,
+          153
+        ],
+        [
+          2,
+          155
+        ],
+        [
+          2,
+          156
+        ],
+        [
+          3,
+          200
+        ],
+        [
+          94,
+          5
+        ],
+        [
+          103,
+          3
+        ],
+        [
+          39,
+          10
+        ]
+      ],
+      "note": "Seek help through patience and prayer"
+    },
+    {
+      "id": "en-charity-poor",
+      "lang": "en",
+      "query": "charity and helping the poor",
+      "relevant": [
+        [
+          2,
+          177
+        ],
+        [
+          2,
+          261
+        ],
+        [
+          2,
+          271
+        ],
+        [
+          9,
+          60
+        ],
+        [
+          63,
+          10
+        ]
+      ],
+      "note": "Spending wealth on the needy"
+    },
+    {
+      "id": "en-intoxicants",
+      "lang": "en",
+      "query": "prohibition of wine and gambling",
+      "relevant": [
+        [
+          5,
+          90
+        ],
+        [
+          5,
+          91
+        ],
+        [
+          2,
+          219
+        ],
+        [
+          4,
+          43
+        ]
+      ],
+      "note": "Khamr and maysir"
+    },
+    {
+      "id": "en-judgment-day",
+      "lang": "en",
+      "query": "the day of resurrection and judgment",
+      "relevant": [
+        [
+          99,
+          1
+        ],
+        [
+          99,
+          6
+        ],
+        [
+          75,
+          1
+        ],
+        [
+          81,
+          1
+        ],
+        [
+          82,
+          1
+        ],
+        [
+          101,
+          1
+        ]
+      ],
+      "note": "The earthquake, the reckoning"
+    },
+    {
+      "id": "en-moses-pharaoh",
+      "lang": "en",
+      "query": "prophet moses confronting pharaoh",
+      "relevant": [
+        [
+          20,
+          24
+        ],
+        [
+          20,
+          42
+        ],
+        [
+          20,
+          44
+        ],
+        [
+          28,
+          3
+        ],
+        [
+          7,
+          103
+        ],
+        [
+          26,
+          10
+        ]
+      ],
+      "note": "Go to Pharaoh, he has transgressed"
+    },
+    {
+      "id": "en-joseph",
+      "lang": "en",
+      "query": "the story of prophet joseph and his brothers",
+      "relevant": [
+        [
+          12,
+          4
+        ],
+        [
+          12,
+          23
+        ],
+        [
+          12,
+          28
+        ],
+        [
+          12,
+          88
+        ],
+        [
+          12,
+          90
+        ]
+      ],
+      "note": "Yusuf's dream, the shirt, the reunion"
+    },
+    {
+      "id": "en-birds-signs",
+      "lang": "en",
+      "query": "birds as a sign of god's power",
+      "relevant": [
+        [
+          16,
+          79
+        ],
+        [
+          67,
+          19
+        ],
+        [
+          24,
+          41
+        ],
+        [
+          27,
+          16
+        ]
+      ],
+      "note": "Birds held aloft in the sky"
+    },
+    {
+      "id": "en-mary-jesus",
+      "lang": "en",
+      "query": "the birth of jesus to mary",
+      "relevant": [
+        [
+          19,
+          16
+        ],
+        [
+          19,
+          22
+        ],
+        [
+          19,
+          29
+        ],
+        [
+          3,
+          45
+        ],
+        [
+          3,
+          47
+        ]
+      ],
+      "note": "Maryam and the miraculous birth"
+    },
+    {
+      "id": "en-orphans",
+      "lang": "en",
+      "query": "the rights and treatment of orphans",
+      "relevant": [
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          93,
+          9
+        ],
+        [
+          89,
+          17
+        ]
+      ],
+      "note": "Do not consume the orphan's wealth"
+    },
+    {
+      "id": "en-cave-sleepers",
+      "lang": "en",
+      "query": "the young men who slept in the cave",
+      "relevant": [
+        [
+          18,
+          9
+        ],
+        [
+          18,
+          10
+        ],
+        [
+          18,
+          13
+        ],
+        [
+          18,
+          25
+        ]
+      ],
+      "note": "Ashab al-Kahf"
+    },
+    {
+      "id": "en-noah-flood",
+      "lang": "en",
+      "query": "noah and the great flood",
+      "relevant": [
+        [
+          11,
+          25
+        ],
+        [
+          11,
+          40
+        ],
+        [
+          71,
+          1
+        ],
+        [
+          71,
+          26
+        ],
+        [
+          7,
+          59
+        ],
+        [
+          29,
+          14
+        ]
+      ],
+      "note": "The ark and the drowning of the deniers"
+    },
+    {
+      "id": "en-bee-honey",
+      "lang": "en",
+      "query": "the bee and honey as a healing",
+      "relevant": [
+        [
+          16,
+          68
+        ],
+        [
+          16,
+          69
+        ]
+      ],
+      "note": "A drink of varying colors wherein is healing"
+    },
+    {
+      "id": "en-spider-web",
+      "lang": "en",
+      "query": "the frailty of the spider's house",
+      "relevant": [
+        [
+          29,
+          41
+        ]
+      ],
+      "note": "The flimsiest of houses"
+    },
+    {
+      "id": "en-elephant",
+      "lang": "en",
+      "query": "the army of the elephant destroyed by birds",
+      "relevant": [
+        [
+          105,
+          1
+        ],
+        [
+          105,
+          3
+        ],
+        [
+          105,
+          5
+        ]
+      ],
+      "note": "Surah al-Fil"
+    },
+    {
+      "id": "en-night-vigil",
+      "lang": "en",
+      "query": "standing in prayer through the night",
+      "relevant": [
+        [
+          73,
+          1
+        ],
+        [
+          73,
+          2
+        ],
+        [
+          17,
+          79
+        ],
+        [
+          25,
+          64
+        ],
+        [
+          51,
+          17
+        ]
+      ],
+      "note": "The night vigil, qiyam al-layl"
+    },
+    {
+      "id": "en-backbiting",
+      "lang": "en",
+      "query": "backbiting and slandering others",
+      "relevant": [
+        [
+          49,
+          12
+        ],
+        [
+          104,
+          1
+        ],
+        [
+          68,
+          11
+        ]
+      ],
+      "note": "Do not backbite one another"
+    },
+    {
+      "id": "en-justice",
+      "lang": "en",
+      "query": "standing firm for justice and fairness",
+      "relevant": [
+        [
+          4,
+          58
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          16,
+          90
+        ],
+        [
+          4,
+          135
+        ]
+      ],
+      "note": "Be maintainers of justice"
+    },
+    {
+      "id": "en-six-days",
+      "lang": "en",
+      "query": "the heavens and earth created in six days",
+      "relevant": [
+        [
+          7,
+          54
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          11,
+          7
+        ],
+        [
+          25,
+          59
+        ],
+        [
+          57,
+          4
+        ]
+      ],
+      "note": "Creation in six days then the establishment"
+    },
+    {
+      "id": "en-paradise-rivers",
+      "lang": "en",
+      "query": "gardens with rivers flowing beneath for the righteous",
+      "relevant": [
+        [
+          2,
+          25
+        ],
+        [
+          47,
+          15
+        ],
+        [
+          55,
+          46
+        ],
+        [
+          76,
+          5
+        ],
+        [
+          18,
+          31
+        ]
+      ],
+      "note": "Rivers of water, milk, wine, honey"
+    },
+    {
+      "id": "en-trust-god",
+      "lang": "en",
+      "query": "trust and reliance upon god",
+      "relevant": [
+        [
+          65,
+          3
+        ],
+        [
+          3,
+          159
+        ],
+        [
+          8,
+          2
+        ],
+        [
+          9,
+          51
+        ]
+      ],
+      "note": "Whoever relies on God, He is sufficient"
+    },
+    {
+      "id": "en-parents-kindness",
+      "lang": "en",
+      "query": "kindness and respect toward parents",
+      "relevant": [
+        [
+          17,
+          23
+        ],
+        [
+          17,
+          24
+        ],
+        [
+          31,
+          14
+        ],
+        [
+          46,
+          15
+        ],
+        [
+          29,
+          8
+        ]
+      ],
+      "note": "Say not a word of contempt to them"
+    },
+    {
+      "id": "en-abraham-idols",
+      "lang": "en",
+      "query": "abraham breaking the idols of his people",
+      "relevant": [
+        [
+          21,
+          57
+        ],
+        [
+          21,
+          58
+        ],
+        [
+          21,
+          63
+        ],
+        [
+          37,
+          91
+        ],
+        [
+          37,
+          93
+        ],
+        [
+          6,
+          74
+        ]
+      ],
+      "note": "Ibrahim shatters the idols"
+    },
+    {
+      "id": "en-light-verse",
+      "lang": "en",
+      "query": "god is the light of the heavens and the earth",
+      "relevant": [
+        [
+          24,
+          35
+        ]
+      ],
+      "note": "Ayat an-Nur"
+    },
+    {
+      "id": "en-throne-verse",
+      "lang": "en",
+      "query": "his throne extends over the heavens and earth and he never tires",
+      "relevant": [
+        [
+          2,
+          255
+        ]
+      ],
+      "note": "Ayat al-Kursi"
+    },
+    {
+      "id": "en-honeyless-fear-grief",
+      "lang": "en",
+      "query": "those with faith shall have no fear nor grief",
+      "relevant": [
+        [
+          2,
+          62
+        ],
+        [
+          2,
+          112
+        ],
+        [
+          2,
+          277
+        ],
+        [
+          10,
+          62
+        ],
+        [
+          41,
+          30
+        ]
+      ],
+      "note": "No fear shall be upon them"
+    },
+    {
+      "id": "ar-sabr",
+      "lang": "ar",
+      "query": "آيات عن الصبر",
+      "relevant": [
+        [
+          2,
+          153
+        ],
+        [
+          2,
+          155
+        ],
+        [
+          3,
+          200
+        ],
+        [
+          103,
+          3
+        ],
+        [
+          39,
+          10
+        ],
+        [
+          16,
+          127
+        ]
+      ],
+      "note": "verses about patience"
+    },
+    {
+      "id": "ar-adam-iblis",
+      "lang": "ar",
+      "query": "قصة آدم وإبليس",
+      "relevant": [
+        [
+          2,
+          34
+        ],
+        [
+          2,
+          35
+        ],
+        [
+          2,
+          36
+        ],
+        [
+          7,
+          11
+        ],
+        [
+          7,
+          20
+        ],
+        [
+          20,
+          116
+        ]
+      ],
+      "note": "story of Adam and Iblis"
+    },
+    {
+      "id": "ar-rahma-maghfira",
+      "lang": "ar",
+      "query": "الرحمة والمغفرة من الله",
+      "relevant": [
+        [
+          39,
+          53
+        ],
+        [
+          7,
+          156
+        ],
+        [
+          4,
+          110
+        ],
+        [
+          6,
+          54
+        ]
+      ],
+      "note": "mercy and forgiveness"
+    },
+    {
+      "id": "ar-khalq-samawat",
+      "lang": "ar",
+      "query": "خلق السماوات والأرض",
+      "relevant": [
+        [
+          7,
+          54
+        ],
+        [
+          10,
+          3
+        ],
+        [
+          25,
+          59
+        ],
+        [
+          41,
+          9
+        ],
+        [
+          41,
+          11
+        ]
+      ],
+      "note": "creation of the heavens and earth"
+    },
+    {
+      "id": "ar-yusuf",
+      "lang": "ar",
+      "query": "قصة يوسف وإخوته",
+      "relevant": [
+        [
+          12,
+          4
+        ],
+        [
+          12,
+          23
+        ],
+        [
+          12,
+          28
+        ],
+        [
+          12,
+          88
+        ]
+      ],
+      "note": "story of Joseph"
+    },
+    {
+      "id": "ar-musa-firaun",
+      "lang": "ar",
+      "query": "موسى وفرعون",
+      "relevant": [
+        [
+          20,
+          24
+        ],
+        [
+          20,
+          42
+        ],
+        [
+          28,
+          3
+        ],
+        [
+          7,
+          103
+        ],
+        [
+          26,
+          10
+        ]
+      ],
+      "note": "Moses and Pharaoh"
+    },
+    {
+      "id": "ar-infaq",
+      "lang": "ar",
+      "query": "الإنفاق في سبيل الله",
+      "relevant": [
+        [
+          2,
+          261
+        ],
+        [
+          2,
+          262
+        ],
+        [
+          2,
+          274
+        ],
+        [
+          57,
+          7
+        ]
+      ],
+      "note": "spending in the way of God"
+    },
+    {
+      "id": "ar-qiyama",
+      "lang": "ar",
+      "query": "يوم القيامة والبعث",
+      "relevant": [
+        [
+          99,
+          1
+        ],
+        [
+          99,
+          6
+        ],
+        [
+          75,
+          1
+        ],
+        [
+          81,
+          1
+        ],
+        [
+          82,
+          1
+        ]
+      ],
+      "note": "day of resurrection"
+    },
+    {
+      "id": "ar-birr-walidayn",
+      "lang": "ar",
+      "query": "بر الوالدين والإحسان إليهما",
+      "relevant": [
+        [
+          17,
+          23
+        ],
+        [
+          17,
+          24
+        ],
+        [
+          31,
+          14
+        ],
+        [
+          46,
+          15
+        ]
+      ],
+      "note": "kindness to parents"
+    },
+    {
+      "id": "ar-khamr",
+      "lang": "ar",
+      "query": "تحريم الخمر والميسر",
+      "relevant": [
+        [
+          5,
+          90
+        ],
+        [
+          5,
+          91
+        ],
+        [
+          2,
+          219
+        ]
+      ],
+      "note": "prohibition of wine and gambling"
+    },
+    {
+      "id": "ar-adl",
+      "lang": "ar",
+      "query": "العدل والقسط بين الناس",
+      "relevant": [
+        [
+          4,
+          58
+        ],
+        [
+          5,
+          8
+        ],
+        [
+          16,
+          90
+        ],
+        [
+          4,
+          135
+        ]
+      ],
+      "note": "justice among people"
+    },
+    {
+      "id": "ar-salat",
+      "lang": "ar",
+      "query": "إقامة الصلاة",
+      "relevant": [
+        [
+          2,
+          238
+        ],
+        [
+          4,
+          103
+        ],
+        [
+          20,
+          14
+        ],
+        [
+          29,
+          45
+        ]
+      ],
+      "note": "establishing prayer"
+    },
+    {
+      "id": "ar-janna",
+      "lang": "ar",
+      "query": "نعيم الجنة وأنهارها",
+      "relevant": [
+        [
+          55,
+          46
+        ],
+        [
+          47,
+          15
+        ],
+        [
+          76,
+          12
+        ],
+        [
+          2,
+          25
+        ]
+      ],
+      "note": "the bliss and rivers of paradise"
+    },
+    {
+      "id": "ar-nuh-tufan",
+      "lang": "ar",
+      "query": "نوح والطوفان",
+      "relevant": [
+        [
+          11,
+          25
+        ],
+        [
+          11,
+          40
+        ],
+        [
+          71,
+          1
+        ],
+        [
+          7,
+          59
+        ]
+      ],
+      "note": "Noah and the flood"
+    },
+    {
+      "id": "ar-maryam-isa",
+      "lang": "ar",
+      "query": "مريم وولادة عيسى",
+      "relevant": [
+        [
+          19,
+          16
+        ],
+        [
+          19,
+          22
+        ],
+        [
+          3,
+          42
+        ],
+        [
+          3,
+          45
+        ]
+      ],
+      "note": "Mary and the birth of Jesus"
+    },
+    {
+      "id": "ar-kahf",
+      "lang": "ar",
+      "query": "أصحاب الكهف",
+      "relevant": [
+        [
+          18,
+          9
+        ],
+        [
+          18,
+          10
+        ],
+        [
+          18,
+          13
+        ],
+        [
+          18,
+          25
+        ]
+      ],
+      "note": "the people of the cave"
+    },
+    {
+      "id": "ar-nahl-asal",
+      "lang": "ar",
+      "query": "النحل والعسل والشفاء",
+      "relevant": [
+        [
+          16,
+          68
+        ],
+        [
+          16,
+          69
+        ]
+      ],
+      "note": "the bee, honey, and healing"
+    },
+    {
+      "id": "ar-ghiba",
+      "lang": "ar",
+      "query": "الغيبة والنميمة",
+      "relevant": [
+        [
+          49,
+          12
+        ],
+        [
+          104,
+          1
+        ],
+        [
+          68,
+          11
+        ]
+      ],
+      "note": "backbiting and gossip"
+    },
+    {
+      "id": "ar-yatim",
+      "lang": "ar",
+      "query": "حقوق اليتيم",
+      "relevant": [
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          10
+        ],
+        [
+          93,
+          9
+        ],
+        [
+          89,
+          17
+        ]
+      ],
+      "note": "rights of the orphan"
+    },
+    {
+      "id": "ar-tawakkul",
+      "lang": "ar",
+      "query": "التوكل على الله",
+      "relevant": [
+        [
+          65,
+          3
+        ],
+        [
+          3,
+          159
+        ],
+        [
+          8,
+          2
+        ]
+      ],
+      "note": "reliance upon God"
+    },
+    {
+      "id": "ar-kursi",
+      "lang": "ar",
+      "query": "آية الكرسي وعظمة الله",
+      "relevant": [
+        [
+          2,
+          255
+        ]
+      ],
+      "note": "the Throne verse"
+    },
+    {
+      "id": "ar-nur",
+      "lang": "ar",
+      "query": "الله نور السماوات والأرض",
+      "relevant": [
+        [
+          24,
+          35
+        ]
+      ],
+      "note": "the Light verse"
+    },
+    {
+      "id": "abs-tawakkul-loss",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "reliance on god in times of loss",
+      "relevant": [
+        [
+          65,
+          2
+        ],
+        [
+          65,
+          3
+        ],
+        [
+          3,
+          159
+        ],
+        [
+          64,
+          11
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-soul-account",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "the soul held accountable for its own deeds",
+      "relevant": [
+        [
+          74,
+          38
+        ],
+        [
+          99,
+          7
+        ],
+        [
+          99,
+          8
+        ],
+        [
+          17,
+          13
+        ],
+        [
+          82,
+          5
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-mercy-all",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "god's mercy encompasses all things",
+      "relevant": [
+        [
+          7,
+          156
+        ],
+        [
+          40,
+          7
+        ],
+        [
+          6,
+          12
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-worldly-fleeting",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "the fleeting deceptive nature of worldly life",
+      "relevant": [
+        [
+          57,
+          20
+        ],
+        [
+          3,
+          185
+        ],
+        [
+          18,
+          45
+        ],
+        [
+          87,
+          16
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-sincerity",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "sincerity of intention in worship",
+      "relevant": [
+        [
+          98,
+          5
+        ],
+        [
+          39,
+          11
+        ],
+        [
+          6,
+          162
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-gratitude",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "gratitude increases blessing",
+      "relevant": [
+        [
+          14,
+          7
+        ],
+        [
+          27,
+          40
+        ],
+        [
+          16,
+          18
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-arrogance",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "the danger of arrogance and pride",
+      "relevant": [
+        [
+          31,
+          18
+        ],
+        [
+          40,
+          35
+        ],
+        [
+          7,
+          146
+        ],
+        [
+          28,
+          83
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-repentance",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "repentance and turning back to god",
+      "relevant": [
+        [
+          66,
+          8
+        ],
+        [
+          39,
+          53
+        ],
+        [
+          25,
+          70
+        ],
+        [
+          24,
+          31
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-trials-test",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "trials as a test of faith",
+      "relevant": [
+        [
+          2,
+          155
+        ],
+        [
+          29,
+          2
+        ],
+        [
+          67,
+          2
+        ],
+        [
+          3,
+          186
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-justice-self",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "standing for justice even against oneself",
+      "relevant": [
+        [
+          4,
+          135
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-hard-hearts",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "hardness and heedlessness of the heart",
+      "relevant": [
+        [
+          2,
+          74
+        ],
+        [
+          39,
+          22
+        ],
+        [
+          57,
+          16
+        ],
+        [
+          83,
+          14
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-wealth-children",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "the deception of wealth and children",
+      "relevant": [
+        [
+          18,
+          46
+        ],
+        [
+          63,
+          9
+        ],
+        [
+          64,
+          15
+        ],
+        [
+          3,
+          14
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-guidance-god",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "guidance comes only from god",
+      "relevant": [
+        [
+          28,
+          56
+        ],
+        [
+          2,
+          272
+        ],
+        [
+          10,
+          100
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-fear-hope",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "holding fear and hope in god together",
+      "relevant": [
+        [
+          32,
+          16
+        ],
+        [
+          39,
+          9
+        ],
+        [
+          17,
+          57
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    },
+    {
+      "id": "abs-patience-beautiful",
+      "lang": "en",
+      "tag": "abstract",
+      "query": "beautiful patience in the face of grief",
+      "relevant": [
+        [
+          12,
+          18
+        ],
+        [
+          12,
+          83
+        ],
+        [
+          70,
+          5
+        ],
+        [
+          73,
+          10
+        ]
+      ],
+      "note": "abstract/theological — exeg should help"
+    }
+  ],
+  "probes": [
+    {
+      "id": "p-wine",
+      "query": "wine and intoxicants"
+    },
+    {
+      "id": "p-throne",
+      "query": "the throne of god"
+    },
+    {
+      "id": "p-hellfire",
+      "query": "hellfire and its punishment"
+    },
+    {
+      "id": "p-hypocrites",
+      "query": "the hypocrites and their traits"
+    },
+    {
+      "id": "p-moon",
+      "query": "the splitting of the moon"
+    },
+    {
+      "id": "p-iron",
+      "query": "iron sent down with strength"
+    },
+    {
+      "id": "p-pen",
+      "query": "the pen and the writing of destiny"
+    },
+    {
+      "id": "p-jinn",
+      "query": "jinn and the unseen world"
+    },
+    {
+      "id": "p-qadr",
+      "query": "the night of decree"
+    },
+    {
+      "id": "p-usury",
+      "query": "usury and interest on loans"
+    }
   ]
 }

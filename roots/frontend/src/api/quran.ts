@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootDictionaries, DictionaryEntryDetail } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -11,6 +11,21 @@ export async function fetchVerse(surah: number, ayah: number): Promise<VerseData
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `Verse ${surah}:${ayah} not found`);
   }
+  return res.json();
+}
+
+/** The Lexicon Library: harmonized classical-dictionary definitions for a root
+ *  (date-ordered, approved only). Panel auto-hides when count === 0. */
+export async function fetchRootDictionaries(rootBw: string): Promise<RootDictionaries> {
+  const res = await fetch(`${BASE}/root/${encodeURIComponent(rootBw)}/dictionaries`);
+  if (!res.ok) throw new Error('No dictionaries');
+  return res.json();
+}
+
+/** View 2: one dictionary entry's original Arabic + faithful translation. */
+export async function fetchDictionaryEntry(id: number): Promise<DictionaryEntryDetail> {
+  const res = await fetch(`${BASE}/dictionary-entry/${id}`);
+  if (!res.ok) throw new Error('Not found');
   return res.json();
 }
 

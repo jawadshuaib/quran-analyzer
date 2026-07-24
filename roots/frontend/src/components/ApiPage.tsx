@@ -116,8 +116,9 @@ export default function ApiPage() {
           </h1>
           <p className="text-sm sm:text-[15px] text-ink-secondary leading-relaxed max-w-[60ch] mx-auto">
             al-nuqta provides a free, open API for accessing Quranic text, morphology,
-            root analysis, Semitic etymology, and AI-powered translations. No API key
-            required &mdash; just send a GET request and start exploring.
+            root analysis, Semitic etymology, classical-dictionary definitions,
+            pre-Islamic poetry attestations, multilingual concept search, and AI-powered
+            translations. No API key required &mdash; just send a GET request and start exploring.
           </p>
         </div>
 
@@ -200,6 +201,25 @@ export default function ApiPage() {
               <dd className="text-ink-secondary mt-0.5">
                 A related word in a sister Semitic language (Hebrew, Aramaic, Syriac, Akkadian, Ugaritic)
                 that shares the same ancestral root, helping illuminate the original meaning.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ink">Classical dictionary (Lexicon Library)</dt>
+              <dd className="text-ink-secondary mt-0.5">
+                Harmonized English definitions of a root drawn from the great classical Arabic
+                lexicons (Ibn Fāris&apos;s <em>Maqāyīs</em>, al-Rāghib&apos;s <em>Mufradāt</em>,{' '}
+                <em>Lisān al-ʿArab</em>, Lane, <em>Tāj al-ʿArūs</em>, and more), one entry per
+                author and ordered by date. The original Arabic and a faithful translation are
+                one call away. Attributed evidence &mdash; never a single imported definition.
+              </dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ink">Attested (pre-Islamic) meaning</dt>
+              <dd className="text-ink-secondary mt-0.5">
+                How a root was actually used in the most reliably-transmitted 6th-century Arabic
+                poetry, shown as quoted lines and a continuity/shift analysis against the
+                Qur&apos;an&apos;s own usage. The site&apos;s Qur&apos;an-only method: meaning
+                grounded in contemporaneous evidence, not later codified doctrine.
               </dd>
             </div>
           </dl>
@@ -313,6 +333,22 @@ export default function ApiPage() {
   }
 }`}
           />
+          <Endpoint
+            method="GET"
+            path="/api/v1/verses/{s}:{a}/poetry"
+            description="A note on how a load-bearing root in this verse was used in pre-Islamic poetry, with the quoted attested lines. Only editorially approved notes are returned (404 otherwise); coverage is a curated subset of verses. See also the root-level /roots/{root}/poetry comparison."
+            example="/api/v1/verses/45:24/poetry"
+            response={`{
+  "ok": true,
+  "data": {
+    "surah": 45, "ayah": 24,
+    "focus_root_buckwalter": "dhr",
+    "note_markdown": "...",
+    "quoted_lines": [{ "arabic": "...", "translation": "...", "poet": "...", "poem_id": 8, "line_no": 3 }],
+    "continuity": true, "confidence": 0.9
+  }
+}`}
+          />
         </div>
 
         {/* Words */}
@@ -385,6 +421,96 @@ export default function ApiPage() {
             ]}
             example="/api/v1/roots/mlk/verses?limit=5"
           />
+          <Endpoint
+            method="GET"
+            path="/api/v1/roots/{root_bw}/dictionaries"
+            description="The Lexicon Library for a root: harmonized English definitions from the great classical Arabic dictionaries (Maqāyīs, Mufradāt, Lisān al-ʿArab, Lane, Tāj al-ʿArūs, and more), one entry per author, ordered by author death-year — chronology is the method. Returns an empty list (still 200) for roots not yet covered. Use the entry_id with /dictionaries/entries/{id} to fetch the original Arabic and a faithful translation."
+            example="/api/v1/roots/rHm/dictionaries"
+            response={`{
+  "ok": true,
+  "data": {
+    "root_buckwalter": "rHm",
+    "root_arabic": "ر ح م",
+    "dictionaries": [
+      {
+        "entry_id": 585,
+        "dictionary_slug": "ibn-faris-maqayis-al-lugha",
+        "name_en": "Maqāyīs al-Lugha", "name_ar": "مقاييس اللغة",
+        "author": "Ibn Fāris", "author_death_year": 1004,
+        "language": "ar", "is_quran_specific": false,
+        "harmonized_en": "Ibn Fāris treats the three letters r–ḥ–m as one root..."
+      }
+    ],
+    "ejtaal_url": "https://ejtaal.net/aa/#bwq=rHm"
+  },
+  "meta": { "total": 12 }
+}`}
+          />
+          <Endpoint
+            method="GET"
+            path="/api/v1/roots/{root_bw}/poetry"
+            description="How a root's Qur'anic usage compares to its usage in the most reliably-transmitted pre-Islamic (6th-century) poetry — a semantic-continuity or -shift analysis with quoted attested lines. Part of the site's Qur'an-only method: meaning shown as evidence, not imported from a later codified definition. 404 for roots without an approved comparison (coverage is a curated subset of load-bearing roots)."
+            example="/api/v1/roots/rHm/poetry"
+            response={`{
+  "ok": true,
+  "data": {
+    "root_buckwalter": "rHm", "root_arabic": "ر ح م",
+    "shift_type": "theologization",
+    "comparison_markdown": "...",
+    "quran_usage_summary": "...", "poetry_usage_summary": "...",
+    "quoted_lines": [{ "arabic": "...", "translation": "...", "poet": "...", "poem_id": 12, "line_no": 4 }],
+    "collocations": [...], "continuity": true, "confidence": 0.9
+  }
+}`}
+          />
+          <Endpoint
+            method="GET"
+            path="/api/v1/roots/{root_bw}/lexicon"
+            description="Contemporaneous-attestation lexicon: the distinct senses a root is attested to carry in authenticated pre-Islamic poetry, each backed by quoted lines, plus a summary of how that relates to the Qur'an's own usage. 404 for roots without an approved entry."
+            example="/api/v1/roots/rHm/lexicon"
+            response={`{
+  "ok": true,
+  "data": {
+    "root_buckwalter": "rHm", "root_arabic": "ر ح م",
+    "attested_senses": [{ "sense": "womb / kinship-bond", "gloss": "...", "evidence": "..." }],
+    "attestation_strength": "strong",
+    "quran_internal_summary": "...", "relation_to_quran": "...",
+    "quoted_lines": [...], "confidence": 0.88
+  }
+}`}
+          />
+        </div>
+
+        {/* Classical dictionaries */}
+        <SectionHeading>Classical dictionaries</SectionHeading>
+        <p className="text-sm text-ink-secondary mb-4">
+          The per-root list lives at{' '}
+          <code className="text-xs bg-cream-dark px-1 py-0.5 rounded font-mono">/roots/&#123;root&#125;/dictionaries</code>{' '}
+          (above). Each item carries an <code className="text-xs bg-cream-dark px-1 py-0.5 rounded font-mono">entry_id</code>{' '}
+          you resolve here to read the original Arabic beside a faithful translation.
+        </p>
+        <div className="space-y-2">
+          <Endpoint
+            method="GET"
+            path="/api/v1/dictionaries/entries/{id}"
+            description="One dictionary entry in full: the harmonized English, the original Arabic text, and a faithful close translation, plus provenance — the source page on arabiclexicon.hawramani.com and an ejtaal.net comparison link. Entry ids come from a root's /dictionaries list."
+            example="/api/v1/dictionaries/entries/585"
+            response={`{
+  "ok": true,
+  "data": {
+    "entry_id": 585,
+    "root_buckwalter": "rHm", "root_arabic": "ر ح م",
+    "dictionary_slug": "ibn-faris-maqayis-al-lugha",
+    "name_en": "Maqāyīs al-Lugha", "author": "Ibn Fāris", "author_death_year": 1004,
+    "language": "ar", "is_quran_specific": false,
+    "harmonized_en": "...",
+    "original_text_ar": "الراء والحاء والميم أصلٌ واحد...",
+    "translation_en": "The letters rāʾ, ḥāʾ and mīm are one root...",
+    "source_url": "https://arabiclexicon.hawramani.com/...",
+    "ejtaal_url": "https://ejtaal.net/aa/#bwq=rHm"
+  }
+}`}
+          />
         </div>
 
         {/* Search */}
@@ -404,10 +530,39 @@ export default function ApiPage() {
           />
           <Endpoint
             method="GET"
-            path="/api/v1/search/semantic"
-            description="Natural-language semantic search using vector embeddings. Search in plain English and find the most relevant verses by meaning."
+            path="/api/v1/search/concept"
+            description="Multilingual concept search — the recommended endpoint for meaning-based search. Understands a plain-language idea in English OR Arabic and returns the best-matching verses, fusing dense multilingual semantic retrieval (over both the Arabic text and its English rendering) with lexical root matching. Each result carries a matched_because breakdown (dense / lexical). Never fails hard: if the multilingual index or embedding service is unavailable it degrades to the English encoder + lexical matching and sets degraded: true."
             params={[
-              { name: 'q', description: 'Natural language query (max 500 chars)', required: true },
+              { name: 'q', description: 'Concept query in English or Arabic, e.g. "verse involving satan and adam" or "آيات عن الصبر" (max 500 chars)', required: true },
+              { name: 'limit', description: 'Max results (default 15, max 50)' },
+            ]}
+            example="/api/v1/search/concept?q=patience+in+hardship&limit=3"
+            response={`{
+  "ok": true,
+  "data": {
+    "query": "patience in hardship",
+    "engine": "v2-hybrid",
+    "degraded": false,
+    "results": [
+      {
+        "surah": 2, "ayah": 153, "surah_name": "Al-Baqarah",
+        "text_uthmani": "...", "translation": "...", "score": 0.031746,
+        "matched_because": {
+          "dense": { "score": 0.71, "doc_type": "en" },
+          "lexical": { "score": 4.82 }
+        }
+      }
+    ]
+  },
+  "meta": { "total": 3 }
+}`}
+          />
+          <Endpoint
+            method="GET"
+            path="/api/v1/search/semantic"
+            description="English-only semantic search over pre-computed vector embeddings. Lighter than /search/concept — use it when your queries are always English and you don't need Arabic understanding or the matched_because breakdown."
+            params={[
+              { name: 'q', description: 'Natural language query, English (max 500 chars)', required: true },
               { name: 'limit', description: 'Max results (default 10, max 50)' },
             ]}
             example="/api/v1/search/semantic?q=day+of+judgment&limit=3"
@@ -469,6 +624,22 @@ export default function ApiPage() {
               <span className="text-gold shrink-0">&bull;</span>
               <span>
                 The root search endpoint accepts Arabic, Buckwalter, romanized, and English input &mdash; good for building a search bar.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-gold shrink-0">&bull;</span>
+              <span>
+                For meaning-based search prefer{' '}
+                <code className="text-xs bg-cream-dark px-1 py-0.5 rounded font-mono">/search/concept</code> &mdash; it
+                understands both English and Arabic queries and tells you <em>why</em> each verse matched.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <span className="text-gold shrink-0">&bull;</span>
+              <span>
+                Dictionary, poetry, and lexicon coverage is a growing curated subset &mdash; the dictionaries
+                endpoint returns an empty list for uncovered roots, while poetry and lexicon return a{' '}
+                <code className="text-xs bg-cream-dark px-1 py-0.5 rounded font-mono">404</code>. Handle both gracefully.
               </span>
             </li>
             <li className="flex gap-2">

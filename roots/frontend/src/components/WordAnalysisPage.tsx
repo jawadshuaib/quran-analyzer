@@ -10,6 +10,7 @@ import NoteButton from './NoteButton';
 import { buildWordContext } from '../utils/context-builders';
 import { TranslationWithChips } from './TermChip';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import DictionaryPanel from './DictionaryPanel';
 import type { NoteDescriptor } from '../utils/saved-item-actions';
 
 interface Props {
@@ -333,6 +334,9 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
           </div>
         </section>
       )}
+
+      {/* Classical Dictionaries for this word's root — auto-hides when none approved */}
+      {data.root_buckwalter && <DictionaryPanel rootBw={data.root_buckwalter} />}
 
       {/* Other occurrences */}
       {data.other_occurrences.length > 0 && (

@@ -26,6 +26,7 @@ Usage:
 import argparse
 import hashlib
 import os
+import re
 import sys
 import time
 
@@ -37,7 +38,7 @@ from app import DB_PATH, get_db, _strip_bismillah  # noqa: E402
 VOYAGE_URL = "https://api.voyageai.com/v1/embeddings"
 DEFAULT_MODEL = "voyage-4-lite"
 DEFAULT_DIM = 512
-DOC_TYPES = ("ar", "en")
+DOC_TYPES = ("ar", "en", "exeg")
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -148,6 +149,58 @@ def build_ar_text(text_uthmani, chapter, verse):
     return _strip_bismillah(text_uthmani, chapter, verse).strip()
 
 
+_MD_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+_MD_MARK_RE = re.compile(r"[*_`#>]+")
+_WS_RE = re.compile(r"\s+")
+
+
+def strip_markdown(md):
+    """Flatten exegesis markdown to plain prose for embedding: keep the words,
+    drop emphasis/heading/link syntax (link text is kept)."""
+    if not md:
+        return ""
+    t = _MD_LINK_RE.sub(r"\1", md)
+    t = _MD_MARK_RE.sub("", t)
+    return _WS_RE.sub(" ", t).strip()
+
+
+def fetch_exegesis(conn):
+    """(chapter, verse) -> plain-text exegesis, approved & visible only."""
+    out = {}
+    for r in conn.execute(
+        "SELECT chapter, verse, exegesis_markdown FROM verse_exegesis "
+        "WHERE review_status='approved' AND hidden=0 AND LENGTH(exegesis_markdown) > 50"
+    ):
+        txt = strip_markdown(r["exegesis_markdown"])
+        if txt:
+            out[(r["chapter"], r["verse"])] = txt
+    return out
+
+
+def chunk_exegesis(text, mode):
+    """Return the exeg sub-documents for one note.
+    mode='whole' -> one doc (v0). mode='para' -> paragraph/sentence chunks so a
+    focused chunk can win the per-verse max and one drifting sentence can't
+    define the vector (the documented fallback if precision suffers)."""
+    if mode != "para":
+        return [text]
+    # Split on sentence-ish boundaries, then regroup into ~2-3 chunks of
+    # roughly balanced length (avoid one-sentence fragments).
+    import re as _re
+    parts = [p.strip() for p in _re.split(r"(?<=[.!?…])\s+", text) if p.strip()]
+    if len(parts) <= 2:
+        return [text]
+    target = max(1, len(parts) // 3)
+    chunks, cur = [], []
+    for p in parts:
+        cur.append(p)
+        if len(cur) >= target:
+            chunks.append(" ".join(cur)); cur = []
+    if cur:
+        chunks.append(" ".join(cur))
+    return chunks or [text]
+
+
 def text_hash(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
@@ -209,11 +262,14 @@ def main():
     ap.add_argument("--pace-tpm", type=int, default=9000,
                     help="proactively pace requests to this tokens/min budget "
                          "(free-tier cap is 10K TPM; 0 disables pacing)")
+    ap.add_argument("--exeg-chunk", default="whole", choices=["whole", "para"],
+                    help="exeg granularity: 'whole' = one doc per note (v0); "
+                         "'para' = paragraph sub-docs exeg0/exeg1/... (drift fallback)")
     args = ap.parse_args()
 
     doc_types = [d.strip() for d in args.doc_types.split(",") if d.strip() in DOC_TYPES]
     if not doc_types:
-        raise SystemExit("--doc-types must be a subset of: ar,en")
+        raise SystemExit("--doc-types must be a subset of: " + ",".join(DOC_TYPES))
 
     conn = get_db()
     ensure_table(conn)
@@ -221,7 +277,9 @@ def main():
     verses = fetch_docs(conn)
     if args.limit:
         verses = verses[: args.limit]
-    print(f"{len(verses)} verses; doc types={doc_types}; model={args.model} dim={args.dim}")
+    exeg = fetch_exegesis(conn) if "exeg" in doc_types else {}
+    print(f"{len(verses)} verses ({len(exeg)} w/ exegesis); doc types={doc_types}; "
+          f"model={args.model} dim={args.dim} exeg-chunk={args.exeg_chunk}")
 
     # Build the (chapter, verse, doc_type, text, hash) work list.
     work = []
@@ -235,6 +293,12 @@ def main():
             t = build_en_text(r["translation"], r["themes"])
             if t:
                 work.append((ch, v, "en", t, text_hash(t)))
+        if "exeg" in doc_types and (ch, v) in exeg:
+            chunks = chunk_exegesis(exeg[(ch, v)], args.exeg_chunk)
+            for i, chunk in enumerate(chunks):
+                # 'exeg' for whole; 'exeg0'/'exeg1'/... for chunks (distinct PKs).
+                dt = "exeg" if len(chunks) == 1 else f"exeg{i}"
+                work.append((ch, v, dt, chunk, text_hash(chunk)))
 
     # Skip already-embedded, unchanged docs (resumable) unless --force. The key
     # includes dim: `dim` is NOT part of the table PK, so a --dim change on the

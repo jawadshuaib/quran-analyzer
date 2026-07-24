@@ -324,6 +324,41 @@ def get_verse_exegesis_v1(surah: int, ayah: int):
         conn.close()
 
 
+@v1_bp.route("/verses/<int:surah>:<int:ayah>/poetry")
+def get_verse_poetry_v1(surah: int, ayah: int):
+    """Verse-level note on how a load-bearing root in this verse was used in
+    pre-Islamic poetry, with the quoted attested lines. Only approved,
+    non-hidden notes are returned (404 otherwise); coverage is a curated
+    subset of verses, not the whole Qur'an."""
+    mod = _app()
+    conn = mod.get_db()
+    try:
+        if not _verse_exists(conn, surah, ayah):
+            return _error("VERSE_NOT_FOUND", f"Verse {surah}:{ayah} does not exist", 404)
+        mod._ensure_poetry_serve_tables(conn)
+        row = conn.execute(
+            "SELECT focus_root_buckwalter, note_markdown, quoted_lines_json, "
+            "COALESCE(continuity,0) AS continuity, confidence, created_at "
+            "FROM verse_poetry_notes "
+            "WHERE chapter = ? AND verse = ? AND review_status = 'approved' "
+            "  AND COALESCE(hidden,0) = 0 LIMIT 1",
+            (surah, ayah),
+        ).fetchone()
+        if not row:
+            return _error("NO_DATA", f"No poetry note for {surah}:{ayah}", 404)
+        return _envelope({
+            "surah": surah, "ayah": ayah,
+            "focus_root_buckwalter": row["focus_root_buckwalter"],
+            "note_markdown": row["note_markdown"],
+            "quoted_lines": mod._poetry_quoted(conn, row["quoted_lines_json"]),
+            "continuity": bool(row["continuity"]),
+            "confidence": row["confidence"],
+            "created_at": row["created_at"],
+        })
+    finally:
+        conn.close()
+
+
 # ---------------------------------------------------------------------------
 # 2. WORDS
 # ---------------------------------------------------------------------------
@@ -835,6 +870,147 @@ def search_roots():
 
 
 # ---------------------------------------------------------------------------
+# 3b. CLASSICAL DICTIONARIES — "The Lexicon Library"
+#     Harmonized English definitions of a root drawn from the great classical
+#     Arabic dictionaries (one entry per author, ordered by author death-year —
+#     chronology is the method), sourced from arabiclexicon.hawramani.com and
+#     rewritten for readability with the original Arabic + a faithful, close
+#     translation one call away. Only editorially approved, non-hidden entries
+#     are exposed.
+# ---------------------------------------------------------------------------
+
+@v1_bp.route("/roots/<root_bw>/dictionaries")
+def get_root_dictionaries_v1(root_bw: str):
+    """List the approved, harmonized classical-dictionary definitions for a root,
+    ordered by author death-year. Returns an empty list (200) if the root has no
+    approved entries yet — not every root is covered."""
+    mod = _app()
+    conn = mod.get_db()
+    try:
+        mod._ensure_dict_tables(conn)
+        rows = conn.execute(
+            "SELECT e.id, e.root_arabic, e.dictionary_slug, e.harmonized_en, e.confidence, "
+            "d.name_en, d.name_ar, d.author, d.author_death_year, d.language, d.is_quran_specific "
+            "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
+            "WHERE e.root_buckwalter = ? AND e.review_status = 'approved' "
+            "AND COALESCE(e.hidden,0) = 0 AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
+            "ORDER BY d.author_death_year ASC, d.sort_order ASC",
+            (root_bw,),
+        ).fetchall()
+        items = [{**mod._dict_meta(r), "entry_id": r["id"], "harmonized_en": r["harmonized_en"]}
+                 for r in rows]
+        return _envelope({
+            "root_buckwalter": root_bw,
+            "root_arabic": rows[0]["root_arabic"] if rows else mod._root_arabic_map.get(root_bw),
+            "dictionaries": items,
+            "ejtaal_url": mod._ejtaal_url(root_bw),
+        }, meta={"total": len(items)})
+    finally:
+        conn.close()
+
+
+@v1_bp.route("/dictionaries/entries/<int:entry_id>")
+def get_dictionary_entry_v1(entry_id: int):
+    """One dictionary entry in full: the harmonized English, the original Arabic,
+    and a faithful close translation, plus provenance (the source page on
+    hawramani + an ejtaal comparison link). Entry ids come from the
+    /roots/{root}/dictionaries list."""
+    mod = _app()
+    conn = mod.get_db()
+    try:
+        mod._ensure_dict_tables(conn)
+        r = conn.execute(
+            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, "
+            "d.language, d.is_quran_specific "
+            "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
+            "WHERE e.id = ? AND e.review_status = 'approved' AND COALESCE(e.hidden,0) = 0",
+            (entry_id,),
+        ).fetchone()
+        if not r:
+            return _error("NO_DATA", f"No approved dictionary entry with id {entry_id}", 404)
+        return _envelope({
+            **mod._dict_meta(r), "entry_id": r["id"],
+            "root_buckwalter": r["root_buckwalter"], "root_arabic": r["root_arabic"],
+            "harmonized_en": r["harmonized_en"],
+            "original_text_ar": r["original_text_ar"], "translation_en": r["translation_en"],
+            "source_url": r["source_url"], "ejtaal_url": mod._ejtaal_url(r["root_buckwalter"]),
+        })
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# 3c. PRE-ISLAMIC POETRY & CONTEMPORANEOUS ATTESTATION
+#     How a root was actually used in the most reliably transmitted pre-Islamic
+#     (6th-century) Arabic poetry — the "Qur'an-only meaning" evidence base:
+#     what a word is *attested* to mean before the Qur'an, shown as evidence
+#     rather than an imported codified definition. Only approved, non-hidden
+#     entries are exposed; coverage is a curated subset of load-bearing roots.
+# ---------------------------------------------------------------------------
+
+@v1_bp.route("/roots/<root_bw>/poetry")
+def get_root_poetry_v1(root_bw: str):
+    """Root-level comparison of the root's Qur'anic usage against its usage in
+    pre-Islamic poetry (semantic continuity or shift), with quoted attested
+    lines. 404 if there's no approved comparison for this root."""
+    mod = _app()
+    conn = mod.get_db()
+    try:
+        mod._ensure_poetry_serve_tables(conn)
+        row = conn.execute(
+            "SELECT root_arabic, shift_type, comparison_markdown, quran_usage_summary, "
+            "poetry_usage_summary, quoted_lines_json, collocations_json, "
+            "COALESCE(continuity,0) AS continuity, confidence, created_at "
+            "FROM root_poetry_comparisons "
+            "WHERE root_buckwalter = ? AND review_status = 'approved' "
+            "  AND COALESCE(hidden,0) = 0 LIMIT 1",
+            (root_bw,),
+        ).fetchone()
+        if not row:
+            return _error("NO_DATA", f"No poetry comparison for root '{root_bw}'", 404)
+        collocations = _safe_json(row["collocations_json"], None)
+        return _envelope({
+            "root_buckwalter": root_bw,
+            "root_arabic": row["root_arabic"],
+            "shift_type": row["shift_type"],
+            "comparison_markdown": row["comparison_markdown"],
+            "quran_usage_summary": row["quran_usage_summary"],
+            "poetry_usage_summary": row["poetry_usage_summary"],
+            "quoted_lines": mod._poetry_quoted(conn, row["quoted_lines_json"]),
+            "collocations": collocations,
+            "continuity": bool(row["continuity"]),
+            "confidence": row["confidence"],
+            "created_at": row["created_at"],
+        })
+    finally:
+        conn.close()
+
+
+@v1_bp.route("/roots/<root_bw>/lexicon")
+def get_root_lexicon_v1(root_bw: str):
+    """Contemporaneous-attestation lexicon: the senses a root is attested to carry
+    in authenticated 6th-century poetry, with a summary of how that relates to
+    the Qur'an's own usage and the quoted lines that evidence each sense. 404 if
+    there's no approved entry."""
+    mod = _app()
+    conn = mod.get_db()
+    try:
+        mod._ensure_lexicon_table(conn)
+        row = conn.execute(
+            "SELECT * FROM root_poetic_lexicon WHERE root_buckwalter = ? "
+            "AND review_status = 'approved' AND COALESCE(hidden,0) = 0 LIMIT 1",
+            (root_bw,),
+        ).fetchone()
+        if not row:
+            return _error("NO_DATA", f"No lexicon entry for root '{root_bw}'", 404)
+        out = mod._lexicon_public(conn, row)
+        out["root_buckwalter"] = root_bw
+        return _envelope(out)
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
 # 4. SURAHS
 # ---------------------------------------------------------------------------
 
@@ -1022,6 +1198,70 @@ def search_semantic():
             })
         return _envelope(
             {"query": query, "results": out},
+            meta={"total": len(out)},
+        )
+    finally:
+        conn.close()
+
+
+@v1_bp.route("/search/concept")
+def search_concept():
+    """GET /api/v1/search/concept?q=<concept>&limit=15
+
+    Multilingual concept search. Understands a plain-language *idea* — in English
+    OR Arabic — and returns the verses that best match it, fusing dense semantic
+    retrieval (a hosted multilingual embedding over both the Arabic text and its
+    English rendering) with lexical root matching via reciprocal-rank fusion.
+
+    Unlike /search/semantic (English-only vectors), this handles Arabic queries
+    like "آيات عن الصبر" as well as English ones like "verse involving satan and
+    adam". Each result carries a "matched_because" breakdown showing whether the
+    dense arm, the lexical arm, or both surfaced it.
+
+    Never fails hard: if the multilingual index or embedding service is
+    unavailable the endpoint degrades to the English encoder + lexical matching
+    and sets "degraded": true (with "engine" naming the tier that actually ran).
+    """
+    mod = _app()
+    query = request.args.get("q", "").strip()
+    if not query:
+        return _error("INVALID_PARAM", "Missing required query parameter 'q'", 400)
+    if len(query) > 500:
+        return _error("INVALID_PARAM", "Query too long (max 500 characters)", 400)
+    try:
+        limit = min(int(request.args.get("limit", "15")), 50)
+    except (ValueError, TypeError):
+        return _error("INVALID_PARAM", "limit must be a positive integer", 400)
+
+    # Same per-IP guard as the site's own /api/search/v2 — the dense arm calls a
+    # metered upstream, so bound abusive callers.
+    try:
+        if mod._search_v2_rate_limited(mod._get_client_ip()):
+            return _error("RATE_LIMITED", "Too many searches, slow down a moment.", 429)
+    except Exception:
+        pass
+
+    conn = mod.get_db()
+    try:
+        sv2 = getattr(mod, "search_v2", None)
+        if sv2 is None:
+            # Module unavailable — degrade to the English encoder so search still works.
+            results = mod._semantic_search(query, limit=limit)
+            out = [mod._shape_v2_result(conn, ch, v, round(score, 6), {})
+                   for ch, v, score, _snippet in results]
+            return _envelope(
+                {"query": query, "results": out, "degraded": True, "engine": "v1-only"},
+                meta={"total": len(out)},
+            )
+
+        res = sv2.hybrid_search(query, limit=limit)
+        out = [mod._shape_v2_result(conn, r["surah"], r["ayah"], r["score"],
+                                    r.get("matched_because", {}))
+               for r in res["results"]]
+        return _envelope(
+            {"query": query, "results": out,
+             "degraded": res.get("degraded", False),
+             "engine": res.get("engine", "v2-hybrid")},
             meta={"total": len(out)},
         )
     finally:

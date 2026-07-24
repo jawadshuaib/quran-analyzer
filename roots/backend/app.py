@@ -5435,7 +5435,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/verse-of-the-day|/stats|/judge-lessons|/qa|/qa-videos|/exegesis|/poetry|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/verse-of-the-day|/stats|/judge-lessons|/qa|/qa-videos|/exegesis|/poetry|/dictionaries|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
         return True
     return False
 
@@ -7234,6 +7234,292 @@ def get_verse_root_lexicon(surah: int, ayah: int):
                 "lexicon": _lexicon_public(conn, lex) if lex else None,
             })
         return jsonify({"surah": surah, "ayah": ayah, "words": out})
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# The Lexicon Library — harmonized classical-dictionary root definitions.
+# One page per root aggregating each dictionary's entry (date-ordered), sourced
+# respectfully from arabiclexicon.hawramani.com, harmonized to readable English
+# with the original Arabic + a faithful translation one click away. Buckwalter-
+# keyed; review_status/hidden gate public reads (approved AND NOT hidden).
+# ---------------------------------------------------------------------------
+def _ensure_dict_tables(conn):
+    """Self-heal the Lexicon Library tables (prod before its first sync)."""
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS dictionaries (
+        id INTEGER PRIMARY KEY, slug TEXT UNIQUE NOT NULL,
+        hawramani_category_id INTEGER, name_en TEXT, name_ar TEXT,
+        author TEXT, author_death_year INTEGER, language TEXT,
+        is_quran_specific INTEGER DEFAULT 0, phase INTEGER DEFAULT 1,
+        sort_order INTEGER, description_en TEXT
+    );
+    CREATE TABLE IF NOT EXISTS dictionary_entries (
+        id INTEGER PRIMARY KEY,
+        root_buckwalter TEXT NOT NULL, root_arabic TEXT,
+        dictionary_slug TEXT NOT NULL,
+        original_text_ar TEXT, translation_en TEXT, harmonized_en TEXT,
+        source_url TEXT, source_anchor TEXT, scrape_hash TEXT,
+        review_status TEXT DEFAULT 'pending', hidden INTEGER DEFAULT 0,
+        confidence REAL, gen_meta TEXT, raw_response TEXT,
+        created_at TEXT DEFAULT (datetime('now')), edited_at TEXT,
+        UNIQUE(root_buckwalter, dictionary_slug)
+    );
+    CREATE INDEX IF NOT EXISTS idx_dictentry_root ON dictionary_entries(root_buckwalter);
+    """)
+    conn.commit()
+
+
+def _ejtaal_url(root_bw):
+    """ejtaal.net keeps its external-reference link (Buckwalter root key)."""
+    return "https://ejtaal.net/aa/#bwq=%s" % (root_bw or "")
+
+
+def _dict_meta(r):
+    return {
+        "dictionary_slug": r["dictionary_slug"], "name_en": r["name_en"],
+        "name_ar": r["name_ar"], "author": r["author"],
+        "author_death_year": r["author_death_year"], "language": r["language"],
+        "is_quran_specific": bool(r["is_quran_specific"]),
+    }
+
+
+@app.route("/api/root/<root_bw>/dictionaries")
+def get_root_dictionaries(root_bw: str):
+    """Public View 1: the approved, harmonized dictionary definitions for a root,
+    ordered by author death-year (chronology is the method). Empty list if none."""
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        rows = conn.execute(
+            "SELECT e.id, e.root_arabic, e.dictionary_slug, e.harmonized_en, e.confidence, "
+            "d.name_en, d.name_ar, d.author, d.author_death_year, d.language, d.is_quran_specific "
+            "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
+            "WHERE e.root_buckwalter = ? AND e.review_status = 'approved' "
+            "AND COALESCE(e.hidden,0) = 0 AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
+            "ORDER BY d.author_death_year ASC, d.sort_order ASC",
+            (root_bw,)).fetchall()
+        items = [{**_dict_meta(r), "entry_id": r["id"], "harmonized_en": r["harmonized_en"]}
+                 for r in rows]
+        return jsonify({
+            "root_buckwalter": root_bw,
+            "root_arabic": rows[0]["root_arabic"] if rows else None,
+            "count": len(items), "dictionaries": items,
+            "ejtaal_url": _ejtaal_url(root_bw),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/dictionary-entry/<int:entry_id>")
+def get_dictionary_entry(entry_id: int):
+    """Public View 2: one entry's original Arabic + faithful translation + the
+    harmonized text, with provenance links (hawramani + ejtaal)."""
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        r = conn.execute(
+            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, "
+            "d.language, d.is_quran_specific "
+            "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
+            "WHERE e.id = ? AND e.review_status = 'approved' AND COALESCE(e.hidden,0) = 0",
+            (entry_id,)).fetchone()
+        if not r:
+            return jsonify({"error": "Not found"}), 404
+        return jsonify({
+            **_dict_meta(r), "entry_id": r["id"],
+            "root_buckwalter": r["root_buckwalter"], "root_arabic": r["root_arabic"],
+            "original_text_ar": r["original_text_ar"], "translation_en": r["translation_en"],
+            "harmonized_en": r["harmonized_en"], "source_url": r["source_url"],
+            "ejtaal_url": _ejtaal_url(r["root_buckwalter"]),
+        })
+    finally:
+        conn.close()
+
+
+# --- Admin review surface for the Lexicon Library -------------------------
+_DICT_EDITABLE = {"harmonized_en", "translation_en"}
+
+
+def _dict_admin_row(r):
+    d = dict(r)
+    d["hidden"] = bool(d.get("hidden"))
+    d["is_quran_specific"] = bool(d.get("is_quran_specific"))
+    d["harm_len"] = len(d.get("harmonized_en") or "")
+    d["orig_len"] = len(d.get("original_text_ar") or "")
+    # verify verdict from gen_meta, surfaced for the reviewer
+    try:
+        v = (json.loads(d.get("gen_meta") or "{}") or {}).get("verify") or {}
+        d["verify_ok"] = v.get("ok")
+        d["verify_reason"] = v.get("reason")
+    except Exception:
+        d["verify_ok"], d["verify_reason"] = None, None
+    d.pop("gen_meta", None); d.pop("raw_response", None); d.pop("scrape_hash", None)
+    d["label"] = d.get("root_arabic") or d.get("root_buckwalter")
+    d["link"] = "/root/%s" % d.get("root_buckwalter")
+    return d
+
+
+@app.route("/api/admin/dictionaries", methods=["GET"])
+@admin_required
+def admin_list_dictionaries():
+    q = (request.args.get("q") or "").strip()
+    root = (request.args.get("root") or "").strip()
+    slug = (request.args.get("dictionary_slug") or "").strip()
+    review_status = (request.args.get("review_status") or "").strip()
+    status = (request.args.get("status") or "all").strip()
+    sort = (request.args.get("sort") or "recent").strip()
+    only = (request.args.get("only") or "").strip()  # harmonized|unharmonized
+    sort_sql = {
+        "recent": "e.edited_at DESC, e.id DESC",
+        "root": "e.root_buckwalter ASC, d.author_death_year ASC",
+        "confidence": "e.confidence ASC, e.id DESC",
+        "longest": "LENGTH(e.harmonized_en) DESC",
+    }.get(sort, "e.edited_at DESC, e.id DESC")
+    try:
+        limit = min(max(int(request.args.get("limit", 25)), 1), 100)
+    except (ValueError, TypeError):
+        limit = 25
+    try:
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (ValueError, TypeError):
+        offset = 0
+
+    where, params = [], []
+    if q:
+        where.append("(e.harmonized_en LIKE ? OR e.translation_en LIKE ? OR e.root_buckwalter LIKE ?)")
+        params += ["%%%s%%" % q] * 3
+    if root:
+        where.append("e.root_buckwalter = ?"); params.append(root)
+    if slug:
+        where.append("e.dictionary_slug = ?"); params.append(slug)
+    if review_status:
+        where.append("e.review_status = ?"); params.append(review_status)
+    if status == "visible":
+        where.append("COALESCE(e.hidden,0) = 0")
+    elif status == "hidden":
+        where.append("COALESCE(e.hidden,0) = 1")
+    if only == "harmonized":
+        where.append("e.harmonized_en IS NOT NULL AND e.harmonized_en <> ''")
+    elif only == "unharmonized":
+        where.append("(e.harmonized_en IS NULL OR e.harmonized_en = '')")
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        base = ("FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug %s"
+                % where_sql)
+        total = conn.execute("SELECT COUNT(*) AS c " + base, params).fetchone()["c"]
+        rows = conn.execute(
+            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, "
+            "d.language, d.is_quran_specific " + base
+            + " ORDER BY %s LIMIT ? OFFSET ?" % sort_sql, params + [limit, offset]).fetchall()
+        return jsonify({"items": [_dict_admin_row(r) for r in rows],
+                        "total": total, "limit": limit, "offset": offset})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/dictionaries/stats", methods=["GET"])
+@admin_required
+def admin_dictionaries_stats():
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        s = lambda w, p=(): conn.execute(  # noqa: E731
+            "SELECT COUNT(*) AS c FROM dictionary_entries " + w, p).fetchone()["c"]
+        harm = "harmonized_en IS NOT NULL AND harmonized_en <> ''"
+        stats = {
+            "total": s(""),
+            "harmonized": s("WHERE " + harm),
+            "pending": s("WHERE review_status='pending'"),
+            "approved": s("WHERE review_status='approved'"),
+            "rejected": s("WHERE review_status='rejected'"),
+            "hidden": s("WHERE COALESCE(hidden,0)=1"),
+            "roots": conn.execute(
+                "SELECT COUNT(DISTINCT root_buckwalter) AS c FROM dictionary_entries").fetchone()["c"],
+        }
+        by_dict = conn.execute(
+            "SELECT d.slug, d.name_en, d.author_death_year, COUNT(e.id) AS n, "
+            "SUM(CASE WHEN e.review_status='approved' THEN 1 ELSE 0 END) AS approved "
+            "FROM dictionaries d LEFT JOIN dictionary_entries e ON e.dictionary_slug=d.slug "
+            "GROUP BY d.slug ORDER BY d.author_death_year").fetchall()
+        stats["by_dictionary"] = [dict(r) for r in by_dict]
+        return jsonify(stats)
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/dictionary/<int:entry_id>", methods=["PATCH"])
+@admin_required
+def admin_update_dictionary(entry_id: int):
+    data = request.get_json(silent=True) or {}
+    sets, params = [], []
+    if "review_status" in data:
+        rs = data.get("review_status")
+        if rs not in ("pending", "approved", "rejected"):
+            return jsonify({"error": "review_status must be pending/approved/rejected"}), 400
+        sets.append("review_status = ?"); params.append(rs)
+    if "hidden" in data:
+        sets.append("hidden = ?"); params.append(1 if data.get("hidden") else 0)
+    for f in _DICT_EDITABLE:
+        if f in data:
+            sets.append("%s = ?" % f); params.append((data.get(f) or "").strip())
+    if not sets:
+        return jsonify({"error": "nothing to update"}), 400
+    sets.append("edited_at = datetime('now')")
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        cur = conn.execute("UPDATE dictionary_entries SET %s WHERE id = ?" % ", ".join(sets),
+                           params + [entry_id])
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "Not found"}), 404
+        r = conn.execute(
+            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, "
+            "d.language, d.is_quran_specific FROM dictionary_entries e "
+            "JOIN dictionaries d ON d.slug=e.dictionary_slug WHERE e.id = ?", (entry_id,)).fetchone()
+        return jsonify(_dict_admin_row(r))
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/dictionaries/bulk", methods=["POST"])
+@admin_required
+def admin_bulk_dictionaries():
+    """Bulk review action over a filter (approve/reject/hide/unhide). Handy for
+    ~3.5k entries: e.g. approve all harmonized entries for one dictionary, or all
+    verify-clean pending. Never touches un-harmonized rows on approve."""
+    data = request.get_json(silent=True) or {}
+    action = (data.get("action") or "").strip()
+    setmap = {
+        "approve": "review_status='approved'", "reject": "review_status='rejected'",
+        "pending": "review_status='pending'", "hide": "hidden=1", "unhide": "hidden=0",
+    }
+    if action not in setmap:
+        return jsonify({"error": "action must be approve/reject/pending/hide/unhide"}), 400
+    where, params = [], []
+    if data.get("root"):
+        where.append("root_buckwalter = ?"); params.append(data["root"])
+    if data.get("dictionary_slug"):
+        where.append("dictionary_slug = ?"); params.append(data["dictionary_slug"])
+    if data.get("review_status"):
+        where.append("review_status = ?"); params.append(data["review_status"])
+    if action == "approve":  # only ever approve harmonized rows
+        where.append("harmonized_en IS NOT NULL AND harmonized_en <> ''")
+    if not where:
+        return jsonify({"error": "refusing an unfiltered bulk action"}), 400
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        cur = conn.execute(
+            "UPDATE dictionary_entries SET %s, edited_at=datetime('now') WHERE %s"
+            % (setmap[action], " AND ".join(where)), params)
+        conn.commit()
+        return jsonify({"action": action, "updated": cur.rowcount})
     finally:
         conn.close()
 

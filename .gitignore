@@ -24,6 +24,7 @@ roots/backend/data/tts_cache/
 # Video resources and generated videos
 roots/backend/data/resources/
 roots/backend/data/generated_videos/
+roots/backend/data/qa_videos/
 
 # Batch API files (large JSONL request/result/error files + state)
 roots/backend/batch_files/
@@ -75,6 +76,20 @@ ui-prototype/
 roots/backend/data/poetry/*.csv
 roots/backend/data/poetry/*.tsv
 roots/backend/data/poetry/raw/
+
+# Lexicon Library: raw scraped HTML cache from arabiclexicon.hawramani.com
+# and the sitemap index cache — resumability aids for dict_scrape.py, not
+# part of the deployed app (the harmonized data itself lives in quran.db).
+roots/backend/data/dict_cache/
+roots/backend/data/dict_sitemap_cache/
+
+# Lexicon Library harmonize/review/translate loop scratch (batch dumps +
+# worklists regenerated on every tick — same pattern as batch_files/ above).
+roots/backend/data/dict_drafts_output.json
+roots/backend/data/dict_harmonize_batches.json
+roots/backend/data/dict_harmonize_dump.json
+roots/backend/data/dict_review_dump.json
+roots/backend/data/dict_translate_dump.json
 
 # Claude
 CLAUDE.md

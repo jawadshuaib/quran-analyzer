@@ -37,6 +37,20 @@ W_LEXICAL = 0.7
 DENSE_FLOOR = 0.30          # cosine floor: below this a dense hit is noise
 LEXICAL_CAP = 200           # max verses the lexical arm scores per query
 
+# --- Stage-2 exegesis experiment (guarded doc_type='exeg', off by default) ---
+# Exegesis is commentary ABOUT the verse; it can lift recall on abstract queries
+# but risks bycatch (matching a term the commentary mentions, not the verse).
+# Guardrails: it participates only when enabled; needs a HIGHER cosine floor to
+# count; and if the verse's own ar/en text is within TIE_EPS of the exeg score,
+# the hit is attributed to the own text (it would have surfaced anyway).
+INCLUDE_EXEG = os.environ.get("SEARCH_V2_EXEG", "0") == "1"
+EXEG_FLOOR = float(os.environ.get("SEARCH_V2_EXEG_FLOOR", "0.38"))
+TIE_EPS = 0.04
+
+
+def _is_exeg(dt):
+    return dt.startswith("exeg")
+
 _ARABIC_RE = re.compile(r"[؀-ۿ]")
 _TASHKEEL_RE = re.compile(r"[ً-ْٰـ]")
 
@@ -243,16 +257,37 @@ def embed_query(q):
 # Dense arm — per-verse MAX across its ar/en doc vectors (same space)
 # --------------------------------------------------------------------------
 def _dense_search(q_vec, limit):
-    """Returns [(ch, v, score, doc_type)] ranked by cosine, above DENSE_FLOOR."""
+    """Per-verse MAX cosine across its doc vectors, ranked. Guardrails:
+    exeg vectors participate only if INCLUDE_EXEG, need EXEG_FLOOR (> DENSE_FLOOR),
+    and if the verse's own ar/en text is within TIE_EPS of a winning exeg score
+    the hit is attributed to that own text. Returns [(ch, v, score, doc_type)]
+    with doc_type in {ar, en, exeg}."""
     if not _v2_ready or _v2_matrix is None:
         return []
     doc_scores = _v2_matrix @ q_vec  # (N,)
     out = []
     for (ch, v), rows in _v2_verse_rows.items():
-        idx = rows[np.argmax(doc_scores[rows])]
-        s = float(doc_scores[idx])
-        if s >= DENSE_FLOOR:
-            out.append((ch, v, s, _v2_doc_type[idx]))
+        best_s, best_dt = None, None          # best doc clearing its floor
+        best_own_s, best_own_dt = -1.0, None  # best ar/en doc clearing its floor
+        for i in rows:
+            dt = _v2_doc_type[i]
+            is_ex = _is_exeg(dt)
+            if is_ex and not INCLUDE_EXEG:
+                continue
+            s = float(doc_scores[i])
+            if s < (EXEG_FLOOR if is_ex else DENSE_FLOOR):
+                continue
+            if not is_ex and s > best_own_s:
+                best_own_s, best_own_dt = s, dt
+            if best_s is None or s > best_s:
+                best_s, best_dt = s, dt
+        if best_s is None:
+            continue
+        # Tie-break: exeg only "wins" a verse when it beats the verse's own text
+        # by more than TIE_EPS; otherwise credit the own text (it'd surface anyway).
+        if _is_exeg(best_dt) and best_own_dt is not None and best_own_s >= best_s - TIE_EPS:
+            best_s, best_dt = best_own_s, best_own_dt
+        out.append((ch, v, best_s, "exeg" if _is_exeg(best_dt) else best_dt))
     out.sort(key=lambda x: -x[2])
     return out[:limit]
 

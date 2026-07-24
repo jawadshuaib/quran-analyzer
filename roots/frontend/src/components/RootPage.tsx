@@ -10,6 +10,7 @@ import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
 import PoetryComparison from './PoetryComparison';
+import DictionaryPanel from './DictionaryPanel';
 import FormattedText, { FormattedInline } from './FormattedText';
 import type { NoteDescriptor } from '../utils/saved-item-actions';
 
@@ -196,6 +197,9 @@ export default function RootPage({ rootBw }: Props) {
         </section>
       )}
 
+      {/* Classical Dictionaries — auto-hides when the root has no approved entries */}
+      <DictionaryPanel rootBw={rootBw} />
+
       {/* Lemmas */}
       {data.lemmas.length > 0 && (
         <section className="mb-8">
@@ -352,7 +356,7 @@ export default function RootPage({ rootBw }: Props) {
       <AskAssistant
         pageType="root"
         pageKey={rootBw}
-        contextGatherer={() => Promise.resolve(buildRootContext(data))}
+        contextGatherer={() => buildRootContext(data)}
       />
     </div>
   );

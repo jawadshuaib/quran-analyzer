@@ -37,6 +37,7 @@ import JudgeLessonsPage from './JudgeLessonsPage';
 import AdminAssistantQA from './AdminAssistantQA';
 import AdminExegesis from './AdminExegesis';
 import AdminPoetry from './AdminPoetry';
+import AdminDictionaries from './AdminDictionaries';
 import AdminQaVideos from './AdminQaVideos';
 
 type AdminRoute =
@@ -56,6 +57,7 @@ type AdminRoute =
   | 'assistant-qa'
   | 'exegesis'
   | 'poetry'
+  | 'dictionaries'
   | 'qa-videos';
 
 function getAdminRoute(): AdminRoute {
@@ -93,6 +95,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/qa\/?$/.test(path)) return 'assistant-qa';
   if (/^\/admin\/exegesis\/?$/.test(path)) return 'exegesis';
   if (/^\/admin\/poetry\/?$/.test(path)) return 'poetry';
+  if (/^\/admin\/dictionaries\/?$/.test(path)) return 'dictionaries';
   if (/^\/admin\/qa-videos\/?$/.test(path)) return 'qa-videos';
   return 'dashboard';
 }
@@ -168,6 +171,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Pre-Islamic Poetry',
     description: 'Root comparisons and verse notes setting the Qurʾān beside the Jahilī poets. Review, fix, hide, or remove.',
     matches: (r) => r === 'poetry',
+  },
+  {
+    href: '/admin/dictionaries',
+    label: 'Lexicon Library',
+    description: 'Harmonized classical-dictionary root definitions (sourced from arabiclexicon.hawramani.com). Review, edit, approve — approved entries appear on the root & word pages.',
+    matches: (r) => r === 'dictionaries',
   },
   {
     href: '/admin/qa-videos',
@@ -363,6 +372,7 @@ export default function AdminPage() {
         {route === 'assistant-qa' && <AdminAssistantQA />}
         {route === 'exegesis' && <AdminExegesis />}
         {route === 'poetry' && <AdminPoetry />}
+        {route === 'dictionaries' && <AdminDictionaries />}
         {route === 'qa-videos' && <AdminQaVideos />}
       </div>
     </div>

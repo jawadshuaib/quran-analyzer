@@ -2699,6 +2699,101 @@ export async function bulkAdminPoetry(
 }
 
 // ---------------------------------------------------------------------------
+// The Lexicon Library — harmonized classical-dictionary entries
+// ---------------------------------------------------------------------------
+export interface AdminDictItem {
+  id: number;
+  root_buckwalter: string;
+  root_arabic: string | null;
+  dictionary_slug: string;
+  name_en: string;
+  author: string | null;
+  author_death_year: number | null;
+  language: string;
+  is_quran_specific: boolean;
+  harmonized_en: string | null;
+  translation_en: string | null;
+  original_text_ar: string | null;
+  source_url: string | null;
+  review_status: string | null;
+  hidden: boolean;
+  confidence: number | null;
+  harm_len: number;
+  orig_len: number;
+  verify_ok: boolean | null;
+  verify_reason: string | null;
+  label: string;
+  link: string;
+  edited_at: string | null;
+}
+
+export interface AdminDictByDict {
+  slug: string; name_en: string; author_death_year: number; n: number; approved: number;
+}
+export interface AdminDictStats {
+  total: number; harmonized: number; pending: number; approved: number;
+  rejected: number; hidden: number; roots: number; by_dictionary: AdminDictByDict[];
+}
+export type AdminDictSort = 'recent' | 'root' | 'confidence' | 'longest';
+export interface AdminDictQuery {
+  q?: string; root?: string; dictionary_slug?: string; review_status?: string;
+  status?: AdminQAStatus; sort?: AdminDictSort; only?: 'harmonized' | 'unharmonized';
+  limit?: number; offset?: number;
+}
+export interface AdminDictListResponse {
+  items: AdminDictItem[]; total: number; limit: number; offset: number;
+}
+
+export async function getAdminDictionaries(query: AdminDictQuery): Promise<AdminDictListResponse> {
+  const p = new URLSearchParams();
+  if (query.q) p.set('q', query.q);
+  if (query.root) p.set('root', query.root);
+  if (query.dictionary_slug) p.set('dictionary_slug', query.dictionary_slug);
+  if (query.review_status) p.set('review_status', query.review_status);
+  if (query.status && query.status !== 'all') p.set('status', query.status);
+  if (query.sort) p.set('sort', query.sort);
+  if (query.only) p.set('only', query.only);
+  p.set('limit', String(query.limit ?? 25));
+  p.set('offset', String(query.offset ?? 0));
+  const res = await authFetch(`${BASE}/dictionaries?${p}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load dictionaries');
+  return data as AdminDictListResponse;
+}
+
+export async function getAdminDictionaryStats(): Promise<AdminDictStats> {
+  const res = await authFetch(`${BASE}/dictionaries/stats`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load stats');
+  return data as AdminDictStats;
+}
+
+export async function updateAdminDictionary(
+  id: number,
+  patch: { review_status?: string; hidden?: boolean; harmonized_en?: string; translation_en?: string },
+): Promise<AdminDictItem> {
+  const res = await authFetch(`${BASE}/dictionary/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Update failed');
+  return data as AdminDictItem;
+}
+
+export async function bulkAdminDictionaries(
+  body: { action: string; root?: string; dictionary_slug?: string; review_status?: string },
+): Promise<{ action: string; updated: number }> {
+  const res = await authFetch(`${BASE}/dictionaries/bulk`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Bulk action failed');
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Q&A video script bank (pre-generated shorts)
 // ---------------------------------------------------------------------------
 

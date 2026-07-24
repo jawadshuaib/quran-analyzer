@@ -691,3 +691,33 @@ export interface WordAnalysisData {
   ai_meaning: WordAIMeaning | null;
   verse_root_buckwalters?: string[];
 }
+
+// --- The Lexicon Library: harmonized classical-dictionary root definitions ---
+export interface DictionaryItem {
+  entry_id: number;
+  dictionary_slug: string;
+  name_en: string;
+  name_ar: string | null;
+  author: string | null;
+  author_death_year: number | null;
+  language: string;
+  is_quran_specific: boolean;
+  harmonized_en: string;
+}
+
+export interface RootDictionaries {
+  root_buckwalter: string;
+  root_arabic: string | null;
+  count: number;
+  dictionaries: DictionaryItem[];
+  ejtaal_url: string;
+}
+
+export interface DictionaryEntryDetail extends DictionaryItem {
+  root_buckwalter: string;
+  root_arabic: string | null;
+  original_text_ar: string | null;
+  translation_en: string | null;
+  source_url: string | null;
+  ejtaal_url: string;
+}

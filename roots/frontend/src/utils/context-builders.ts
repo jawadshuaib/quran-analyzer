@@ -5,6 +5,103 @@
 
 import { API_BASE } from '../api/quran';
 
+// `[[q:ID|arabic]]` quote markers → bare Arabic (poetry/lexicon markdown carries them).
+const stripQ = (s: string) => String(s).replace(/\[\[q:\d+\|([^\]]+)\]\]/g, '$1');
+const collapse = (s: string) => String(s).replace(/\s+/g, ' ').trim();
+const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n).trimEnd() + '…' : s);
+
+/**
+ * Classical-dictionary block for one root — the harmonized definitions from the
+ * great Arabic lexicons (Maqāyīs, Mufradāt, Lisān, Lane, Tāj al-ʿArūs, …), one
+ * line per author. These are *attested lexical evidence* cited by author, never
+ * an imported codified definition. Each harmonized entry is clipped so a verse
+ * with many roots can't blow the system-prompt budget. Returns [] when the root
+ * has no approved entries (coverage is the top-frequency roots for now).
+ */
+async function fetchDictionariesBlock(
+  rootBw: string,
+  opts: { maxDicts?: number; perDictChars?: number; heading?: string } = {},
+): Promise<string[]> {
+  const { maxDicts = 8, perDictChars = 600, heading } = opts;
+  try {
+    const res = await fetch(`${API_BASE}/api/root/${encodeURIComponent(rootBw)}/dictionaries`);
+    if (!res.ok) return [];
+    const d = await res.json();
+    const dicts: Array<Record<string, unknown>> = d?.dictionaries || [];
+    if (!dicts.length) return [];
+    const out = [heading ?? `\n## Classical Dictionaries — root ${d.root_arabic || rootBw}`];
+    for (const it of dicts.slice(0, maxDicts)) {
+      const body = clip(collapse(String(it.harmonized_en || '')), perDictChars);
+      if (!body) continue;
+      out.push(`- ${it.name_en} (${it.author}, d. ${it.author_death_year}): ${body}`);
+    }
+    return out.length > 1 ? out : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Contemporaneous-attestation lexicon for one root — the senses the root is
+ * attested to carry in authenticated pre-Islamic (6th-c.) poetry, plus how that
+ * relates to the Qurʾān's own usage. Evidence, not doctrine.
+ */
+async function fetchLexiconBlock(
+  rootBw: string,
+  opts: { heading?: string; maxSenses?: number } = {},
+): Promise<string[]> {
+  const { heading, maxSenses = 6 } = opts;
+  try {
+    const res = await fetch(`${API_BASE}/api/root/${encodeURIComponent(rootBw)}/lexicon`);
+    if (!res.ok) return [];
+    const p = await res.json();
+    const senses: Array<Record<string, unknown>> = p?.attested_senses || [];
+    if (!senses.length && !p?.relation_to_quran) return [];
+    const out = [heading ?? `\n## Attested Pre-Islamic Meaning — root ${p.root_arabic || rootBw}`];
+    if (p.relation_to_quran) out.push(`Relation to Qurʾānic usage: ${p.relation_to_quran}`);
+    for (const s of senses.slice(0, maxSenses)) {
+      const sense = collapse(String(s.sense || ''));
+      const gloss = collapse(String(s.gloss_en || ''));
+      if (!sense && !gloss) continue;
+      out.push(`- ${sense}${gloss ? `: ${gloss}` : ''}`);
+    }
+    return out.length > 1 ? out : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Root-level pre-Islamic-poetry comparison for one root: how the Qurʾān's usage
+ * continues or shifts the Jāhilī poets' usage, with a couple of quoted lines.
+ */
+async function fetchRootPoetryBlock(
+  rootBw: string,
+  opts: { heading?: string; markdownChars?: number; maxLines?: number } = {},
+): Promise<string[]> {
+  const { heading, markdownChars = 1400, maxLines = 3 } = opts;
+  try {
+    const res = await fetch(`${API_BASE}/api/root/${encodeURIComponent(rootBw)}/poetry`);
+    if (!res.ok) return [];
+    const p = await res.json();
+    if (!p?.comparison_markdown) return [];
+    const verdict = p.continuity ? 'continuity' : p.shift_type;
+    const out = [
+      heading ?? `\n## In Pre-Islamic Poetry — root ${p.root_arabic || rootBw}${verdict ? ` (${verdict})` : ''}`,
+    ];
+    out.push(clip(stripQ(String(p.comparison_markdown)), markdownChars));
+    if (Array.isArray(p.quoted_lines) && p.quoted_lines.length) {
+      out.push('Lines quoted:');
+      for (const q of p.quoted_lines.slice(0, maxLines)) {
+        out.push(`- ${q.poet || 'unknown'}: ${q.arabic || ''}${q.english ? ` — "${q.english}"` : ''}`);
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Build context for a verse page. Uses the v1 API `?fields=all` for maximum context.
  */
@@ -133,10 +230,8 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
   }
 
   // Pre-Islamic poetry — the verse-level note (how this verse reshapes a word
-  // the Jahilī poets used) plus, for each root in the verse, the root-level
-  // comparison. Lets the assistant reason about the Qurʾān-vs-poetry contrast.
-  // `[[q:ID|arabic]]` quote markers are stripped to the bare Arabic for Claude.
-  const stripQ = (s: string) => String(s).replace(/\[\[q:\d+\|([^\]]+)\]\]/g, '$1');
+  // the Jahilī poets used). Lets the assistant reason about the Qurʾān-vs-poetry
+  // contrast. `[[q:ID|arabic]]` quote markers are stripped to bare Arabic.
   try {
     const res = await fetch(`${API_BASE}/api/verse/${surah}:${ayah}/poetry`);
     if (res.ok) {
@@ -155,30 +250,34 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
   } catch {
     // ignore — verse may have no poetry note
   }
-  // Root-level comparisons for the verse's roots (deduped, capped).
-  for (const bw of [...new Set(rootBws)].slice(0, 6)) {
-    try {
-      const res = await fetch(`${API_BASE}/api/root/${bw}/poetry`);
-      if (res.ok) {
-        const p = await res.json();
-        if (p?.comparison_markdown) {
-          const verdict = p.continuity ? 'continuity' : p.shift_type;
-          sections.push(`\n## In Pre-Islamic Poetry — root ${p.root_arabic || bw}${verdict ? ` (${verdict})` : ''}`);
-          sections.push(stripQ(p.comparison_markdown));
-        }
-      }
-    } catch {
-      // ignore — root may have no comparison
-    }
-  }
+
+  // Root-level scholarship for the verse's roots (deduped, capped): the
+  // pre-Islamic-poetry comparison, the classical-dictionary definitions, and
+  // the attested-meaning lexicon. Kept tight per-root so a verse with many
+  // roots stays within the assistant's context budget. All fetched in parallel.
+  const verseRoots = [...new Set(rootBws)].slice(0, 3);
+  const rootBlocks = await Promise.all(
+    verseRoots.map(async (bw) => {
+      const [poetry, dicts, lex] = await Promise.all([
+        fetchRootPoetryBlock(bw, { markdownChars: 900, maxLines: 2 }),
+        fetchDictionariesBlock(bw, { maxDicts: 5, perDictChars: 300 }),
+        fetchLexiconBlock(bw, { maxSenses: 4 }),
+      ]);
+      return [...poetry, ...dicts, ...lex];
+    }),
+  );
+  for (const block of rootBlocks) sections.push(...block);
 
   return sections.join('\n');
 }
 
 /**
- * Build context for a root page from already-fetched data.
+ * Build context for a root page from already-fetched data, then enrich it
+ * (over the network) with this root's classical-dictionary definitions,
+ * pre-Islamic-poetry comparison, and attested-meaning lexicon — so the
+ * assistant on a root page can answer questions about all three.
  */
-export function buildRootContext(data: {
+export async function buildRootContext(data: {
   root_arabic: string;
   root_buckwalter: string;
   total_occurrences: number;
@@ -197,7 +296,7 @@ export function buildRootContext(data: {
     text_uthmani: string;
     translation: string;
   }>;
-}): string {
+}): Promise<string> {
   const sections: string[] = [];
 
   sections.push(`## Root: ${data.root_arabic} (${data.root_buckwalter})`);
@@ -238,19 +337,34 @@ export function buildRootContext(data: {
     }
   }
 
+  // Enrich with this root's scholarship — richer than the verse view since the
+  // root is the sole focus here. Fetched in parallel; each is a no-op if the
+  // root has no approved entry.
+  const bw = data.root_buckwalter;
+  const [poetry, dicts, lex] = await Promise.all([
+    fetchRootPoetryBlock(bw, { markdownChars: 1600 }),
+    fetchDictionariesBlock(bw, { maxDicts: 10, perDictChars: 650 }),
+    fetchLexiconBlock(bw),
+  ]);
+  sections.push(...poetry, ...dicts, ...lex);
+
   return sections.join('\n');
 }
 
 /**
- * Build context for a word page. Fetches full word data from the API.
+ * Build context for a word page. Fetches full word data from the API, then
+ * enriches it with the word's-root classical-dictionary definitions,
+ * pre-Islamic-poetry comparison, and attested-meaning lexicon.
  */
 export async function buildWordContext(surah: number, ayah: number, pos: number): Promise<string> {
   const sections: string[] = [];
+  let rootBw = '';  // captured from the word data so we can pull its scholarship below
 
   try {
     const res = await fetch(`${API_BASE}/api/word/${surah}:${ayah}/${pos}`);
     if (res.ok) {
       const d = await res.json();
+      if (d.root_buckwalter) rootBw = d.root_buckwalter;
 
       sections.push(`## Word at ${surah}:${ayah} position ${pos}`);
       if (d.form_arabic) sections.push(`Form: ${d.form_arabic} (${d.form_buckwalter || ''})`);
@@ -322,6 +436,19 @@ export async function buildWordContext(surah: number, ayah: number, pos: number)
     }
   } catch {
     // ignore
+  }
+
+  // The word's root scholarship — classical-dictionary definitions, the
+  // pre-Islamic-poetry comparison, and the attested-meaning lexicon — so the
+  // assistant on a word page can field questions about all three. Each is a
+  // no-op if the root has no approved entry.
+  if (rootBw) {
+    const [poetry, dicts, lex] = await Promise.all([
+      fetchRootPoetryBlock(rootBw, { markdownChars: 1200 }),
+      fetchDictionariesBlock(rootBw, { maxDicts: 8, perDictChars: 500 }),
+      fetchLexiconBlock(rootBw),
+    ]);
+    sections.push(...poetry, ...dicts, ...lex);
   }
 
   return sections.join('\n');

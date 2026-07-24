@@ -193,6 +193,95 @@ def print_report(name, report, ks=KS):
         print(line)
 
 
+def _verse_translation(conn, ch, v):
+    row = conn.execute(
+        "SELECT COALESCE("
+        "  (SELECT COALESCE(NULLIF(a.revised_text,''), a.translation_text) FROM ai_translations a "
+        "   WHERE a.chapter=? AND a.verse=? ORDER BY a.config_id DESC, a.id DESC LIMIT 1),"
+        "  (SELECT text_en FROM translations WHERE chapter=? AND verse=?)) AS t",
+        (ch, v, ch, v),
+    ).fetchone()
+    return (row["t"] if row and row["t"] else "")[:150]
+
+
+def precision_delta(exeg_floor):
+    """The Stage-2 precision instrument. Runs each query under BASELINE (ar+en)
+    and TREATMENT (ar+en+exeg), then:
+      1. reports recall/MRR for both (overall / en / ar / abstract subset),
+      2. dumps the EXEG-DRIVEN additions to top-10 (verses treatment adds that
+         baseline lacked, where exeg drove the dense match) with translations,
+         for relevance judging — this is the false-positive detector,
+      3. runs the concept-drift probes and dumps what exeg adds there too.
+    """
+    import search_v2 as sv
+    sv.load_matrices_v2()
+    if not sv._v2_ready:
+        raise SystemExit("v2 index not loaded — build it first.")
+    sv.EXEG_FLOOR = exeg_floor
+
+    items = load_gold()
+    with open(GOLD_PATH, encoding="utf-8") as f:
+        probes = json.load(f).get("probes", [])
+    conn = get_conn()
+
+    def topk(query, k=10):
+        res = sv.hybrid_search(query, limit=k)
+        return res.get("results", [])
+
+    # --- 1. recall/MRR baseline vs treatment ---
+    class _R:
+        def __init__(self): self.name = "x"
+        def retrieve(self, q, k):
+            return [(r["surah"], r["ayah"]) for r in topk(q, k)]
+    r = _R()
+    sv.INCLUDE_EXEG = False
+    base_report = evaluate(r, items)
+    abstract = [it for it in items if it.get("tag") == "abstract"]
+    base_abs = evaluate(r, abstract)["overall"] if abstract else None
+    sv.INCLUDE_EXEG = True
+    treat_report = evaluate(r, items)
+    treat_abs = evaluate(r, abstract)["overall"] if abstract else None
+
+    print(f"\n=== RECALL: baseline (ar+en) vs treatment (ar+en+exeg, floor={exeg_floor}) ===")
+    print_report("baseline", base_report)
+    print_report("treatment(+exeg)", treat_report)
+    if base_abs:
+        print(f"\nabstract subset (n={base_abs['n']}):  "
+              f"MRR {base_abs['MRR']:.3f} -> {treat_abs['MRR']:.3f}   "
+              f"R@10 {base_abs['recall@10']:.3f} -> {treat_abs['recall@10']:.3f}   "
+              f"H@10 {base_abs['hit@10']:.3f} -> {treat_abs['hit@10']:.3f}")
+
+    # --- 2 & 3. exeg-driven additions to top-10 (for precision judging) ---
+    print("\n=== EXEG-DRIVEN ADDITIONS to top-10 (judge each for relevance) ===")
+    total_add = 0
+    all_queries = [(it["id"], it["query"]) for it in items] + \
+                  [(p["id"], p["query"]) for p in probes]
+    for qid, query in all_queries:
+        sv.INCLUDE_EXEG = False
+        base_keys = {(r_["surah"], r_["ayah"]) for r_ in topk(query)}
+        sv.INCLUDE_EXEG = True
+        treat = topk(query)
+        added = []
+        for r_ in treat:
+            key = (r_["surah"], r_["ayah"])
+            if key in base_keys:
+                continue
+            dt = (r_.get("matched_because", {}).get("dense") or {}).get("doc_type")
+            if dt == "exeg":  # only exeg-driven additions are the precision risk
+                added.append(r_)
+        if not added:
+            continue
+        print(f"\n[{qid}] \"{query}\"")
+        for r_ in added:
+            total_add += 1
+            tr = _verse_translation(conn, r_["surah"], r_["ayah"])
+            ds = (r_.get("matched_because", {}).get("dense") or {}).get("score")
+            print(f"   +{r_['surah']}:{r_['ayah']}  (exeg cos={ds})  {tr}")
+    conn.close()
+    print(f"\n=== {total_add} exeg-driven additions total across "
+          f"{len(all_queries)} queries. Judge relevant/total for marginal precision. ===")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Qur'an retrieval eval")
     ap.add_argument("--engine", default="v1", choices=["v1", "v2", "lexical"])
@@ -202,7 +291,16 @@ def main():
                     help="Restrict to one language")
     ap.add_argument("--model", default=None, help="v2 model name override")
     ap.add_argument("--dim", type=int, default=None, help="v2 dim override")
+    ap.add_argument("--precision-delta", action="store_true",
+                    help="Stage-2 exegesis experiment: baseline vs +exeg recall + "
+                         "the exeg-driven additions to judge for precision")
+    ap.add_argument("--exeg-floor", type=float, default=0.38,
+                    help="EXEG_FLOOR for the treatment (sweep this)")
     args = ap.parse_args()
+
+    if args.precision_delta:
+        precision_delta(args.exeg_floor)
+        return
 
     items = load_gold(args.lang)
     if not items:
