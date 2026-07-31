@@ -22042,6 +22042,13 @@ if SERVE_STATIC:
                     if end > a:
                         return redirect(f"/read/{n}:{a}-{end}", code=301)
 
+        # /word/<n>:<a> with the word-position segment stripped off (e.g.
+        # the user edited it out of the address bar) — a word page needs
+        # a position, so send them to the verse it came from instead of 404.
+        m_word = re.match(r"^word/(\d+):(\d+)/?$", path)
+        if m_word:
+            return redirect(f"/verse/{m_word.group(1)}:{m_word.group(2)}", code=301)
+
         # Read and cache index.html template
         if _index_html_cache is None:
             with open(os.path.join(STATIC_DIR, "index.html"), "r") as f:

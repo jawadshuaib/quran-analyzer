@@ -72,6 +72,16 @@ function getWordFromPath(): { surah: number; ayah: number; pos: number } | null 
     : null;
 }
 
+/** /word/<n>:<a> with the word-position segment stripped off (e.g. the user
+ *  edited it out of the address bar) has nowhere sensible to go as a word
+ *  page — send them to the verse it came from instead of a 404. */
+function maybeRedirectWordWithoutPos(): boolean {
+  const m = window.location.pathname.match(/^\/word\/(\d+):(\d+)\/?$/);
+  if (!m) return false;
+  window.location.replace(`/verse/${m[1]}:${m[2]}`);
+  return true;
+}
+
 function isExtensionPrivacyPath(): boolean {
   return /^\/privacy\/extension\/?$/.test(window.location.pathname);
 }
@@ -267,6 +277,12 @@ export default function App() {
   // Vite dev server gets the same behavior. Bail early so the rest of
   // App doesn't render a 404 flash before the redirect lands.
   if (typeof window !== 'undefined' && maybeRedirectShortPath()) {
+    return null;
+  }
+
+  // /word/<n>:<a> with no position segment (e.g. hand-edited out of the
+  // address bar) — redirect to the verse instead of falling through to 404.
+  if (typeof window !== 'undefined' && maybeRedirectWordWithoutPos()) {
     return null;
   }
 
