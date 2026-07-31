@@ -596,10 +596,18 @@ export default function App() {
   // shown on the current page (hero on homepage, active-state search on
   // verse page); when the user scrolls past it, the nav swaps.
   const searchAnchorRef = useRef<HTMLDivElement>(null);
+  // The title this document loaded with, restored when back lands on the
+  // homepage. Captured rather than hardcoded so it stays in sync with the
+  // title the server injects.
+  const initialTitleRef = useRef(document.title);
 
   // featuredVerses removed — now handled by VerseOfTheDay in HomePage
 
-  async function handleSearch(surah: number, ayah: number) {
+  // `push: false` loads the verse without adding a history entry — used when
+  // the URL already points at it (initial deep-link, or a back/forward the
+  // browser has already applied). Pushing in those cases would add a
+  // duplicate entry and make the back button appear to do nothing.
+  async function handleSearch(surah: number, ayah: number, opts?: { push?: boolean }) {
     setLoading(true);
     setError('');
     setData(null);
@@ -610,7 +618,9 @@ export default function App() {
       setData(result);
       document.title = `Surah ${result.surah_name} (${surah}:${ayah}) | al-nuqta`;
       // Keep URL in sync with the displayed verse
-      window.history.pushState(null, '', verseUrl(surah, ayah));
+      if (opts?.push !== false) {
+        window.history.pushState(null, '', verseUrl(surah, ayah));
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -621,14 +631,45 @@ export default function App() {
   // Deep-link: check /verse/X:Y path first, fall back to ?s=X&a=Y with redirect
   useEffect(() => {
     const verseParams = getVerseFromPath();
-    if (verseParams) { handleSearch(verseParams.surah, verseParams.ayah); return; }
+    if (verseParams) {
+      handleSearch(verseParams.surah, verseParams.ayah, { push: false });
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     const s = params.get('s');
     const a = params.get('a');
     if (s && a) {
       window.history.replaceState(null, '', verseUrl(parseInt(s), parseInt(a)));
-      handleSearch(parseInt(s), parseInt(a));
+      handleSearch(parseInt(s), parseInt(a), { push: false });
     }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Browser back/forward. Every verse the user opens pushes a history entry,
+  // so we have to re-render for whichever entry the browser restored —
+  // otherwise the URL changes but the verse on screen stays put.
+  useEffect(() => {
+    function onPop() {
+      const verseParams = getVerseFromPath();
+      if (verseParams) {
+        handleSearch(verseParams.surah, verseParams.ayah, { push: false });
+        return;
+      }
+      const path = window.location.pathname;
+      if (path === '/' || path === '') {
+        // Back to the homepage — clearing the verse restores the idle state.
+        setData(null);
+        setError('');
+        setWordSearchResults(null);
+        setWordSearchError('');
+        document.title = initialTitleRef.current;
+        return;
+      }
+      // Any other route renders from a different branch of this component,
+      // which a re-render can't reach. Reload and let the router sort it out.
+      window.location.reload();
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
