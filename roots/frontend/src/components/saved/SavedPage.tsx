@@ -24,6 +24,7 @@ import { getAllNotes, getNotesByType, subscribeToNotes } from '../../utils/user-
 import { fetchSessionQA, type SessionQAEntry } from '../../api/assistant';
 import { getSurahName } from '../../utils/surah-names';
 import { useVerseThemes, groupItemsByTheme } from '../../hooks/useGroupedByTheme';
+import { groupVersesByProximity } from '../../utils/verse-runs';
 import { useSEO } from '../../hooks/useSEO';
 import FolderChips from './FolderChips';
 import FolderNote from './FolderNote';
@@ -380,7 +381,47 @@ export default function SavedPage() {
       : []),
   ];
 
+  function renderCard(item: SavedItem) {
+    return (
+      <SavedItemCard
+        key={refKey(item)}
+        item={item}
+        folders={folders}
+        selected={selection.has(refKey(item))}
+        onToggleSelect={() => toggleSelect(item)}
+        note={notesByType[item.type][item.key]}
+        qa={qaMap[qaKey(item.type, item.key)]}
+      />
+    );
+  }
+
+  /** Inside a folder, verses saved close together were almost certainly saved
+   *  as one passage — show them as such so the context is recognisable at a
+   *  glance, without the heavier framing of theme groups. */
+  function renderVerseRuns(list: SavedItem[]) {
+    return (
+      <div className="space-y-2">
+        {groupVersesByProximity(list).map((run) =>
+          run.items.length > 1 ? (
+            <div key={run.key} className="border-l-2 border-stone-200 pl-2.5">
+              <div className="mb-1 text-[11px] text-stone-400">
+                <span className="font-medium text-stone-500">
+                  {getSurahName(run.surah)} {run.startAyah}–{run.endAyah}
+                </span>
+                <span className="ml-1.5">{run.items.length} verses</span>
+              </div>
+              <div className="space-y-1.5">{run.items.map(renderCard)}</div>
+            </div>
+          ) : (
+            renderCard(run.items[0])
+          ),
+        )}
+      </div>
+    );
+  }
+
   function renderVerseSection(list: SavedItem[]) {
+    if (inFolder) return renderVerseRuns(list);
     if (groupingActive && verseGroups.length > 0) {
       return (
         <div className="space-y-4">
