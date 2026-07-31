@@ -26,6 +26,7 @@ import { getSurahName } from '../../utils/surah-names';
 import { useVerseThemes, groupItemsByTheme } from '../../hooks/useGroupedByTheme';
 import { useSEO } from '../../hooks/useSEO';
 import FolderChips from './FolderChips';
+import FolderNote from './FolderNote';
 import SavedItemCard from './SavedItemCard';
 import BulkBar from './BulkBar';
 
@@ -489,6 +490,10 @@ export default function SavedPage() {
               onCopyAll={(folderId) => copyVerses(getItemsInFolder(folderId), 'translation')}
             />
           </div>
+
+          {/* The active folder's overarching note — sits above its items,
+              since it's about the collection rather than any one card. */}
+          {activeFolder && <FolderNote key={activeFolder.id} folder={activeFolder} />}
 
           {/* Type tabs */}
           {tabPills.length > 1 && (

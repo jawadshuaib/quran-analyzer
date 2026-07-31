@@ -86,6 +86,10 @@ export interface Folder {
   id: string;
   name: string;
   createdAt: string;
+  /** A free-text note about the collection as a whole — the overarching idea
+   *  tying its items together. Distinct from per-item notes, which live in
+   *  the separate notes store (user-notes.ts) keyed by (type, key). */
+  note?: string;
 }
 
 export const FOLDER_NAME_MAX = 48;
@@ -396,6 +400,25 @@ export function renameFolder(id: string, name: string): boolean {
   );
   if (collision) return false;
   folder.name = trimmed;
+  save(store);
+  return true;
+}
+
+/** A folder's overarching note, or '' if it has none. */
+export function getFolderNote(id: string): string {
+  return load().folders.find((f) => f.id === id)?.note ?? '';
+}
+
+/** Set (or clear, with empty text) a folder's overarching note. Unlike item
+ *  notes, this never creates or releases anything — the folder owns the note,
+ *  so clearing it just drops the field. Returns false if the folder is gone. */
+export function setFolderNote(id: string, text: string): boolean {
+  const store = load();
+  const folder = store.folders.find((f) => f.id === id);
+  if (!folder) return false;
+  const trimmed = text.trim();
+  if (trimmed) folder.note = trimmed;
+  else delete folder.note;
   save(store);
   return true;
 }
