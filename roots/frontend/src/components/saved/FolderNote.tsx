@@ -40,19 +40,23 @@ export default function FolderNote({ folder }: Props) {
 
   if (!note) {
     return (
-      <div className="mb-3">
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="inline-flex items-center gap-1.5 text-[11px] text-stone-400
-                     hover:text-violet-600 transition-colors cursor-pointer"
-        >
-          <svg viewBox="0 0 16 16" className="h-3 w-3" fill="currentColor" aria-hidden>
-            <path d="M11.5 1.7L14.3 4.5 5 13.8l-3 .5.5-3z" />
-          </svg>
-          Add a note about this folder
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className="mb-3 flex w-full items-center gap-2 rounded-lg border border-dashed border-violet-300
+                   bg-violet-50/40 px-3 py-2.5 text-left text-xs text-violet-700
+                   hover:border-violet-400 hover:bg-violet-50 transition-colors cursor-pointer"
+      >
+        <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 shrink-0 text-violet-500" fill="currentColor" aria-hidden>
+          <path d="M11.5 1.7L14.3 4.5 5 13.8l-3 .5.5-3z" />
+        </svg>
+        <span>
+          <span className="font-medium">Describe this folder</span>
+          <span className="text-violet-500/80">
+            {' '}— what ties “{folder.name}” together?
+          </span>
+        </span>
+      </button>
     );
   }
 

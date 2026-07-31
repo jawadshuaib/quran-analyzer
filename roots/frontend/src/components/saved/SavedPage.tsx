@@ -186,18 +186,19 @@ export default function SavedPage() {
   }, []);
   useEffect(() => subscribeToNotes(() => setNotesMap(getAllNotes())), []);
 
-  // A deleted folder can leave a stale filter (e.g. from a stale URL).
-  useEffect(() => {
-    if (activeFolderId && !folders.some((f) => f.id === activeFolderId)) {
-      setActiveFolderId(null);
-    }
-  }, [activeFolderId, folders]);
+  // NOTE: a folder id that doesn't resolve (deleted folder, or a link opened
+  // on another device — saved data is per-device) is deliberately NOT reset to
+  // null here. Silently clearing it showed the entire library under a folder
+  // URL, which reads as "this folder contains everything". It's kept so the
+  // view can say the folder isn't here; `folderMissing` below drives that.
 
   // Reflect filters in the URL (deep-linkable, no history spam).
   useEffect(() => {
     const p = new URLSearchParams();
     if (activeFolderId) p.set('folder', activeFolderId);
-    if (tab !== 'all') p.set('tab', tab);
+    // A folder view is always the flat "all" list, so don't advertise a tab
+    // it doesn't apply (the state is kept for when the folder is deselected).
+    if (!activeFolderId && tab !== 'all') p.set('tab', tab);
     if (q) p.set('q', q);
     const qs = p.toString();
     window.history.replaceState(null, '', qs ? `/saved?${qs}` : '/saved');
@@ -251,6 +252,14 @@ export default function SavedPage() {
   };
 
   const activeFolder = folders.find((f) => f.id === activeFolderId) ?? null;
+  /** Filtering by a folder that isn't on this device (deleted, or a shared link). */
+  const folderMissing = !!activeFolderId && !activeFolder;
+
+  // Inside a folder the user is looking at that collection as a whole, so the
+  // folder view is always the flat "all" list: no type tabs, no theme
+  // sub-headings. `tab` state is preserved so leaving the folder restores it.
+  const inFolder = !!activeFolder;
+  const effectiveTab: TabValue = inFolder ? 'all' : tab;
 
   // Items that carry a personal note — the Notes tab is a FILTER over these
   // cards (a note lives under its item), so notes inherit the active folder
@@ -259,9 +268,14 @@ export default function SavedPage() {
     (i) => !!notesByType[i.type][i.key],
   );
 
-  // Theme grouping (Verses section, All/Verses tabs, ≥2 verses)
+  // Theme grouping (Verses section, All/Verses tabs, ≥2 verses). Never inside
+  // a folder — the folder IS the grouping the user chose, so splitting it into
+  // themes fights that.
   const groupingActive =
-    groupTheme && (tab === 'all' || tab === 'verse') && sortedByType.verse.length >= 2;
+    groupTheme &&
+    !inFolder &&
+    (effectiveTab === 'all' || effectiveTab === 'verse') &&
+    sortedByType.verse.length >= 2;
   const verseThemes = useVerseThemes(
     groupingActive ? sortedByType.verse.map((i) => i.key) : [],
     groupingActive,
@@ -272,11 +286,11 @@ export default function SavedPage() {
   // per-tab (a type tab shows only its section; the notes tab shows only
   // verses that carry a note).
   const visibleForTab =
-    tab === 'notes'
+    effectiveTab === 'notes'
       ? notedItems.length
-      : tab === 'all'
+      : effectiveTab === 'all'
         ? searched.length
-        : sortedByType[tab].length;
+        : sortedByType[effectiveTab].length;
 
   // ----- Selection ------------------------------------------------------------
   const selectedItems = searched.filter((i) => selection.has(refKey(i)));
@@ -462,6 +476,8 @@ export default function SavedPage() {
               <option value="recent">Recently saved</option>
               <option value="mushaf">Mushaf order</option>
             </select>
+            {/* Theme grouping doesn't apply inside a folder, so don't offer it there. */}
+            {!inFolder && (
             <button
               type="button"
               onClick={() => setGroupTheme((v) => !v)}
@@ -477,6 +493,7 @@ export default function SavedPage() {
                 <path fillRule="evenodd" d="M2.5 3A1.5 1.5 0 001 4.5v4A1.5 1.5 0 002.5 10h6A1.5 1.5 0 0010 8.5v-4A1.5 1.5 0 008.5 3h-6zm11 2A1.5 1.5 0 0012 6.5v7a1.5 1.5 0 001.5 1.5h4a1.5 1.5 0 001.5-1.5v-7A1.5 1.5 0 0017.5 5h-4zm-11 7A1.5 1.5 0 001 13.5v2A1.5 1.5 0 002.5 17h6A1.5 1.5 0 0010 15.5v-2A1.5 1.5 0 008.5 12h-6z" clipRule="evenodd" />
               </svg>
             </button>
+            )}
           </div>
 
           {/* Folder chips */}
@@ -495,8 +512,8 @@ export default function SavedPage() {
               since it's about the collection rather than any one card. */}
           {activeFolder && <FolderNote key={activeFolder.id} folder={activeFolder} />}
 
-          {/* Type tabs */}
-          {tabPills.length > 1 && (
+          {/* Type tabs — not inside a folder (see `effectiveTab`) */}
+          {!inFolder && tabPills.length > 1 && (
             <div className="mb-4 flex items-center gap-1 overflow-x-auto">
               {tabPills.map((t) => (
                 <button
@@ -537,24 +554,28 @@ export default function SavedPage() {
           {visibleForTab === 0 && (
             <div className="flex flex-col items-center justify-center rounded-xl border border-stone-200 bg-white py-12 px-4 text-center">
               <p className="text-sm text-stone-500">
-                {q.trim()
-                  ? 'Nothing matches your filter'
-                  : tab === 'notes'
-                    ? 'No notes yet'
-                    : activeFolder
-                      ? `No items in "${activeFolder.name}" yet`
-                      : 'Nothing here yet'}
+                {folderMissing
+                  ? 'That folder isn’t on this device'
+                  : q.trim()
+                    ? 'Nothing matches your filter'
+                    : effectiveTab === 'notes'
+                      ? 'No notes yet'
+                      : activeFolder
+                        ? `No items in "${activeFolder.name}" yet`
+                        : 'Nothing here yet'}
               </p>
               <p className="text-xs text-stone-400 mt-1 max-w-xs">
-                {q.trim()
-                  ? 'Try a different word or reference.'
-                  : tab === 'notes'
-                    ? 'Tap the pencil on any verse, word, or root to add one — it appears here under its item.'
-                    : activeFolder
-                      ? 'Bookmark any verse, then tick this folder in the popup.'
-                      : ''}
+                {folderMissing
+                  ? 'Saved items and folders are stored only in this browser, so a folder link won’t open on another device — and this one may have been deleted.'
+                  : q.trim()
+                    ? 'Try a different word or reference.'
+                    : effectiveTab === 'notes'
+                      ? 'Tap the pencil on any verse, word, or root to add one — it appears here under its item.'
+                      : activeFolder
+                        ? 'Bookmark any verse, then tick this folder in the popup.'
+                        : ''}
               </p>
-              {activeFolder && !q.trim() && (
+              {(activeFolder || folderMissing) && !q.trim() && (
                 <button
                   type="button"
                   onClick={() => setActiveFolderId(null)}
@@ -569,7 +590,7 @@ export default function SavedPage() {
           {/* Sections */}
           <div className="space-y-6">
             {TYPE_SECTIONS.map(({ type, label }) => {
-              if (tab !== 'all' && tab !== type) return null;
+              if (effectiveTab !== 'all' && effectiveTab !== type) return null;
               const list = sortedByType[type];
               if (list.length === 0) return null;
               return (
@@ -599,7 +620,7 @@ export default function SavedPage() {
 
             {/* Notes tab — cards (any type) filtered to those carrying a note
                 (each renders its note beneath it) */}
-            {tab === 'notes' && notedItems.length > 0 && (
+            {effectiveTab === 'notes' && notedItems.length > 0 && (
               <section>
                 <h2 className="mb-2 text-sm font-semibold text-stone-700">
                   Notes
