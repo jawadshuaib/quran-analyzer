@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootDictionaries, DictionaryEntryDetail } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -26,6 +26,14 @@ export async function fetchRootDictionaries(rootBw: string): Promise<RootDiction
 export async function fetchDictionaryEntry(id: number): Promise<DictionaryEntryDetail> {
   const res = await fetch(`${BASE}/dictionary-entry/${id}`);
   if (!res.ok) throw new Error('Not found');
+  return res.json();
+}
+
+/** The Qur'anic Dictionary index (/dictionary): every root with an approved
+ *  lexicon entry, each with a concise gloss + entry count. Ordered by Arabic root. */
+export async function fetchDictionaryRoots(): Promise<DictionaryRootsResponse> {
+  const res = await fetch(`${BASE}/dictionary-roots`);
+  if (!res.ok) throw new Error('Failed to load dictionary');
   return res.json();
 }
 

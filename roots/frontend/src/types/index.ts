@@ -721,3 +721,18 @@ export interface DictionaryEntryDetail extends DictionaryItem {
   source_url: string | null;
   ejtaal_url: string;
 }
+
+// The Qur'anic Dictionary index (/dictionary): every root with an approved
+// lexicon entry, each with a concise gloss + entry count, ordered by Arabic root.
+export interface DictionaryRootItem {
+  buckwalter: string;
+  arabic: string | null;
+  entries: number;
+  gloss: string | null;
+}
+
+export interface DictionaryRootsResponse {
+  root_count: number;
+  entry_count: number;
+  roots: DictionaryRootItem[];
+}

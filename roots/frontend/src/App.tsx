@@ -28,6 +28,7 @@ import PrivacyPage from './components/PrivacyPage';
 import TermsPage from './components/TermsPage';
 import GrammarGlossaryPage from './components/GrammarGlossaryPage';
 import QuranVocabularyPage from './components/QuranVocabularyPage';
+import DictionaryIndexPage from './components/DictionaryIndexPage';
 import LearningPage from './components/learning/LearningPage';
 import ReaderPage from './components/reader/ReaderPage';
 import SettingsPage from './components/SettingsPage';
@@ -100,6 +101,10 @@ function isGrammarGlossaryPath(): boolean {
 
 function isQuranVocabularyPath(): boolean {
   return /^\/quran-vocabulary\/?$/.test(window.location.pathname);
+}
+
+function isDictionaryPath(): boolean {
+  return /^\/dictionary\/?$/.test(window.location.pathname);
 }
 
 function isLearningPath(): boolean {
@@ -177,6 +182,7 @@ function isKnownRoute(): boolean {
   if (/^\/methodology\/?$/.test(path)) return true;
   if (/^\/grammar-glossary\/?$/.test(path)) return true;
   if (/^\/quran-vocabulary\/?$/.test(path)) return true;
+  if (/^\/dictionary\/?$/.test(path)) return true;
   if (/^\/admin(\/settings|\/scheduler|\/revisions|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/verse-settings|\/verse-of-the-day|\/stats|\/judge-lessons|\/qa|\/qa-videos|\/exegesis|\/poetry|\/dictionaries|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(path)) return true;
   return false;
 }
@@ -260,6 +266,8 @@ function SiteFooter() {
         <a href="/meters" className="hover:text-ink-secondary">Metres</a>
         <span className="mx-2">&middot;</span>
         <a href="/grammar-glossary" className="hover:text-ink-secondary">Grammar</a>
+        <span className="mx-2">&middot;</span>
+        <a href="/dictionary" className="hover:text-ink-secondary">Dictionary</a>
         <span className="mx-2">&middot;</span>
         <a href="/developers" className="hover:text-ink-secondary">API</a>
         <span className="mx-2">&middot;</span>
@@ -516,6 +524,19 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <QuranVocabularyPage />
+        <SiteFooter />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  if (isDictionaryPath()) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <DictionaryIndexPage />
         <SiteFooter />
         <SavedItemsPanel />
       </div>

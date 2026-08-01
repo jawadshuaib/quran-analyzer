@@ -5431,6 +5431,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/quran-vocabulary/?$", path):
         return True
+    if re.match(r"^/dictionary/?$", path):
+        return True
     if re.match(r"^/502/?$", path):
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
@@ -5644,6 +5646,16 @@ def _get_seo_meta(path: str) -> dict:
             "description": "Some Qur'anic roots whose meaning is often narrowed when translated are explored in greater detail. For these roots, we trace every occurrence in the corpus and find the broader meaning that survives every usage.",
             "og_type": "article",
             "canonical": SITE_URL + "/quran-vocabulary",
+            "robots": "index, follow",
+        }
+
+    # Qur'anic Dictionary: /dictionary
+    if re.match(r"^/dictionary/?$", path):
+        return {
+            "title": "Qur'anic Dictionary \u2014 Classical Arabic Root Definitions | al-nuqta",
+            "description": "Browse the classical Arabic lexicon for every Qur'anic root \u2014 Lis\u0101n al-\u02bfArab, al-Mufrad\u0101t and other classical works \u2014 harmonized into readable English with the original Arabic one click away, ordered alphabetically by root.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/dictionary",
             "robots": "index, follow",
         }
 
@@ -5939,6 +5951,7 @@ def sitemap_xml():
     _add(SITE_URL + "/privacy/extension", "0.3")
     _add(SITE_URL + "/grammar-glossary", "0.6")
     _add(SITE_URL + "/quran-vocabulary", "0.6")
+    _add(SITE_URL + "/dictionary", "0.7")
 
     # All 114 surah reader pages — high priority because they're the
     # main entry points users land on for "read Surah X" searches.
@@ -7333,6 +7346,42 @@ def get_dictionary_entry(entry_id: int):
             "original_text_ar": r["original_text_ar"], "translation_en": r["translation_en"],
             "harmonized_en": r["harmonized_en"], "source_url": r["source_url"],
             "ejtaal_url": _ejtaal_url(r["root_buckwalter"]),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/dictionary-roots")
+def get_dictionary_roots():
+    """Public index for the Qur'anic Dictionary page (/dictionary): every root
+    that has at least one approved, visible harmonized entry, with a concise
+    gloss (from ai_root_meanings) and its entry count. Ordered by the Arabic
+    root so the frontend can group alphabetically by first radical."""
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        rows = conn.execute(
+            "SELECT e.root_buckwalter, e.root_arabic, COUNT(*) AS entries, "
+            "(SELECT m.primary_meaning FROM ai_root_meanings m "
+            " WHERE m.root_buckwalter = e.root_buckwalter "
+            "   AND m.primary_meaning IS NOT NULL AND m.primary_meaning <> '' "
+            " ORDER BY m.id LIMIT 1) AS gloss "
+            "FROM dictionary_entries e "
+            "WHERE e.review_status = 'approved' AND COALESCE(e.hidden,0) = 0 "
+            "AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
+            "GROUP BY e.root_buckwalter, e.root_arabic "
+            "ORDER BY e.root_arabic"
+        ).fetchall()
+        roots = [{
+            "buckwalter": r["root_buckwalter"],
+            "arabic": r["root_arabic"],
+            "entries": r["entries"],
+            "gloss": r["gloss"],
+        } for r in rows]
+        return jsonify({
+            "root_count": len(roots),
+            "entry_count": sum(r["entries"] for r in roots),
+            "roots": roots,
         })
     finally:
         conn.close()
@@ -21938,6 +21987,51 @@ def _build_noscript_content(path: str) -> str:
                         )
                 parts.append('</dd>')
             parts.append('</dl>')
+
+    # Qur'anic Dictionary: /dictionary — static list of every root that has an
+    # approved lexicon entry, grouped alphabetically and linking to its root
+    # page (where the definitions render). Lets crawlers/LLM bots discover the
+    # whole lexicon without running JavaScript.
+    if re.match(r'^/dictionary/?$', path):
+        conn = get_db()
+        try:
+            rows = conn.execute(
+                "SELECT e.root_buckwalter, e.root_arabic, COUNT(*) AS entries, "
+                "(SELECT m.primary_meaning FROM ai_root_meanings m "
+                " WHERE m.root_buckwalter = e.root_buckwalter "
+                "   AND m.primary_meaning IS NOT NULL AND m.primary_meaning <> '' "
+                " ORDER BY m.id LIMIT 1) AS gloss "
+                "FROM dictionary_entries e "
+                "WHERE e.review_status = 'approved' AND COALESCE(e.hidden,0) = 0 "
+                "AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
+                "GROUP BY e.root_buckwalter, e.root_arabic ORDER BY e.root_arabic"
+            ).fetchall()
+        finally:
+            conn.close()
+        parts.append('<h1>Qur’anic Dictionary</h1>')
+        parts.append('<p>Classical Arabic dictionary definitions for every Qur’anic '
+                     'root, harmonized into readable English. Select a root to read its '
+                     'entries from Lisān al-ʿArab, al-Mufradāt and other '
+                     'classical works.</p>')
+        cur_letter = None
+        for r in rows:
+            ar = r["root_arabic"] or ""
+            letter = (ar or r["root_buckwalter"] or "?")[0]
+            if letter != cur_letter:
+                if cur_letter is not None:
+                    parts.append('</ul>')
+                parts.append(f'<h2 lang="ar">{html.escape(letter)}</h2>')
+                parts.append('<ul>')
+                cur_letter = letter
+            href = "/root/" + quote(r["root_buckwalter"])
+            label = html.escape(ar or r["root_buckwalter"])
+            gloss = r["gloss"] or ""
+            suffix = f' &mdash; {html.escape(gloss)}' if gloss else ''
+            parts.append(
+                f'<li><a href="{href}"><span lang="ar">{label}</span></a>{suffix}</li>'
+            )
+        if cur_letter is not None:
+            parts.append('</ul>')
 
     # Home page
     if path in ('', '/'):
