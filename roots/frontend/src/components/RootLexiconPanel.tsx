@@ -86,7 +86,12 @@ function WordRow({ w }: { w: VerseRootLexiconWord }) {
 }
 
 export default function RootLexiconPanel({ data }: { data: VerseRootLexicon }) {
-  const words = data.words.filter((w) => w.lexicon);
+  const seenRoots = new Set<string>();
+  const words = data.words.filter((w) => {
+    if (!w.lexicon || seenRoots.has(w.root_buckwalter)) return false;
+    seenRoots.add(w.root_buckwalter);
+    return true;
+  });
   if (words.length === 0) return null;
   return (
     <div className="mt-4 rounded-lg bg-amber-50/60 border border-amber-200 p-3">
