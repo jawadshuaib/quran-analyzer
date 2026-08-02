@@ -395,11 +395,24 @@ export interface AITranslationData {
   created_at: string;
 }
 
+/** A citation inside a note that quotes this verse, resolved offline to the
+ *  word range it quotes so hovering it can highlight those words.
+ *  `span` is the literal text as it appears in the prose; `start`/`end` are
+ *  1-indexed inclusive word positions. */
+export interface WordAnchor {
+  span: string;
+  script: 'translit' | 'arabic';
+  start: number;
+  end: number;
+}
+
 export interface VerseExegesisData {
   surah: number;
   ayah: number;
   exegesis_markdown: string;
   source_scores: number[] | null;
+  /** Absent on older payloads / before the anchors table is synced. */
+  word_anchors?: WordAnchor[];
   created_at: string;
   edited_at: string | null;
 }

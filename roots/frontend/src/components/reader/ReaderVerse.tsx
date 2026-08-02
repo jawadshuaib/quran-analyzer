@@ -8,6 +8,7 @@ import {
 } from '../../utils/saved-items';
 import { useVerseHighlights } from '../../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../../utils/verse-highlights';
+import { getWordHover, subscribeWordHover, isWordHovered } from '../../utils/word-hover';
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../../utils/copy-context';
 import HighlightCross from '../HighlightCross';
 import FolderPopover, { type FolderPopoverMode } from '../folders/FolderPopover';
@@ -126,6 +127,10 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   // Uthmani text on whitespace — same approach /verse/<ref> uses —
   // because each whitespace-separated token is one user-visible word
   // and corresponds to one word_pos in the morphology table.
+  // Words the reader is pointing at via a citation in the exegesis note below.
+  const [noteHover, setNoteHover] = useState(getWordHover);
+  useEffect(() => subscribeWordHover(setNoteHover), []);
+
   const uthmaniWords = verse.text_uthmani.split(/\s+/).filter(Boolean);
 
   useEffect(() => {
@@ -346,8 +351,12 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
                 <span
                   key={w.position}
                   data-word-pos={w.position}
-                  className={`relative inline-flex flex-col items-center min-w-[3.5rem] max-w-[14rem] cursor-help ${
-                    hl ? `${HIGHLIGHT_BG[hl.color]} rounded` : ''
+                  className={`relative inline-flex flex-col items-center min-w-[3.5rem] max-w-[14rem] cursor-help rounded ${
+                    isWordHovered(noteHover, verseKey, w.position)
+                      ? 'bg-emerald-200 text-emerald-950'
+                      : hl
+                        ? HIGHLIGHT_BG[hl.color]
+                        : ''
                   }`}
                   onMouseEnter={() => setHoveredWord(w.position)}
                   onMouseLeave={() => setHoveredWord((p) => (p === w.position ? -1 : p))}
@@ -422,7 +431,13 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
                 <Fragment key={pos}>
                   <span
                     data-word-pos={pos}
-                    className={`relative ${hl ? `${HIGHLIGHT_BG[hl.color]} rounded` : ''}`}
+                    className={`relative rounded ${
+                      isWordHovered(noteHover, verseKey, pos)
+                        ? 'bg-emerald-200 text-emerald-950'
+                        : hl
+                          ? HIGHLIGHT_BG[hl.color]
+                          : ''
+                    }`}
                   >
                     {isHlStart && (
                       <HighlightCross
@@ -623,6 +638,11 @@ function VerseNotesPanel({
           <div className="text-sm leading-relaxed text-ink-secondary">
             <FormattedText
               text={linkifyTranslationNotesRefs(exegesis.exegesis_markdown)}
+              anchors={
+                exegesis.word_anchors?.length
+                  ? { verseKey: `${surah}:${verse}`, list: exegesis.word_anchors }
+                  : undefined
+              }
               translationNotesId={translation?.departure_notes ? `translation-notes-${surah}-${verse}` : undefined}
             />
           </div>

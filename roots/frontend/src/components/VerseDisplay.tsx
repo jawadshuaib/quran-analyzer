@@ -17,6 +17,7 @@ import { splitDepartureNotes } from '../utils/departure-notes';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { useVerseHighlights } from '../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../utils/verse-highlights';
+import { getWordHover, subscribeWordHover, isWordHovered } from '../utils/word-hover';
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../utils/copy-context';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
@@ -72,6 +73,10 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     () => subscribeCopyContext(() => setCopyActive(getCopyContext()?.verseKey === verseKey)),
     [verseKey],
   );
+
+  // Words the reader is pointing at via a citation in the exegesis note.
+  const [noteHover, setNoteHover] = useState(getWordHover);
+  useEffect(() => subscribeWordHover(setNoteHover), []);
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
 
@@ -484,19 +489,28 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           // selection/hover colors take over while interacting).
           const hl = posMap.get(pos);
           const isHlStart = !!hl && pos === hl.start;
+          // Pointed at from a citation in the note — outranks the resting
+          // user highlight so the quoted phrase reads as one block.
+          const fromNote = isWordHovered(noteHover, verseKey, pos);
 
           return (
             <span
               key={pos}
               data-word-pos={pos}
-              className={`relative inline-flex flex-col items-center cursor-pointer rounded-md px-1 transition-colors duration-150 ${
-                isSelected
-                  ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-400'
-                  : isHovered
-                    ? 'bg-emerald-100 text-emerald-900'
-                    : hl
-                      ? HIGHLIGHT_BG[hl.color]
-                      : 'hover:bg-stone-100'
+              // No colour transition: this background can change while the
+              // pointer is far away (driven by hovering a citation in the note
+              // below), and an animated background-color with nothing forcing a
+              // repaint leaves a stale sliver of the old paint behind.
+              className={`relative inline-flex flex-col items-center cursor-pointer rounded-md px-1 ${
+                fromNote
+                  ? 'bg-emerald-200 text-emerald-950'
+                  : isSelected
+                    ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-400'
+                    : isHovered
+                      ? 'bg-emerald-100 text-emerald-900'
+                      : hl
+                        ? HIGHLIGHT_BG[hl.color]
+                        : 'hover:bg-stone-100'
               }`}
               onMouseEnter={() => {
                 if (!hasSelection) setHoveredPos(pos);
@@ -577,6 +591,11 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
               </div>
               <FormattedText
                 text={linkifyTranslationNotesRefs(exegesis.exegesis_markdown)}
+                anchors={
+                  exegesis.word_anchors?.length
+                    ? { verseKey, list: exegesis.word_anchors }
+                    : undefined
+                }
                 translationNotesId={
                   aiTranslation?.departure_notes
                     ? `translation-notes-${data.surah}-${data.ayah}`

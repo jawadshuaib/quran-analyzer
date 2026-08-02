@@ -6769,6 +6769,7 @@ def get_verse_exegesis(surah: int, ayah: int):
             "ayah": ayah,
             "exegesis_markdown": row["exegesis_markdown"],
             "source_scores": scores,
+            "word_anchors": _fetch_word_anchors(conn, surah, ayah),
             "created_at": row["created_at"],
             "edited_at": row["edited_at"],
         })
@@ -7258,6 +7259,48 @@ def get_verse_root_lexicon(surah: int, ayah: int):
 # with the original Arabic + a faithful translation one click away. Buckwalter-
 # keyed; review_status/hidden gate public reads (approved AND NOT hidden).
 # ---------------------------------------------------------------------------
+def _fetch_word_anchors(conn, surah: int, ayah: int):
+    """Citations inside this verse's note that quote the verse itself, mapped to
+    the word range they quote, so the client can highlight those words on hover.
+
+    Built offline by align_note_anchors.py. Returns [] when the table has not
+    been synced yet — the note then renders as ordinary prose.
+    """
+    try:
+        rows = conn.execute(
+            "SELECT span_text, script, word_start, word_end FROM note_word_anchors "
+            "WHERE chapter = ? AND verse = ? AND source = 'exegesis'",
+            (surah, ayah),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [
+        {"span": r["span_text"], "script": r["script"],
+         "start": r["word_start"], "end": r["word_end"]}
+        for r in rows
+    ]
+
+
+def _ensure_word_translit_table(conn):
+    """Self-heal `word_translit` (prod before its first sync).
+
+    Per-word romanization + normalised match keys, derived deterministically
+    from `morphology` by build_word_translit.py. Used to resolve a
+    transliterated or Arabic citation inside a note back to the exact word
+    range of the verse, so hovering the citation can highlight those words.
+    """
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS word_translit (
+        chapter INTEGER NOT NULL, verse INTEGER NOT NULL, word_pos INTEGER NOT NULL,
+        translit TEXT NOT NULL, translit_key TEXT NOT NULL,
+        arabic_plain TEXT NOT NULL, arabic_key TEXT NOT NULL,
+        PRIMARY KEY (chapter, verse, word_pos)
+    );
+    CREATE INDEX IF NOT EXISTS idx_word_translit_key ON word_translit(translit_key);
+    CREATE INDEX IF NOT EXISTS idx_word_translit_arkey ON word_translit(arabic_key);
+    """)
+
+
 def _ensure_dict_tables(conn):
     """Self-heal the Lexicon Library tables (prod before its first sync)."""
     conn.executescript("""

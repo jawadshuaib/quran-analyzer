@@ -1,7 +1,55 @@
+import { Fragment, useId } from 'react';
 import VerseRefText from './VerseRefText';
 import PoetryQuote from './PoetryQuote';
 import { GrammarChip } from './GrammarNotes';
-import type { PoetryQuotedLine, GrammarTerm } from '../types';
+import { setWordHover, clearWordHover } from '../utils/word-hover';
+import type { PoetryQuotedLine, GrammarTerm, WordAnchor } from '../types';
+
+/** Citations in this note that quote the verse itself, plus the verse they
+ *  belong to. Passing it makes those citations hover-to-highlight. */
+export interface WordAnchorSet {
+  verseKey: string;
+  list: WordAnchor[];
+}
+
+/** Exact-match a rendered run against the anchors resolved offline. The stored
+ *  span is the literal text between the asterisks (or the raw Arabic run), so a
+ *  trimmed string compare is enough — no re-parsing on the client. */
+function findAnchor(anchors: WordAnchorSet | undefined, text: string): WordAnchor | undefined {
+  if (!anchors) return undefined;
+  const t = text.trim();
+  return anchors.list.find((a) => a.span === t);
+}
+
+/** Wraps a citation so pointing at it lights up the words it quotes. Purely
+ *  additive: without a resolved anchor the text renders exactly as before. */
+function AnchoredSpan({
+  anchor,
+  verseKey,
+  children,
+}: {
+  anchor: WordAnchor;
+  verseKey: string;
+  children: React.ReactNode;
+}) {
+  // Identifies this citation among the several that may quote the same phrase,
+  // so leaving one doesn't cancel the highlight another has just claimed.
+  const owner = useId();
+  const claim = () => setWordHover({ verseKey, start: anchor.start, end: anchor.end }, owner);
+  const release = () => clearWordHover(owner);
+  return (
+    <span
+      className="cursor-help rounded-sm underline decoration-dotted decoration-emerald-500/60 underline-offset-2 hover:bg-emerald-50"
+      onMouseEnter={claim}
+      onMouseLeave={release}
+      onFocus={claim}
+      onBlur={release}
+      tabIndex={0}
+    >
+      {children}
+    </span>
+  );
+}
 
 // Shared lightweight markdown renderer for assistant Q&A content.
 //
@@ -54,6 +102,7 @@ export function renderInline(
   quotes?: PoetryQuotedLine[],
   translationNotesId?: string,
   grammarTerms?: Record<string, GrammarTerm>,
+  anchors?: WordAnchorSet,
 ) {
   const parts = text.split(
     /(\[\[q:\d+\|[^\]]+\]\]|\[\[tn\|[^\]]+\]\]|\[\[gt\|[^\]]+\]\]|\*\*[^*]+\*\*|\*[^*\n]+\*)/g,
@@ -100,17 +149,54 @@ export function renderInline(
       // resolves instead of leaking its raw text into VerseRefText.
       return (
         <strong key={i} className="font-semibold text-stone-900">
-          {renderInline(part.slice(2, -2), quotes, translationNotesId, grammarTerms)}
+          {renderInline(part.slice(2, -2), quotes, translationNotesId, grammarTerms, anchors)}
         </strong>
       );
     }
     if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
       // Recurse for the same reason — handles `*[[q:ID|…]]*` (an emphasised
       // poetry quote), which the split regex captures as a single italic run.
-      return (
+      const inner = part.slice(1, -1);
+      const em = (
         <em key={i} className="italic">
-          {renderInline(part.slice(1, -1), quotes, translationNotesId, grammarTerms)}
+          {renderInline(inner, quotes, translationNotesId, grammarTerms, anchors)}
         </em>
+      );
+      // Transliterated citations are written as *inna l-ḥasanāti …*, so the
+      // italic run is exactly the span the aligner resolved.
+      const hit = findAnchor(anchors, inner);
+      if (hit && anchors) {
+        return (
+          <AnchoredSpan key={i} anchor={hit} verseKey={anchors.verseKey}>
+            {em}
+          </AnchoredSpan>
+        );
+      }
+      return em;
+    }
+    // Arabic citations (طَرَفَىِ ٱلنَّهَارِ) sit in the prose unmarked, so split the
+    // run around any anchored phrase before handing the rest to VerseRefText.
+    const arabicHits = anchors?.list.filter(
+      (a) => a.script === 'arabic' && part.includes(a.span),
+    );
+    if (arabicHits?.length && anchors) {
+      const pattern = arabicHits
+        .map((a) => a.span.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+      const pieces = part.split(new RegExp(`(${pattern})`, 'g'));
+      return (
+        <Fragment key={i}>
+          {pieces.map((piece, j) => {
+            const a = arabicHits.find((x) => x.span === piece);
+            return a ? (
+              <AnchoredSpan key={j} anchor={a} verseKey={anchors.verseKey}>
+                <VerseRefText text={piece} />
+              </AnchoredSpan>
+            ) : (
+              <VerseRefText key={j} text={piece} />
+            );
+          })}
+        </Fragment>
       );
     }
     return <VerseRefText key={i} text={part} />;
@@ -130,11 +216,15 @@ interface FormattedTextProps {
    * linkifyGrammarTermRefs) render as a GrammarChip with the real glossary
    * definition; without it, the marker degrades to plain text. */
   grammarTerms?: Record<string, GrammarTerm>;
+  /** Citations in this note that quote the verse itself (resolved offline by
+   * align_note_anchors.py). When present, hovering one highlights the words it
+   * quotes; without it the citation renders as ordinary emphasis. */
+  anchors?: WordAnchorSet;
 }
 
 // Block-level renderer for multi-paragraph answers: headings, bullet/numbered
 // lists, blank-line spacing, plus inline bold/italic and verse links.
-export function FormattedText({ text, className, quotes, translationNotesId, grammarTerms }: FormattedTextProps) {
+export function FormattedText({ text, className, quotes, translationNotesId, grammarTerms, anchors }: FormattedTextProps) {
   const lines = (text ?? '').split('\n');
   return (
     <div className={className}>
@@ -152,7 +242,7 @@ export function FormattedText({ text, className, quotes, translationNotesId, gra
           return (
             <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
               <span className="text-stone-400 shrink-0">•</span>
-              <span>{renderInline(content, quotes, translationNotesId, grammarTerms)}</span>
+              <span>{renderInline(content, quotes, translationNotesId, grammarTerms, anchors)}</span>
             </div>
           );
         }
@@ -162,14 +252,14 @@ export function FormattedText({ text, className, quotes, translationNotesId, gra
           return (
             <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
               <span className="text-stone-400 shrink-0">{num}.</span>
-              <span>{renderInline(content, quotes, translationNotesId, grammarTerms)}</span>
+              <span>{renderInline(content, quotes, translationNotesId, grammarTerms, anchors)}</span>
             </div>
           );
         }
         if (!line.trim()) return <div key={li} className="h-2" />;
         return (
           <p key={li} className={li > 0 ? 'mt-0.5' : ''}>
-            {renderInline(line, quotes, translationNotesId, grammarTerms)}
+            {renderInline(line, quotes, translationNotesId, grammarTerms, anchors)}
           </p>
         );
       })}
@@ -178,8 +268,8 @@ export function FormattedText({ text, className, quotes, translationNotesId, gra
 }
 
 // Inline-only renderer for single-line content such as questions.
-export function FormattedInline({ text, className, quotes, translationNotesId, grammarTerms }: FormattedTextProps) {
-  return <span className={className}>{renderInline(text ?? '', quotes, translationNotesId, grammarTerms)}</span>;
+export function FormattedInline({ text, className, quotes, translationNotesId, grammarTerms, anchors }: FormattedTextProps) {
+  return <span className={className}>{renderInline(text ?? '', quotes, translationNotesId, grammarTerms, anchors)}</span>;
 }
 
 export default FormattedText;
