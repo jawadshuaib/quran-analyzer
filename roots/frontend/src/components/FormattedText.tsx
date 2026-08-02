@@ -180,7 +180,11 @@ export function renderInline(
       (a) => a.script === 'arabic' && part.includes(a.span),
     );
     if (arabicHits?.length && anchors) {
-      const pattern = arabicHits
+      // Longest first: a note routinely cites both a phrase and one of its
+      // words (طَرَفَىِ ٱلنَّهَارِ and ٱلنَّهَارِ), and regex alternation is
+      // first-match-wins — unsorted, the shorter one splits the longer apart.
+      const pattern = [...arabicHits]
+        .sort((a, b) => b.span.length - a.span.length)
         .map((a) => a.span.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         .join('|');
       const pieces = part.split(new RegExp(`(${pattern})`, 'g'));

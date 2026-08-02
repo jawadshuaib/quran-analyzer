@@ -39,6 +39,20 @@ TRAILING_PUNCT = r'[.,;:?!"”“…()\[\]]'
 # word. Skipped rather than risk it.
 MISALIGNED = {(2, 181), (8, 6), (13, 37), (37, 130)}
 
+# The two note bodies a reader sees under a verse. Translation Notes quote the
+# Arabic directly far more often than the (English-prose) exegesis does, so most
+# of the Arabic anchors come from here. `max(created_at)` per verse mirrors the
+# "most recent translation wins" rule the /ai-translation endpoint applies, so
+# the anchored spans are the ones actually rendered.
+SOURCES = (
+    ('exegesis',
+     "SELECT chapter, verse, exegesis_markdown FROM verse_exegesis"),
+    ('translation_notes',
+     "SELECT chapter, verse, departure_notes FROM ("
+     "  SELECT chapter, verse, departure_notes, max(created_at)"
+     "  FROM ai_translations GROUP BY chapter, verse)"),
+)
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS note_word_anchors (
     source      TEXT NOT NULL,      -- which note carried the citation
@@ -129,52 +143,50 @@ def main():
 
         if args.verse:
             ch, v = (int(x) for x in args.verse.split(':'))
-            row = conn.execute(
-                "SELECT exegesis_markdown FROM verse_exegesis WHERE chapter=? AND verse=?",
-                (ch, v)).fetchone()
-            if not row:
-                print(f"no exegesis for {ch}:{v}")
-                return
             words = verse_words.get((ch, v), [])
             plain = {w[0]: t for w, t in zip(words, [r[0] for r in conn.execute(
                 "SELECT arabic_plain FROM word_translit WHERE chapter=? AND verse=? "
                 "ORDER BY word_pos", (ch, v))])}
-            for span, script in spans_in(row[0]):
-                r = resolve(span, script, words)
-                if r:
-                    txt = ' '.join(plain.get(p, '') for p in range(r[0], r[1] + 1))
-                    print(f"  [{script:8}] {span!r}\n       -> words {r[0]}–{r[1]}  {txt}")
-                else:
-                    print(f"  [{script:8}] {span!r}\n       -> (left as prose)")
+            for source, sql in SOURCES:
+                md = next((r[2] for r in conn.execute(sql)
+                           if (r[0], r[1]) == (ch, v)), None)
+                print(f"[{source}]" + ('' if md else '  (none)'))
+                for span, script in spans_in(md or ''):
+                    r = resolve(span, script, words)
+                    if r:
+                        txt = ' '.join(plain.get(p, '') for p in range(r[0], r[1] + 1))
+                        print(f"  [{script:8}] {span!r}\n       -> words {r[0]}–{r[1]}  {txt}")
+                    else:
+                        print(f"  [{script:8}] {span!r}\n       -> (left as prose)")
             return
 
         conn.executescript(SCHEMA)
-        conn.execute("DELETE FROM note_word_anchors WHERE source='exegesis'")
+        conn.execute("DELETE FROM note_word_anchors")
 
         rows, stats = [], collections.Counter()
         seen = set()
-        for ch, v, md in conn.execute(
-                "SELECT chapter, verse, exegesis_markdown FROM verse_exegesis"):
-            if not md:
-                continue
-            if (ch, v) in MISALIGNED:
-                stats['skipped (verse word-count drift)'] += 1
-                continue
-            words = verse_words.get((ch, v))
-            if not words:
-                continue
-            for span, script in spans_in(md):
-                stats[f'{script}: seen'] += 1
-                r = resolve(span, script, words)
-                if not r:
-                    stats[f'{script}: left as prose'] += 1
+        for source, sql in SOURCES:
+            for ch, v, md in conn.execute(sql):
+                if not md:
                     continue
-                key = ('exegesis', ch, v, span)
-                if key in seen:            # same phrase cited twice in one note
+                if (ch, v) in MISALIGNED:
+                    stats['skipped (verse word-count drift)'] += 1
                     continue
-                seen.add(key)
-                rows.append(('exegesis', ch, v, span, script, r[0], r[1]))
-                stats[f'{script}: anchored'] += 1
+                words = verse_words.get((ch, v))
+                if not words:
+                    continue
+                for span, script in spans_in(md):
+                    stats[f'{source}/{script}: seen'] += 1
+                    r = resolve(span, script, words)
+                    if not r:
+                        stats[f'{source}/{script}: left as prose'] += 1
+                        continue
+                    key = (source, ch, v, span)
+                    if key in seen:        # same phrase cited twice in one note
+                        continue
+                    seen.add(key)
+                    rows.append((source, ch, v, span, script, r[0], r[1]))
+                    stats[f'{source}/{script}: anchored'] += 1
 
         conn.executemany(
             "INSERT INTO note_word_anchors "

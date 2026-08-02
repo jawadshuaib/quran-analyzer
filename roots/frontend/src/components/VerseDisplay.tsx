@@ -621,6 +621,11 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                     <FormattedInline
                       text={linkifyGrammarTermRefs(line)}
                       grammarTerms={grammarTerms ?? undefined}
+                      anchors={
+                        aiTranslation.word_anchors?.length
+                          ? { verseKey, list: aiTranslation.word_anchors }
+                          : undefined
+                      }
                     />
                   </p>
                 ))}

@@ -3921,6 +3921,7 @@ def get_ai_translation(surah: int, ayah: int):
             "translation_original": row["translation_text"] if was_revised else None,
             "is_revised": was_revised,
             "departure_notes": row["departure_notes"],
+            "word_anchors": _fetch_word_anchors(conn, surah, ayah, 'translation_notes'),
             "config_name": row["config_name"],
             "model_name": row["model_name"],
             "created_at": row["created_at"],
@@ -7259,9 +7260,14 @@ def get_verse_root_lexicon(surah: int, ayah: int):
 # with the original Arabic + a faithful translation one click away. Buckwalter-
 # keyed; review_status/hidden gate public reads (approved AND NOT hidden).
 # ---------------------------------------------------------------------------
-def _fetch_word_anchors(conn, surah: int, ayah: int):
+def _fetch_word_anchors(conn, surah: int, ayah: int, source: str = 'exegesis'):
     """Citations inside this verse's note that quote the verse itself, mapped to
     the word range they quote, so the client can highlight those words on hover.
+
+    `source` selects which note body the anchors were resolved against —
+    'exegesis' or 'translation_notes'. They are kept apart because a span is
+    matched by its literal text, and the same phrase can be cited in one note
+    and not the other.
 
     Built offline by align_note_anchors.py. Returns [] when the table has not
     been synced yet — the note then renders as ordinary prose.
@@ -7269,8 +7275,8 @@ def _fetch_word_anchors(conn, surah: int, ayah: int):
     try:
         rows = conn.execute(
             "SELECT span_text, script, word_start, word_end FROM note_word_anchors "
-            "WHERE chapter = ? AND verse = ? AND source = 'exegesis'",
-            (surah, ayah),
+            "WHERE chapter = ? AND verse = ? AND source = ?",
+            (surah, ayah, source),
         ).fetchall()
     except sqlite3.OperationalError:
         return []

@@ -390,6 +390,9 @@ export interface AITranslationData {
   ayah: number;
   translation: string;
   departure_notes: string | null;
+  /** Citations in the departure notes that quote this verse, so hovering one
+   * highlights the words it quotes (same mechanism as the exegesis). */
+  word_anchors?: WordAnchor[];
   config_name: string;
   model_name: string;
   created_at: string;

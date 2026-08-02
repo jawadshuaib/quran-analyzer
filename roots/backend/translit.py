@@ -320,10 +320,28 @@ def arabic_plain(s: str) -> str:
 
 
 def arabic_key(s: str) -> str:
-    """Undotted-ish skeleton for matching Arabic citations against verse words."""
+    """Rasm-ish skeleton for matching Arabic citations against verse words.
+
+    Notes cite in modern orthography; the verse carries the Uthmani rasm. The
+    two differ systematically, so the key folds away exactly the letters that
+    differ rather than trying to match them:
+
+      * alif — written in a citation (حَسَنَات) but a dagger alif in the rasm
+        (ٱلْحَسَنَٰتِ), which is a diacritic and already stripped -> حسنت.
+      * hamza — a citation's combining hamza (ٱلسَّيِّـَٔاتِ) is stripped as a
+        diacritic, while the verse carries a standalone ء -> سيات vs سيءات.
+
+    Both are dropped so the two spellings meet. The lost discrimination is
+    recovered by matching contiguous multi-word runs, not single tokens.
+    """
     s = arabic_plain(s)
     s = ''.join(_AR_FOLD.get(ch, ch) for ch in s)
     s = re.sub(r'[^ء-ي]', '', s)
-    s = re.sub(r'^ا?ل(?=.{2})', '', s)         # definite article
+    # Proclitic (bi-/li-/ka-/fa-/wa-) before the article: the verse writes
+    # لِلذَّٰكِرِينَ where the note cites ٱلذَّاكِرِينَ.
+    s = re.sub(r'^[بلكفو]?ا?ل(?=.{2})', '', s)
     s = re.sub(r'(.)\1+', r'\1', s)
-    return s
+    folded = s.replace('ا', '').replace('ء', '')
+    # Guard: for words that are little more than alif/hamza (ءاياته -> ايته is
+    # fine, but ما -> م, ء -> '') keep the unfolded key rather than a stub.
+    return folded if len(folded) >= 2 else s

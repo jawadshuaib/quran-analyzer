@@ -666,6 +666,11 @@ function VerseNotesPanel({
                 <FormattedInline
                   text={linkifyGrammarTermRefs(line)}
                   grammarTerms={glossaryTerms ?? undefined}
+                  anchors={
+                    translation.word_anchors?.length
+                      ? { verseKey: `${surah}:${verse}`, list: translation.word_anchors }
+                      : undefined
+                  }
                 />
               </p>
             ))}
