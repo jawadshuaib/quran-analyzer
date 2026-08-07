@@ -1,6 +1,26 @@
 import { useState } from 'react';
 import type { Word, CognateData } from '../types';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import {
+  HIGHLIGHT_COLORS,
+  HIGHLIGHT_SWATCH,
+  HIGHLIGHT_LABEL,
+  setWordHighlight,
+  removeWordHighlight,
+  type HighlightColor,
+  type VerseMeta,
+} from '../utils/verse-highlights';
+
+/** Enables the per-word highlight picker at the foot of the tooltip. Omitted
+ *  where highlighting doesn't apply (e.g. the root page's occurrence list). */
+export interface WordHighlightTarget {
+  verseKey: string;
+  pos: number;
+  /** Colour currently covering this word, from the caller's posMap. */
+  activeColor?: HighlightColor;
+  /** Verse text carried onto the auto-saved item, as with drag-highlighting. */
+  meta?: VerseMeta;
+}
 
 interface Props {
   word: Word;
@@ -9,9 +29,10 @@ interface Props {
   wordDetailUrl?: string;
   preferredTranslation?: string;
   preferredSource?: 'conventional' | 'ai' | 'judge';
+  highlight?: WordHighlightTarget;
 }
 
-export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, preferredTranslation }: Props) {
+export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, preferredTranslation, highlight }: Props) {
   const [expanded, setExpanded] = useState(false);
   const mainRootSeg = word.segments.find((s) => s.root_arabic);
   const mainRoot = mainRootSeg?.root_arabic;
@@ -202,6 +223,58 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
               </a>
             </>
           )}
+        </div>
+      )}
+
+      {/* Per-word highlight picker. Dragging across several words is fiddly at
+          this text size and easily catches neighbours, so a word can be
+          coloured on its own from here. */}
+      {highlight && (
+        <div className="mt-2 pt-2 border-t border-stone-100">
+          <div
+            role="toolbar"
+            aria-label="Highlight this word"
+            className="flex items-center justify-center gap-1.5"
+          >
+            {HIGHLIGHT_COLORS.map((c) => {
+              const active = highlight.activeColor === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={`Highlight ${HIGHLIGHT_LABEL[c]}`}
+                  aria-pressed={active}
+                  title={HIGHLIGHT_LABEL[c]}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setWordHighlight(highlight.verseKey, highlight.pos, c, highlight.meta);
+                  }}
+                  className={`h-5 w-5 rounded-full ${HIGHLIGHT_SWATCH[c]} cursor-pointer transition-transform hover:scale-110 ${
+                    active ? 'ring-2 ring-offset-1 ring-stone-500' : 'ring-1 ring-black/5'
+                  }`}
+                />
+              );
+            })}
+            {highlight.activeColor && (
+              <>
+                <span className="mx-0.5 h-4 w-px bg-stone-200" aria-hidden />
+                <button
+                  type="button"
+                  aria-label="Remove highlight"
+                  title="Remove highlight"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeWordHighlight(highlight.verseKey, highlight.pos);
+                  }}
+                  className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-full text-stone-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                >
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+                  </svg>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

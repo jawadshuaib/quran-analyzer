@@ -401,6 +401,12 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
                       aiMeaning={w.translation || undefined}
                       preferredTranslation={w.translation || undefined}
                       wordDetailUrl={`/word/${surah}:${verse.verse}/${w.position}`}
+                      highlight={{
+                        verseKey,
+                        pos: w.position,
+                        activeColor: posMap.get(w.position)?.color,
+                        meta: { arabic: verse.text_uthmani, translation: verse.translation },
+                      }}
                     />
                   )}
                 </span>

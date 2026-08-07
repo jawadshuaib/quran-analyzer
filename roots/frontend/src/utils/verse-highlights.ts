@@ -276,6 +276,89 @@ export function addHighlight(
   return result;
 }
 
+/** The highlight covering a single word position, if any. */
+export function getHighlightAt(verseKey: string, pos: number): Highlight | undefined {
+  return (load().byVerse[verseKey] ?? []).find((h) => h.startPos <= pos && h.endPos >= pos);
+}
+
+/** Remove `pos` from whatever highlight covers it, splitting that highlight in
+ *  two when the position sits in its middle. Pure; returns a new list. */
+function carveOut(list: Highlight[], pos: number): Highlight[] {
+  const out: Highlight[] = [];
+  for (const h of list) {
+    if (pos < h.startPos || pos > h.endPos) {
+      out.push(h);
+      continue;
+    }
+    // Left remainder keeps the original id so a trim reads as the same
+    // highlight; the right remainder becomes a new one.
+    if (pos > h.startPos) out.push({ ...h, endPos: pos - 1 });
+    if (pos < h.endPos) out.push({ ...h, id: newId(), startPos: pos + 1 });
+    // Exactly [pos, pos] falls through — carved away entirely.
+  }
+  return out;
+}
+
+/**
+ * Paint ONE word a specific color, for picking colors per word instead of
+ * dragging across a range.
+ *
+ * Unlike addHighlight (drag), this merges only with SAME-colored neighbours:
+ * painting a word green next to a yellow run must not be swallowed by the
+ * yellow one. If the word already sits inside a differently-colored highlight
+ * that highlight is split around it, so a single word can be recolored out of
+ * the middle of a run.
+ */
+export function setWordHighlight(
+  verseKey: string,
+  pos: number,
+  color: HighlightColor,
+  meta?: VerseMeta,
+): void {
+  const store = load();
+  const list = store.byVerse[verseKey] ?? [];
+  const covering = list.find((h) => h.startPos <= pos && h.endPos >= pos);
+  if (covering && covering.color === color) return;
+
+  const carved = carveOut(list, pos);
+  const touching = carved.filter(
+    (h) => h.color === color && h.startPos <= pos + 1 && h.endPos >= pos - 1,
+  );
+  const rest = carved.filter((h) => !touching.includes(h));
+
+  let result: Highlight;
+  if (touching.length > 0) {
+    const anchor = touching.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b));
+    result = {
+      ...anchor,
+      startPos: Math.min(pos, ...touching.map((h) => h.startPos)),
+      endPos: Math.max(pos, ...touching.map((h) => h.endPos)),
+    };
+  } else {
+    result = { id: newId(), startPos: pos, endPos: pos, color, createdAt: Date.now() };
+  }
+
+  store.byVerse[verseKey] = [...rest, result];
+  persist(store);
+  ensureSavedForHighlight(verseKey, meta);
+  notify();
+}
+
+/** Clear the highlight on ONE word, trimming or splitting whatever covers it.
+ *  Auto-unsaves the verse per the usual rule if nothing is left. */
+export function removeWordHighlight(verseKey: string, pos: number): void {
+  const store = load();
+  const list = store.byVerse[verseKey];
+  if (!list?.some((h) => h.startPos <= pos && h.endPos >= pos)) return;
+
+  const carved = carveOut(list, pos);
+  if (carved.length === 0) delete store.byVerse[verseKey];
+  else store.byVerse[verseKey] = carved;
+  persist(store);
+  maybeUnsaveAfterClear(verseKey);
+  notify();
+}
+
 /** Recolor an existing highlight (no-op if not found). */
 export function setHighlightColor(
   verseKey: string,

@@ -563,6 +563,12 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                   wordDetailUrl={wordMeanings[String(pos)]?.has_detail ? `/word/${data.surah}:${data.ayah}/${pos}` : undefined}
                   preferredTranslation={wordMeanings[String(pos)]?.preferred_translation}
                   preferredSource={wordMeanings[String(pos)]?.preferred_source}
+                  highlight={{
+                    verseKey,
+                    pos,
+                    activeColor: hl?.color,
+                    meta: { arabic: data.text_uthmani, translation: data.translation },
+                  }}
                 />
               )}
             </span>
