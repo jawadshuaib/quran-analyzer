@@ -1,4 +1,4 @@
-import { Fragment, useId } from 'react';
+import { Fragment, useId, useEffect, useRef, useState } from 'react';
 import VerseRefText from './VerseRefText';
 import PoetryQuote from './PoetryQuote';
 import { GrammarChip } from './GrammarNotes';
@@ -21,8 +21,129 @@ function findAnchor(anchors: WordAnchorSet | undefined, text: string): WordAncho
   return anchors.list.find((a) => a.span === t);
 }
 
-/** Wraps a citation so pointing at it lights up the words it quotes. Purely
- *  additive: without a resolved anchor the text renders exactly as before. */
+/** The verse's Arabic word tokens, read from the rendered verse region.
+ *  Sourced from the same `data-verse-text` attribute HighlightController uses,
+ *  so no note-rendering call site has to thread the verse text down. Returns
+ *  null when the verse isn't on the page — the citation then stays hover-only. */
+function readVerseWords(verseKey: string): string[] | null {
+  if (typeof document === 'undefined') return null;
+  const region = document.querySelector(
+    `[data-arabic-region][data-verse-key="${CSS.escape(verseKey)}"]`,
+  );
+  const text = region?.getAttribute('data-verse-text');
+  if (!text) return null;
+  const words = text.split(/\s+/).filter(Boolean);
+  return words.length ? words : null;
+}
+
+/** Scroll the verse itself into view and light the quoted words there for a
+ *  moment — for when the reader wants the phrase in its full setting rather
+ *  than the excerpt. */
+function showInVerse(verseKey: string, anchor: WordAnchor, owner: string): void {
+  const region = document.querySelector(
+    `[data-arabic-region][data-verse-key="${CSS.escape(verseKey)}"]`,
+  );
+  if (!region) return;
+  region.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setWordHover({ verseKey, start: anchor.start, end: anchor.end }, owner);
+  window.setTimeout(() => clearWordHover(owner), 2400);
+}
+
+/**
+ * The quoted phrase shown inside its verse, so a citation can be checked
+ * without leaving the note.
+ *
+ * Hovering a citation lights up the words it quotes, which is no help once the
+ * reader has scrolled past the verse — the lit words are off-screen. Clicking
+ * opens this excerpt instead of scrolling away, because losing your place in
+ * the prose to look at three words is a bad trade; "Show in verse" is here for
+ * when the full setting really is wanted.
+ */
+function AnchorExcerpt({
+  verseKey,
+  anchor,
+  owner,
+  onClose,
+}: {
+  verseKey: string;
+  anchor: WordAnchor;
+  owner: string;
+  onClose: () => void;
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const markRef = useRef<HTMLSpanElement>(null);
+  const words = readVerseWords(verseKey);
+
+  // Long verses overflow the excerpt, and the quoted phrase is often well past
+  // the opening — bring it into view inside the scroller.
+  useEffect(() => {
+    markRef.current?.scrollIntoView({ block: 'center' });
+  }, []);
+
+  useEffect(() => {
+    function onDown(e: PointerEvent) {
+      if (!boxRef.current?.contains(e.target as Node)) onClose();
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('pointerdown', onDown, true);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDown, true);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  if (!words) return null;
+
+  return (
+    <span
+      ref={boxRef as React.RefObject<HTMLDivElement>}
+      role="dialog"
+      aria-label="Quoted words in the verse"
+      className="absolute left-1/2 top-full z-50 mt-1.5 block w-72 -translate-x-1/2 cursor-auto
+                 rounded-lg border border-stone-200 bg-white p-2.5 text-left shadow-lg"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span
+        dir="rtl"
+        lang="ar"
+        className="block max-h-36 overflow-y-auto font-arabic text-lg leading-loose text-stone-800"
+      >
+        {words.map((w, i) => {
+          const pos = i + 1;
+          const inRange = pos >= anchor.start && pos <= anchor.end;
+          return (
+            <span
+              key={pos}
+              ref={inRange && pos === anchor.start ? markRef : undefined}
+              className={inRange ? 'rounded bg-emerald-200 px-0.5 text-emerald-950' : undefined}
+            >
+              {w}
+              {i < words.length - 1 ? ' ' : ''}
+            </span>
+          );
+        })}
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          showInVerse(verseKey, anchor, owner);
+          onClose();
+        }}
+        className="mt-2 block w-full cursor-pointer rounded-md bg-emerald-50 px-2 py-1 text-center
+                   text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+      >
+        Show in verse ↑
+      </button>
+    </span>
+  );
+}
+
+/** Wraps a citation so pointing at it lights up the words it quotes, and
+ *  clicking shows those words inside the verse. Purely additive: without a
+ *  resolved anchor the text renders exactly as before. */
 function AnchoredSpan({
   anchor,
   verseKey,
@@ -35,18 +156,39 @@ function AnchoredSpan({
   // Identifies this citation among the several that may quote the same phrase,
   // so leaving one doesn't cancel the highlight another has just claimed.
   const owner = useId();
+  const [open, setOpen] = useState(false);
   const claim = () => setWordHover({ verseKey, start: anchor.start, end: anchor.end }, owner);
   const release = () => clearWordHover(owner);
   return (
     <span
-      className="cursor-help rounded-sm underline decoration-dotted decoration-emerald-500/60 underline-offset-2 hover:bg-emerald-50"
+      className="relative cursor-pointer rounded-sm underline decoration-dotted decoration-emerald-500/60 underline-offset-2 hover:bg-emerald-50"
       onMouseEnter={claim}
       onMouseLeave={release}
       onFocus={claim}
       onBlur={release}
+      onClick={(e) => {
+        e.stopPropagation();
+        setOpen((v) => !v);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setOpen((v) => !v);
+        }
+      }}
+      role="button"
+      aria-expanded={open}
       tabIndex={0}
     >
       {children}
+      {open && (
+        <AnchorExcerpt
+          verseKey={verseKey}
+          anchor={anchor}
+          owner={owner}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </span>
   );
 }
