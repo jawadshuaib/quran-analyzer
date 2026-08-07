@@ -257,23 +257,39 @@ function TopExtensionBar({ storeUrl }: { storeUrl: string }) {
   );
 }
 
+const FOOTER_LINKS: Array<{ href: string; label: string }> = [
+  { href: '/learning', label: 'Learn' },
+  { href: '/meters', label: 'Metres' },
+  { href: '/grammar-glossary', label: 'Grammar' },
+  { href: '/dictionary', label: 'Dictionary' },
+  { href: '/developers', label: 'API' },
+  { href: '/privacy', label: 'Privacy' },
+  { href: '/terms', label: 'Terms' },
+];
+
 function SiteFooter() {
   return (
-    <footer className="py-6 border-t border-card-border text-center text-[11.5px] text-ink-muted tracking-wide">
-      <div>
-        <a href="/learning" className="hover:text-ink-secondary">Learn</a>
-        <span className="mx-2">&middot;</span>
-        <a href="/meters" className="hover:text-ink-secondary">Metres</a>
-        <span className="mx-2">&middot;</span>
-        <a href="/grammar-glossary" className="hover:text-ink-secondary">Grammar</a>
-        <span className="mx-2">&middot;</span>
-        <a href="/dictionary" className="hover:text-ink-secondary">Dictionary</a>
-        <span className="mx-2">&middot;</span>
-        <a href="/developers" className="hover:text-ink-secondary">API</a>
-        <span className="mx-2">&middot;</span>
-        <a href="/privacy" className="hover:text-ink-secondary">Privacy</a>
-        <span className="mx-2">&middot;</span>
-        <a href="/terms" className="hover:text-ink-secondary">Terms</a>
+    // Extra bottom padding on small screens only: the floating "Ask the Quran"
+    // button is fixed to the viewport's bottom-right and sits on top of the
+    // footer once the page is scrolled to the end, making whichever links fall
+    // under it unclickable (it buried Privacy + Terms before this footer
+    // wrapped). Desktop centres the footer well clear of the button.
+    <footer className="pt-6 pb-20 sm:pb-6 border-t border-card-border text-center text-[11.5px] text-ink-muted tracking-wide">
+      {/* flex-wrap, not inline text: JSX drops the whitespace between adjacent
+          elements, so a row of <a>·<a>·<a> has NO soft-wrap opportunity and
+          can't break at all — it ran ~22px off a 375px screen, which is what
+          made the whole page horizontally scrollable. Each link carries its
+          own trailing separator as one nowrap unit so a wrapped line never
+          opens with a stray "·". */}
+      <div className="flex flex-wrap items-center justify-center gap-y-1 px-4">
+        {FOOTER_LINKS.map((l, i) => (
+          <span key={l.href} className="whitespace-nowrap">
+            <a href={l.href} className="hover:text-ink-secondary">{l.label}</a>
+            {i < FOOTER_LINKS.length - 1 && (
+              <span className="mx-2" aria-hidden>&middot;</span>
+            )}
+          </span>
+        ))}
       </div>
     </footer>
   );
