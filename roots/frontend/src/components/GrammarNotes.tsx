@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import type { GrammarNotesData, GrammarTerm } from '../types';
 import { fetchGrammarNotes, grammarTermSlug } from '../api/quran';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import { viewportSize } from '../utils/viewport';
 
 interface Props {
   surah: number;
@@ -211,8 +212,7 @@ export function GrammarChip({ term, displayText }: { term: GrammarTerm; displayT
       if (!chip) return;
       const chipRect = chip.getBoundingClientRect();
       const tipH = tipRef.current?.getBoundingClientRect().height ?? 200;
-      const viewportW = window.innerWidth;
-      const viewportH = window.innerHeight;
+      const { width: viewportW, height: viewportH } = viewportSize();
 
       // Prefer above; flip below if no room
       const spaceAbove = chipRect.top;

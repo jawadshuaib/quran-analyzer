@@ -13,6 +13,7 @@ import {
   type SavedItem,
 } from '../../utils/saved-items';
 import { isCoarsePointer } from '../../utils/verse-highlights';
+import { viewportSize } from '../../utils/viewport';
 
 export type FolderPopoverMode = 'save' | 'edit';
 
@@ -55,7 +56,9 @@ export default function FolderPopover({ anchorEl, item, mode, placement = 'below
   const inputRef = useRef<HTMLInputElement>(null);
   const idleTimer = useRef<number | null>(null);
 
-  const asSheet = isCoarsePointer() && window.innerWidth < 640;
+  // viewportSize(), not window.innerWidth, so this breakpoint agrees with the
+  // CSS one — media queries also ignore overflow when measuring the viewport.
+  const asSheet = isCoarsePointer() && viewportSize().width < 640;
 
   // Keep folder list / counts / membership fresh (another tab or the /saved
   // page may change them while we're open).
@@ -76,20 +79,21 @@ export default function FolderPopover({ anchorEl, item, mode, placement = 'below
     const popW = el.offsetWidth;
     const popH = el.offsetHeight;
     const pad = 8;
+    const { width: viewportW, height: viewportH } = viewportSize();
     let top: number;
     let left: number;
-    if (placement === 'right' && rect.right + pad + popW <= window.innerWidth - pad) {
+    if (placement === 'right' && rect.right + pad + popW <= viewportW - pad) {
       left = rect.right + pad;
       top = rect.top + rect.height / 2 - popH / 2;
     } else {
       left = rect.left;
       top = rect.bottom + 6;
-      if (top + popH > window.innerHeight - pad) {
+      if (top + popH > viewportH - pad) {
         top = rect.top - popH - 6; // flip above
       }
     }
-    left = Math.min(Math.max(left, pad), window.innerWidth - popW - pad);
-    top = Math.min(Math.max(top, pad), window.innerHeight - popH - pad);
+    left = Math.min(Math.max(left, pad), viewportW - popW - pad);
+    top = Math.min(Math.max(top, pad), viewportH - popH - pad);
     setPos({ top, left });
   }, [anchorEl, placement, asSheet, folders.length, showInput]);
 

@@ -1,8 +1,10 @@
 import { Fragment, useId, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import VerseRefText from './VerseRefText';
 import PoetryQuote from './PoetryQuote';
 import { GrammarChip } from './GrammarNotes';
 import { setWordHover, clearWordHover } from '../utils/word-hover';
+import { viewportSize } from '../utils/viewport';
 import type { PoetryQuotedLine, GrammarTerm, WordAnchor } from '../types';
 
 /** Citations in this note that quote the verse itself, plus the verse they
@@ -49,6 +51,13 @@ function showInVerse(verseKey: string, anchor: WordAnchor, owner: string): void 
   window.setTimeout(() => clearWordHover(owner), 2400);
 }
 
+const EXCERPT_W = 288; // matches the old w-72
+const EXCERPT_MAX_H_ESTIMATE = 260; // generous: scroller + button + padding, for the flip-above check
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
 /**
  * The quoted phrase shown inside its verse, so a citation can be checked
  * without leaving the note.
@@ -58,16 +67,25 @@ function showInVerse(verseKey: string, anchor: WordAnchor, owner: string): void 
  * opens this excerpt instead of scrolling away, because losing your place in
  * the prose to look at three words is a bad trade; "Show in verse" is here for
  * when the full setting really is wanted.
+ *
+ * Positioned as a FIXED, viewport-clamped popover (portaled to body) rather
+ * than absolute-under-the-citation — a citation can sit anywhere in wrapped
+ * prose, including flush against the left/right edge on a narrow phone
+ * screen, where a box centered under it would run off-screen. Same pattern as
+ * HighlightController's color popover: computed once from the trigger's rect
+ * at open time, dismissed (not repositioned) on scroll.
  */
 function AnchorExcerpt({
   verseKey,
   anchor,
   owner,
+  anchorRect,
   onClose,
 }: {
   verseKey: string;
   anchor: WordAnchor;
   owner: string;
+  anchorRect: { left: number; right: number; top: number; bottom: number };
   onClose: () => void;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
@@ -89,27 +107,44 @@ function AnchorExcerpt({
     }
     document.addEventListener('pointerdown', onDown, true);
     document.addEventListener('keydown', onKey);
+    // A scroll changes where the citation sits relative to the viewport, and
+    // this popover doesn't track it — dismiss instead of drifting off-anchor.
+    window.addEventListener('scroll', onClose, true);
     return () => {
       document.removeEventListener('pointerdown', onDown, true);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onClose, true);
     };
   }, [onClose]);
 
   if (!words) return null;
 
-  return (
-    <span
-      ref={boxRef as React.RefObject<HTMLDivElement>}
+  const { width: viewportW, height: viewportH } = viewportSize();
+
+  // Shrinks below EXCERPT_W only on a viewport too narrow to fit it with
+  // margins (e.g. an embedded webview) — normal phones use the fixed width.
+  const width = Math.min(EXCERPT_W, viewportW - 16);
+  const left = clamp((anchorRect.left + anchorRect.right) / 2 - width / 2, 8, viewportW - width - 8);
+  const below = anchorRect.bottom + 6;
+  const top =
+    below + EXCERPT_MAX_H_ESTIMATE > viewportH - 8
+      ? Math.max(8, anchorRect.top - EXCERPT_MAX_H_ESTIMATE - 6)
+      : below;
+
+  return createPortal(
+    <div
+      ref={boxRef}
       role="dialog"
       aria-label="Quoted words in the verse"
-      className="absolute left-1/2 top-full z-50 mt-1.5 block w-72 -translate-x-1/2 cursor-auto
-                 rounded-lg border border-stone-200 bg-white p-2.5 text-left shadow-lg"
+      className="fixed z-50 cursor-auto rounded-lg border border-stone-200 bg-white p-2.5
+                 text-left shadow-lg"
+      style={{ left, top, width }}
       onClick={(e) => e.stopPropagation()}
     >
-      <span
+      <div
         dir="rtl"
         lang="ar"
-        className="block max-h-36 overflow-y-auto font-arabic text-lg leading-loose text-stone-800"
+        className="max-h-36 overflow-y-auto font-arabic text-lg leading-loose text-stone-800"
       >
         {words.map((w, i) => {
           const pos = i + 1;
@@ -125,7 +160,7 @@ function AnchorExcerpt({
             </span>
           );
         })}
-      </span>
+      </div>
       <button
         type="button"
         onClick={() => {
@@ -137,7 +172,8 @@ function AnchorExcerpt({
       >
         Show in verse ↑
       </button>
-    </span>
+    </div>,
+    document.body,
   );
 }
 
@@ -156,11 +192,20 @@ function AnchoredSpan({
   // Identifies this citation among the several that may quote the same phrase,
   // so leaving one doesn't cancel the highlight another has just claimed.
   const owner = useId();
-  const [open, setOpen] = useState(false);
+  const spanRef = useRef<HTMLSpanElement>(null);
+  const [anchorRect, setAnchorRect] = useState<
+    { left: number; right: number; top: number; bottom: number } | null
+  >(null);
   const claim = () => setWordHover({ verseKey, start: anchor.start, end: anchor.end }, owner);
   const release = () => clearWordHover(owner);
+  const toggle = () => {
+    // Captured fresh on every open, not just the first — the citation may
+    // have reflowed (e.g. an earlier accordion opened) since the last time.
+    setAnchorRect((prev) => (prev ? null : spanRef.current?.getBoundingClientRect() ?? null));
+  };
   return (
     <span
+      ref={spanRef}
       className="relative cursor-pointer rounded-sm underline decoration-dotted decoration-emerald-500/60 underline-offset-2 hover:bg-emerald-50"
       onMouseEnter={claim}
       onMouseLeave={release}
@@ -168,25 +213,26 @@ function AnchoredSpan({
       onBlur={release}
       onClick={(e) => {
         e.stopPropagation();
-        setOpen((v) => !v);
+        toggle();
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          setOpen((v) => !v);
+          toggle();
         }
       }}
       role="button"
-      aria-expanded={open}
+      aria-expanded={!!anchorRect}
       tabIndex={0}
     >
       {children}
-      {open && (
+      {anchorRect && (
         <AnchorExcerpt
           verseKey={verseKey}
           anchor={anchor}
           owner={owner}
-          onClose={() => setOpen(false)}
+          anchorRect={anchorRect}
+          onClose={() => setAnchorRect(null)}
         />
       )}
     </span>

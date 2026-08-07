@@ -10,6 +10,7 @@ import {
   type HighlightColor,
 } from '../utils/verse-highlights';
 import { isHighlightingEnabled } from '../utils/reader-prefs';
+import { viewportSize } from '../utils/viewport';
 import { getSurahName } from '../utils/surah-names';
 import {
   setCopyContext,
@@ -235,13 +236,14 @@ function HighlightPopover({
   const ref = useRef<HTMLDivElement>(null);
 
   // Place below the selection; flip above if that would overflow the viewport.
+  const { width: viewportW, height: viewportH } = viewportSize();
   const below = rect.bottom + 8;
   const top =
-    below + POPOVER_H > window.innerHeight - 8 ? Math.max(8, rect.top - POPOVER_H - 8) : below;
+    below + POPOVER_H > viewportH - 8 ? Math.max(8, rect.top - POPOVER_H - 8) : below;
   const left = clamp(
     (rect.left + rect.right) / 2 - POPOVER_W / 2,
     8,
-    window.innerWidth - POPOVER_W - 8,
+    viewportW - POPOVER_W - 8,
   );
 
   // Dismiss on outside click, Escape, or scroll (highlights are kept).

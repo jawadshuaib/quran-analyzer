@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { fetchQuranVocabulary, vocabTermSlug } from '../api/quran';
 import type { QuranVocabularyTerm } from '../api/quran';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import { viewportSize } from '../utils/viewport';
 
 /**
  * Parses translation text containing markdown italic markers (*term*)
@@ -125,8 +126,7 @@ function TermChip({
       if (!chip) return;
       const rect = chip.getBoundingClientRect();
       const tipH = tipRef.current?.getBoundingClientRect().height ?? 200;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      const { width: vw, height: vh } = viewportSize();
       const above = rect.top >= tipH + GAP || rect.top >= vh - rect.bottom;
       const center = rect.left + rect.width / 2;
       let left = center - TIP_WIDTH / 2;
