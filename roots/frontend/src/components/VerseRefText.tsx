@@ -1,9 +1,61 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { RootDetailData } from '../types';
 import { fetchVerse, fetchRoot } from '../api/quran';
 import { arabicRootToBuckwalter } from '../utils/buckwalter';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import { viewportSize } from '../utils/viewport';
+
+/** Shared viewport-clamped placement for these hover tooltips — fixed
+ *  positioning (escapes any overflow-hidden ancestor) below the trigger,
+ *  flipped above if there's no room, and clamped so it can never sit off
+ *  either edge. Was `absolute` + `-translate-x-1/2` centered on the trigger
+ *  with no clamping at all, which ran a verse-range tooltip off the right
+ *  edge next to a ref near the end of a line. Recomputes on scroll/resize so
+ *  it tracks the trigger, and again whenever the tooltip's own content
+ *  changes size (e.g. a loading spinner resolving to a multi-verse list). */
+function useTooltipPosition(
+  open: boolean,
+  triggerRef: React.RefObject<HTMLElement | null>,
+  tipRef: React.RefObject<HTMLElement | null>,
+  width: number,
+  contentKey: unknown,
+) {
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
+  const GAP = 8;
+
+  useEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    function place() {
+      const trigger = triggerRef.current;
+      if (!trigger) return;
+      const rect = trigger.getBoundingClientRect();
+      const tipH = tipRef.current?.getBoundingClientRect().height ?? 160;
+      const { width: viewportW, height: viewportH } = viewportSize();
+
+      const below = rect.bottom + GAP;
+      const top =
+        below + tipH > viewportH - GAP ? Math.max(GAP, rect.top - tipH - GAP) : below;
+      const center = rect.left + rect.width / 2;
+      const left = Math.max(GAP, Math.min(center - width / 2, viewportW - width - GAP));
+      setPos({ left, top });
+    }
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, contentKey]);
+
+  return pos;
+}
 
 interface Props {
   text: string;
@@ -77,15 +129,23 @@ function parseRef(ref: string): { surah: number; startAyah: number; endAyah: num
 // Shared cross-instance cache so repeated hovers don't re-fetch
 const verseCache = new Map<string, CachedVerse>();
 
+const VERSE_TIP_W_SINGLE = 300; // within the old min-w-220/max-w-360 range
+const VERSE_TIP_W_RANGE = 340; // matches the old fixed range width
+
 function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disableNavigation?: boolean }) {
   const { surah, startAyah, endAyah } = parseRef(verseRef);
   const isRange = endAyah > startAyah;
+  const tipWidth = isRange ? VERSE_TIP_W_RANGE : VERSE_TIP_W_SINGLE;
 
   const [tooltip, setTooltip] = useState<{
     loading: boolean;
     verses: CachedVerse[];
     error: boolean;
   } | null>(null);
+
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const pos = useTooltipPosition(!!tooltip, triggerRef, tipRef, tipWidth, tooltip);
 
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -166,6 +226,7 @@ function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disab
   return (
     <span className="relative inline">
       <span
+        ref={triggerRef}
         className="text-violet-600 underline decoration-violet-300 underline-offset-2 cursor-pointer hover:text-violet-800 hover:decoration-violet-500 transition-colors"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -176,78 +237,79 @@ function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disab
         {verseRef}
       </span>
 
-      {tooltip && (
-        <span
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50
-                     bg-white rounded-lg shadow-lg border border-violet-200 p-3
-                     min-w-[220px] max-w-[360px] text-sm text-stone-700"
-          style={{ width: isRange ? '340px' : undefined }}
-          onMouseEnter={clearHideTimer}
-          onMouseLeave={handleMouseLeave}
-        >
-          {/* Arrow */}
-          <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3
-                          bg-white border-l border-t border-violet-200 rotate-45" />
-
-          {tooltip.loading ? (
-            <span className="flex justify-center py-2">
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
-            </span>
-          ) : tooltip.error ? (
-            <span className="text-xs text-red-500 text-center block">
-              Could not load verse
-            </span>
-          ) : tooltip.verses.length > 0 ? (
-            <span className="block space-y-2 max-h-[400px] overflow-y-auto">
-              {tooltip.verses.map((v) => (
-                <span
-                  key={v.ayah}
-                  className="block rounded-md hover:bg-violet-50/50 transition-colors px-1 py-0.5 cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    window.open(verseUrl(v.surah, v.ayah), '_blank');
-                  }}
-                >
-                  <span className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-violet-600">
-                      {v.surah}:{v.ayah}
-                    </span>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-3 w-3 text-violet-400"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                      <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                    </svg>
-                  </span>
-                  <span
-                    dir="rtl"
-                    lang="ar"
-                    className="block font-arabic text-base leading-[2] text-stone-800 text-right"
+      {tooltip &&
+        pos &&
+        createPortal(
+          <div
+            ref={tipRef}
+            className="fixed z-50 bg-white rounded-lg shadow-lg border border-violet-200 p-3
+                       text-sm text-stone-700"
+            style={{ left: pos.left, top: pos.top, width: tipWidth }}
+            onMouseEnter={clearHideTimer}
+            onMouseLeave={handleMouseLeave}
+          >
+            {tooltip.loading ? (
+              <div className="flex justify-center py-2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-violet-200 border-t-violet-600" />
+              </div>
+            ) : tooltip.error ? (
+              <div className="text-xs text-red-500 text-center">
+                Could not load verse
+              </div>
+            ) : tooltip.verses.length > 0 ? (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {tooltip.verses.map((v) => (
+                  <div
+                    key={v.ayah}
+                    className="rounded-md hover:bg-violet-50/50 transition-colors px-1 py-0.5 cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(verseUrl(v.surah, v.ayah), '_blank');
+                    }}
                   >
-                    {v.text_uthmani}
-                  </span>
-                  <span className="block text-xs text-stone-500 italic leading-relaxed mt-0.5">
-                    {v.translation}
-                  </span>
-                  {/* Divider between verses in a range (not after last) */}
-                  {isRange && v.ayah !== endAyah && (
-                    <span className="block border-b border-violet-100 mt-2" />
-                  )}
-                </span>
-              ))}
-            </span>
-          ) : null}
-        </span>
-      )}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-violet-600">
+                        {v.surah}:{v.ayah}
+                      </span>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-3 w-3 text-violet-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                        <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                      </svg>
+                    </div>
+                    <div
+                      dir="rtl"
+                      lang="ar"
+                      className="font-arabic text-base leading-[2] text-stone-800 text-right"
+                    >
+                      {v.text_uthmani}
+                    </div>
+                    <div className="text-xs text-stone-500 italic leading-relaxed mt-0.5">
+                      {v.translation}
+                    </div>
+                    {/* Divider between verses in a range (not after last) */}
+                    {isRange && v.ayah !== endAyah && (
+                      <div className="border-b border-violet-100 mt-2" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>,
+          document.body,
+        )}
     </span>
   );
 }
 
 // Shared cache for root data so repeated hovers don't re-fetch
 const rootCache = new Map<string, RootDetailData>();
+
+const ROOT_TIP_W = 280; // within the old min-w-200/max-w-300 range
 
 function RootRefLink({ rootText, buckwalter, latin = false }: { rootText: string; buckwalter?: string; latin?: boolean }) {
   const [tooltip, setTooltip] = useState<{
@@ -256,6 +318,9 @@ function RootRefLink({ rootText, buckwalter, latin = false }: { rootText: string
     error: boolean;
   } | null>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
+  const pos = useTooltipPosition(!!tooltip, triggerRef, tipRef, ROOT_TIP_W, tooltip);
 
   // Arabic roots: convert spaced/dashed letters to normalized Buckwalter.
   // Transliterated roots (e.g. "f-l-q") arrive with their Buckwalter precomputed.
@@ -299,6 +364,7 @@ function RootRefLink({ rootText, buckwalter, latin = false }: { rootText: string
   return (
     <span className="relative inline">
       <span
+        ref={triggerRef}
         {...(latin ? {} : { dir: 'rtl', lang: 'ar' })}
         className={`${latin ? '' : 'font-arabic '}text-emerald-700 underline decoration-emerald-300 underline-offset-2 cursor-pointer hover:text-emerald-900 hover:decoration-emerald-500 transition-colors`}
         onMouseEnter={handleMouseEnter}
@@ -310,93 +376,91 @@ function RootRefLink({ rootText, buckwalter, latin = false }: { rootText: string
         {rootText}
       </span>
 
-      {tooltip && (
-        <span
-          className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50
-                     bg-white rounded-lg shadow-lg border border-emerald-200 p-3
-                     min-w-[200px] max-w-[300px] text-sm text-stone-700"
-          onMouseEnter={clearTimer}
-          onMouseLeave={handleMouseLeave}
-        >
-          {/* Arrow */}
-          <span className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3
-                          bg-white border-l border-t border-emerald-200 rotate-45" />
-
-          {tooltip.loading ? (
-            <span className="flex justify-center py-2">
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
-            </span>
-          ) : tooltip.error ? (
-            <span className="text-xs text-red-500 text-center block">
-              Root not found
-            </span>
-          ) : tooltip.data ? (
-            <span className="block space-y-2">
-              {/* Root header */}
-              <span className="flex items-center justify-between">
-                <span className="flex items-center gap-2">
+      {tooltip &&
+        pos &&
+        createPortal(
+          <div
+            ref={tipRef}
+            className="fixed z-50 bg-white rounded-lg shadow-lg border border-emerald-200 p-3
+                       text-sm text-stone-700"
+            style={{ left: pos.left, top: pos.top, width: ROOT_TIP_W }}
+            onMouseEnter={clearTimer}
+            onMouseLeave={handleMouseLeave}
+          >
+            {tooltip.loading ? (
+              <div className="flex justify-center py-2">
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
+              </div>
+            ) : tooltip.error ? (
+              <div className="text-xs text-red-500 text-center">
+                Root not found
+              </div>
+            ) : tooltip.data ? (
+              <div className="space-y-2">
+                {/* Root header */}
+                <div className="flex items-center gap-2">
                   <span dir="rtl" lang="ar" className="font-arabic text-lg text-stone-800">
                     {tooltip.data.root_arabic}
                   </span>
                   <span className="text-xs text-emerald-600 font-medium">({tooltip.data.root_buckwalter})</span>
-                </span>
-              </span>
-              <span className="block text-xs text-stone-500">
-                Mentioned in {tooltip.data.total_occurrences} verse{tooltip.data.total_occurrences !== 1 ? 's' : ''}
-              </span>
+                </div>
+                <div className="text-xs text-stone-500">
+                  Mentioned in {tooltip.data.total_occurrences} verse{tooltip.data.total_occurrences !== 1 ? 's' : ''}
+                </div>
 
-              {/* Lemmas */}
-              {tooltip.data.lemmas.length > 0 && (
-                <span className="flex flex-wrap gap-1">
-                  {tooltip.data.lemmas.slice(0, 6).map((l) => (
-                    <span
-                      key={l.lemma_buckwalter}
-                      dir="rtl"
-                      lang="ar"
-                      className="inline-block font-arabic text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5"
-                    >
-                      {l.lemma_arabic}
-                    </span>
-                  ))}
-                  {tooltip.data.lemmas.length > 6 && (
-                    <span className="text-xs text-stone-400">+{tooltip.data.lemmas.length - 6} more</span>
-                  )}
-                </span>
-              )}
+                {/* Lemmas */}
+                {tooltip.data.lemmas.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {tooltip.data.lemmas.slice(0, 6).map((l) => (
+                      <span
+                        key={l.lemma_buckwalter}
+                        dir="rtl"
+                        lang="ar"
+                        className="inline-block font-arabic text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full px-2 py-0.5"
+                      >
+                        {l.lemma_arabic}
+                      </span>
+                    ))}
+                    {tooltip.data.lemmas.length > 6 && (
+                      <span className="text-xs text-stone-400">+{tooltip.data.lemmas.length - 6} more</span>
+                    )}
+                  </div>
+                )}
 
-              {/* Link to root page */}
-              <a
-                href={url}
-                className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
-                           bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700
-                           text-xs font-medium transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                View root page
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                </svg>
-              </a>
-              {/* Link to Arabic dictionary */}
-              <a
-                href={ejtaalUrl(bw)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
-                           bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700
-                           text-xs font-medium transition-colors mt-1.5"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Arabic Dictionary
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
-                </svg>
-              </a>
-            </span>
-          ) : null}
-        </span>
-      )}
+                {/* Link to root page */}
+                <a
+                  href={url}
+                  className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                             bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700
+                             text-xs font-medium transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  View root page
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                    <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                  </svg>
+                </a>
+                {/* Link to Arabic dictionary */}
+                <a
+                  href={ejtaalUrl(bw)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
+                             bg-amber-50 text-amber-600 hover:bg-amber-100 hover:text-amber-700
+                             text-xs font-medium transition-colors mt-1.5"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Arabic Dictionary
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
+                  </svg>
+                </a>
+              </div>
+            ) : null}
+          </div>,
+          document.body,
+        )}
     </span>
   );
 }
