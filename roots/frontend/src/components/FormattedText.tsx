@@ -285,13 +285,20 @@ function scrollToId(id: string) {
 // Everything else flows through VerseRefText. The ** alternative is listed
 // first so it wins over a single *; the marker patterns are listed first of
 // all so their inner *…* (if any) isn't mistaken for italics.
-export function renderInline(
-  text: string,
-  quotes?: PoetryQuotedLine[],
-  translationNotesId?: string,
-  grammarTerms?: Record<string, GrammarTerm>,
-  anchors?: WordAnchorSet,
-) {
+interface RenderInlineOpts {
+  quotes?: PoetryQuotedLine[];
+  translationNotesId?: string;
+  grammarTerms?: Record<string, GrammarTerm>;
+  anchors?: WordAnchorSet;
+  /** Threaded straight to every VerseRefText this produces — see its own
+   *  doc comment. Bundled into the options object (rather than more trailing
+   *  positional params) since this function already had four. */
+  highlightRootBw?: string;
+  highlightLemmaBw?: string;
+}
+
+export function renderInline(text: string, opts: RenderInlineOpts = {}) {
+  const { quotes, translationNotesId, grammarTerms, anchors, highlightRootBw, highlightLemmaBw } = opts;
   const parts = text.split(
     /(\[\[q:\d+\|[^\]]+\]\]|\[\[tn\|[^\]]+\]\]|\[\[gt\|[^\]]+\]\]|\*\*[^*]+\*\*|\*[^*\n]+\*)/g,
   );
@@ -303,7 +310,14 @@ export function renderInline(
       const q = quotes?.find((x) => x.line_root_id === lrid);
       if (q) return <PoetryQuote key={i} q={q} text={inner} />;
       // No lookup available (e.g. admin/assistant context) → show the Arabic.
-      return <VerseRefText key={i} text={inner} />;
+      return (
+        <VerseRefText
+          key={i}
+          text={inner}
+          highlightRootBw={highlightRootBw}
+          highlightLemmaBw={highlightLemmaBw}
+        />
+      );
     }
     const nm = part.match(NOTE_REF_MARKER);
     if (nm) {
@@ -337,7 +351,7 @@ export function renderInline(
       // resolves instead of leaking its raw text into VerseRefText.
       return (
         <strong key={i} className="font-semibold text-stone-900">
-          {renderInline(part.slice(2, -2), quotes, translationNotesId, grammarTerms, anchors)}
+          {renderInline(part.slice(2, -2), opts)}
         </strong>
       );
     }
@@ -347,7 +361,7 @@ export function renderInline(
       const inner = part.slice(1, -1);
       const em = (
         <em key={i} className="italic">
-          {renderInline(inner, quotes, translationNotesId, grammarTerms, anchors)}
+          {renderInline(inner, opts)}
         </em>
       );
       // Transliterated citations are written as *inna l-ḥasanāti …*, so the
@@ -382,16 +396,32 @@ export function renderInline(
             const a = arabicHits.find((x) => x.span === piece);
             return a ? (
               <AnchoredSpan key={j} anchor={a} verseKey={anchors.verseKey}>
-                <VerseRefText text={piece} />
+                <VerseRefText
+                  text={piece}
+                  highlightRootBw={highlightRootBw}
+                  highlightLemmaBw={highlightLemmaBw}
+                />
               </AnchoredSpan>
             ) : (
-              <VerseRefText key={j} text={piece} />
+              <VerseRefText
+                key={j}
+                text={piece}
+                highlightRootBw={highlightRootBw}
+                highlightLemmaBw={highlightLemmaBw}
+              />
             );
           })}
         </Fragment>
       );
     }
-    return <VerseRefText key={i} text={part} />;
+    return (
+      <VerseRefText
+        key={i}
+        text={part}
+        highlightRootBw={highlightRootBw}
+        highlightLemmaBw={highlightLemmaBw}
+      />
+    );
   });
 }
 
@@ -412,11 +442,27 @@ interface FormattedTextProps {
    * align_note_anchors.py). When present, hovering one highlights the words it
    * quotes; without it the citation renders as ordinary emphasis. */
   anchors?: WordAnchorSet;
+  /** Buckwalter root/lemma this text is "about" — see VerseRefText's own doc
+   *  comment. Passed straight through to every verse-ref citation this text
+   *  produces, so e.g. a root page's own root lights up the matching word in
+   *  any verse-ref tooltip its AI meaning cites. */
+  highlightRootBw?: string;
+  highlightLemmaBw?: string;
 }
 
 // Block-level renderer for multi-paragraph answers: headings, bullet/numbered
 // lists, blank-line spacing, plus inline bold/italic and verse links.
-export function FormattedText({ text, className, quotes, translationNotesId, grammarTerms, anchors }: FormattedTextProps) {
+export function FormattedText({
+  text,
+  className,
+  quotes,
+  translationNotesId,
+  grammarTerms,
+  anchors,
+  highlightRootBw,
+  highlightLemmaBw,
+}: FormattedTextProps) {
+  const opts: RenderInlineOpts = { quotes, translationNotesId, grammarTerms, anchors, highlightRootBw, highlightLemmaBw };
   const lines = (text ?? '').split('\n');
   return (
     <div className={className}>
@@ -425,7 +471,11 @@ export function FormattedText({ text, className, quotes, translationNotesId, gra
           const content = line.replace(/^#{2,3}\s+/, '');
           return (
             <p key={li} className="font-semibold text-stone-900 mt-3 mb-1 text-sm">
-              <VerseRefText text={content} />
+              <VerseRefText
+                text={content}
+                highlightRootBw={highlightRootBw}
+                highlightLemmaBw={highlightLemmaBw}
+              />
             </p>
           );
         }
@@ -434,7 +484,7 @@ export function FormattedText({ text, className, quotes, translationNotesId, gra
           return (
             <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
               <span className="text-stone-400 shrink-0">•</span>
-              <span>{renderInline(content, quotes, translationNotesId, grammarTerms, anchors)}</span>
+              <span>{renderInline(content, opts)}</span>
             </div>
           );
         }
@@ -444,14 +494,14 @@ export function FormattedText({ text, className, quotes, translationNotesId, gra
           return (
             <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
               <span className="text-stone-400 shrink-0">{num}.</span>
-              <span>{renderInline(content, quotes, translationNotesId, grammarTerms, anchors)}</span>
+              <span>{renderInline(content, opts)}</span>
             </div>
           );
         }
         if (!line.trim()) return <div key={li} className="h-2" />;
         return (
           <p key={li} className={li > 0 ? 'mt-0.5' : ''}>
-            {renderInline(line, quotes, translationNotesId, grammarTerms, anchors)}
+            {renderInline(line, opts)}
           </p>
         );
       })}
@@ -460,8 +510,21 @@ export function FormattedText({ text, className, quotes, translationNotesId, gra
 }
 
 // Inline-only renderer for single-line content such as questions.
-export function FormattedInline({ text, className, quotes, translationNotesId, grammarTerms, anchors }: FormattedTextProps) {
-  return <span className={className}>{renderInline(text ?? '', quotes, translationNotesId, grammarTerms, anchors)}</span>;
+export function FormattedInline({
+  text,
+  className,
+  quotes,
+  translationNotesId,
+  grammarTerms,
+  anchors,
+  highlightRootBw,
+  highlightLemmaBw,
+}: FormattedTextProps) {
+  return (
+    <span className={className}>
+      {renderInline(text ?? '', { quotes, translationNotesId, grammarTerms, anchors, highlightRootBw, highlightLemmaBw })}
+    </span>
+  );
 }
 
 export default FormattedText;

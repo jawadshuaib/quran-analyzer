@@ -24,12 +24,24 @@ function splitNotes(text: string): string[] {
   return processed.split('\n');
 }
 
-function FormattedNotes({ text }: { text: string }) {
+function FormattedNotes({
+  text,
+  highlightRootBw,
+  highlightLemmaBw,
+}: {
+  text: string;
+  highlightRootBw?: string;
+  highlightLemmaBw?: string;
+}) {
   return (
     <div className="text-sm text-stone-600 leading-relaxed">
       {splitNotes(text).map((line, i) => (
         <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-          <VerseRefText text={line} />
+          <VerseRefText
+            text={line}
+            highlightRootBw={highlightRootBw}
+            highlightLemmaBw={highlightLemmaBw}
+          />
         </p>
       ))}
     </div>
@@ -261,9 +273,17 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
             </div>
 
             <div className="text-sm text-stone-700 leading-relaxed">
+              {/* highlightRootBw/LemmaBw light up this word's own lemma (or
+                  root, as fallback) inside any verse-ref tooltip these notes
+                  cite — e.g. hovering "2:28" here highlights the matching
+                  word there, instead of leaving the reader to find it. */}
               {splitNotes(data.ai_meaning.meaning_detailed).map((line, i) => (
                 <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-                  <VerseRefText text={line} />
+                  <VerseRefText
+                    text={line}
+                    highlightRootBw={data.root_buckwalter ?? undefined}
+                    highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                  />
                 </p>
               ))}
             </div>
@@ -282,16 +302,52 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
             )}
 
             {data.ai_meaning.cross_ref_notes && (
-              <CollapsibleSection title="Cross-Reference Notes" content={<FormattedNotes text={data.ai_meaning.cross_ref_notes} />} />
+              <CollapsibleSection
+                title="Cross-Reference Notes"
+                content={
+                  <FormattedNotes
+                    text={data.ai_meaning.cross_ref_notes}
+                    highlightRootBw={data.root_buckwalter ?? undefined}
+                    highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                  />
+                }
+              />
             )}
             {data.ai_meaning.cognate_notes && (
-              <CollapsibleSection title="Cognate Notes" content={<FormattedNotes text={data.ai_meaning.cognate_notes} />} />
+              <CollapsibleSection
+                title="Cognate Notes"
+                content={
+                  <FormattedNotes
+                    text={data.ai_meaning.cognate_notes}
+                    highlightRootBw={data.root_buckwalter ?? undefined}
+                    highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                  />
+                }
+              />
             )}
             {data.ai_meaning.morphology_notes && (
-              <CollapsibleSection title="Morphology Notes" content={<FormattedNotes text={data.ai_meaning.morphology_notes} />} />
+              <CollapsibleSection
+                title="Morphology Notes"
+                content={
+                  <FormattedNotes
+                    text={data.ai_meaning.morphology_notes}
+                    highlightRootBw={data.root_buckwalter ?? undefined}
+                    highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                  />
+                }
+              />
             )}
             {data.ai_meaning.departure_notes && (
-              <CollapsibleSection title="Departure from Conventional Gloss" content={<FormattedNotes text={data.ai_meaning.departure_notes} />} />
+              <CollapsibleSection
+                title="Departure from Conventional Gloss"
+                content={
+                  <FormattedNotes
+                    text={data.ai_meaning.departure_notes}
+                    highlightRootBw={data.root_buckwalter ?? undefined}
+                    highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                  />
+                }
+              />
             )}
           </div>
         </section>

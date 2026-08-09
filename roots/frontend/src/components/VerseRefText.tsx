@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { RootDetailData } from '../types';
+import type { RootDetailData, Word } from '../types';
 import { fetchVerse, fetchRoot } from '../api/quran';
 import { arabicRootToBuckwalter } from '../utils/buckwalter';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
@@ -61,6 +61,14 @@ interface Props {
   text: string;
   className?: string;
   disableVerseNavigation?: boolean;
+  /** Buckwalter root/lemma this text is "about" (a root page's own root, a
+   *  word page's own lemma). When a verse-ref tooltip opens, the word in that
+   *  verse carrying this root/lemma is highlighted — the point of pausing on
+   *  "2:73" is usually to see the matching word, and long verses make that
+   *  hard to spot unaided. Either or both may be given; a word matches on
+   *  lemma OR root. */
+  highlightRootBw?: string;
+  highlightLemmaBw?: string;
 }
 
 interface CachedVerse {
@@ -68,6 +76,23 @@ interface CachedVerse {
   ayah: number;
   text_uthmani: string;
   translation: string;
+  words: Word[];
+}
+
+/** Word positions (1-indexed) in `words` whose lemma or root matches. Lemma
+ *  and root are checked independently (either counts) since a caller may only
+ *  have one — a root page knows its root but not which lemma is cited, a word
+ *  page knows both its own lemma and root. */
+function matchedWordPositions(words: Word[], rootBw?: string, lemmaBw?: string): Set<number> {
+  const positions = new Set<number>();
+  if (!rootBw && !lemmaBw) return positions;
+  for (const w of words) {
+    const hit = w.segments.some(
+      (s) => (lemmaBw && s.lemma_buckwalter === lemmaBw) || (rootBw && s.root_buckwalter === rootBw),
+    );
+    if (hit) positions.add(w.position);
+  }
+  return positions;
 }
 
 // Matches "56:74" or "96:1–4" / "96:1-4" (en-dash or hyphen range)
@@ -132,7 +157,17 @@ const verseCache = new Map<string, CachedVerse>();
 const VERSE_TIP_W_SINGLE = 300; // within the old min-w-220/max-w-360 range
 const VERSE_TIP_W_RANGE = 340; // matches the old fixed range width
 
-function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disableNavigation?: boolean }) {
+function VerseRefLink({
+  verseRef,
+  disableNavigation,
+  highlightRootBw,
+  highlightLemmaBw,
+}: {
+  verseRef: string;
+  disableNavigation?: boolean;
+  highlightRootBw?: string;
+  highlightLemmaBw?: string;
+}) {
   const { surah, startAyah, endAyah } = parseRef(verseRef);
   const isRange = endAyah > startAyah;
   const tipWidth = isRange ? VERSE_TIP_W_RANGE : VERSE_TIP_W_SINGLE;
@@ -192,6 +227,7 @@ function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disab
                 ayah: a,
                 text_uthmani: data.text_uthmani,
                 translation: data.translation,
+                words: data.words,
               };
               verseCache.set(key, cached);
               return cached;
@@ -258,7 +294,10 @@ function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disab
               </div>
             ) : tooltip.verses.length > 0 ? (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {tooltip.verses.map((v) => (
+                {tooltip.verses.map((v) => {
+                  const uthmaniWords = v.text_uthmani.split(/\s+/).filter(Boolean);
+                  const matched = matchedWordPositions(v.words, highlightRootBw, highlightLemmaBw);
+                  return (
                   <div
                     key={v.ayah}
                     className="rounded-md hover:bg-violet-50/50 transition-colors px-1 py-0.5 cursor-pointer"
@@ -286,7 +325,21 @@ function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disab
                       lang="ar"
                       className="font-arabic text-base leading-[2] text-stone-800 text-right"
                     >
-                      {v.text_uthmani}
+                      {matched.size > 0
+                        ? uthmaniWords.map((w, i) => (
+                            <span
+                              key={i}
+                              className={
+                                matched.has(i + 1)
+                                  ? 'rounded bg-violet-100 px-0.5 text-violet-900'
+                                  : undefined
+                              }
+                            >
+                              {w}
+                              {i < uthmaniWords.length - 1 ? ' ' : ''}
+                            </span>
+                          ))
+                        : v.text_uthmani}
                     </div>
                     <div className="text-xs text-stone-500 italic leading-relaxed mt-0.5">
                       {v.translation}
@@ -296,7 +349,8 @@ function VerseRefLink({ verseRef, disableNavigation }: { verseRef: string; disab
                       <div className="border-b border-violet-100 mt-2" />
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             ) : null}
           </div>,
@@ -465,7 +519,13 @@ function RootRefLink({ rootText, buckwalter, latin = false }: { rootText: string
   );
 }
 
-export default function VerseRefText({ text, className, disableVerseNavigation = false }: Props) {
+export default function VerseRefText({
+  text,
+  className,
+  disableVerseNavigation = false,
+  highlightRootBw,
+  highlightLemmaBw,
+}: Props) {
   if (!text) return null;
 
   // Collect all matches (verse refs, root refs, quoted text) with their types
@@ -558,7 +618,13 @@ export default function VerseRefText({ text, className, disableVerseNavigation =
     <span className={className}>
       {parts.map((part, i) =>
         part.type === 'ref' ? (
-          <VerseRefLink key={i} verseRef={part.value} disableNavigation={disableVerseNavigation} />
+          <VerseRefLink
+            key={i}
+            verseRef={part.value}
+            disableNavigation={disableVerseNavigation}
+            highlightRootBw={highlightRootBw}
+            highlightLemmaBw={highlightLemmaBw}
+          />
         ) : part.type === 'root' ? (
           <RootRefLink key={i} rootText={part.value} buckwalter={part.bw} latin={part.latin} />
         ) : part.type === 'quoted' ? (

@@ -58,7 +58,15 @@ function OriginalView({ entryId }: { entryId: number }) {
   );
 }
 
-function DictionaryCard({ item, defaultOpen }: { item: DictionaryItem; defaultOpen: boolean }) {
+function DictionaryCard({
+  item,
+  defaultOpen,
+  rootBw,
+}: {
+  item: DictionaryItem;
+  defaultOpen: boolean;
+  rootBw: string;
+}) {
   const [open, setOpen] = useState(defaultOpen);
   const [showOriginal, setShowOriginal] = useState(false);
   const century = item.author_death_year ? Math.floor(item.author_death_year / 100) + 1 : null;
@@ -105,9 +113,13 @@ function DictionaryCard({ item, defaultOpen }: { item: DictionaryItem; defaultOp
 
       {open && (
         <div className="pb-4 sm:pl-[3.5rem]">
+          {/* highlightRootBw lights up this root's own word inside any
+              verse-ref tooltip a dictionary entry cites (e.g. "77:25–26") —
+              otherwise spotting the relevant word in a long verse is hard. */}
           <FormattedText
             text={item.harmonized_en}
             className="text-sm leading-relaxed text-stone-700"
+            highlightRootBw={rootBw}
           />
           <button
             type="button"
@@ -148,7 +160,7 @@ export default function DictionaryPanel({ rootBw }: { rootBw: string }) {
       </p>
       <div className="rounded-xl border border-stone-200 bg-white px-4 sm:px-5">
         {data.dictionaries.map((item, i) => (
-          <DictionaryCard key={item.entry_id} item={item} defaultOpen={i === 0} />
+          <DictionaryCard key={item.entry_id} item={item} defaultOpen={i === 0} rootBw={rootBw} />
         ))}
       </div>
       <div className="mt-3 flex justify-end">

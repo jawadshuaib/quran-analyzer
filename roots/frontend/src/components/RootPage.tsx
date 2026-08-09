@@ -170,15 +170,19 @@ export default function RootPage({ rootBw }: Props) {
         <section className="mb-8">
           <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
             <h2 className="text-lg font-semibold text-violet-900 mb-3">
-              <FormattedInline text={data.primary_meaning} />
+              <FormattedInline text={data.primary_meaning} highlightRootBw={rootBw} />
             </h2>
             {data.detailed_meaning && (
               // FormattedText renders the AI meaning's **bold**/*italic*,
               // auto-links verse refs (2:255) and applies the Arabic font to
               // inline glyphs — so markdown no longer leaks as raw text.
+              // highlightRootBw lights up this root's own word inside any
+              // verse-ref tooltip the note cites (e.g. "2:73") — otherwise
+              // spotting which word belongs to the root is hard in a long verse.
               <FormattedText
                 text={data.detailed_meaning}
                 className="text-sm text-stone-700 leading-relaxed"
+                highlightRootBw={rootBw}
               />
             )}
             {data.semantic_field && (

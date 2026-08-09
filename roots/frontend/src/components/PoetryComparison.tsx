@@ -54,6 +54,7 @@ export default function PoetryComparison({ rootBw }: { rootBw: string }) {
           text={data.comparison_markdown}
           quotes={data.quoted_lines}
           className="text-sm text-stone-700 leading-relaxed"
+          highlightRootBw={rootBw}
         />
 
         {/* collocational fingerprint — the company the word keeps */}
