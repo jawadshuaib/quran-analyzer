@@ -361,6 +361,7 @@ export default function RootPage({ rootBw }: Props) {
         pageType="root"
         pageKey={rootBw}
         contextGatherer={() => buildRootContext(data)}
+        highlightRootBw={rootBw}
       />
     </div>
   );

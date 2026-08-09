@@ -73,10 +73,13 @@ function WordRow({ w }: { w: VerseRootLexiconWord }) {
             </ul>
           )}
           {lex.lexicon_markdown && (
+            // highlightRootBw lights up this word's own root inside any
+            // verse-ref tooltip the attestation note cites.
             <FormattedText
               text={lex.lexicon_markdown}
               quotes={lex.quoted_lines}
               className="text-sm text-stone-700 leading-relaxed"
+              highlightRootBw={w.root_buckwalter}
             />
           )}
         </div>

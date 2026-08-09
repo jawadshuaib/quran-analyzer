@@ -116,7 +116,7 @@ export default function SavedRootContent({
         <span
           className={`block text-sm text-stone-600 mt-1 leading-relaxed ${compact ? 'line-clamp-1' : 'line-clamp-2'}`}
         >
-          <FormattedInline text={primaryMeaning} />
+          <FormattedInline text={primaryMeaning} highlightRootBw={rootBuckwalter} />
         </span>
       )}
 

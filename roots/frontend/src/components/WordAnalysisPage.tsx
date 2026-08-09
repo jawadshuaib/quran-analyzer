@@ -475,6 +475,8 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
         pageType="word"
         pageKey={`${surah}:${ayah}/${pos}`}
         contextGatherer={() => buildWordContext(surah, ayah, pos)}
+        highlightRootBw={data.root_buckwalter ?? undefined}
+        highlightLemmaBw={data.lemma_buckwalter ?? undefined}
       />
     </div>
   );

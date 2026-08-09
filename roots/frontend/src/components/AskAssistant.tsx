@@ -21,6 +21,12 @@ interface Props {
    *  tracking pill whenever the panel is closed. */
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Buckwalter root/lemma this page is about (root/word pages only). Answers
+   *  routinely cite other verses using the same root — this lights up the
+   *  matching word in that verse's hover preview, same as everywhere else the
+   *  root/word page's own prose cites a verse. */
+  highlightRootBw?: string;
+  highlightLemmaBw?: string;
 }
 
 interface Message {
@@ -65,6 +71,8 @@ export default function AskAssistant({
   defaultOpen = false,
   isOpen,
   onOpenChange,
+  highlightRootBw,
+  highlightLemmaBw,
 }: Props) {
   // Open state is dual-mode. When the parent passes `isOpen`, that
   // wins; otherwise we fall back to internal state seeded from
@@ -369,7 +377,9 @@ export default function AskAssistant({
   // dictionary, and inline Arabic glyphs get the Amiri font treatment. This
   // keeps Ask-the-Quran answers consistent with the rest of the site.
   function renderText(text: string) {
-    return <VerseRefText text={text} />;
+    return (
+      <VerseRefText text={text} highlightRootBw={highlightRootBw} highlightLemmaBw={highlightLemmaBw} />
+    );
   }
 
   function renderFormatted(text: string) {
