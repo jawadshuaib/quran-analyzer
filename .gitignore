@@ -16,6 +16,9 @@ roots/backend/data/uthmani.txt
 roots/backend/data/translation.json
 roots/backend/data/semitic_roots.json
 roots/backend/data/starling_semitic.json
+roots/backend/data/kaikki.org-dictionary-Arabic.jsonl
+roots/backend/data/kaikki_cognate_pilot.json
+roots/backend/data/kaikki_cognate_review.csv
 *.partial
 
 # TTS cache (generated audio files)

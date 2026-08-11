@@ -85,6 +85,10 @@ ENV HF_HUB_OFFLINE=1 \
 # size impact is negligible.
 COPY roots/backend/*.py ./
 
+# Reviewed Wiktionary cognates are a small, versioned data artifact. The
+# runtime importer applies them idempotently to fresh and existing databases.
+COPY roots/backend/kaikki_cognates_accepted.json ./kaikki_cognates_accepted.json
+
 # Copy bundled fonts for video text overlays
 COPY roots/backend/data/fonts ./data/fonts
 

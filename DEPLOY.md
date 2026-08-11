@@ -111,6 +111,10 @@ use Cloudflare Tunnel which doesn't have the limit.
 - `docker-entrypoint.sh` runs `normalize_cognate_languages.py` on
   every container start to keep the cognate schema in sync with the
   seed DB. Failures are logged but don't block boot (commit `c982dbb`).
+- It then runs `import_kaikki_cognates.py` transactionally, replacing only the
+  reviewed `wiktionary` source rows from the versioned accepted-data artifact.
+  This updates fresh databases and existing persistent volumes without
+  disturbing SemiticRoots or Starling records.
 - `.github/workflows/deploy.yml` runs `set -e` and prunes Docker
   images before pulling so a near-full disk fails the workflow loudly
   instead of silently (commit `f8195d6`).

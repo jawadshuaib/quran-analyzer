@@ -90,7 +90,11 @@ export default function CognateTable({ derivatives, rootTransliteration, concept
                       {wrapArabicRuns(d.displayed_text || '')}
                     </td>
                     <td className="px-2 sm:px-4 py-1.5 text-stone-600">
-                      {wrapArabicRuns(d.meaning || d.concept || '')}
+                      {d.meaning || d.concept ? (
+                        wrapArabicRuns(d.meaning || d.concept || '')
+                      ) : (
+                        <span className="italic text-stone-400">Meaning not supplied by source</span>
+                      )}
                     </td>
                   </tr>
                 ))}

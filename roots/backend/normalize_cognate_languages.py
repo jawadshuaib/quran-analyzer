@@ -31,6 +31,7 @@ LANGUAGE_FAMILIES = {
     "Hatran": "Aramaic",
     "Judaic Aramaic": "Aramaic",
     "Mandaic": "Aramaic",
+    "Classical Mandaic": "Aramaic",
     "Mandaic Aramaic": "Aramaic",
     "Maʕlula": "Aramaic",
     "Modern Aramaic": "Aramaic",
@@ -39,6 +40,7 @@ LANGUAGE_FAMILIES = {
     "Palmyrene": "Aramaic",
     "Samalian": "Aramaic",
     "Syriac": "Aramaic",
+    "Classical Syriac": "Aramaic",
     "Syrian Aramaic": "Aramaic",
 
     # Canaanite
@@ -46,6 +48,7 @@ LANGUAGE_FAMILIES = {
     "Canaanite": "Canaanite",
     "Edomite": "Canaanite",
     "Hebrew": "Canaanite",
+    "Biblical Hebrew": "Canaanite",
     "Moabite": "Canaanite",
     "Phoenician": "Canaanite",
     "Punic": "Canaanite",
@@ -93,6 +96,7 @@ LANGUAGE_FAMILIES = {
     "Amorite": "Northwest Semitic",
     "Deir Alla": "Northwest Semitic",
     "Ugaritic": "Northwest Semitic",
+    "Proto-Semitic": "Proto-Semitic",
 }
 
 # Language → (date_from, date_to) — negative = BCE, positive = CE
@@ -106,11 +110,13 @@ LANGUAGE_DATES = {
     "Amorite": (-2000, -1500),
     "Deir Alla": (-840, -760),
     "Ugaritic": (-1400, -1180),
+    "Proto-Semitic": (None, None),
     # Canaanite
     "Ammonite": (-1000, -580),
     "Canaanite": (-1500, -500),
     "Edomite": (-900, -600),
     "Hebrew": (-1000, 2025),
+    "Biblical Hebrew": (-1000, 200),
     "Moabite": (-900, -580),
     "Phoenician": (-1050, -150),
     "Punic": (-800, 300),
@@ -120,6 +126,7 @@ LANGUAGE_DATES = {
     "Hatran": (-100, 300),
     "Judaic Aramaic": (-200, 600),
     "Mandaic": (200, 2025),
+    "Classical Mandaic": (200, 700),
     "Mandaic Aramaic": (200, 2025),
     "Maʕlula": (100, 2025),
     "Modern Aramaic": (1500, 2025),
@@ -128,6 +135,7 @@ LANGUAGE_DATES = {
     "Palmyrene": (-100, 300),
     "Samalian": (-850, -700),
     "Syriac": (200, 2025),
+    "Classical Syriac": (200, 1300),
     "Syrian Aramaic": (200, 2025),
     # Arabic
     "Arabic": (-100, 2025),

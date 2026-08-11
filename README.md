@@ -32,13 +32,14 @@ An interactive tool for exploring the morphology and Semitic etymology of every 
 | Unique Arabic roots | 1,642 |
 | Unique lemmas | 4,832 |
 | Unique word forms | 12,204 |
-| Semitic etymology entries | 3,516 |
-| Language attestations | 14,671 across 59 languages |
-| Cognate coverage | 849 / 1,642 roots (51.7%) |
+| Semitic etymology entries | 3,544 |
+| Language attestations | 13,669 across 60 languages |
+| Cognate coverage | 877 / 1,642 roots (53.4%) |
 
-Cognate data is sourced from two databases:
+Cognate data is sourced from three databases:
 - **[SemiticRoots.net](http://www.semiticroots.net)** — 812 curated Proto-Semitic roots with derivatives
 - **[Starling / Tower of Babel](https://starlingdb.org)** — 2,704 additional etymological records from S. Starostin's database
+- **[English Wiktionary via Kaikki](https://kaikki.org/dictionary/Arabic/index.html)** — 71 reviewed explicit cognate/inheritance relations covering 28 additional Quranic roots
 
 ---
 
@@ -539,15 +540,19 @@ The SQLite database (`quran.db`) contains ten tables:
 | `translations` | English translation — Sahih International (6,236 rows) |
 | `morphology` | Full morphological analysis of every word segment (128,219 rows) |
 | `word_glosses` | Cached word-by-word English translations from Quran.com API |
-| `semitic_roots` | Proto-Semitic etymological roots with `source` column (3,516 rows) |
-| `semitic_derivatives` | Language attestations for each root (14,671 rows) |
+| `semitic_roots` | Proto-Semitic etymological roots with `source` column (3,544 rows) |
+| `semitic_derivatives` | Language attestations for each root (13,669 rows) |
 | `ai_translation_configs` | Configuration presets for AI runs (model, prompts, temperature, context window) |
 | `ai_translations` | AI-generated verse translations with departure notes and full prompts |
 | `ai_word_meanings` | Per-word AI meanings with cross-reference notes, cognate notes, morphology notes |
 
 The `ai_word_meanings` table also carries two judge columns added at runtime: `preferred_translation` (the judge's winning gloss) and `preferred_source` (`'conventional'`, `'ai'`, or `'custom'`). These are populated by `judge_translations.py` / `judge_translations_batch.py` and served directly to word tooltips via the `/api/verse/<surah>:<ayah>/word-meanings` endpoint.
 
-The `semitic_roots` table has a `source` column (`'semiticroots'` or `'starling'`) so both data sources coexist without conflicts. Root IDs from Starling start at 10001 to avoid collisions.
+The `semitic_roots` table has a `source` column (`'semiticroots'`, `'starling'`,
+or `'wiktionary'`) so all data sources coexist without conflicts. Root IDs from
+Starling start at 10001 to avoid collisions. Reviewed Wiktionary derivatives
+also retain their source URL, relation type, confidence, license, attribution,
+and import timestamp.
 
 ---
 
@@ -844,6 +849,38 @@ python scrape_starling.py --force
 ```
 
 Without `--force`, the scrapers use their cached JSON files and only re-import into SQLite.
+
+### Kaikki/Wiktionary cognate pilot
+
+`pilot_kaikki_cognates.py` evaluates structured English Wiktionary etymology
+data for the highest-frequency Quranic roots not covered by SemiticRoots or
+Starling. It downloads Kaikki's machine-readable Arabic JSONL dump and accepts
+only explicit `cog` (cognate) and `inh` (inherited) templates for Semitic
+languages. The pilot is read-only: it does not change `semitic_roots` or
+`semitic_derivatives`.
+
+```bash
+cd roots/backend
+python pilot_kaikki_cognates.py                 # top 100 uncovered roots
+python pilot_kaikki_cognates.py --limit 200     # larger evaluation cohort
+```
+
+Outputs are written to `data/kaikki_cognate_pilot.json` and
+`data/kaikki_cognate_review.csv`. Set the CSV's `decision` column to `accept`
+or `reject` and rerun the command to calculate the reviewed acceptance rate.
+
+After reviewing the queue, import only accepted records with:
+
+```bash
+python import_kaikki_cognates.py --dry-run
+python import_kaikki_cognates.py
+```
+
+The importer atomically replaces only records whose source is `wiktionary`.
+It stores the source URL, relation type, review confidence, CC BY-SA license,
+attribution, and import timestamp on every imported derivative. A cognate's
+meaning is populated only when the structured source supplies one; missing
+language-specific meanings are not inferred from the Arabic headword's senses.
 
 ---
 
