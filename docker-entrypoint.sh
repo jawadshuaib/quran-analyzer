@@ -1067,6 +1067,17 @@ if [ -f /app/normalize_cognate_languages.py ]; then
     echo "  WARNING: migration failed — see traceback above; continuing deploy"
 fi
 
+# Apply the reviewed Wiktionary/Kaikki supplement to both fresh and existing
+# databases. This transaction replaces only its own `wiktionary` source rows.
+if [ -f /app/import_kaikki_cognates.py ] && [ -f /app/kaikki_cognates_accepted.json ]; then
+  echo "Importing reviewed Wiktionary cognates..."
+  python3 /app/import_kaikki_cognates.py \
+    --db /app/data/quran.db \
+    --review-csv /app/data/nonexistent-kaikki-review.csv \
+    --accepted-json /app/kaikki_cognates_accepted.json 2>&1 || \
+    echo "  WARNING: Wiktionary cognate import failed — see traceback above; continuing deploy"
+fi
+
 # ============================================================================
 # Persist Remotion renderer's ElevenLabs audio cache across deploys.
 #
