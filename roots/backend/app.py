@@ -2968,6 +2968,50 @@ def get_cognates(root_bw: str):
         conn.close()
 
 
+# A few AI-generated root meanings came back as the prompt's own heading
+# ("## Root Analysis: ا ب د") with no meaning behind them at all, and the rest
+# vary between sentence case, all-lowercase and (rarely) ALL CAPS. Normalized
+# at READ time so the stored text stays untouched — regenerating a meaning
+# later isn't then fighting a one-off rewrite of the column. Used by every
+# surface that shows ai_root_meanings.primary_meaning: the root page heading,
+# root search, the /dictionary index, and the crawler HTML.
+_GLOSS_HEADING_RE = re.compile(
+    r"^\s*(?:root\s+analysis|analysis\s+of\s+(?:the\s+)?root)\b", re.I
+)
+_GLOSS_WRAPPED_RE = re.compile(r"^(\*\*|\*|__|_)(.+?)\1$", re.S)
+
+
+def _clean_root_gloss(gloss):
+    """Display-ready root meaning: markdown stripped, uniform sentence case.
+    Returns None when the stored text is a failed generation carrying only a
+    heading, so callers can show nothing rather than junk."""
+    if not gloss:
+        return None
+    for raw in str(gloss).splitlines():
+        s = re.sub(r"^#{1,6}\s*", "", raw.strip()).strip()
+        if not s or _GLOSS_HEADING_RE.match(s):
+            continue
+        m = _GLOSS_WRAPPED_RE.match(s)   # "**glad tidings**" -> "glad tidings"
+        if m:
+            s = m.group(2).strip()
+        if not s:
+            continue
+        # Shouty entries ("OPPONENT, ADVERSARY") get folded down, but only when
+        # there's no lowercase at all — mixed case may hold proper nouns.
+        if any(c.isupper() for c in s) and not any(c.islower() for c in s):
+            s = s.lower()
+        # Capitalize the first letter that HAS a capital, so a leading quote or
+        # a caseless transliteration mark is stepped over ("ʿibāda" -> "ʿIbāda")
+        # while an all-Arabic or digit-led gloss is left exactly as it is.
+        for i, ch in enumerate(s):
+            if ch.isalpha() and ch.upper() != ch.lower():   # a letter that HAS case
+                return s[:i] + ch.upper() + s[i + 1:]
+            if ch.isalnum() and not ch.isalpha():
+                break                    # "3rd person" — don't reach into the word
+        return s
+    return None
+
+
 @app.route("/api/root/<root_bw>")
 def get_root(root_bw: str):
     """Get comprehensive data for a Buckwalter root: Arabic form, lemmas, cognates, sample verses."""
@@ -3037,7 +3081,10 @@ def get_root(root_bw: str):
             "sample_verses": sample_verses,
         }
         if ai_row:
-            result["primary_meaning"] = ai_row["primary_meaning"]
+            # Cleaned for display — the page uses this as its heading, so a
+            # failed generation would otherwise title the root "## Root
+            # Analysis:". None here simply hides the meaning panel.
+            result["primary_meaning"] = _clean_root_gloss(ai_row["primary_meaning"])
             result["detailed_meaning"] = ai_row["detailed_meaning"]
             result["semantic_field"] = ai_row["semantic_field"]
 
@@ -3408,7 +3455,7 @@ def get_surah(surah: int):
                 "SELECT root_buckwalter, primary_meaning FROM ai_root_meanings"
             ).fetchall()
             root_meaning_map: dict[str, str] = {
-                r["root_buckwalter"]: (r["primary_meaning"] or "").strip()
+                r["root_buckwalter"]: (_clean_root_gloss(r["primary_meaning"]) or "")
                 for r in root_meaning_rows
             }
 
@@ -6133,7 +6180,7 @@ def search_roots():
                     (root_bw,),
                 ).fetchone()
                 if ai_row:
-                    meaning = ai_row["primary_meaning"]
+                    meaning = _clean_root_gloss(ai_row["primary_meaning"]) or ""
             except sqlite3.OperationalError:
                 pass
 
@@ -7384,48 +7431,6 @@ _DICTIONARY_PRIORITY = {
     "habib-anthony-salmone-an-advanced-learners-arabic-english-dictionary": 16,
 }
 _DICTIONARY_PRIORITY_FALLBACK = 999
-
-
-# A few AI-generated root glosses came back as the prompt's own heading
-# ("## Root Analysis: ا ب د") with no meaning in them at all, and the rest vary
-# between sentence case, all-lowercase and (rarely) ALL CAPS. Normalized at
-# READ time so the stored text stays untouched — a regenerated meaning later
-# isn't fighting a one-off rewrite of the column.
-_GLOSS_HEADING_RE = re.compile(
-    r"^\s*(?:root\s+analysis|analysis\s+of\s+(?:the\s+)?root)\b", re.I
-)
-_GLOSS_WRAPPED_RE = re.compile(r"^(\*\*|\*|__|_)(.+?)\1$", re.S)
-
-
-def _clean_root_gloss(gloss):
-    """Display-ready root gloss: markdown stripped, uniform sentence case.
-    Returns None when the stored text is a failed generation carrying only a
-    heading, so callers can fall back to showing no gloss rather than junk."""
-    if not gloss:
-        return None
-    for raw in str(gloss).splitlines():
-        s = re.sub(r"^#{1,6}\s*", "", raw.strip()).strip()
-        if not s or _GLOSS_HEADING_RE.match(s):
-            continue
-        m = _GLOSS_WRAPPED_RE.match(s)   # "**glad tidings**" -> "glad tidings"
-        if m:
-            s = m.group(2).strip()
-        if not s:
-            continue
-        # Shouty entries ("OPPONENT, ADVERSARY") get folded down, but only when
-        # there's no lowercase at all — mixed case may hold proper nouns.
-        if any(c.isupper() for c in s) and not any(c.islower() for c in s):
-            s = s.lower()
-        # Capitalize the first letter that HAS a capital, so a leading quote or
-        # a caseless transliteration mark is stepped over ("ʿibāda" -> "ʿIbāda")
-        # while an all-Arabic or digit-led gloss is left exactly as it is.
-        for i, ch in enumerate(s):
-            if ch.isalpha() and ch.upper() != ch.lower():   # a letter that HAS case
-                return s[:i] + ch.upper() + s[i + 1:]
-            if ch.isalnum() and not ch.isalpha():
-                break                    # "3rd person" — don't reach into the word
-        return s
-    return None
 
 
 @app.route("/api/root/<root_bw>/dictionaries")
@@ -16372,7 +16377,7 @@ def _gather_verse_root_insights(conn, verse_data):
                 (root_bw,),
             ).fetchone()
             if row:
-                meaning = row["primary_meaning"]
+                meaning = _clean_root_gloss(row["primary_meaning"])
         except Exception:
             pass
 
