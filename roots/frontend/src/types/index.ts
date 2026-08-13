@@ -726,6 +726,10 @@ export interface RootDictionaries {
   root_arabic: string | null;
   count: number;
   dictionaries: DictionaryItem[];
+  /** entry_id of the work to expand first — the highest-priority dictionary
+   *  this root actually has (see _DICTIONARY_PRIORITY in app.py). The list
+   *  itself stays chronological. Null only when there are no entries. */
+  default_entry_id: number | null;
   ejtaal_url: string;
 }
 

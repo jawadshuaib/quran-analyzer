@@ -7347,6 +7347,87 @@ def _dict_meta(r):
     }
 
 
+# --- Which dictionary opens first ----------------------------------------
+# The panel still LISTS the works chronologically (chronology is the method —
+# see get_root_dictionaries), but the one expanded by default is whichever is
+# most likely to answer "what does this root actually mean?" straight away.
+# Ranked by how well each serves this site's method: meaning derived from the
+# Qur'an's own usage and contemporaneous attestation, not later codification.
+# Lower number opens first; anything unlisted falls to the end and is chosen
+# chronologically among its peers.
+_DICTIONARY_PRIORITY = {
+    # Gives each root's single core principle (aṣl) rather than a list of
+    # senses — usually the fastest route to what a root is really about.
+    "ibn-faris-maqayis-al-lugha": 1,
+    # The standard Qur'an-specific lexicon: defines words as the Qur'an uses them.
+    "al-raghib-al-isfahani-al-mufradat-fi-gharib-al-quran": 2,
+    # Earliest of all (d. 687) and grounds Qur'anic words in pre-Islamic
+    # poetry — exactly the contemporaneous evidence this site leans on.
+    "abdullah-ibn-abbas-gharib-al-quran-fi-shir-al-arab": 3,
+    # The first Arabic dictionary; the closest witness to 6th-century usage.
+    "al-khalil-b-ahmad-al-farahidi-kitab-al-ain": 4,
+    # Qur'an-specific gharīb work.
+    "abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib": 5,
+    # Separates literal from figurative usage, which the others often blur.
+    "al-zamakhshari-asas-al-balagha": 6,
+    # The great compendium — thorough, but long to read through.
+    "ibn-manzur-lisan-al-arab": 7,
+    # The most thorough English work, translated from the classical sources.
+    "william-edward-lane-arabic-english-lexicon": 8,
+    "ismail-bin-hammad-al-jawhari-taj-al-lugha-wa-sihah-al-arabiya": 9,
+    "ibn-sida-al-mursi-al-muhkam-wa-l-muhit-al-aazam": 10,
+    "firuzabadi-al-qamus-al-muhit": 11,
+    "murtada-al-zabidi-taj-al-arus-fi-jawahir-al-qamus": 12,
+    "al-fayyumi-al-misbah-al-munir-fi-gharib-al-sharh-al-kabir": 13,
+    "al-sahib-bin-abbad-al-muhit-fi-l-lugha": 14,
+    "zayn-al-din-al-razi-mukhtar-al-sihah": 15,
+    "habib-anthony-salmone-an-advanced-learners-arabic-english-dictionary": 16,
+}
+_DICTIONARY_PRIORITY_FALLBACK = 999
+
+
+# A few AI-generated root glosses came back as the prompt's own heading
+# ("## Root Analysis: ا ب د") with no meaning in them at all, and the rest vary
+# between sentence case, all-lowercase and (rarely) ALL CAPS. Normalized at
+# READ time so the stored text stays untouched — a regenerated meaning later
+# isn't fighting a one-off rewrite of the column.
+_GLOSS_HEADING_RE = re.compile(
+    r"^\s*(?:root\s+analysis|analysis\s+of\s+(?:the\s+)?root)\b", re.I
+)
+_GLOSS_WRAPPED_RE = re.compile(r"^(\*\*|\*|__|_)(.+?)\1$", re.S)
+
+
+def _clean_root_gloss(gloss):
+    """Display-ready root gloss: markdown stripped, uniform sentence case.
+    Returns None when the stored text is a failed generation carrying only a
+    heading, so callers can fall back to showing no gloss rather than junk."""
+    if not gloss:
+        return None
+    for raw in str(gloss).splitlines():
+        s = re.sub(r"^#{1,6}\s*", "", raw.strip()).strip()
+        if not s or _GLOSS_HEADING_RE.match(s):
+            continue
+        m = _GLOSS_WRAPPED_RE.match(s)   # "**glad tidings**" -> "glad tidings"
+        if m:
+            s = m.group(2).strip()
+        if not s:
+            continue
+        # Shouty entries ("OPPONENT, ADVERSARY") get folded down, but only when
+        # there's no lowercase at all — mixed case may hold proper nouns.
+        if any(c.isupper() for c in s) and not any(c.islower() for c in s):
+            s = s.lower()
+        # Capitalize the first letter that HAS a capital, so a leading quote or
+        # a caseless transliteration mark is stepped over ("ʿibāda" -> "ʿIbāda")
+        # while an all-Arabic or digit-led gloss is left exactly as it is.
+        for i, ch in enumerate(s):
+            if ch.isalpha() and ch.upper() != ch.lower():   # a letter that HAS case
+                return s[:i] + ch.upper() + s[i + 1:]
+            if ch.isalnum() and not ch.isalpha():
+                break                    # "3rd person" — don't reach into the word
+        return s
+    return None
+
+
 @app.route("/api/root/<root_bw>/dictionaries")
 def get_root_dictionaries(root_bw: str):
     """Public View 1: the approved, harmonized dictionary definitions for a root,
@@ -7364,10 +7445,19 @@ def get_root_dictionaries(root_bw: str):
             (root_bw,)).fetchall()
         items = [{**_dict_meta(r), "entry_id": r["id"], "harmonized_en": r["harmonized_en"]}
                  for r in rows]
+        # The list stays chronological; this only picks which entry starts
+        # expanded — the highest-priority work this root actually has, with
+        # ties falling to the oldest (rows are already in that order).
+        default_entry_id = min(
+            items,
+            key=lambda it: _DICTIONARY_PRIORITY.get(
+                it["dictionary_slug"], _DICTIONARY_PRIORITY_FALLBACK),
+        )["entry_id"] if items else None
         return jsonify({
             "root_buckwalter": root_bw,
             "root_arabic": rows[0]["root_arabic"] if rows else None,
             "count": len(items), "dictionaries": items,
+            "default_entry_id": default_entry_id,
             "ejtaal_url": _ejtaal_url(root_bw),
         })
     finally:
@@ -7425,7 +7515,7 @@ def get_dictionary_roots():
             "buckwalter": r["root_buckwalter"],
             "arabic": r["root_arabic"],
             "entries": r["entries"],
-            "gloss": r["gloss"],
+            "gloss": _clean_root_gloss(r["gloss"]),
         } for r in rows]
         return jsonify({
             "root_count": len(roots),
@@ -22074,7 +22164,7 @@ def _build_noscript_content(path: str) -> str:
                 cur_letter = letter
             href = "/root/" + quote(r["root_buckwalter"])
             label = html.escape(ar or r["root_buckwalter"])
-            gloss = r["gloss"] or ""
+            gloss = _clean_root_gloss(r["gloss"]) or ""
             suffix = f' &mdash; {html.escape(gloss)}' if gloss else ''
             parts.append(
                 f'<li><a href="{href}"><span lang="ar">{label}</span></a>{suffix}</li>'

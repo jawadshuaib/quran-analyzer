@@ -171,11 +171,17 @@ export default function DictionaryPanel({ rootBw }: { rootBw: string }) {
         original Arabic and a faithful translation sit under each.
       </p>
       <div className="rounded-xl border border-stone-200 bg-white px-4 sm:px-5">
+        {/* Listed oldest-first, but the one already open is the most useful
+            work this root has rather than merely the earliest — the backend
+            picks it (default_entry_id); older payloads without that field
+            fall back to the first card as before. */}
         {data.dictionaries.map((item, i) => (
           <DictionaryCard
             key={item.entry_id}
             item={item}
-            defaultOpen={i === 0}
+            defaultOpen={
+              data.default_entry_id != null ? item.entry_id === data.default_entry_id : i === 0
+            }
             rootBw={rootBw}
             grammarTerms={grammarTerms}
           />
