@@ -392,7 +392,10 @@ export default function App() {
         <PageBackground />
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
-        <RootPage rootBw={rootBw} />
+        <div className="flex-1">
+          <RootPage rootBw={rootBw} />
+        </div>
+        <SiteFooter />
         <SavedItemsPanel />
       </div>
     );
@@ -592,6 +595,7 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <SettingsPage />
+        <SiteFooter />
         <SavedItemsPanel />
       </div>
     );
@@ -604,6 +608,7 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <BadGateway />
+        <SiteFooter />
         <SavedItemsPanel />
       </div>
     );
@@ -616,6 +621,7 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <NotFound />
+        <SiteFooter />
         <SavedItemsPanel />
       </div>
     );
