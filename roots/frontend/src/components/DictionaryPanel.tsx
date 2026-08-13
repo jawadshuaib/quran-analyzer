@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { RootDictionaries, DictionaryItem, DictionaryEntryDetail } from '../types';
+import type { GrammarTerm, RootDictionaries, DictionaryItem, DictionaryEntryDetail } from '../types';
 import { fetchRootDictionaries, fetchDictionaryEntry } from '../api/quran';
 import { FormattedText } from './FormattedText';
+import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 
 /** The Lexicon Library on a root page — how the great classical Arabic
  *  dictionaries define this root, laid out in the order their authors lived
@@ -62,10 +64,12 @@ function DictionaryCard({
   item,
   defaultOpen,
   rootBw,
+  grammarTerms,
 }: {
   item: DictionaryItem;
   defaultOpen: boolean;
   rootBw: string;
+  grammarTerms: Record<string, GrammarTerm> | null;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -115,11 +119,14 @@ function DictionaryCard({
         <div className="pb-4 sm:pl-[3.5rem]">
           {/* highlightRootBw lights up this root's own word inside any
               verse-ref tooltip a dictionary entry cites (e.g. "77:25–26") —
-              otherwise spotting the relevant word in a long verse is hard. */}
+              otherwise spotting the relevant word in a long verse is hard.
+              linkifyGrammarTermRefs + grammarTerms gives a hover tooltip to
+              any curated grammar term (e.g. "Form II") the entry mentions. */}
           <FormattedText
-            text={item.harmonized_en}
+            text={linkifyGrammarTermRefs(item.harmonized_en)}
             className="text-sm leading-relaxed text-stone-700"
             highlightRootBw={rootBw}
+            grammarTerms={grammarTerms ?? undefined}
           />
           <button
             type="button"
@@ -147,6 +154,11 @@ export default function DictionaryPanel({ rootBw }: { rootBw: string }) {
     return () => { cancelled = true; };
   }, [rootBw]);
 
+  // A dictionary entry sometimes names a grammar-glossary term (e.g. "Form
+  // II") with nothing to explain it — same tooltip treatment as everywhere
+  // else. Called before the early return below: hooks can't be conditional.
+  const grammarTerms = useGrammarTermsIfMentioned(data?.dictionaries.map((d) => d.harmonized_en) ?? []);
+
   if (!data || data.count === 0) return null;
 
   return (
@@ -160,7 +172,13 @@ export default function DictionaryPanel({ rootBw }: { rootBw: string }) {
       </p>
       <div className="rounded-xl border border-stone-200 bg-white px-4 sm:px-5">
         {data.dictionaries.map((item, i) => (
-          <DictionaryCard key={item.entry_id} item={item} defaultOpen={i === 0} rootBw={rootBw} />
+          <DictionaryCard
+            key={item.entry_id}
+            item={item}
+            defaultOpen={i === 0}
+            rootBw={rootBw}
+            grammarTerms={grammarTerms}
+          />
         ))}
       </div>
       <div className="mt-3 flex justify-end">

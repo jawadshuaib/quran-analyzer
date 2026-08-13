@@ -3,7 +3,7 @@ import type { WordAnalysisData } from '../types';
 import { fetchWordAnalysis } from '../api/quran';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
 import CognateTable from './CognateTable';
-import VerseRefText from './VerseRefText';
+import { FormattedInline } from './FormattedText';
 import AskAssistant from './AskAssistant';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
@@ -11,7 +11,10 @@ import { buildWordContext } from '../utils/context-builders';
 import { TranslationWithChips } from './TermChip';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import DictionaryPanel from './DictionaryPanel';
+import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 import type { NoteDescriptor } from '../utils/saved-item-actions';
+import type { GrammarTerm } from '../types';
 
 interface Props {
   surah: number;
@@ -28,19 +31,22 @@ function FormattedNotes({
   text,
   highlightRootBw,
   highlightLemmaBw,
+  grammarTerms,
 }: {
   text: string;
   highlightRootBw?: string;
   highlightLemmaBw?: string;
+  grammarTerms?: Record<string, GrammarTerm>;
 }) {
   return (
     <div className="text-sm text-stone-600 leading-relaxed">
       {splitNotes(text).map((line, i) => (
         <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-          <VerseRefText
-            text={line}
+          <FormattedInline
+            text={linkifyGrammarTermRefs(line)}
             highlightRootBw={highlightRootBw}
             highlightLemmaBw={highlightLemmaBw}
+            grammarTerms={grammarTerms}
           />
         </p>
       ))}
@@ -90,6 +96,19 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
       })
       .finally(() => setLoading(false));
   }, [surah, ayah, pos]);
+
+  // Context Derived Meaning / cross-reference notes sometimes reference a
+  // grammar-glossary term (e.g. "Form II") that's opaque without a
+  // definition — same tooltip treatment as Grammar Notes / Translation Notes
+  // on the verse page. Called before the early returns below: hooks can't be
+  // conditional, so this reads through optional chaining instead.
+  const grammarTerms = useGrammarTermsIfMentioned([
+    data?.ai_meaning?.meaning_detailed,
+    data?.ai_meaning?.cross_ref_notes,
+    data?.ai_meaning?.cognate_notes,
+    data?.ai_meaning?.morphology_notes,
+    data?.ai_meaning?.departure_notes,
+  ]);
 
   if (loading) {
     return (
@@ -276,13 +295,16 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               {/* highlightRootBw/LemmaBw light up this word's own lemma (or
                   root, as fallback) inside any verse-ref tooltip these notes
                   cite — e.g. hovering "2:28" here highlights the matching
-                  word there, instead of leaving the reader to find it. */}
+                  word there, instead of leaving the reader to find it.
+                  linkifyGrammarTermRefs + grammarTerms gives a hover tooltip
+                  to any curated grammar term the note mentions. */}
               {splitNotes(data.ai_meaning.meaning_detailed).map((line, i) => (
                 <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
-                  <VerseRefText
-                    text={line}
+                  <FormattedInline
+                    text={linkifyGrammarTermRefs(line)}
                     highlightRootBw={data.root_buckwalter ?? undefined}
                     highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                    grammarTerms={grammarTerms ?? undefined}
                   />
                 </p>
               ))}
@@ -309,6 +331,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                     text={data.ai_meaning.cross_ref_notes}
                     highlightRootBw={data.root_buckwalter ?? undefined}
                     highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                    grammarTerms={grammarTerms ?? undefined}
                   />
                 }
               />
@@ -321,6 +344,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                     text={data.ai_meaning.cognate_notes}
                     highlightRootBw={data.root_buckwalter ?? undefined}
                     highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                    grammarTerms={grammarTerms ?? undefined}
                   />
                 }
               />
@@ -333,6 +357,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                     text={data.ai_meaning.morphology_notes}
                     highlightRootBw={data.root_buckwalter ?? undefined}
                     highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                    grammarTerms={grammarTerms ?? undefined}
                   />
                 }
               />
@@ -345,6 +370,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                     text={data.ai_meaning.departure_notes}
                     highlightRootBw={data.root_buckwalter ?? undefined}
                     highlightLemmaBw={data.lemma_buckwalter ?? undefined}
+                    grammarTerms={grammarTerms ?? undefined}
                   />
                 }
               />

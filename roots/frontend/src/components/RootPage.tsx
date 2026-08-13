@@ -12,6 +12,8 @@ import NoteButton from './NoteButton';
 import PoetryComparison from './PoetryComparison';
 import DictionaryPanel from './DictionaryPanel';
 import FormattedText, { FormattedInline } from './FormattedText';
+import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 import type { NoteDescriptor } from '../utils/saved-item-actions';
 
 interface Props {
@@ -30,6 +32,11 @@ export default function RootPage({ rootBw }: Props) {
   // Resolved word + cognate for the hovered word
   const [hoveredWord, setHoveredWord] = useState<Word | null>(null);
   const [hoveredCognate, setHoveredCognate] = useState<CognateData | undefined>(undefined);
+
+  // AI root meaning sometimes references a grammar-glossary term (e.g. "Form
+  // II", "jussive") that's opaque without a definition — same treatment as
+  // Grammar Notes / Translation Notes on the verse page.
+  const grammarTerms = useGrammarTermsIfMentioned([data?.primary_meaning, data?.detailed_meaning]);
 
   useEffect(() => {
     setLoading(true);
@@ -170,7 +177,11 @@ export default function RootPage({ rootBw }: Props) {
         <section className="mb-8">
           <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4 sm:p-5">
             <h2 className="text-lg font-semibold text-violet-900 mb-3">
-              <FormattedInline text={data.primary_meaning} highlightRootBw={rootBw} />
+              <FormattedInline
+                text={linkifyGrammarTermRefs(data.primary_meaning)}
+                highlightRootBw={rootBw}
+                grammarTerms={grammarTerms ?? undefined}
+              />
             </h2>
             {data.detailed_meaning && (
               // FormattedText renders the AI meaning's **bold**/*italic*,
@@ -179,10 +190,14 @@ export default function RootPage({ rootBw }: Props) {
               // highlightRootBw lights up this root's own word inside any
               // verse-ref tooltip the note cites (e.g. "2:73") — otherwise
               // spotting which word belongs to the root is hard in a long verse.
+              // linkifyGrammarTermRefs + grammarTerms gives a hover tooltip to
+              // any curated term the note mentions (e.g. "Form II"), same as
+              // Grammar Notes / Translation Notes on the verse page.
               <FormattedText
-                text={data.detailed_meaning}
+                text={linkifyGrammarTermRefs(data.detailed_meaning)}
                 className="text-sm text-stone-700 leading-relaxed"
                 highlightRootBw={rootBw}
+                grammarTerms={grammarTerms ?? undefined}
               />
             )}
             {data.semantic_field && (

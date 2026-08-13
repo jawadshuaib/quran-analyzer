@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon, GrammarTerm } from '../types';
-import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry, fetchVerseRootLexicon, fetchAllGrammarTerms } from '../api/quran';
+import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon } from '../types';
+import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry, fetchVerseRootLexicon } from '../api/quran';
 import RootLexiconPanel from './RootLexiconPanel';
 import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from './FormattedText';
-import { mentionsGrammarTerm, linkifyGrammarTermRefs, buildGrammarTermLookup } from '../utils/grammar-term-refs';
+import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 import { TranslationWithChips, type WordContext } from './TermChip';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
@@ -55,7 +56,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
   const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
   const [lexicon, setLexicon] = useState<VerseRootLexicon | null>(null);
-  const [grammarTerms, setGrammarTerms] = useState<Record<string, GrammarTerm> | null>(null);
   const [wordToWordEnabled, setWordToWordEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(WORD_TO_WORD_KEY) === '1';
@@ -152,20 +152,14 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     return () => { cancelled = true; };
   }, [data.surah, data.ayah]);
 
-  // Translation Notes sometimes reference a grammar-glossary term (e.g.
-  // "causative form IV") that's opaque without a definition. Only fetch the
-  // (cached, ~600-term) glossary when the notes actually mention one of the
-  // curated terms — most verses won't, and the fetch is cheap to skip.
-  useEffect(() => {
-    setGrammarTerms(null);
-    const notes = aiTranslation?.departure_notes;
-    if (!notes || !mentionsGrammarTerm(notes)) return;
-    let cancelled = false;
-    fetchAllGrammarTerms().then((res) => {
-      if (!cancelled) setGrammarTerms(buildGrammarTermLookup(res.terms));
-    }).catch(() => { if (!cancelled) setGrammarTerms(null); });
-    return () => { cancelled = true; };
-  }, [aiTranslation?.departure_notes]);
+  // Exegesis and Translation Notes sometimes reference a grammar-glossary
+  // term (e.g. "causative form IV") that's opaque without a definition.
+  // useGrammarTermsIfMentioned only fetches the (cached, ~600-term) glossary
+  // when one of them actually mentions a curated term — most verses won't.
+  const grammarTerms = useGrammarTermsIfMentioned([
+    aiTranslation?.departure_notes,
+    exegesis?.exegesis_markdown,
+  ]);
 
   // Fetch the approved teacher-voice exegesis (if any) for this verse
   useEffect(() => {
@@ -596,7 +590,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                 <MethodologyTooltip />
               </div>
               <FormattedText
-                text={linkifyTranslationNotesRefs(exegesis.exegesis_markdown)}
+                text={linkifyGrammarTermRefs(linkifyTranslationNotesRefs(exegesis.exegesis_markdown))}
                 anchors={
                   exegesis.word_anchors?.length
                     ? { verseKey, list: exegesis.word_anchors }
@@ -607,6 +601,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                     ? `translation-notes-${data.surah}-${data.ayah}`
                     : undefined
                 }
+                grammarTerms={grammarTerms ?? undefined}
                 className="text-sm text-violet-900/90 leading-relaxed"
               />
             </div>

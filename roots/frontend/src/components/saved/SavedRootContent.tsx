@@ -4,6 +4,8 @@ import { fetchRoot } from '../../api/quran';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
 import { FormattedInline } from '../FormattedText';
 import { MetaChip } from './chips';
+import { linkifyGrammarTermRefs } from '../../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../../hooks/useGrammarTerms';
 
 /**
  * A saved ROOT, rendered as a mini dictionary entry: the root glyph as an airy
@@ -72,6 +74,9 @@ export default function SavedRootContent({
     };
   }, [item.key, item.arabic]);
 
+  // Called before the early returns below: hooks can't be conditional.
+  const grammarTerms = useGrammarTermsIfMentioned([primaryMeaning]);
+
   if (!rootArabic && !failed) {
     return (
       <span className="block animate-pulse">
@@ -116,7 +121,11 @@ export default function SavedRootContent({
         <span
           className={`block text-sm text-stone-600 mt-1 leading-relaxed ${compact ? 'line-clamp-1' : 'line-clamp-2'}`}
         >
-          <FormattedInline text={primaryMeaning} highlightRootBw={rootBuckwalter} />
+          <FormattedInline
+            text={linkifyGrammarTermRefs(primaryMeaning)}
+            highlightRootBw={rootBuckwalter}
+            grammarTerms={grammarTerms ?? undefined}
+          />
         </span>
       )}
 

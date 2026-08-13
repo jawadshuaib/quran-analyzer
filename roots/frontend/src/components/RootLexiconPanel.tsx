@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import type { VerseRootLexicon, VerseRootLexiconWord } from '../types';
+import type { GrammarTerm, VerseRootLexicon, VerseRootLexiconWord } from '../types';
 import FormattedText from './FormattedText';
+import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 
 /** Per-verse, word-by-word contemporaneous-attestation lexicon.
  *  Shows, for each content word, what its root is *attested* to mean in
@@ -30,7 +32,7 @@ function StrengthBadge({ strength }: { strength: string }) {
   );
 }
 
-function WordRow({ w }: { w: VerseRootLexiconWord }) {
+function WordRow({ w, grammarTerms }: { w: VerseRootLexiconWord; grammarTerms: Record<string, GrammarTerm> | null }) {
   const [open, setOpen] = useState(false);
   const lex = w.lexicon!;
   const senseList = lex.attested_senses.map((s) => s.sense).filter(Boolean);
@@ -74,12 +76,14 @@ function WordRow({ w }: { w: VerseRootLexiconWord }) {
           )}
           {lex.lexicon_markdown && (
             // highlightRootBw lights up this word's own root inside any
-            // verse-ref tooltip the attestation note cites.
+            // verse-ref tooltip the attestation note cites. grammarTerms
+            // gives a hover tooltip to any curated grammar term it mentions.
             <FormattedText
-              text={lex.lexicon_markdown}
+              text={linkifyGrammarTermRefs(lex.lexicon_markdown)}
               quotes={lex.quoted_lines}
               className="text-sm text-stone-700 leading-relaxed"
               highlightRootBw={w.root_buckwalter}
+              grammarTerms={grammarTerms ?? undefined}
             />
           )}
         </div>
@@ -95,6 +99,8 @@ export default function RootLexiconPanel({ data }: { data: VerseRootLexicon }) {
     seenRoots.add(w.root_buckwalter);
     return true;
   });
+  // Called before the early return below: hooks can't be conditional.
+  const grammarTerms = useGrammarTermsIfMentioned(words.map((w) => w.lexicon?.lexicon_markdown));
   if (words.length === 0) return null;
   return (
     <div className="mt-4 rounded-lg bg-amber-50/60 border border-amber-200 p-3">
@@ -107,7 +113,7 @@ export default function RootLexiconPanel({ data }: { data: VerseRootLexicon }) {
       </p>
       <div>
         {words.map((w) => (
-          <WordRow key={`${w.word_pos}-${w.root_buckwalter}`} w={w} />
+          <WordRow key={`${w.word_pos}-${w.root_buckwalter}`} w={w} grammarTerms={grammarTerms} />
         ))}
       </div>
     </div>

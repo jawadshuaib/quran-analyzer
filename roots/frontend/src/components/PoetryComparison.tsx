@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import type { RootPoetryComparison } from '../types';
 import { fetchRootPoetry } from '../api/quran';
 import FormattedText from './FormattedText';
+import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 
 /** The "In Pre-Islamic Poetry" section on a root page. Lazy-loads the approved
  *  comparison and auto-hides (renders nothing) when a root has none — same
@@ -24,6 +26,9 @@ export default function PoetryComparison({ rootBw }: { rootBw: string }) {
       .catch(() => { if (!cancelled) setData(null); });
     return () => { cancelled = true; };
   }, [rootBw]);
+
+  // Called before the early return below: hooks can't be conditional.
+  const grammarTerms = useGrammarTermsIfMentioned([data?.comparison_markdown]);
 
   if (!data) return null;
 
@@ -51,10 +56,11 @@ export default function PoetryComparison({ rootBw }: { rootBw: string }) {
         {/* the comparison prose — poetic lines are linked inline (the [[q:…]]
             markers resolve against quoted_lines into hover-tooltip links) */}
         <FormattedText
-          text={data.comparison_markdown}
+          text={linkifyGrammarTermRefs(data.comparison_markdown)}
           quotes={data.quoted_lines}
           className="text-sm text-stone-700 leading-relaxed"
           highlightRootBw={rootBw}
+          grammarTerms={grammarTerms ?? undefined}
         />
 
         {/* collocational fingerprint — the company the word keeps */}

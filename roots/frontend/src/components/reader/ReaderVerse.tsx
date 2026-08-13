@@ -1,5 +1,5 @@
 import { forwardRef, Fragment, useEffect, useRef, useState } from 'react';
-import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote, GrammarTerm } from '../../types';
+import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote } from '../../types';
 import {
   toggleManualSave,
   isSaved,
@@ -15,8 +15,9 @@ import FolderPopover, { type FolderPopoverMode } from '../folders/FolderPopover'
 import { getNote, subscribeToNotes } from '../../utils/user-notes';
 import { setVerseNote } from '../../utils/saved-item-actions';
 import { getSurahName } from '../../utils/surah-names';
-import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry, fetchAllGrammarTerms } from '../../api/quran';
-import { mentionsGrammarTerm, linkifyGrammarTermRefs, buildGrammarTermLookup } from '../../utils/grammar-term-refs';
+import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry } from '../../api/quran';
+import { linkifyGrammarTermRefs } from '../../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../../hooks/useGrammarTerms';
 import {
   isReaderNotesVisible,
   setReaderNotesVisible,
@@ -575,7 +576,6 @@ function VerseNotesPanel({
   const [grammar, setGrammar] = useState<GrammarNotesData | null>(null);
   const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
   const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
-  const [glossaryTerms, setGlossaryTerms] = useState<Record<string, GrammarTerm> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -596,18 +596,18 @@ function VerseNotesPanel({
       setPoetry(p);
       setLoading(false);
       if (!t && !g && !ex && !p) setError('No notes available for this verse.');
-      // Translation Notes sometimes reference a grammar-glossary term (e.g.
-      // "causative form IV") — fetch the (cached) glossary only if it does.
-      if (t?.departure_notes && mentionsGrammarTerm(t.departure_notes)) {
-        fetchAllGrammarTerms().then((res) => {
-          if (!cancelled) setGlossaryTerms(buildGrammarTermLookup(res.terms));
-        }).catch(() => { if (!cancelled) setGlossaryTerms(null); });
-      } else {
-        setGlossaryTerms(null);
-      }
     });
     return () => { cancelled = true; };
   }, [surah, verse, hasTranslation, hasGrammar, hasExegesis, hasPoetry]);
+
+  // Exegesis and Translation Notes sometimes reference a grammar-glossary
+  // term (e.g. "causative form IV") that's opaque without a definition.
+  // useGrammarTermsIfMentioned only fetches the (cached, ~600-term) glossary
+  // when one of them actually mentions a curated term — most verses won't.
+  const glossaryTerms = useGrammarTermsIfMentioned([
+    translation?.departure_notes,
+    exegesis?.exegesis_markdown,
+  ]);
 
   if (loading) {
     return (
@@ -643,13 +643,14 @@ function VerseNotesPanel({
               (e.g. f-l-q) with the same hover tooltips as the research view. */}
           <div className="text-sm leading-relaxed text-ink-secondary">
             <FormattedText
-              text={linkifyTranslationNotesRefs(exegesis.exegesis_markdown)}
+              text={linkifyGrammarTermRefs(linkifyTranslationNotesRefs(exegesis.exegesis_markdown))}
               anchors={
                 exegesis.word_anchors?.length
                   ? { verseKey: `${surah}:${verse}`, list: exegesis.word_anchors }
                   : undefined
               }
               translationNotesId={translation?.departure_notes ? `translation-notes-${surah}-${verse}` : undefined}
+              grammarTerms={glossaryTerms ?? undefined}
             />
           </div>
         </div>
