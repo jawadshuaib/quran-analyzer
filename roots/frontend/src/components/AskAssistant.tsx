@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { askClaudeDirect, askClaudeProxy, FREE_MODEL_TAG, type PageType } from '../api/claude';
-import { saveQA, fetchHistory, fetchUsage, type QAEntry } from '../api/assistant';
+import { saveQA, fetchHistory, fetchUsage, fetchQuoteAnchors, type QAEntry } from '../api/assistant';
+import type { WordAnchor } from '../types';
 import { getApiKey, getModel, getSessionId } from '../utils/assistant-storage';
 import { FormattedInline, renderBlocks } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
@@ -203,6 +204,30 @@ export default function AskAssistant({
     ...history.map((h) => h.answer),
   ]);
 
+  // Citations of the verse itself, resolved to the words they quote so
+  // hovering one lights those words up — the treatment the exegesis and
+  // translation notes already get. Verse pages only (that's the only page
+  // where the quoted verse is on screen to highlight), and only once the
+  // panel is open, since nothing is rendered before that. Answers arrive
+  // together, so one round trip covers the whole panel.
+  const [quoteAnchors, setQuoteAnchors] = useState<WordAnchor[]>([]);
+  const answerText = [
+    ...messages.filter((m) => m.role === 'assistant').map((m) => m.content),
+    ...history.map((h) => h.answer),
+  ].join('\n\n');
+
+  useEffect(() => {
+    setQuoteAnchors([]);
+    if (!open || pageType !== 'verse' || !answerText.trim()) return;
+    const m = pageKey.match(/^(\d+):(\d+)$/);
+    if (!m) return;
+    let cancelled = false;
+    fetchQuoteAnchors(parseInt(m[1], 10), parseInt(m[2], 10), answerText)
+      .then((list) => { if (!cancelled) setQuoteAnchors(list); })
+      .catch(() => { /* citations stay ordinary prose */ });
+    return () => { cancelled = true; };
+  }, [open, pageType, pageKey, answerText]);
+
   const hasHistory = historyLoaded && history.length > 0;
   const latestQAId = hasHistory ? Math.max(...history.map(h => h.id)) : 0;
   const hasUnreadQA = hasHistory && latestQAId > getLastSeenId(pageType, pageKey);
@@ -392,6 +417,7 @@ export default function AskAssistant({
   function renderFormatted(text: string) {
     return renderBlocks(linkifyGrammarTermRefs(text), {
       grammarTerms: grammarTerms ?? undefined,
+      anchors: quoteAnchors.length ? { verseKey: pageKey, list: quoteAnchors } : undefined,
       highlightRootBw,
       highlightLemmaBw,
     });

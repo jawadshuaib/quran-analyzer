@@ -7354,6 +7354,81 @@ def _ensure_word_translit_table(conn):
     """)
 
 
+# --- Citations inside prose written at request time ------------------------
+# An Ask-the-Quran answer quotes the verse the reader is on exactly as the
+# notes do ("ٱللَّهُ وَلِىُّ ٱلَّذِينَ ءَامَنُوا۟", *inna maʿa l-ʿusri yusran*), and the reader
+# wants the same thing from it: hover the citation, see which words of the
+# verse it means. The notes get that from align_note_anchors.py, which runs
+# offline over the stored corpus — an answer doesn't exist yet when that runs,
+# so the same rules are applied here on demand. Deterministic string alignment
+# over `word_translit`; no model, no network, a few hundred microseconds.
+_ALIGN_MOD = None
+# Generous next to the ~7KB of answers a busy verse actually carries; a
+# ceiling exists so an arbitrary POST body can't turn into arbitrary work.
+_ALIGN_MAX_TEXT = 60000
+
+
+def _align_module():
+    """align_note_anchors, imported on first use (nothing else needs it)."""
+    global _ALIGN_MOD
+    if _ALIGN_MOD is None:
+        import align_note_anchors
+        _ALIGN_MOD = align_note_anchors
+    return _ALIGN_MOD
+
+
+@app.route("/api/verse/<int:surah>:<int:ayah>/align-quotes", methods=["POST"])
+def align_quotes(surah: int, ayah: int):
+    """Resolve the citations in the posted prose to word ranges of this verse.
+
+    Body: {"text": "..."}. Returns the same shape the notes' stored anchors
+    use, so the client can hand it straight to the renderer. Citations that
+    quote some *other* verse, bare root forms and ordinary emphasis simply
+    don't resolve and come back absent — they render as plain prose.
+    """
+    data = request.get_json(silent=True) or {}
+    text = data.get("text")
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({"anchors": []})
+
+    align = _align_module()
+    # The four verses where the corpus' word count and the rendered token
+    # count disagree by one: an anchor there could light the wrong word.
+    if (surah, ayah) in align.MISALIGNED:
+        return jsonify({"anchors": []})
+
+    conn = get_db()
+    try:
+        words = [
+            (r["word_pos"], r["translit_key"], r["arabic_key"])
+            for r in conn.execute(
+                "SELECT word_pos, translit_key, arabic_key FROM word_translit "
+                "WHERE chapter = ? AND verse = ? ORDER BY word_pos",
+                (surah, ayah),
+            )
+        ]
+    except sqlite3.OperationalError:
+        # Table not synced yet — citations stay ordinary prose, as with notes.
+        return jsonify({"anchors": []})
+    finally:
+        conn.close()
+    if not words:
+        return jsonify({"anchors": []})
+
+    anchors = []
+    seen = set()
+    for span, script in align.spans_in(text[:_ALIGN_MAX_TEXT]):
+        if span in seen:          # the same phrase quoted more than once
+            continue
+        seen.add(span)
+        rng = align.resolve(span, script, words)
+        if rng:
+            anchors.append(
+                {"span": span, "script": script, "start": rng[0], "end": rng[1]}
+            )
+    return jsonify({"anchors": anchors})
+
+
 def _ensure_dict_tables(conn):
     """Self-heal the Lexicon Library tables (prod before its first sync)."""
     conn.executescript("""

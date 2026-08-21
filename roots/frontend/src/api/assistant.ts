@@ -4,6 +4,7 @@
 
 import { API_BASE } from './quran';
 import { getSessionId } from '../utils/assistant-storage';
+import type { WordAnchor } from '../types';
 
 export interface QAEntry {
   id: number;
@@ -95,6 +96,30 @@ export async function saveQA(params: {
   } catch {
     // Silently fail — history saving is not critical
     return { ok: false };
+  }
+}
+
+/** Resolve the citations in an answer back to the words of the verse it was
+ *  asked about, so hovering one highlights those words — what the notes get
+ *  from their offline alignment pass. Answers are written at request time, so
+ *  theirs has to happen on demand. Never throws: an unresolved (or failed)
+ *  alignment just leaves the citations as ordinary prose. */
+export async function fetchQuoteAnchors(
+  surah: number,
+  ayah: number,
+  text: string,
+): Promise<WordAnchor[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/verse/${surah}:${ayah}/align-quotes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.anchors || [];
+  } catch {
+    return [];
   }
 }
 
