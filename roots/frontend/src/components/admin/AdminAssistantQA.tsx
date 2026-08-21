@@ -4,6 +4,8 @@ import {
   type AdminQAItem, type AdminQAStats, type AdminQAStatus, type AdminQASort,
 } from '../../api/admin';
 import { FormattedText, FormattedInline } from '../FormattedText';
+import { linkifyGrammarTermRefs } from '../../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../../hooks/useGrammarTerms';
 
 const LIMIT = 25;
 
@@ -733,6 +735,9 @@ function QACard(p: QACardProps) {
   const href = pageHref(item);
   const isAI = item.source === 'ai';
   const flags = item.generation_meta?.flags ?? [];
+  // Reviewers read the answer exactly as the public will — grammar terms
+  // included, since a wrong or unglossed term is part of what's being judged.
+  const grammarTerms = useGrammarTermsIfMentioned([item.answer]);
 
   const cardBorder = item.hidden
     ? 'border-amber-200 bg-amber-50/20'
@@ -819,7 +824,10 @@ function QACard(p: QACardProps) {
               className={`text-sm text-stone-600 leading-relaxed cursor-pointer ${p.expanded ? '' : 'max-h-16 overflow-hidden'}`}
               title={p.expanded ? 'Click to collapse' : 'Click to expand'}
             >
-              <FormattedText text={item.answer} />
+              <FormattedText
+                text={linkifyGrammarTermRefs(item.answer)}
+                grammarTerms={grammarTerms ?? undefined}
+              />
             </div>
             {!p.expanded && item.answer.length > 220 && (
               <button onClick={p.onToggleExpand} className="text-xs text-violet-500 hover:text-violet-700 mt-1 cursor-pointer">

@@ -5,6 +5,7 @@ import RootLexiconPanel from './RootLexiconPanel';
 import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
+import { useVerseRefHovered } from '../hooks/useVerseRefHovered';
 import { TranslationWithChips, type WordContext } from './TermChip';
 import WordTooltip from './WordTooltip';
 import CognatePanel from './CognatePanel';
@@ -77,6 +78,9 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   // Words the reader is pointing at via a citation in the exegesis note.
   const [noteHover, setNoteHover] = useState(getWordHover);
   useEffect(() => subscribeWordHover(setNoteHover), []);
+
+  // Whether prose on this page is being hovered on a reference to this verse.
+  const refHovered = useVerseRefHovered(verseKey);
 
   const uthmaniWords = data.text_uthmani.split(/\s+/).filter(Boolean);
 
@@ -317,7 +321,11 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   return (
     <div
       ref={containerRef}
-      className="relative rounded-xl border border-stone-200 bg-white p-6 shadow-sm"
+      className={`relative rounded-xl border bg-white p-6 shadow-sm ${
+        // Prose on this page (an exegesis note, an Ask-the-Quran answer) is
+        // being hovered on a reference to this very verse — point at it.
+        refHovered ? 'border-gold/60 ring-2 ring-gold/40' : 'border-stone-200'
+      }`}
       onClick={clearAll}
     >
       {/* Save + note buttons — top-left, floating on card border */}

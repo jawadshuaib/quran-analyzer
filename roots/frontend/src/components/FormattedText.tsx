@@ -450,6 +450,57 @@ interface FormattedTextProps {
   highlightLemmaBw?: string;
 }
 
+/**
+ * The block-level pieces of `text` — headings, bullet/numbered rows,
+ * paragraphs, blank-line spacers — as a bare array, with no wrapper element.
+ * FormattedText below wraps them in a div; render this directly when the
+ * blocks have to be immediate children of the caller's own container. The
+ * assistant's collapsed history entries are the case in point: they clamp the
+ * answer with line-clamp-3, which counts the lines of its own children, so an
+ * intervening wrapper leaves the clamped lines piled on top of each other.
+ */
+export function renderBlocks(text: string, opts: RenderInlineOpts = {}) {
+  const lines = (text ?? '').split('\n');
+  return lines.map((line, li) => {
+    if (/^#{2,3}\s/.test(line)) {
+      const content = line.replace(/^#{2,3}\s+/, '');
+      // Through renderInline, not straight to VerseRefText: a heading names a
+      // grammar term as readily as a paragraph does ("### The Form III verb"),
+      // and its markers would otherwise leak as text.
+      return (
+        <p key={li} className="font-semibold text-stone-900 mt-3 mb-1 text-sm">
+          {renderInline(content, opts)}
+        </p>
+      );
+    }
+    if (/^[-*]\s/.test(line)) {
+      const content = line.replace(/^[-*]\s+/, '');
+      return (
+        <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
+          <span className="text-stone-400 shrink-0">•</span>
+          <span>{renderInline(content, opts)}</span>
+        </div>
+      );
+    }
+    if (/^\d+\.\s/.test(line)) {
+      const num = line.match(/^(\d+)\./)?.[1];
+      const content = line.replace(/^\d+\.\s+/, '');
+      return (
+        <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
+          <span className="text-stone-400 shrink-0">{num}.</span>
+          <span>{renderInline(content, opts)}</span>
+        </div>
+      );
+    }
+    if (!line.trim()) return <div key={li} className="h-2" />;
+    return (
+      <p key={li} className={li > 0 ? 'mt-0.5' : ''}>
+        {renderInline(line, opts)}
+      </p>
+    );
+  });
+}
+
 // Block-level renderer for multi-paragraph answers: headings, bullet/numbered
 // lists, blank-line spacing, plus inline bold/italic and verse links.
 export function FormattedText({
@@ -462,48 +513,15 @@ export function FormattedText({
   highlightRootBw,
   highlightLemmaBw,
 }: FormattedTextProps) {
-  const opts: RenderInlineOpts = { quotes, translationNotesId, grammarTerms, anchors, highlightRootBw, highlightLemmaBw };
-  const lines = (text ?? '').split('\n');
   return (
     <div className={className}>
-      {lines.map((line, li) => {
-        if (/^#{2,3}\s/.test(line)) {
-          const content = line.replace(/^#{2,3}\s+/, '');
-          return (
-            <p key={li} className="font-semibold text-stone-900 mt-3 mb-1 text-sm">
-              <VerseRefText
-                text={content}
-                highlightRootBw={highlightRootBw}
-                highlightLemmaBw={highlightLemmaBw}
-              />
-            </p>
-          );
-        }
-        if (/^[-*]\s/.test(line)) {
-          const content = line.replace(/^[-*]\s+/, '');
-          return (
-            <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
-              <span className="text-stone-400 shrink-0">•</span>
-              <span>{renderInline(content, opts)}</span>
-            </div>
-          );
-        }
-        if (/^\d+\.\s/.test(line)) {
-          const num = line.match(/^(\d+)\./)?.[1];
-          const content = line.replace(/^\d+\.\s+/, '');
-          return (
-            <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
-              <span className="text-stone-400 shrink-0">{num}.</span>
-              <span>{renderInline(content, opts)}</span>
-            </div>
-          );
-        }
-        if (!line.trim()) return <div key={li} className="h-2" />;
-        return (
-          <p key={li} className={li > 0 ? 'mt-0.5' : ''}>
-            {renderInline(line, opts)}
-          </p>
-        );
+      {renderBlocks(text, {
+        quotes,
+        translationNotesId,
+        grammarTerms,
+        anchors,
+        highlightRootBw,
+        highlightLemmaBw,
       })}
     </div>
   );

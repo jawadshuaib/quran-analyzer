@@ -18,6 +18,7 @@ import { getSurahName } from '../../utils/surah-names';
 import { fetchAITranslation, fetchGrammarNotes, fetchVerseExegesis, fetchVersePoetry } from '../../api/quran';
 import { linkifyGrammarTermRefs } from '../../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../../hooks/useGrammarTerms';
+import { useVerseRefHovered } from '../../hooks/useVerseRefHovered';
 import {
   isReaderNotesVisible,
   setReaderNotesVisible,
@@ -132,6 +133,10 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   const [noteHover, setNoteHover] = useState(getWordHover);
   useEffect(() => subscribeWordHover(setNoteHover), []);
 
+  // Whether prose elsewhere on the page (a note, an Ask-the-Quran answer) is
+  // being hovered on a reference to *this* verse — see verse-ref-hover.ts.
+  const refHovered = useVerseRefHovered(verseKey);
+
   const uthmaniWords = verse.text_uthmani.split(/\s+/).filter(Boolean);
 
   useEffect(() => {
@@ -200,6 +205,10 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
       id={`v${verse.verse}`}
       className={`relative grid grid-cols-[2.5rem_1fr] gap-3 sm:gap-4 py-5 sm:py-6 border-b border-card-border/50 transition-colors duration-1000 ${
         highlightFlash ? 'bg-gold/10' : ''
+      } ${
+        // Pointer feedback, so no duration-1000 fade: the ring is a shadow,
+        // which transition-colors doesn't animate, and it appears at once.
+        refHovered ? 'rounded-lg ring-2 ring-gold/50 ring-offset-2 ring-offset-cream' : ''
       }`}
     >
       {/* Left gutter — verse number + subtle icons (only when relevant) */}

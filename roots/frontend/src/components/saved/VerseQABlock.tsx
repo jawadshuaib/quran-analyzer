@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { SessionQAEntry } from '../../api/assistant';
 import FormattedText from '../FormattedText';
+import { linkifyGrammarTermRefs } from '../../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../../hooks/useGrammarTerms';
 
 interface Props {
   /** The user's own Ask-the-Quran Q&A for this verse, newest first. */
@@ -16,6 +18,9 @@ interface Props {
  */
 export default function VerseQABlock({ items }: Props) {
   const [openId, setOpenId] = useState<number | null>(null);
+  // An answer can name a grammar term ("Form III", "khabar") with nothing to
+  // explain it — same glossary tooltip as everywhere else.
+  const grammarTerms = useGrammarTermsIfMentioned(items.map((qa) => qa.answer));
 
   if (items.length === 0) return null;
 
@@ -63,7 +68,10 @@ export default function VerseQABlock({ items }: Props) {
               </button>
               {open && (
                 <div className="pb-2 pl-[18px] text-xs leading-relaxed text-stone-600">
-                  <FormattedText text={qa.answer} />
+                  <FormattedText
+                    text={linkifyGrammarTermRefs(qa.answer)}
+                    grammarTerms={grammarTerms ?? undefined}
+                  />
                 </div>
               )}
             </li>

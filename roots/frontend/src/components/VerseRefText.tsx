@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useId, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { RootDetailData, Word } from '../types';
 import { fetchVerse, fetchRoot } from '../api/quran';
@@ -6,6 +6,7 @@ import { arabicRootToBuckwalter } from '../utils/buckwalter';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { viewportSize } from '../utils/viewport';
+import { setVerseRefHover, clearVerseRefHover } from '../utils/verse-ref-hover';
 
 /** Shared viewport-clamped placement for these hover tooltips — fixed
  *  positioning (escapes any overflow-hidden ancestor) below the trigger,
@@ -184,6 +185,17 @@ function VerseRefLink({
 
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Identity of this particular reference, for the page-highlight store — the
+  // same verse is often cited more than once in one passage, so ownership has
+  // to be per-span, not per-verse.
+  const hoverOwner = useId();
+  // Every verse this reference covers: "2:255" alone, or all of 2:255–257.
+  const verseKeys = useMemo(() => {
+    const keys: string[] = [];
+    for (let a = startAyah; a <= endAyah; a++) keys.push(`${surah}:${a}`);
+    return keys;
+  }, [surah, startAyah, endAyah]);
+
   const clearHideTimer = useCallback(() => {
     if (hideTimer.current) {
       clearTimeout(hideTimer.current);
@@ -193,6 +205,10 @@ function VerseRefLink({
 
   const handleMouseEnter = useCallback(async () => {
     clearHideTimer();
+    // Light the cited verse up wherever it's already rendered (the reader, or
+    // the verse's own page). A no-op when it isn't on this page — the preview
+    // below is then the only answer available.
+    setVerseRefHover(verseKeys, hoverOwner);
 
     // Check if all verses in range are already cached
     const allCached: CachedVerse[] = [];
@@ -240,15 +256,23 @@ function VerseRefLink({
     } catch {
       setTooltip({ loading: false, verses: [], error: true });
     }
-  }, [surah, startAyah, endAyah, clearHideTimer]);
+  }, [surah, startAyah, endAyah, clearHideTimer, verseKeys, hoverOwner]);
 
+  // The page highlight is released on the same delay as the tooltip, so it
+  // survives the pointer travelling from the reference into the preview.
   const handleMouseLeave = useCallback(() => {
-    hideTimer.current = setTimeout(() => setTooltip(null), 200);
-  }, []);
+    hideTimer.current = setTimeout(() => {
+      setTooltip(null);
+      clearVerseRefHover(hoverOwner);
+    }, 200);
+  }, [hoverOwner]);
 
   useEffect(() => {
-    return () => clearHideTimer();
-  }, [clearHideTimer]);
+    return () => {
+      clearHideTimer();
+      clearVerseRefHover(hoverOwner);
+    };
+  }, [clearHideTimer, hoverOwner]);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {

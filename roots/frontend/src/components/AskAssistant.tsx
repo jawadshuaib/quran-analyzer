@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { askClaudeDirect, askClaudeProxy, FREE_MODEL_TAG, type PageType } from '../api/claude';
 import { saveQA, fetchHistory, fetchUsage, type QAEntry } from '../api/assistant';
 import { getApiKey, getModel, getSessionId } from '../utils/assistant-storage';
-import VerseRefText from './VerseRefText';
+import { FormattedInline, renderBlocks } from './FormattedText';
+import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
+import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 
 interface Props {
   pageType: PageType;
@@ -193,6 +195,14 @@ export default function AskAssistant({
     }
   }, [historyLoaded, pageType, pageKey]);
 
+  // Grammar glossary, fetched only when an answer actually names a curated
+  // term. Streaming text is deliberately left out: it would rescan on every
+  // token, and the finished answer lands in `messages` a moment later anyway.
+  const grammarTerms = useGrammarTermsIfMentioned([
+    ...messages.filter((m) => m.role === 'assistant').map((m) => m.content),
+    ...history.map((h) => h.answer),
+  ]);
+
   const hasHistory = historyLoaded && history.length > 0;
   const latestQAId = hasHistory ? Math.max(...history.map(h => h.id)) : 0;
   const hasUnreadQA = hasHistory && latestQAId > getLastSeenId(pageType, pageKey);
@@ -366,66 +376,36 @@ export default function AskAssistant({
     inflightSaveRef.current = null;
   };
 
-  // Auto-link verse references (only valid Quran ranges). Non-verse
-  // segments may carry inline Arabic glyphs (Claude quotes the
-  // verse/word being asked about in Arabic), so we wrap those runs
-  // in font-arabic — otherwise they'd inherit the surrounding
-  // sans-serif and the Uthmani diacritics render poorly.
-  // Render inline prose through the same linkifier the translation notes use:
-  // verse references open the verse in a new tab (with a hover preview),
-  // spaced Arabic root letters (e.g. "ق و م") link to the root page +
-  // dictionary, and inline Arabic glyphs get the Amiri font treatment. This
-  // keeps Ask-the-Quran answers consistent with the rest of the site.
-  function renderText(text: string) {
-    return (
-      <VerseRefText text={text} highlightRootBw={highlightRootBw} highlightLemmaBw={highlightLemmaBw} />
-    );
-  }
-
+  // Answers render through the shared FormattedText, the same renderer the
+  // notes and exegesis use (it was extracted from this component): verse
+  // references open the verse in a new tab, with a hover preview that also
+  // lights the verse up in place when it's on the page; spaced Arabic root
+  // letters (e.g. "ق و م") link to the root page + dictionary; inline Arabic
+  // glyphs get the Amiri font treatment; and [[gt|…]] markers become grammar
+  // chips. linkifyGrammarTermRefs adds those markers, since an answer is
+  // free prose that can drop "Form III" or "khabar" with nothing to explain
+  // it — exactly the gap the glossary tooltip fills elsewhere.
+  // renderBlocks rather than <FormattedText>: the collapsed history entry
+  // clamps its answer with line-clamp-3, which counts the lines of its own
+  // children, so the paragraphs have to stay direct children of the clamp
+  // rather than sitting inside a wrapper div.
   function renderFormatted(text: string) {
-    const lines = text.split('\n');
-    return lines.map((line, li) => {
-      if (/^#{2,3}\s/.test(line)) {
-        const content = line.replace(/^#{2,3}\s+/, '');
-        return <p key={li} className="font-semibold text-stone-900 mt-3 mb-1 text-sm">{renderText(content)}</p>;
-      }
-      if (/^[\-\*]\s/.test(line)) {
-        const content = line.replace(/^[\-\*]\s+/, '');
-        return (
-          <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
-            <span className="text-stone-400 shrink-0">•</span>
-            <span>{renderBold(content)}</span>
-          </div>
-        );
-      }
-      if (/^\d+\.\s/.test(line)) {
-        const num = line.match(/^(\d+)\./)?.[1];
-        const content = line.replace(/^\d+\.\s+/, '');
-        return (
-          <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
-            <span className="text-stone-400 shrink-0">{num}.</span>
-            <span>{renderBold(content)}</span>
-          </div>
-        );
-      }
-      if (!line.trim()) return <div key={li} className="h-2" />;
-      return <p key={li} className={li > 0 ? 'mt-0.5' : ''}>{renderBold(line)}</p>;
+    return renderBlocks(linkifyGrammarTermRefs(text), {
+      grammarTerms: grammarTerms ?? undefined,
+      highlightRootBw,
+      highlightLemmaBw,
     });
   }
 
-  function renderBold(text: string) {
-    // Handle **bold** and *italic* (the ** alternative is listed first so it
-    // wins over single *). Anything else flows to the verse/root linkifier.
-    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*\n]+\*)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="font-semibold text-stone-900">{renderText(part.slice(2, -2))}</strong>;
-      }
-      if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
-        return <em key={i} className="italic">{renderText(part.slice(1, -1))}</em>;
-      }
-      return <span key={i}>{renderText(part)}</span>;
-    });
+  function renderInlineText(text: string) {
+    return (
+      <FormattedInline
+        text={linkifyGrammarTermRefs(text)}
+        grammarTerms={grammarTerms ?? undefined}
+        highlightRootBw={highlightRootBw}
+        highlightLemmaBw={highlightLemmaBw}
+      />
+    );
   }
 
   function handleCopy(text: string) {
@@ -659,7 +639,7 @@ export default function AskAssistant({
                     className="border border-stone-200 rounded-lg p-3 cursor-pointer hover:border-stone-300 transition-colors"
                     onClick={() => setExpandedHistoryId(isExpanded ? null : entry.id)}>
                     <div className="flex items-start justify-between mb-1.5">
-                      <span className="text-sm font-medium text-stone-700">{renderBold(entry.question)}</span>
+                      <span className="text-sm font-medium text-stone-700">{renderInlineText(entry.question)}</span>
                       <span className="text-xs text-stone-400 shrink-0 ml-2">
                         {new Date(entry.created_at + 'Z').toLocaleDateString()}
                       </span>

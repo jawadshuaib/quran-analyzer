@@ -57,10 +57,32 @@ export const GRAMMAR_TERM_ALLOWLIST: string[] = [
   'lā', 'lā al-nāfiya li-l-jins',
 ];
 
+/**
+ * Spellings that mean a glossary term but aren't how the glossary spells it.
+ * Transliteration is not standardized, and free prose (above all Ask-the-Quran
+ * answers, which are written fresh each time rather than by a fixed pipeline)
+ * reaches for whichever form its author favours: "iḍāfa" for the glossary's
+ * "idāfa", "mubtadaʾ" for "mubtada". Without these, the terms most likely to
+ * need a gloss are exactly the ones that silently miss.
+ *
+ * variant (lowercase) -> the allowlisted term it resolves to. Only variants
+ * actually observed in real prose are listed; a variant whose target isn't in
+ * the glossary simply never resolves, same as any other unmatched term.
+ */
+const GRAMMAR_TERM_ALIASES: Record<string, string> = {
+  'iḍāfa': 'idāfa', 'iḍāfah': 'idāfa', 'idāfah': 'idāfa', 'idafa': 'idāfa',
+  'mubtadaʾ': 'mubtada', 'mubtadaʼ': 'mubtada', "mubtada'": 'mubtada',
+  'iltifāt': 'iltifat',
+  'tanwin': 'tanwīn', 'tanween': 'tanwīn',
+  'ḥāl': 'hal', 'ḥālah': 'halah',
+};
+
 const ALLOWLIST_SET = new Set(GRAMMAR_TERM_ALLOWLIST);
 
 // Longest-first so e.g. "form iv causative" is tried before bare "form iv".
-const SORTED_TERMS = [...GRAMMAR_TERM_ALLOWLIST].sort((a, b) => b.length - a.length);
+const SORTED_TERMS = [...GRAMMAR_TERM_ALLOWLIST, ...Object.keys(GRAMMAR_TERM_ALIASES)].sort(
+  (a, b) => b.length - a.length,
+);
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -100,6 +122,13 @@ export function buildGrammarTermLookup<T extends { term_english: string }>(
   for (const t of allTerms) {
     const key = t.term_english.toLowerCase();
     if (ALLOWLIST_SET.has(key)) out[key] = t;
+  }
+  // Variant spellings resolve to the same term. Keyed by the variant, since
+  // lookups are done on the text as written ("iḍāfa"), not on the glossary's
+  // own spelling. A variant never shadows a real term of its own name.
+  for (const [variant, canonical] of Object.entries(GRAMMAR_TERM_ALIASES)) {
+    const term = out[canonical];
+    if (term && !out[variant]) out[variant] = term;
   }
   return out;
 }
