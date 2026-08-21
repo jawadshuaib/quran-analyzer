@@ -22280,6 +22280,22 @@ if SERVE_STATIC:
                     if end > a:
                         return redirect(f"/read/{n}:{a}-{end}", code=301)
 
+        # /verse/<n>:<a>-<b> — a verse page shows exactly one verse, so a
+        # range has nowhere to go there. The reader does show ranges, so
+        # send it to /read/<n>:<a>-<b> instead of 404'ing. Non-canonical
+        # separators are accepted here too, matching the shorthand above.
+        # The canonical /verse/<n>:<a> falls through untouched.
+        m_verse = re.match(r"^verse/(\d+)[:/.](\d+)(?:[-:/.](\d+))?/?$", path)
+        if m_verse:
+            n = int(m_verse.group(1))
+            a = int(m_verse.group(2))
+            b = int(m_verse.group(3)) if m_verse.group(3) else None
+            if 1 <= n <= 114 and 1 <= a <= _surah_max_ayah(n):
+                end = min(b, _surah_max_ayah(n)) if b is not None else None
+                target = f"/read/{n}:{a}-{end}" if end and end > a else f"/verse/{n}:{a}"
+                if target.lstrip("/") != path.rstrip("/"):
+                    return redirect(target, code=301)
+
         # /word/<n>:<a> with the word-position segment stripped off (e.g.
         # the user edited it out of the address bar) — a word page needs
         # a position, so send them to the verse it came from instead of 404.

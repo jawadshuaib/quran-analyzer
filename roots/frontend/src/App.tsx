@@ -83,6 +83,27 @@ function maybeRedirectWordWithoutPos(): boolean {
   return true;
 }
 
+/** /verse/<n>:<a>-<b> — a verse page shows exactly one verse, so a range has
+ *  nowhere to go there. The reader does show ranges, so send it to
+ *  /read/<n>:<a>-<b> rather than 404. Non-canonical separators are accepted
+ *  here too, matching maybeRedirectShortPath; canonical /verse/<n>:<a> falls
+ *  through untouched. Mirrors the Flask 301 so the dev server behaves alike. */
+function maybeRedirectVerseRange(): boolean {
+  const path = window.location.pathname;
+  const m = path.match(/^\/verse\/(\d+)[:/.](\d+)(?:[-:/.](\d+))?\/?$/);
+  if (!m) return false;
+  const n = parseInt(m[1], 10);
+  const max = getSurahMaxAyah(n);
+  if (!max) return false;
+  const a = parseInt(m[2], 10);
+  if (a < 1 || a > max) return false;
+  const b = m[3] ? Math.min(parseInt(m[3], 10), max) : null;
+  const target = b !== null && b > a ? `/read/${n}:${a}-${b}` : `/verse/${n}:${a}`;
+  if (target === path.replace(/\/$/, '')) return false;
+  window.location.replace(target);
+  return true;
+}
+
 function isExtensionPrivacyPath(): boolean {
   return /^\/privacy\/extension\/?$/.test(window.location.pathname);
 }
@@ -307,6 +328,11 @@ export default function App() {
   // /word/<n>:<a> with no position segment (e.g. hand-edited out of the
   // address bar) — redirect to the verse instead of falling through to 404.
   if (typeof window !== 'undefined' && maybeRedirectWordWithoutPos()) {
+    return null;
+  }
+
+  // /verse/<n>:<a>-<b> (a range on a single-verse page) → the reader.
+  if (typeof window !== 'undefined' && maybeRedirectVerseRange()) {
     return null;
   }
 
