@@ -318,7 +318,7 @@ def _enrich_quotes(conn, root_bw, quoted_in):
         lrid = q.get("line_root_id")
         row = conn.execute(
             """SELECT plr.id, plr.surface_word, pp.poet, pp.auth_tier,
-                      pl.text_plain
+                      pl.text_plain, pl.poem_id, pl.line_no
                FROM poetry_line_roots plr
                JOIN poetry_lines pl ON pl.id=plr.line_id
                JOIN poetry_poems pp ON pp.id=pl.poem_id
@@ -326,10 +326,15 @@ def _enrich_quotes(conn, root_bw, quoted_in):
         if not row:
             raise ValueError(f"quoted line_root_id {lrid} not found for root {root_bw}")
         tiers.append(row["auth_tier"])
+        # poem_id + line_no are EMBEDDED, never re-derived at serve time: the
+        # deep-link from a quote to /poem/<id>#line-<n> broke on prod once
+        # already, because serving depended on poetry_line_roots being complete
+        # in every environment. A quote must carry its own destination.
         enriched.append({"line_root_id": lrid, "poet": row["poet"],
                          "auth_tier": row["auth_tier"], "arabic": row["text_plain"],
                          "surface_word": row["surface_word"], "english": q.get("english"),
-                         "translit": q.get("translit"), "note": q.get("note")})
+                         "translit": q.get("translit"), "note": q.get("note"),
+                         "poem_id": row["poem_id"], "line_no": row["line_no"]})
     rank = {"A": 3, "B": 2, "C": 1, "D": 0}
     auth_tier_max = max(tiers, key=lambda t: rank.get(t, 0)) if tiers else None
     return enriched, auth_tier_max
