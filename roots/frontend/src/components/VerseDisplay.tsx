@@ -163,6 +163,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const grammarTerms = useGrammarTermsIfMentioned([
     aiTranslation?.departure_notes,
     exegesis?.exegesis_markdown,
+    poetry?.note_markdown,
   ]);
 
   // Fetch the approved teacher-voice exegesis (if any) for this verse
@@ -650,9 +651,20 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
       {poetry && (
         <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
           <div className="text-xs font-medium text-amber-700 mb-1.5">In Pre-Islamic Poetry</div>
+          {/* Same treatment as the exegesis above: citations of this verse
+              hover-highlight the words they quote, grammar terms get their
+              glossary tooltip, and a verse-ref tooltip lights up the word
+              carrying the note's own focus root. */}
           <FormattedText
-            text={poetry.note_markdown}
+            text={linkifyGrammarTermRefs(poetry.note_markdown)}
             quotes={poetry.quoted_lines}
+            anchors={
+              poetry.word_anchors?.length
+                ? { verseKey, list: poetry.word_anchors }
+                : undefined
+            }
+            grammarTerms={grammarTerms ?? undefined}
+            highlightRootBw={poetry.focus_root_buckwalter ?? undefined}
             className="text-sm text-amber-900/90 leading-relaxed"
           />
         </div>

@@ -7183,6 +7183,10 @@ def get_verse_poetry(surah: int, ayah: int):
             "focus_root_buckwalter": row["focus_root_buckwalter"],
             "note_markdown": row["note_markdown"],
             "quoted_lines": _poetry_quoted(conn, row["quoted_lines_json"]),
+            # Citations of the verse itself, so hovering one highlights the words
+            # it quotes — the same treatment the exegesis and translation notes
+            # already get. Absent on older payloads / before the table is synced.
+            "word_anchors": _fetch_word_anchors(conn, surah, ayah, 'poetry'),
             "continuity": bool(row["continuity"]),
             "confidence": row["confidence"],
             "auth_tier_max": row["auth_tier_max"],

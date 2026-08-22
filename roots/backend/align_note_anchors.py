@@ -51,7 +51,23 @@ SOURCES = (
      "SELECT chapter, verse, departure_notes FROM ("
      "  SELECT chapter, verse, departure_notes, max(created_at)"
      "  FROM ai_translations GROUP BY chapter, verse)"),
+    # The pre-Islamic poetry note quotes the verse the same way the other two
+    # do, so its citations deserve the same hover-to-highlight. It is the one
+    # source that also quotes NON-Qur'anic Arabic - the poetry itself - which
+    # is why strip_foreign_arabic below exists.
+    ('poetry',
+     "SELECT chapter, verse, note_markdown FROM verse_poetry_notes"),
 )
+
+# A poetry note carries the poets' lines inline as [[q:<id>|<arabic>]]. Those are
+# not the verse and must never be aligned to it: a line sharing a word or two
+# with the verse would otherwise light up the wrong thing on hover. They are
+# removed before the note is scanned for citations.
+POETRY_MARKER = re.compile(r'\[\[q:\d+\|[^\]]*\]\]')
+
+
+def strip_foreign_arabic(source: str, md: str) -> str:
+    return POETRY_MARKER.sub(' ', md or '') if source == 'poetry' else (md or '')
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS note_word_anchors (
@@ -78,13 +94,27 @@ def load_verse_words(conn):
     return out
 
 
+def _strip_conj(key: str) -> str:
+    """Drop a leading conjunction wāw/fāʾ, but only when what remains is still
+    long enough to identify a word. Guards against turning و + فى into a match
+    on فى itself."""
+    return key[1:] if len(key) > 3 and key[0] in 'وف' else key
+
+
 def _tok_eq(word_key: str, cited_key: str) -> bool:
     """A cited token matches a verse word when the keys agree, or when one is a
     prefix of the other — notes routinely cite the pausal form (l-jaḥīm) of a
-    word the verse carries fully inflected (l-jaḥīmi)."""
+    word the verse carries fully inflected (l-jaḥīmi).
+
+    A citation also normally drops the verse's leading conjunction: a note
+    quotes أوفوا بعهدي where the verse reads وأوفوا بعهدي, because the wāw joins
+    the phrase to what came before and is no part of what is being quoted. So a
+    leading wāw/fāʾ is stripped from either side before comparing."""
     if not word_key or not cited_key:
         return False
     if word_key == cited_key:
+        return True
+    if _strip_conj(word_key) == _strip_conj(cited_key):
         return True
     return len(cited_key) >= 3 and (word_key.startswith(cited_key)
                                     or cited_key.startswith(word_key))
@@ -151,7 +181,7 @@ def main():
                 md = next((r[2] for r in conn.execute(sql)
                            if (r[0], r[1]) == (ch, v)), None)
                 print(f"[{source}]" + ('' if md else '  (none)'))
-                for span, script in spans_in(md or ''):
+                for span, script in spans_in(strip_foreign_arabic(source, md or '')):
                     r = resolve(span, script, words)
                     if r:
                         txt = ' '.join(plain.get(p, '') for p in range(r[0], r[1] + 1))
@@ -175,7 +205,7 @@ def main():
                 words = verse_words.get((ch, v))
                 if not words:
                     continue
-                for span, script in spans_in(md):
+                for span, script in spans_in(strip_foreign_arabic(source, md)):
                     stats[f'{source}/{script}: seen'] += 1
                     r = resolve(span, script, words)
                     if not r:

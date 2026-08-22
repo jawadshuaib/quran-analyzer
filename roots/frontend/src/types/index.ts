@@ -559,6 +559,9 @@ export interface VersePoetryNote {
   focus_root_buckwalter?: string | null;
   note_markdown: string;
   quoted_lines: PoetryQuotedLine[];
+  /** Citations in this note that quote the verse itself, so hovering one
+   * highlights the words it quotes — same mechanism as the exegesis. */
+  word_anchors?: WordAnchor[];
   continuity: boolean;
   confidence?: number | null;
   auth_tier_max?: string | null;

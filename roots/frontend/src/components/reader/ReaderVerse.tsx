@@ -616,6 +616,7 @@ function VerseNotesPanel({
   const glossaryTerms = useGrammarTermsIfMentioned([
     translation?.departure_notes,
     exegesis?.exegesis_markdown,
+    poetry?.note_markdown,
   ]);
 
   if (loading) {
@@ -701,7 +702,17 @@ function VerseNotesPanel({
           {/* FormattedText resolves the [[q:…]] markers against quoted_lines
               into the same hover-tooltip quote links the research view uses. */}
           <div className="text-sm leading-relaxed text-ink-secondary">
-            <FormattedText text={poetry.note_markdown} quotes={poetry.quoted_lines} />
+            <FormattedText
+              text={linkifyGrammarTermRefs(poetry.note_markdown)}
+              quotes={poetry.quoted_lines}
+              anchors={
+                poetry.word_anchors?.length
+                  ? { verseKey: `${surah}:${verse}`, list: poetry.word_anchors }
+                  : undefined
+              }
+              grammarTerms={glossaryTerms ?? undefined}
+              highlightRootBw={poetry.focus_root_buckwalter ?? undefined}
+            />
           </div>
         </div>
       )}
