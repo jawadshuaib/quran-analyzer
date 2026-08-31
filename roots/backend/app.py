@@ -9547,6 +9547,13 @@ def admin_save_preferences():
             old_val = (existing["value"] if existing else "") or ""
             if new_val and new_val != old_val.strip():
                 body["youtube_refresh_token_saved_at"] = datetime.now(timezone.utc).isoformat()
+                # The operator just replaced the credential the breaker was
+                # tripped on. Clear the failure history here, or the
+                # scheduler keeps skipping slots with a working token in
+                # the DB -- and the log line telling the operator to "fix
+                # credentials at Admin → Settings → YouTube" would be
+                # advice that does not work.
+                _youtube_oauth_clear_breaker(conn)
 
         for k, v in body.items():
             conn.execute(
@@ -18939,6 +18946,10 @@ def _youtube_update_run_status(
 # broken upload, accumulating ~5 failed-run rows per day until the
 # Google API put us on a quota probation.
 OAUTH_CIRCUIT_BREAKER_THRESHOLD = 3
+# ...but the breaker is HALF-OPEN, not latched: above the threshold one
+# attempt is still let through every N seconds. See the postmortem in
+# _youtube_oauth_breaker_blocked().
+OAUTH_BREAKER_PROBE_SECONDS = 3600
 
 
 def _youtube_oauth_failure_count(conn) -> int:
@@ -18949,6 +18960,60 @@ def _youtube_oauth_failure_count(conn) -> int:
         return int(row["value"]) if row and row["value"] else 0
     except (TypeError, ValueError):
         return 0
+
+
+def _youtube_oauth_breaker_blocked(conn) -> tuple[bool, int, str]:
+    """Should this slot be skipped? Returns (blocked, failures, last_message).
+
+    WHY THIS IS HALF-OPEN. The breaker used to latch: once the counter
+    passed the threshold, both upload ticks returned BEFORE ever calling
+    the token endpoint, and the counter only resets inside
+    _youtube_oauth_record_success() -- which is reached only by an actual
+    token fetch. So a broken credential permanently disabled the
+    scheduler, and repairing the credential did not re-enable it: nothing
+    in the upload path would ever try again. That is how the channel went
+    silent for 11 consecutive slots after the refresh token was revoked
+    on 2026-08-06, with a valid token sitting in the DB.
+
+    Half-open fixes the deadlock at the source. Under the threshold we
+    are closed. Above it we let ONE attempt through every
+    OAUTH_BREAKER_PROBE_SECONDS: a repaired credential heals itself on
+    the next slot, and a still-broken one costs one API call an hour --
+    which is what the breaker was protecting against in the first place.
+    """
+    failures = _youtube_oauth_failure_count(conn)
+    msg_row = conn.execute(
+        "SELECT value FROM admin_preferences "
+        "WHERE key='youtube_oauth_last_failure_message'"
+    ).fetchone()
+    last_msg = (msg_row["value"] if msg_row else "") or ""
+    if failures < OAUTH_CIRCUIT_BREAKER_THRESHOLD:
+        return False, failures, last_msg
+    # updated_at is stamped on every failure, so its age is the time
+    # since we last tried and were rejected.
+    age_row = conn.execute(
+        "SELECT CAST(strftime('%s','now') AS INTEGER) - "
+        "       CAST(strftime('%s', updated_at) AS INTEGER) AS age "
+        "FROM admin_preferences WHERE key='youtube_oauth_failure_count'"
+    ).fetchone()
+    age = age_row["age"] if age_row and age_row["age"] is not None else None
+    if age is None or int(age) >= OAUTH_BREAKER_PROBE_SECONDS:
+        return False, failures, last_msg      # half-open: probe
+    return True, failures, last_msg
+
+
+def _youtube_oauth_clear_breaker(conn) -> None:
+    """Forget the failure history. Called when the operator saves new
+    YouTube credentials: the old failures describe a credential that no
+    longer exists, so holding them against the new one is wrong."""
+    conn.execute(
+        "INSERT OR REPLACE INTO admin_preferences (key, value, updated_at) "
+        "VALUES ('youtube_oauth_failure_count', '0', CURRENT_TIMESTAMP)"
+    )
+    conn.execute(
+        "DELETE FROM admin_preferences "
+        "WHERE key='youtube_oauth_last_failure_message'"
+    )
 
 
 def _youtube_oauth_record_failure(conn, error_message: str) -> int:
@@ -18986,20 +19051,15 @@ def _youtube_upload_tick():
     now = datetime.now()
 
     # Circuit-breaker check FIRST — if OAuth is broken, every upload
-    # attempt this tick would fail identically. Skip all slots until
-    # the operator resets the breaker (which happens automatically
-    # the next time _get_youtube_access_token succeeds).
+    # attempt this tick would fail identically. The breaker is half-open,
+    # so it lets one attempt through per hour and clears itself as soon
+    # as a token fetch succeeds or the operator saves new credentials.
     conn_cb = get_db()
     try:
-        failures = _youtube_oauth_failure_count(conn_cb)
-        last_msg_row = conn_cb.execute(
-            "SELECT value FROM admin_preferences "
-            "WHERE key='youtube_oauth_last_failure_message'"
-        ).fetchone()
-        last_msg = last_msg_row["value"] if last_msg_row else ""
+        blocked, failures, last_msg = _youtube_oauth_breaker_blocked(conn_cb)
     finally:
         conn_cb.close()
-    if failures >= OAUTH_CIRCUIT_BREAKER_THRESHOLD:
+    if blocked:
         # Don't even attempt — just record one breaker-tripped row at
         # the earliest pending slot so the operator sees it on the UI
         # and stops getting one error per slot per day.
@@ -19009,8 +19069,10 @@ def _youtube_upload_tick():
             print(
                 f"[youtube-scheduler] OAuth circuit breaker open "
                 f"({failures} consecutive failures). Last: "
-                f"{last_msg[:200]}. Reset by fixing credentials at "
-                f"Admin → Settings → YouTube."
+                f"{last_msg[:200]}. Retrying one probe every "
+                f"{OAUTH_BREAKER_PROBE_SECONDS // 60}m; saving new "
+                f"credentials at Admin → Settings → YouTube clears it "
+                f"immediately."
             )
             _youtube_upload_tick._last_breaker_log = now
         return
@@ -20681,9 +20743,18 @@ def _qa_publish_tick():
         if not (slot_min <= now_min <= slot_min + grace):
             return
         # Respect the OAuth circuit breaker — don't hammer broken creds.
-        if _youtube_oauth_failure_count(conn) >= OAUTH_CIRCUIT_BREAKER_THRESHOLD:
-            print("[qa-publish] OAuth circuit breaker open — skipping slot")
+        # Half-open: a repaired credential is retried on its own, so a
+        # revoked token can no longer silence the channel indefinitely.
+        cb_blocked, cb_failures, cb_msg = _youtube_oauth_breaker_blocked(conn)
+        if cb_blocked:
+            print(f"[qa-publish] OAuth circuit breaker open "
+                  f"({cb_failures} consecutive failures: {cb_msg[:120]}) "
+                  f"— skipping slot, will probe within "
+                  f"{OAUTH_BREAKER_PROBE_SECONDS // 60}m")
             return
+        if cb_failures >= OAUTH_CIRCUIT_BREAKER_THRESHOLD:
+            print(f"[qa-publish] breaker half-open after {cb_failures} "
+                  f"failures — probing with current credentials")
         row = _qa_publish_pick(conn)
         if not row:
             return
