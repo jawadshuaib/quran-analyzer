@@ -94,9 +94,6 @@ export default function WordSearchResults({ data, onNavigate, onClose }: Props) 
                 <span className="text-xs font-medium text-stone-500">
                   Surah {v.surah}, Ayah {v.ayah}
                 </span>
-                <span className="shrink-0 text-xs text-stone-400">
-                  score {v.score}
-                </span>
               </div>
 
               <HighlightedArabicText verse={v} />

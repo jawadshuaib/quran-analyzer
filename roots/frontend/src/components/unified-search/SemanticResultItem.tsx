@@ -82,10 +82,6 @@ export default memo(function SemanticResultItem({ result, query, active, onSelec
           )}
         </p>
       </div>
-
-      <span className="shrink-0 text-[10px] text-violet-500 tabular-nums whitespace-nowrap">
-        {Math.round(result.score * 100)}% match
-      </span>
     </li>
   );
 });

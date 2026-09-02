@@ -35,11 +35,12 @@ function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
   const verseKey = `${r.surah}:${r.ayah}`;
   const [copied, setCopied] = useState(false);
   const parts = useMemo(() => highlight(r.translation, query), [r.translation, query]);
-  // The visible "% match" is the dense (semantic) cosine, not the tiny RRF
-  // fusion score. Chips say WHY a verse matched: its Arabic vector, or its roots.
+  // Chips say WHY a verse matched — its Arabic vector, or its roots — which is
+  // something a reader can act on. The engine's own score is not: it is a cosine
+  // against an embedding, and printing it as a percentage invites it to be read
+  // as a confidence in the answer, which it is not.
   const dense = r.matched_because?.dense;
   const hasLexical = !!r.matched_because?.lexical;
-  const pct = dense ? Math.round(dense.score * 100) : null;
 
   async function copy(e: React.MouseEvent) {
     e.preventDefault();
@@ -77,11 +78,6 @@ function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
           )}
         </a>
         <div className="flex shrink-0 flex-col items-end gap-1">
-          {pct !== null && (
-            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700">
-              {pct}%
-            </span>
-          )}
           <div className="flex gap-1">
             {dense?.doc_type === 'ar' && (
               <span className="rounded-full border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[9px] font-medium text-sky-600">

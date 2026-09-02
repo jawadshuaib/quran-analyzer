@@ -72,9 +72,6 @@ export default function SemanticSearchResults({ data, onNavigate, onClose }: Pro
                     </p>
                   )}
                 </div>
-                <span className="shrink-0 mt-0.5 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-medium text-violet-700">
-                  {Math.round(r.score * 100)}%
-                </span>
               </div>
             </button>
           </li>

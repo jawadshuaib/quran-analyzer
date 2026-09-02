@@ -96,9 +96,6 @@ export default function RelatedVerses({ surah, ayah, onNavigate, forceCollapse }
                     <span className="text-xs font-medium text-stone-500">
                       Surah {v.surah}, Ayah {v.ayah}
                     </span>
-                    <span className="shrink-0 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                      {Math.round(v.similarity_score * 100)}% match
-                    </span>
                   </div>
 
                   <p
