@@ -12,10 +12,16 @@
  * so a concept query like "آيات عن الصبر" reaches by-meaning search.
  */
 
+import { getSurahMaxAyah } from './surah-names';
+
 export interface ParsedVerseRef {
   surah: number;
   ayah: number;
   partial: boolean; // true if user typed "2:" (no ayah yet)
+  /** Last verse of a range ("2:238-239"), when the input names one. A range
+   *  has no single verse page to open, so it goes to the reader instead —
+   *  the same destination the /2:238-239 shorthand URL already resolves to. */
+  endAyah?: number;
 }
 
 /** Which result categories the plan fires (surah-name match runs
@@ -34,6 +40,9 @@ export interface SearchPlan {
 }
 
 const VERSE_REF_RE = /^\d{1,3}(?::(\d{0,3}))?$/;
+// "2:238-239" — a range. Hyphen or en-dash, the latter because a ref pasted
+// from prose usually carries one.
+const VERSE_RANGE_RE = /^(\d{1,3}):(\d{1,3})\s*[-\u2013]\s*(\d{1,3})$/;
 const ARABIC_RE = /[؀-ۿ]/;
 const LATIN_RE = /[a-zA-Z]/;
 // Buckwalter uses ASCII letters plus these special chars.
@@ -64,6 +73,22 @@ const EMPTY_PLAN: SearchPlan = {
  */
 export function parseVerseRef(input: string): ParsedVerseRef | null {
   const trimmed = input.trim();
+
+  const range = trimmed.match(VERSE_RANGE_RE);
+  if (range) {
+    const surah = parseInt(range[1], 10);
+    const start = parseInt(range[2], 10);
+    const max = getSurahMaxAyah(surah);
+    if (!max || start < 1 || start > max) return null;
+    // Clamp the end to the surah's length, matching the shorthand URL: 36:32-100
+    // reads from 32 to the end rather than refusing. A backwards or degenerate
+    // range ("2:5-3", "2:5-5") is just the single verse.
+    const end = Math.min(parseInt(range[3], 10), max);
+    return end > start
+      ? { surah, ayah: start, partial: false, endAyah: end }
+      : { surah, ayah: start, partial: false };
+  }
+
   const m = trimmed.match(VERSE_REF_RE);
   if (!m) return null;
   const surah = parseInt(trimmed.split(':')[0], 10);

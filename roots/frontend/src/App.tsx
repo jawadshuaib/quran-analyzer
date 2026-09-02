@@ -39,6 +39,7 @@ import CopyModal from './components/CopyModal';
 import AdminPage from './components/admin/AdminPage';
 import { buildVerseContext } from './utils/context-builders';
 import { getSurahMaxAyah } from './utils/surah-names';
+import { parseVerseRef } from './utils/search-classifier';
 
 // Fallback values used until /api/public/chrome-extension-info resolves.
 // Admin can change these at runtime from Admin Settings — useful when
@@ -101,6 +102,22 @@ function maybeRedirectVerseRange(): boolean {
   const target = b !== null && b > a ? `/read/${n}:${a}-${b}` : `/verse/${n}:${a}`;
   if (target === path.replace(/\/$/, '')) return false;
   window.location.replace(target);
+  return true;
+}
+
+/** /search?q=2:238-239 — a reference typed into search (or a shared search URL)
+ *  is not a meaning query, and running one comes back empty. Send it where the
+ *  search bar's own dropdown sends it: a range to the reader, a single verse to
+ *  its page. Returns true if a redirect is in flight. */
+function maybeRedirectSearchedRef(): boolean {
+  if (!/^\/search\/?$/.test(window.location.pathname)) return false;
+  const q = new URLSearchParams(window.location.search).get('q')?.trim();
+  if (!q) return false;
+  const ref = parseVerseRef(q);
+  if (!ref || ref.partial) return false;
+  window.location.replace(
+    ref.endAyah ? `/read/${ref.surah}:${ref.ayah}-${ref.endAyah}` : verseUrl(ref.surah, ref.ayah),
+  );
   return true;
 }
 
@@ -333,6 +350,11 @@ export default function App() {
 
   // /verse/<n>:<a>-<b> (a range on a single-verse page) → the reader.
   if (typeof window !== 'undefined' && maybeRedirectVerseRange()) {
+    return null;
+  }
+
+  // /search?q=<a verse reference> → that verse, or the reader for a range.
+  if (typeof window !== 'undefined' && maybeRedirectSearchedRef()) {
     return null;
   }
 

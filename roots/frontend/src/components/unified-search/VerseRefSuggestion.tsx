@@ -32,8 +32,11 @@ export default memo(function VerseRefSuggestion({
       <div className="flex items-start gap-3">
         {/* Verse ref circle */}
         <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200/60 flex items-center justify-center">
-          <span className="text-xs font-semibold text-emerald-700 tabular-nums">
+          <span className={`font-semibold text-emerald-700 tabular-nums ${
+            verseRef.endAyah ? 'text-[10px] leading-tight text-center' : 'text-xs'
+          }`}>
             {verseRef.surah}:{verseRef.ayah}
+            {verseRef.endAyah ? `-${verseRef.endAyah}` : ''}
           </span>
         </div>
 
@@ -43,6 +46,13 @@ export default memo(function VerseRefSuggestion({
             <span className="text-sm font-medium text-stone-800">
               {displayName}
             </span>
+            {/* A range opens the reader, not the verse page — say so, so the
+                destination isn't a surprise. */}
+            {verseRef.endAyah && (
+              <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                {verseRef.endAyah - verseRef.ayah + 1} verses · read
+              </span>
+            )}
             {previewLoading && (
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-emerald-200 border-t-emerald-600" />
             )}

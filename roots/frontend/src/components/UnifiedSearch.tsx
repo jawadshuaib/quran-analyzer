@@ -89,6 +89,12 @@ export default function UnifiedSearch({ onNavigateVerse, onFullSemanticSearch, l
     close();
     setFocused(false);
     setQuery('');
+    if (ref.endAyah) {
+      // A range has no single verse page to research; the reader is what shows
+      // several verses together. Same destination as the /2:238-239 shorthand.
+      window.location.href = `/read/${ref.surah}:${ref.ayah}-${ref.endAyah}`;
+      return;
+    }
     onNavigateVerse(ref.surah, ref.ayah);
   }, [close, setQuery, onNavigateVerse]);
 
