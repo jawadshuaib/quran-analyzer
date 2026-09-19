@@ -260,6 +260,7 @@ function AnchoredSpan({
 const QUOTE_MARKER = /^\[\[q:(\d+)\|([^\]]+)\]\]$/;
 const NOTE_REF_MARKER = /^\[\[tn\|([^\]]+)\]\]$/;
 const GRAMMAR_TERM_MARKER = /^\[\[gt\|([^\]]+)\]\]$/;
+const GRAMMAR_TERM_MARKERS = /\[\[gt\|([^\]]+)\]\]/g;
 
 // Matches a mention of "translation note(s)" so exegesis prose that refers to
 // them (in any case) can be turned into a scroll-to link — see
@@ -359,22 +360,29 @@ export function renderInline(text: string, opts: RenderInlineOpts = {}) {
       // Recurse for the same reason — handles `*[[q:ID|…]]*` (an emphasised
       // poetry quote), which the split regex captures as a single italic run.
       const inner = part.slice(1, -1);
-      const em = (
+      // Transliterated citations are written as *inna l-ḥasanāti …*, so the
+      // italic run is exactly the span the aligner resolved — once any
+      // grammar-term marker is taken back out. linkifyGrammarTermRefs leaves
+      // marked-up transliteration alone, but a quotation in plain ASCII
+      // (*qad khalat*) still gets its particle wrapped, and the wrapper alone
+      // would defeat this exact match. When the aligner has shown the run
+      // quotes the verse, it renders as the quotation it is, with no chip.
+      // A run that is only the term (*kāna*) is the prose naming the
+      // particle, so it keeps its chip.
+      const unmarked = inner.replace(GRAMMAR_TERM_MARKERS, '$1');
+      const hit = findAnchor(anchors, unmarked);
+      if (hit && anchors && !GRAMMAR_TERM_MARKER.test(inner.trim())) {
+        return (
+          <AnchoredSpan key={i} anchor={hit} verseKey={anchors.verseKey}>
+            <em className="italic">{renderInline(unmarked, opts)}</em>
+          </AnchoredSpan>
+        );
+      }
+      return (
         <em key={i} className="italic">
           {renderInline(inner, opts)}
         </em>
       );
-      // Transliterated citations are written as *inna l-ḥasanāti …*, so the
-      // italic run is exactly the span the aligner resolved.
-      const hit = findAnchor(anchors, inner);
-      if (hit && anchors) {
-        return (
-          <AnchoredSpan key={i} anchor={hit} verseKey={anchors.verseKey}>
-            {em}
-          </AnchoredSpan>
-        );
-      }
-      return em;
     }
     // Arabic citations (طَرَفَىِ ٱلنَّهَارِ) sit in the prose unmarked, so split the
     // run around any anchored phrase before handing the rest to VerseRefText.

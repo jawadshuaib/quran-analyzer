@@ -104,11 +104,61 @@ export function mentionsGrammarTerm(text: string): boolean {
   return MATCH_RE.test(text);
 }
 
-/** Wrap each curated-term occurrence in raw translation-notes text with the
- * [[gt|...]] marker FormattedText/renderInline understand (see FormattedText.tsx).
- * Case-insensitive; preserves the original casing found in the text. */
-export function linkifyGrammarTermRefs(text: string): string {
+// Letters and clitics that transliterated Arabic carries and English prose
+// never does: long vowels, dotted and emphatic consonants, ʿayn and hamza in
+// their several encodings, and a hyphenated proclitic (wa-, fa-, l-, al-, …).
+const TRANSLIT_MARK =
+  /[āīūḥṣḍṭẓḏṯġšǧḫẖʿʾʼʻ]|(?<![\p{L}])(?:wa|fa|bi|li|la|ka|al|l|a)-\p{L}/iu;
+
+// The same tokens renderInline splits on (FormattedText.tsx), so both agree on
+// what an italic run is: existing markers first, then **bold**, then *italic*.
+const INLINE_TOKEN = /(\[\[[^\]]*\]\]|\*\*[^*]+\*\*|\*[^*\n]+\*)/g;
+
+function wrapTerms(text: string): string {
   return text.replace(MATCH_RE, (m) => `[[gt|${m}]]`);
+}
+
+/** Is this italic run a transliterated quotation, rather than prose that
+ *  names a grammar term? The notes cite the Arabic as *inna l-ḥasanāti
+ *  yudhhibna l-sayyiʾāt*, and a particle inside a quotation is part of the
+ *  quotation, not a reference to the glossary. A run that is nothing BUT the
+ *  term (*kāna*, *lā*) stays linkable: that is the prose naming the particle
+ *  ("the predicate of *kāna*", "negated by *lā*"). English grammar talk in
+ *  italics (*intensive Form II*) carries no transliteration marks, so it keeps
+ *  its chips too. */
+function isTransliteratedQuotation(inner: string): boolean {
+  const run = inner.trim();
+  MATCH_RE.lastIndex = 0;
+  const whole = MATCH_RE.exec(run);
+  MATCH_RE.lastIndex = 0;
+  if (whole && whole.index === 0 && whole[0].length === run.length) return false;
+  return TRANSLIT_MARK.test(run);
+}
+
+/** Wrap each curated-term occurrence in raw prose with the [[gt|...]] marker
+ * FormattedText/renderInline understand (see FormattedText.tsx).
+ * Case-insensitive; preserves the original casing found in the text.
+ *
+ * Quotations are left alone. Before this, the linker ran over the whole
+ * string and wrapped the inna in *inna l-ḥasanāti yudhhibna l-sayyiʾāt*, which
+ * both put a glossary chip on a word of scripture and broke the run's exact
+ * match against the verse-word anchor, so the citation lost its link to the
+ * words it quotes. That hit ~2,900 quotations across the exegesis notes. */
+export function linkifyGrammarTermRefs(text: string): string {
+  return text
+    .split(INLINE_TOKEN)
+    .map((part) => {
+      if (part.startsWith('[[')) return part; // another marker's own text
+      if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) {
+        return `**${wrapTerms(part.slice(2, -2))}**`;
+      }
+      if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) {
+        const inner = part.slice(1, -1);
+        return isTransliteratedQuotation(inner) ? part : `*${wrapTerms(inner)}*`;
+      }
+      return wrapTerms(part);
+    })
+    .join('');
 }
 
 /** Build a lowercased lookup (term_english.toLowerCase() -> term) from a
