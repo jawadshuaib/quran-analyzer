@@ -67,6 +67,10 @@ export interface VerseData {
   translation: string;
   words: Word[];
   roots_summary: RootSummary[];
+  /** lemma_arabic -> the root's core-meaning passage for THAT lemma's sense.
+   *  Keyed by lemma rather than root because 213 roots carry more than one
+   *  word in the same radicals (tarf "glance" vs taraf "edge"). */
+  core_meanings?: Record<string, string>;
   previous?: VerseNavRef | null;
   next?: VerseNavRef | null;
 }

@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import type { Word, CognateData } from '../types';
+import type { Word } from '../types';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import {
   HIGHLIGHT_COLORS,
@@ -24,7 +23,10 @@ export interface WordHighlightTarget {
 
 interface Props {
   word: Word;
-  cognate?: CognateData | null;
+  /** The root's core-meaning passage for THIS word's sense. Replaces the
+   *  Semitic-cognate list, which listed sister languages without deepening
+   *  the reader's understanding of the word in front of them. */
+  coreMeaning?: string | null;
   aiMeaning?: string;
   wordDetailUrl?: string;
   preferredTranslation?: string;
@@ -32,8 +34,7 @@ interface Props {
   highlight?: WordHighlightTarget;
 }
 
-export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, preferredTranslation, highlight }: Props) {
-  const [expanded, setExpanded] = useState(false);
+export default function WordTooltip({ word, coreMeaning, aiMeaning, wordDetailUrl, preferredTranslation, highlight }: Props) {
   const mainRootSeg = word.segments.find((s) => s.root_arabic);
   const mainRoot = mainRootSeg?.root_arabic;
   const mainRootBw = mainRootSeg?.root_buckwalter;
@@ -47,9 +48,14 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
       dir="ltr"
       className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50
                  bg-white rounded-lg shadow-lg border border-stone-200 p-3
-                 min-w-[150px] max-w-[260px] text-sm text-stone-700"
+                 w-max min-w-[150px] max-w-[320px] text-sm text-stone-700"
       onClick={(e) => e.stopPropagation()}
     >
+      {/* w-max is load-bearing: this panel is absolutely positioned inside a
+          word span only ~70px wide, so width:auto shrink-wraps to that narrow
+          containing block and collapses to min-w. With the old cognate rows
+          that was invisible; a 380-character passage rendered as a 150px
+          column 635px tall. max-content sizing caps against max-w instead. */}
       {/* Arrow */}
       <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3
                       bg-white border-l border-t border-stone-200 rotate-45" />
@@ -148,31 +154,11 @@ export default function WordTooltip({ word, cognate, aiMeaning, wordDetailUrl, p
         )}
       </div>
 
-      {cognate && (
+      {coreMeaning && (
         <div className="mt-2 pt-2 border-t border-stone-100">
-          <div className="text-xs text-indigo-600 font-medium mb-0.5">
-            Semitic Root: {wrapArabicRuns(cognate.concept)}
+          <div className="text-xs leading-relaxed text-stone-600">
+            {wrapArabicRuns(coreMeaning)}
           </div>
-          {cognate.derivatives.length > 0 && (
-            <div className="space-y-0.5">
-              {(expanded ? cognate.derivatives : cognate.derivatives.slice(0, 4)).map((d, i) => (
-                <div key={i} className="text-xs text-stone-500 flex justify-between gap-2">
-                  <span className="text-stone-400 shrink-0">{d.language}</span>
-                  <span className="text-stone-700 truncate text-right">
-                    {wrapArabicRuns((d.meaning || d.concept) || '')}
-                  </span>
-                </div>
-              ))}
-              {cognate.derivatives.length > 4 && (
-                <button
-                  className="text-xs text-indigo-500 hover:text-indigo-700 text-center w-full mt-0.5 cursor-pointer"
-                  onClick={() => setExpanded(!expanded)}
-                >
-                  {expanded ? 'Show less' : `+${cognate.derivatives.length - 4} more`}
-                </button>
-              )}
-            </div>
-          )}
         </div>
       )}
 

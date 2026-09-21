@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { RootDetailData, VerseData, Word, CognateData } from '../types';
+import type { RootDetailData, VerseData, Word } from '../types';
 import CognateTable from './CognateTable';
 import { fetchRoot, fetchVerse } from '../api/quran';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
@@ -29,9 +29,9 @@ export default function RootPage({ rootBw }: Props) {
   const verseCache = useRef(new Map<string, VerseData>());
   // Which word is currently hovered: "surah:ayah:position"
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  // Resolved word + cognate for the hovered word
+  // Resolved word + its core-meaning passage for the hovered word
   const [hoveredWord, setHoveredWord] = useState<Word | null>(null);
-  const [hoveredCognate, setHoveredCognate] = useState<CognateData | undefined>(undefined);
+  const [hoveredCore, setHoveredCore] = useState<string | undefined>(undefined);
 
   // AI root meaning sometimes references a grammar-glossary term (e.g. "Form
   // II", "jussive") that's opaque without a definition — same treatment as
@@ -67,26 +67,20 @@ export default function RootPage({ rootBw }: Props) {
       }
     }
 
-    // Build cognate lookup
-    const rootCognateMap = new Map<string, CognateData>();
-    verse.roots_summary.forEach((r) => {
-      if (r.cognate) rootCognateMap.set(r.root_buckwalter, r.cognate);
-    });
-
     const word = verse.words.find((w) => w.position === position);
     if (!word) return;
 
-    const rootBwSeg = word.segments.find((s) => s.root_buckwalter)?.root_buckwalter;
-    const cognate = rootBwSeg ? rootCognateMap.get(rootBwSeg) : undefined;
-
+    // Looked up by lemma, not root: a root with two senses has a passage for
+    // each, and the lemma decides which one this word belongs to.
+    const lemma = word.segments.find((s) => s.lemma_arabic)?.lemma_arabic;
     setHoveredWord(word);
-    setHoveredCognate(cognate);
+    setHoveredCore(lemma ? verse.core_meanings?.[lemma] : undefined);
   }, []);
 
   const handleWordLeave = useCallback(() => {
     setHoveredKey(null);
     setHoveredWord(null);
-    setHoveredCognate(undefined);
+    setHoveredCore(undefined);
   }, []);
 
   if (loading) {
@@ -356,7 +350,7 @@ export default function RootPage({ rootBw }: Props) {
                           {isHovered && hoveredWord && (
                             <WordTooltip
                               word={hoveredWord}
-                              cognate={hoveredCognate}
+                              coreMeaning={hoveredCore}
                             />
                           )}
                         </span>

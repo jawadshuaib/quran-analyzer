@@ -1640,6 +1640,44 @@ def _has_semitic_tables(conn) -> bool:
     return row is not None
 
 
+def _has_root_core(conn) -> bool:
+    """Is the root-core-meanings table present? It arrives on prod with the
+    first table sync, so the API must not assume it exists."""
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='root_core_meanings'"
+    ).fetchone() is not None
+
+
+def _core_meanings_for_verse(conn, surah: int, ayah: int) -> dict:
+    """{lemma_arabic: passage} for every word of this verse that has an
+    approved core-meaning explanation.
+
+    KEYED BY LEMMA, NOT BY ROOT, because a reader hovers a word. For the 213
+    roots whose radicals carry more than one word -- tarf "a glance" against
+    taraf "an edge" -- the right passage depends on which lemma is under the
+    cursor. root_core_lemma_map holds that resolution; roots with a single
+    sense have no map row and fall through to the whole-root explanation
+    (sense_key = '').
+    """
+    if not _has_root_core(conn):
+        return {}
+    rows = conn.execute(
+        "SELECT DISTINCT m.lemma_arabic AS lem, c.passage AS passage "
+        "FROM morphology m "
+        "LEFT JOIN root_core_lemma_map lm "
+        "  ON lm.root_buckwalter = m.root_buckwalter AND lm.lemma_arabic = m.lemma_arabic "
+        "JOIN root_core_meanings c "
+        "  ON c.root_buckwalter = m.root_buckwalter "
+        " AND c.sense_key = COALESCE(lm.sense_key, '') "
+        "WHERE m.chapter = ? AND m.verse = ? "
+        "  AND c.review_status = 'approved' AND COALESCE(c.hidden, 0) = 0 "
+        "  AND COALESCE(c.passage, '') != '' "
+        "  AND COALESCE(m.lemma_arabic, '') != ''",
+        (surah, ayah),
+    ).fetchall()
+    return {r["lem"]: r["passage"] for r in rows}
+
+
 def _get_cognate(conn, bw_root: str) -> dict | None:
     """Look up Semitic cognate data for a Buckwalter root."""
     if not _has_semitic_tables(conn):
@@ -3262,6 +3300,10 @@ def get_verse(surah: int, ayah: int):
             "translation": _best_translation(conn, surah, ayah),
             "words": words_list,
             "roots_summary": roots_list,
+            # lemma -> short core-meaning passage, for the word tooltip. Sent
+            # once per verse rather than per word: a verse has many words but
+            # few distinct lemmas.
+            "core_meanings": _core_meanings_for_verse(conn, surah, ayah),
             "previous": previous,
             "next": next_ref,
         })
@@ -19491,7 +19533,17 @@ def _scheduler_loop():
 
 
 def _start_scheduler_once():
-    """Spawn the scheduler daemon thread (idempotent per process)."""
+    """Spawn the scheduler daemon thread (idempotent per process).
+
+    AL_NUQTA_NO_SCHEDULER=1 skips it entirely. A developer copy of quran.db
+    carries real YouTube credentials and its own schedule rows, so running
+    app.py locally to look at a page could fire the publish tick and post to
+    the live channel. Opting out must be possible without editing schedule
+    state and remembering to put it back.
+    """
+    if os.environ.get("AL_NUQTA_NO_SCHEDULER") == "1":
+        print("[scheduler] disabled by AL_NUQTA_NO_SCHEDULER=1")
+        return
     if getattr(_start_scheduler_once, "_started", False):
         return
     try:

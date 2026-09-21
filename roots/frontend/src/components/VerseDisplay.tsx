@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type { VerseData, Word, CognateData, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon } from '../types';
+import type { VerseData, Word, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon } from '../types';
 import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry, fetchVerseRootLexicon } from '../api/quran';
 import RootLexiconPanel from './RootLexiconPanel';
 import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from './FormattedText';
@@ -88,13 +88,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const wordMap = new Map<number, Word>();
   data.words.forEach((w) => wordMap.set(w.position, w));
 
-  // Build root_buckwalter -> cognate data lookup
-  const rootCognateMap = new Map<string, CognateData>();
-  data.roots_summary.forEach((r) => {
-    if (r.cognate) {
-      rootCognateMap.set(r.root_buckwalter, r.cognate);
-    }
-  });
 
   // Build root_buckwalter -> ordered list of word-level contexts. Each
   // entry carries the AI-derived per-word meaning for one occurrence of
@@ -123,10 +116,12 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     return map;
   }, [data, wordMeanings]);
 
-  // Get cognate for a word (from its first root-bearing segment)
-  function getCognateForWord(word: Word): CognateData | undefined {
-    const rootBw = word.segments.find((s) => s.root_buckwalter)?.root_buckwalter;
-    return rootBw ? rootCognateMap.get(rootBw) : undefined;
+  // The core-meaning passage for a word, looked up by its LEMMA. A root whose
+  // radicals carry two different words has a separate passage for each, and the
+  // lemma is what says which one the reader is pointing at.
+  function getCoreMeaning(word: Word): string | undefined {
+    const lemma = word.segments.find((s) => s.lemma_arabic)?.lemma_arabic;
+    return lemma ? data.core_meanings?.[lemma] : undefined;
   }
 
   // Reset state when verse changes
@@ -561,7 +556,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
               {isActive && wordData && (
                 <WordTooltip
                   word={wordData}
-                  cognate={getCognateForWord(wordData)}
+                  coreMeaning={getCoreMeaning(wordData)}
                   aiMeaning={wordMeanings[String(pos)]?.meaning_short}
                   wordDetailUrl={wordMeanings[String(pos)]?.has_detail ? `/word/${data.surah}:${data.ayah}/${pos}` : undefined}
                   preferredTranslation={wordMeanings[String(pos)]?.preferred_translation}
