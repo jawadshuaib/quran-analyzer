@@ -232,7 +232,6 @@ def check(row, conn=None):
         try:
             import _root_core_bundle as _B2
             tr2 = "-".join(_B2.BW_TO_SR.get(ch, ch) for ch in bw)
-            pwords = {w[:5] for w in re.findall(r"[a-z]{3,}", passage.lower())}
             for lang in named - unsourced:
                 gl = [r[0] for r in c.execute(
                     "SELECT COALESCE(d.meaning, d.concept) FROM semitic_derivatives d "
@@ -241,9 +240,24 @@ def check(row, conn=None):
                     (tr2, '%' + lang + '%')) if r[0]]
                 if not gl:
                     continue
-                stems = {w[:5] for g in gl for w in re.findall(r"[a-z]{3,}", g.lower())}
-                if stems and not (stems & pwords):
-                    out.append(('G12', 'hard',
+                # Fuzzy, not exact-stem. A 5-character prefix treats "pray" and
+                # "prayer", or "get" and "getting", as different words, and the
+                # gate then accused four grounded passages of inventing cognate
+                # glosses they had taken straight from our own rows.
+                recorded = {w for g in gl for w in re.findall(r"[a-z]{3,}", g.lower())}
+                said = {w for w in re.findall(r"[a-z]{3,}", passage.lower())}
+                matched = any(
+                    a == b or a.startswith(b[:4]) or b.startswith(a[:4])
+                    or difflib.SequenceMatcher(None, a, b).ratio() >= 0.75
+                    for a in recorded for b in said)
+                if recorded and not matched:
+                    # SOFT, not hard. Measured on 26 real passages this fires on
+                    # paraphrase as often as on invention -- "Aramaic for
+                    # shining" against a recorded "To illuminate" is right, not
+                    # wrong. It stays a strong review signal (it is what caught
+                    # the invented "Hebrew zakar"), but it is not a verdict, and
+                    # every row is human-reviewed before it reaches a reader.
+                    out.append(('G12', 'soft',
                                 '%s is recorded for this root as %r, which the passage does '
                                 'not say' % (lang, '; '.join(gl)[:60])))
         except Exception:

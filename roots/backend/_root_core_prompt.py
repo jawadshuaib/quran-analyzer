@@ -128,15 +128,17 @@ jurisprudence) in your own assertive voice.
 
 TRANSLITERATE CONTESTED TERMS; DO NOT TRANSLATE THEM. Where the conventional
 English rendering of a word decides a contested question, give the Arabic
-instead and let the passage show what the usage supports. Write salat, not
-"prayer". Write hur, not "maiden" or "houri". Write zakat, not "alms" or
-"charity"; hajj, not "pilgrimage"; riba, not "usury"; kafir, not "infidel";
-mushrik, not "idolater"; shaytan, not "Satan"; janna, not "Paradise". These
-English words are not forbidden in themselves -- what is forbidden is using
-them AS the rendering of the Arabic, because the rendering IS the
-interpretation, and imposing it is exactly what this site exists not to do.
-You may of course say what the word does: "salat is the turning believers are
-told to establish" explains without deciding.
+instead and let the passage show what the usage supports. The full list is
+below and is generated from the same table the checker uses, so it cannot drift
+out of step with what will be rejected:
+
+{contested}
+
+These English words are not forbidden in themselves -- what is forbidden is
+using them AS the rendering of the Arabic, because the rendering IS the
+interpretation, and imposing it is exactly what this site exists not to do. You
+may of course say what the word does: "salat is the turning believers are told
+to establish" explains without deciding.
 
 STATE WHAT IT IS, NEVER WHAT IT IS NOT. Do not correct the reader, argue
 against a received understanding, or plant a stake. "God's turning toward him
@@ -175,6 +177,28 @@ Return JSON only:
   "verses_relied_on": ["2:17"],
   "confidence": "high" | "medium" | "low"
 }}"""
+
+
+def _contested_block():
+    """Render the contested-term table into the prompt.
+
+    Generated, never hand-written: the checker rejected "Scripture" for kitab
+    while the prompt's hand-written list never mentioned it, so the model was
+    being marked wrong for a rule it was never given.
+    """
+    import _root_core_terms as T
+    seen, lines = set(), []
+    for eng, (translit, _r) in list(T.IMPOSED.items()) + list(T.PROPER_NOUNS.items()):
+        if translit in seen:
+            continue
+        seen.add(translit)
+        alts = sorted({e for e, (t, _) in list(T.IMPOSED.items()) + list(T.PROPER_NOUNS.items())
+                       if t == translit})
+        lines.append('  write %-9s not %s' % (translit, ', '.join('"%s"' % a for a in alts)))
+    return "\n".join(lines)
+
+
+SYSTEM = SYSTEM.format(contested=_contested_block())
 
 
 def build(bundle_text):
