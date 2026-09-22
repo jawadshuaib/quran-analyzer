@@ -16,19 +16,13 @@ import os
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'quran.db')
 
-# Ibn Faris FIRST and with the most room: his Maqayis is the method the owner
-# asked for, not merely one dictionary among sixteen. Mufradat is next because
-# it is Quran-specific. Lane is the richest English. Asas al-Balagha carries
-# metaphorical/idiomatic usage, which is often where a unifying sense shows
-# itself. Lisan and Taj are enormous (4.8k / 5.2k chars average) and mostly
-# repeat the others, so they come last on a tight cap.
 # Mirrors app.py's _BW_TO_SR so the bundle resolves exactly the cognate rows the
 # site itself shows for a root.
 BW_TO_SR = {
-    "'": 'ʔ', '>': 'ʔ', '<': 'ʔ', '&': 'ʔ', '}': 'ʔ', '|': 'ʔ', 'A': 'ʔ',
-    'b': 'b', 't': 't', 'v': 'ṯ', 'j': 'g', 'H': 'ḥ', 'x': 'ḫ', 'd': 'd',
-    '*': 'ḏ', 'r': 'r', 'z': 'z', 's': 's¹', '$': 's²', 'S': 'ṣ', 'D': 'ḍ',
-    'T': 'ṭ', 'Z': 'ẓ', 'E': 'ʿ', 'g': 'ġ', 'f': 'f', 'q': 'q', 'k': 'k',
+    "'": '\u0294', '>': '\u0294', '<': '\u0294', '&': '\u0294', '}': '\u0294', '|': '\u0294', 'A': '\u0294',
+    'b': 'b', 't': 't', 'v': '\u1e6f', 'j': 'g', 'H': '\u1e25', 'x': '\u1e2b', 'd': 'd',
+    '*': '\u1e0f', 'r': 'r', 'z': 'z', 's': 's\u00b9', '$': 's\u00b2', 'S': '\u1e63', 'D': '\u1e0d',
+    'T': '\u1e6d', 'Z': '\u1e93', 'E': '\u02bf', 'g': '\u0121', 'f': 'f', 'q': 'q', 'k': 'k',
     'l': 'l', 'm': 'm', 'n': 'n', 'h': 'h', 'w': 'w', 'y': 'y', 'Y': 'y',
     'p': 't',
 }
@@ -40,8 +34,7 @@ def _cognates(c, bw, cap=700):
     Fed to the generator because the owner wants the sister languages to inform
     the prose. WITHOUT this the prompt still asked for a cognates sentence and
     supplied no evidence for it -- and the model duly invented one, citing
-    "Hebrew zakar and Akkadian zikaru" for dh-k-r from its own memory. Asking
-    for a station and providing nothing to fill it is an invitation to fabricate.
+    "Hebrew zakar and Akkadian zikaru" for dh-k-r from its own memory.
     """
     tr = "-".join(BW_TO_SR.get(ch, ch) for ch in bw)
     rows = c.execute("SELECT id, concept FROM semitic_roots WHERE transliteration=?", (tr,)).fetchall()
@@ -59,15 +52,41 @@ def _cognates(c, bw, cap=700):
     return ("%s  (reconstructed root %s)\n%s" % (bw, tr, txt))[:cap] if txt else None
 
 
-DICTS = [
-    ('ibn-faris-maqayis-al-lugha',                      'Ibn Faris, Maqayis al-Lugha', 3000),
-    ('al-raghib-al-isfahani-al-mufradat-fi-gharib-al-quran', 'al-Raghib, Mufradat',    1600),
-    ('william-edward-lane-arabic-english-lexicon',       'Lane, Arabic-English Lexicon', 1600),
-    ('al-zamakhshari-asas-al-balagha',                   'al-Zamakhshari, Asas al-Balagha', 1000),
-    ('al-khalil-b-ahmad-al-farahidi-kitab-al-ain',       'al-Khalil, Kitab al-Ayn',     900),
-    ('ibn-manzur-lisan-al-arab',                         'Ibn Manzur, Lisan al-Arab',  1200),
+# WHICH DICTIONARIES, AND WHY THESE. The owner's rule: prefer the ones that
+# work Qur'an-first, and treat EARLIER authors as more reliable than later ones.
+# So the list is ordered by that preference, not by coverage, and only the top
+# THREE available for a given root are used. Feeding nine dictionaries buried
+# the signal and made the prompt ~6,000 tokens, which on a metered allowance was
+# most of the run's cost; the late compendia (Lisan, Taj al-Arus) and the
+# 19th-century European compilations (Lane, Salmone) mostly restate the earlier
+# entries at four times the length.
+#
+# (slug, label, cap, note) in strict preference order:
+DICT_PRIORITY = [
+    # Qur'an-first, and the oldest thing we have: rare Qur'anic words explained
+    # from pre-Islamic poetry. Only 49 roots, but unbeatable where it exists.
+    ('abdullah-ibn-abbas-gharib-al-quran-fi-shir-al-arab',
+     "Ibn 'Abbas (attrib., d. 687), Gharib al-Qur'an fi Shi'r al-'Arab", 1600),
+    # The method itself: one governing sense per root.
+    ('ibn-faris-maqayis-al-lugha', 'Ibn Faris (d. 1004), Maqayis al-Lugha', 3200),
+    # The earliest full Arabic lexicon.
+    ('al-khalil-b-ahmad-al-farahidi-kitab-al-ain', 'al-Khalil (d. 786), Kitab al-Ayn', 1800),
+    # Qur'an-specific vocabulary.
+    ('al-raghib-al-isfahani-al-mufradat-fi-gharib-al-quran',
+     'al-Raghib (d. 1108), al-Mufradat fi Gharib al-Qur an', 1800),
+    # --- fallbacks, earliest first, used only to reach three sources ---
+    ('al-sahib-bin-abbad-al-muhit-fi-l-lugha', 'al-Sahib b. Abbad (d. 995), al-Muhit', 1400),
+    ('ismail-bin-hammad-al-jawhari-taj-al-lugha-wa-sihah-al-arabiya',
+     'al-Jawhari (d. 1003), al-Sihah', 1400),
+    ('ibn-sida-al-mursi-al-muhkam-wa-l-muhit-al-aazam', 'Ibn Sida (d. 1066), al-Muhkam', 1400),
+    ('al-zamakhshari-asas-al-balagha', 'al-Zamakhshari (d. 1144), Asas al-Balagha', 1200),
+    ('abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib',
+     "Abu Hayyan (d. 1344), Tuhfat al-Arib (Qur'anic gharib)", 900),
+    ('ibn-manzur-lisan-al-arab', 'Ibn Manzur (d. 1312), Lisan al-Arab', 1200),
 ]
-MAQAYIS = DICTS[0][0]
+N_DICTS = 3
+DICTS = DICT_PRIORITY          # kept for callers that iterate the full order
+MAQAYIS = 'ibn-faris-maqayis-al-lugha'
 N_VERSES = 12
 import os as _os
 SHOW_EXISTING = _os.environ.get('SHOW_EXISTING', '1') == '1'
@@ -174,11 +193,17 @@ def build(bw, conn=None, lemma_group=None):
         "",
     ]
     have_maqayis = False
-    for slug, label, cap in DICTS:
+    used = 0
+    for slug, label, cap in DICT_PRIORITY:
+        if used >= N_DICTS:
+            break
         r = c.execute("SELECT harmonized_en h FROM dictionary_entries WHERE root_buckwalter=? "
-                      "AND dictionary_slug=? AND review_status='approved'", (bw, slug)).fetchone()
+                      "AND dictionary_slug=? AND review_status='approved' AND COALESCE(hidden,0)=0",
+                      (bw, slug)).fetchone()
         if r and (r['h'] or '').strip():
-            if slug == MAQAYIS: have_maqayis = True
+            if slug == MAQAYIS:
+                have_maqayis = True
+            used += 1
             parts += ["%s:" % label.upper(), _cap(r['h'], cap), ""]
     if not have_maqayis:
         parts += ["IBN FARIS, MAQAYIS AL-LUGHA:",

@@ -84,14 +84,15 @@ def apply_file(c, path):
     return {"applied": applied, "held_for_hard_gate": skipped, "rejected": rejected}
 
 
-def next_units(c, n):
+def next_units(c, n, retries=False):
+    """Units to work next. retries=True returns only ones that have failed
+    before, so the caller can ask them for a shorter passage."""
+    op = '>=' if retries else '='
     rows = c.execute(
-        "SELECT root_buckwalter bw, sense_key, lemmas_json FROM root_core_worklist "
-        "WHERE status='todo' AND attempts < 3 ORDER BY n_verses DESC LIMIT ?", (n,)).fetchall()
-    out = []
-    for r in rows:
-        out.append(r['bw'] + ('|' + r['sense_key'] if r['sense_key'] else ''))
-    return out
+        "SELECT root_buckwalter bw, sense_key FROM root_core_worklist "
+        "WHERE status='todo' AND attempts < 3 AND attempts %s ? "
+        "ORDER BY n_verses DESC LIMIT ?" % op, (1 if retries else 0, n)).fetchall()
+    return [r['bw'] + ('|' + r['sense_key'] if r['sense_key'] else '') for r in rows]
 
 
 def main():
@@ -99,6 +100,7 @@ def main():
     ap.add_argument('--apply')
     ap.add_argument('--next', type=int, default=0)
     ap.add_argument('--report', action='store_true')
+    ap.add_argument('--retries', action='store_true')
     a = ap.parse_args()
     c = S.connect()
     out = {}
@@ -111,7 +113,7 @@ def main():
         for r in c.execute("SELECT status, COUNT(*) n FROM root_core_worklist GROUP BY 1"):
             out['worklist_' + r['status']] = r['n']
     if a.next:
-        out['chunk'] = next_units(c, a.next)
+        out['chunk'] = next_units(c, a.next, retries=a.retries)
         out['remaining'] = c.execute("SELECT COUNT(*) FROM root_core_worklist "
                                      "WHERE status='todo' AND attempts < 3").fetchone()[0]
     print(json.dumps(out, ensure_ascii=False))

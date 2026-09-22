@@ -27,6 +27,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CHUNK = int(os.environ.get('ROOT_CORE_CHUNK', '12'))
+RETRY_ASK = int(os.environ.get('ROOT_CORE_RETRY_ASK', '150'))
 # ONE FILE PER CYCLE, not one growing file. A single appended JSONL is
 # re-applied in full every cycle, so the work grows with the run: by the end
 # each cycle re-gates ~1,900 stored rows. Worse than the wasted time, it
@@ -70,6 +71,17 @@ def main():
         subprocess.run([sys.executable, '_root_core_run.py', *chunk], cwd=HERE, env=env,
                        stdout=subprocess.DEVNULL, stderr=sys.stderr)
         applied = tick('--apply', batch)
+        # Squeeze pass: whatever failed a hard gate (overwhelmingly the length
+        # cap) is re-asked for a shorter passage. Retrying at the same length
+        # reproduces the same overrun, so the retry has to change something.
+        retry = tick('--next', '40', '--retries').get('chunk') or []
+        if retry:
+            rbatch = os.path.join(JSONL_DIR, 'cycle-%05d-retry.jsonl' % cycle)
+            renv = dict(env, ROOT_CORE_JSONL=rbatch, ROOT_CORE_ASK=str(RETRY_ASK))
+            subprocess.run([sys.executable, '_root_core_run.py', *retry], cwd=HERE, env=renv,
+                           stdout=subprocess.DEVNULL, stderr=sys.stderr)
+            tick('--apply', rbatch)
+            print("[loop]   squeezed %d over-length units at ask=%d" % (len(retry), RETRY_ASK), flush=True)
         rep = tick('--report')
         print("[loop]   applied=%s stored=%s worklist_todo=%s"
               % (applied.get('applied'), rep.get('stored'), rep.get('worklist_todo')), flush=True)

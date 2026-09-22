@@ -25,7 +25,7 @@ What v2 got wrong, in the owner's words:
 The checklist principle is the owner's too: use an evidence line when there is
 something real to say from it, otherwise pass over it in silence.
 """
-PROMPT_VERSION = 'v3.2-nothink'
+PROMPT_VERSION = 'v3.4-3dict-a210'
 
 # Two different numbers, deliberately.
 #   MAX_CHARS  what the tooltip can actually hold; the gate enforces this.
@@ -33,11 +33,17 @@ PROMPT_VERSION = 'v3.2-nothink'
 # With chain-of-thought disabled the model stops budgeting its own length and
 # overshoots any stated cap by roughly a third -- all five test passages ran
 # 435-581 characters against a stated 400. Asking for 280 lands the mean at 360
-# with about one in six over, and those are caught and retried. Thinking cost
+# with about one in six over, and those are caught and retried.
+# Re-tuned to 210 once the bundle was cut to three dictionaries: with less
+# evidence to compress the model runs longer at the same asked-for cap (mean
+# 379, max 459 at 280). At 210 the mean lands at 312, nothing exceeds the cap
+# across a test set, and the prose is tighter rather than thinner -- "A shakur
+# beast grows fat on scant fodder" instead of "Arabs used these letters of a
+# beast that fattens on little fodder". Thinking cost
 # ~6,000 output tokens per passage to produce ~100 tokens of text, which was
 # most of the run's wall clock, so this trade is worth making explicitly.
 MAX_CHARS = 400
-ASK_CHARS = 280
+ASK_CHARS = 210
 
 SYSTEM = """You write the short explanation a reader sees when they hover a word
 while reading the Qur'an. Your one purpose is to HELP THAT READER understand the

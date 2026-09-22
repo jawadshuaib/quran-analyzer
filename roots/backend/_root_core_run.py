@@ -32,6 +32,7 @@ PACE = float(os.environ.get('ROOT_CORE_PACE', '5'))
 TIMEOUT = 300
 # Append-as-you-go log so a killed or quota-stalled run keeps what it finished.
 JSONL = os.environ.get('ROOT_CORE_JSONL', '')
+ASK_OVERRIDE = int(os.environ.get('ROOT_CORE_ASK', '0'))
 
 
 class QuotaExhausted(Exception):
@@ -92,6 +93,15 @@ def run(roots, model):
                     grp = lems.split('+')
                 b = B.build(bw, lemma_group=grp)
                 system, user = P.build(b['text'])
+                # A unit that already failed the length gate is re-asked for
+                # something shorter. Retrying at the same temperature and the
+                # same asked-for length mostly reproduces the same overrun.
+                if ASK_OVERRIDE and ASK_OVERRIDE != P.ASK_CHARS:
+                    system = system.replace('At most %d characters' % P.ASK_CHARS,
+                                            'At most %d characters' % ASK_OVERRIDE)
+                    user = user.replace('<=%d chars' % P.ASK_CHARS, '<=%d chars' % ASK_OVERRIDE)
+                    user = user.replace('at most %d characters' % P.ASK_CHARS,
+                                        'at most %d characters' % ASK_OVERRIDE)
                 t0 = time.time()
                 obj, raw, meta = call(model, system, user)
                 rec = {"ok": True, "key": key, "root_bw": bw, "lemma_group": grp,

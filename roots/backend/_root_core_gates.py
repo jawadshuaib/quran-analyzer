@@ -192,8 +192,10 @@ def check(row, conn=None):
     # the physical sense does work. The accepted sawm passage lands on 19:26;
     # the two rejected ones never reached a verse at all.
     if not VERSE_REF.search(passage):
-        out.append(('G10', 'hard', 'passage never lands on a verse - a dictionary '
-                                   'entry, not a reading aid'))
+        # SOFT on the owner's steer (2026-09-22): "verse citation is not too
+        # important". A passage that explains the sense well without a reference
+        # is still useful; landing on one is preferred, not required.
+        out.append(('G10', 'soft', 'passage never lands on a verse'))
     payoff = (row.get('payoff_verse') or '').strip()
     if payoff:
         if payoff not in passage:
