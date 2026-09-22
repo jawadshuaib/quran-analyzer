@@ -27,7 +27,14 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CHUNK = int(os.environ.get('ROOT_CORE_CHUNK', '12'))
-JSONL = os.path.join(HERE, 'data', '_root_core.jsonl')
+# ONE FILE PER CYCLE, not one growing file. A single appended JSONL is
+# re-applied in full every cycle, so the work grows with the run: by the end
+# each cycle re-gates ~1,900 stored rows. Worse than the wasted time, it
+# re-judges settled rows against whatever the gates say NOW, so tightening a
+# gate mid-run could flip an already-accepted unit back onto the worklist and
+# send it round again. Each cycle writes and applies only its own results; the
+# files stay on disk as the archive of what the model actually returned.
+JSONL_DIR = os.path.join(HERE, 'data', 'root_core_batches')
 STOP = os.path.join(HERE, 'data', '_root_core.stop')
 
 
@@ -56,11 +63,13 @@ def main():
         cycle += 1
         print("[loop] cycle %d: %d units, %d remaining (%.1f h elapsed)"
               % (cycle, len(chunk), remaining, (time.time() - t0) / 3600), flush=True)
+        os.makedirs(JSONL_DIR, exist_ok=True)
+        batch = os.path.join(JSONL_DIR, 'cycle-%05d.jsonl' % cycle)
         env = dict(os.environ, SHOW_EXISTING='0', MODEL=os.environ.get('MODEL', 'kimi-k3'),
-                   ROOT_CORE_JSONL=JSONL)
+                   ROOT_CORE_JSONL=batch)
         subprocess.run([sys.executable, '_root_core_run.py', *chunk], cwd=HERE, env=env,
                        stdout=subprocess.DEVNULL, stderr=sys.stderr)
-        applied = tick('--apply', JSONL)
+        applied = tick('--apply', batch)
         rep = tick('--report')
         print("[loop]   applied=%s stored=%s worklist_todo=%s"
               % (applied.get('applied'), rep.get('stored'), rep.get('worklist_todo')), flush=True)

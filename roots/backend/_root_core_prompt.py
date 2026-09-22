@@ -25,9 +25,19 @@ What v2 got wrong, in the owner's words:
 The checklist principle is the owner's too: use an evidence line when there is
 something real to say from it, otherwise pass over it in silence.
 """
-PROMPT_VERSION = 'v3-progression'
+PROMPT_VERSION = 'v3.2-nothink'
 
+# Two different numbers, deliberately.
+#   MAX_CHARS  what the tooltip can actually hold; the gate enforces this.
+#   ASK_CHARS  what we tell the model, which must be lower.
+# With chain-of-thought disabled the model stops budgeting its own length and
+# overshoots any stated cap by roughly a third -- all five test passages ran
+# 435-581 characters against a stated 400. Asking for 280 lands the mean at 360
+# with about one in six over, and those are caught and retried. Thinking cost
+# ~6,000 output tokens per passage to produce ~100 tokens of text, which was
+# most of the run's wall clock, so this trade is worth making explicitly.
 MAX_CHARS = 400
+ASK_CHARS = 280
 
 SYSTEM = """You write the short explanation a reader sees when they hover a word
 while reading the Qur'an. Your one purpose is to HELP THAT READER understand the
@@ -154,7 +164,7 @@ is the worst thing you can produce, because nobody downstream can catch it.
 Note carefully which way a derivation runs: if a plant is NAMED FOR a quality
 the root already had, the root does not come from the plant.
 
-LENGTH. At most 400 characters, and shorter is better. Plain English for a
+LENGTH. At most {ask_chars} characters, and shorter is better. Plain English for a
 non-specialist. Transliterate Arabic in Latin letters with diacritics; never
 Arabic script.
 
@@ -198,8 +208,8 @@ def _contested_block():
     return "\n".join(lines)
 
 
-SYSTEM = SYSTEM.format(contested=_contested_block())
+SYSTEM = SYSTEM.format(contested=_contested_block(), ask_chars=ASK_CHARS)
 
 
 def build(bundle_text):
-    return SYSTEM, USER.format(bundle=bundle_text, max_chars=MAX_CHARS)
+    return SYSTEM, USER.format(bundle=bundle_text, max_chars=ASK_CHARS)

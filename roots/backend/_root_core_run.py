@@ -28,7 +28,7 @@ KEY = os.environ.get('OLLAMA_API_KEY', '')
 # allowance in minutes. Default to ONE worker with a real gap between calls, so
 # a long run spreads across the window instead of spiking and stalling.
 WORKERS = int(os.environ.get('ROOT_CORE_WORKERS', '1'))
-PACE = float(os.environ.get('ROOT_CORE_PACE', '15'))
+PACE = float(os.environ.get('ROOT_CORE_PACE', '5'))
 TIMEOUT = 300
 # Append-as-you-go log so a killed or quota-stalled run keeps what it finished.
 JSONL = os.environ.get('ROOT_CORE_JSONL', '')
@@ -40,7 +40,12 @@ class QuotaExhausted(Exception):
 
 def call(model, system, user):
     body = json.dumps({
-        "model": model, "stream": False, "format": "json",
+        # think=False is the single biggest lever on this run. kimi-k3 otherwise
+        # emits ~6,000 tokens of reasoning to produce a ~100-token passage, and
+        # since the binding limit is a token allowance, that reasoning WAS the
+        # schedule: 7.7 of the first 10.7 hours were spent asleep on quota.
+        # Disabling it cuts output ~97% and the call from 72s to 3.5s.
+        "model": model, "stream": False, "format": "json", "think": False,
         "messages": [{"role": "system", "content": system},
                      {"role": "user", "content": user}],
         "options": {"temperature": 0.2},
