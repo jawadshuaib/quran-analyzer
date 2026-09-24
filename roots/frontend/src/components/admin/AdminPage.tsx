@@ -36,6 +36,7 @@ import StatsPage from './StatsPage';
 import JudgeLessonsPage from './JudgeLessonsPage';
 import AdminAssistantQA from './AdminAssistantQA';
 import AdminExegesis from './AdminExegesis';
+import AdminRootMeanings from './AdminRootMeanings';
 import AdminPoetry from './AdminPoetry';
 import AdminDictionaries from './AdminDictionaries';
 import AdminQaVideos from './AdminQaVideos';
@@ -55,6 +56,7 @@ type AdminRoute =
   | 'stats'
   | 'judge-lessons'
   | 'assistant-qa'
+  | 'root-meanings'
   | 'exegesis'
   | 'poetry'
   | 'dictionaries'
@@ -93,6 +95,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/stats\/?$/.test(path)) return 'stats';
   if (/^\/admin\/judge-lessons\/?$/.test(path)) return 'judge-lessons';
   if (/^\/admin\/qa\/?$/.test(path)) return 'assistant-qa';
+  if (/^\/admin\/root-meanings\/?$/.test(path)) return 'root-meanings';
   if (/^\/admin\/exegesis\/?$/.test(path)) return 'exegesis';
   if (/^\/admin\/poetry\/?$/.test(path)) return 'poetry';
   if (/^\/admin\/dictionaries\/?$/.test(path)) return 'dictionaries';
@@ -159,6 +162,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Ask the Quran',
     description: 'Review, correct, hide, or remove the saved Q&A the assistant shows on each verse.',
     matches: (r) => r === 'assistant-qa',
+  },
+  {
+    href: '/admin/root-meanings',
+    label: 'Root Core Meanings',
+    description: 'The short core-sense passage shown when a reader hovers a word. One per sense of a root. Review, edit, approve — approved passages replace the Semitic-cognate list in the tooltip.',
+    matches: (r) => r === 'root-meanings',
   },
   {
     href: '/admin/exegesis',
@@ -370,6 +379,7 @@ export default function AdminPage() {
         {route === 'stats' && <StatsPage />}
         {route === 'judge-lessons' && <JudgeLessonsPage />}
         {route === 'assistant-qa' && <AdminAssistantQA />}
+        {route === 'root-meanings' && <AdminRootMeanings />}
         {route === 'exegesis' && <AdminExegesis />}
         {route === 'poetry' && <AdminPoetry />}
         {route === 'dictionaries' && <AdminDictionaries />}
@@ -832,6 +842,19 @@ const SECTION_STYLES: SectionStyle[] = [
         <path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.5A8 8 0 1 1 21 12z" />
         <path d="M9.6 9.4a2.4 2.4 0 1 1 3.1 2.4c-.7.3-1.2.9-1.2 1.6" />
         <path d="M11.5 16.3h.01" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/root-meanings',
+    label: 'Root Core Meanings',
+    description: 'The short core-sense passage shown when a reader hovers a word, one per sense of a root.',
+    accent: 'bg-teal-50 text-teal-700 ring-teal-100',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M12 3v7" />
+        <path d="M12 10c-3 0-5 2-5 5s2 6 5 6 5-3 5-6-2-5-5-5z" />
+        <path d="M9 7 7 5M15 7l2-2" />
       </svg>
     ),
   },

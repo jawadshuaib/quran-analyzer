@@ -5527,7 +5527,7 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/read/\d+(:\d+(-\d+)?)?/?$", path):
         return True
-    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/verse-of-the-day|/stats|/judge-lessons|/qa|/qa-videos|/exegesis|/poetry|/dictionaries|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
+    if re.match(r"^/admin(/settings|/scheduler|/revisions|/verse-settings|/verse-of-the-day|/stats|/judge-lessons|/qa|/qa-videos|/exegesis|/root-meanings|/poetry|/dictionaries|/vocabulary(/[^/]+)?|/proper-nouns(/\d+)?|/pipelines(/recitation|/educational(/candidates)?)?|/media(/recitations|/resources|/music|/generate|/explanations|/generate-explanation|/pipelines|/educational(/word-origins|/translation-hides|/grammar-insights|/pipelines(/\d+)?)?)?)?/?$", path):
         return True
     return False
 
@@ -8183,6 +8183,194 @@ def admin_bulk_poetry():
                 [1 if op == "hide" else 0] + ids)
         else:
             return jsonify({"error": "op must be approve/reject/pending/hide/unhide/delete"}), 400
+        conn.commit()
+        return jsonify({"ok": True, "op": op, "affected": cur.rowcount})
+    finally:
+        conn.close()
+
+
+# =========================================================================
+# Admin: root core meanings (the word-tooltip passages)
+# -------------------------------------------------------------------------
+# 1,911 generated passages, one per SENSE of a root rather than one per root:
+# 213 roots carry more than one word in the same radicals, and the reader's
+# lemma decides which passage they see. Everything lands pending/hidden, so
+# this queue is what stands between the generator and a reader.
+# =========================================================================
+_RCM_SORT = {
+    "frequency": "nv DESC",
+    "root": "m.root_buckwalter ASC",
+    "recent": "m.id DESC",
+    "longest": "LENGTH(COALESCE(m.passage,'')) DESC",
+}
+
+
+def _rcm_row(r):
+    gates = json.loads(r["gates_json"] or "[]")
+    return {
+        "id": r["id"],
+        "root_buckwalter": r["root_buckwalter"],
+        "root_arabic": r["root_arabic"],
+        "sense_key": r["sense_key"],
+        "lemmas": json.loads(r["lemmas_json"] or "[]"),
+        "passage": r["passage"],
+        "verdict": r["verdict"],
+        "verses": r["nv"],
+        "confidence": r["confidence"],
+        "verses_relied_on": json.loads(r["verses_json"] or "[]"),
+        "stations": json.loads(r["stations_json"] or "[]"),
+        "gates": gates,
+        "has_hard": any(g.get("severity") == "hard" for g in gates),
+        "has_soft": any(g.get("severity") == "soft" for g in gates),
+        "review_status": r["review_status"],
+        "hidden": r["hidden"],
+        "model_used": r["model_used"],
+        "prompt_version": r["prompt_version"],
+        "edited_at": r["edited_at"],
+    }
+
+
+_RCM_SELECT = """
+    SELECT m.*, (SELECT root_arabic FROM morphology
+                  WHERE root_buckwalter = m.root_buckwalter AND root_arabic != '' LIMIT 1) AS root_arabic,
+                (SELECT COUNT(DISTINCT chapter || ':' || verse) FROM morphology
+                  WHERE root_buckwalter = m.root_buckwalter) AS nv
+    FROM root_core_meanings m
+"""
+
+
+@app.route("/api/admin/root-meanings", methods=["GET"])
+@admin_required
+def admin_list_root_meanings():
+    q = (request.args.get("q") or "").strip()
+    review_status = (request.args.get("review_status") or "").strip()
+    gates = (request.args.get("gates") or "").strip()      # clean|soft|hard
+    split = (request.args.get("split") or "").strip()      # only|no
+    sort = (request.args.get("sort") or "frequency").strip()
+    order_by = _RCM_SORT.get(sort, _RCM_SORT["frequency"])
+    try:
+        limit = min(max(int(request.args.get("limit", 25)), 1), 100)
+    except (ValueError, TypeError):
+        limit = 25
+    try:
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (ValueError, TypeError):
+        offset = 0
+
+    where, params = [], []
+    if q:
+        where.append("(m.passage LIKE ? OR m.root_buckwalter LIKE ? OR m.sense_key LIKE ?)")
+        params += ["%%%s%%" % q] * 3
+    if review_status:
+        where.append("m.review_status = ?")
+        params.append(review_status)
+    if gates == "hard":
+        where.append("m.gates_json LIKE '%\"hard\"%'")
+    elif gates == "soft":
+        where.append("m.gates_json LIKE '%\"soft\"%' AND m.gates_json NOT LIKE '%\"hard\"%'")
+    elif gates == "clean":
+        where.append("COALESCE(m.gates_json,'[]') = '[]'")
+    if split == "only":
+        where.append("m.sense_key != ''")
+    elif split == "no":
+        where.append("m.sense_key = ''")
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+
+    conn = get_db()
+    try:
+        if not _has_root_core(conn):
+            return jsonify({"items": [], "total": 0, "limit": limit, "offset": offset})
+        total = conn.execute(
+            "SELECT COUNT(*) AS c FROM root_core_meanings m %s" % where_sql, params
+        ).fetchone()["c"]
+        rows = conn.execute(
+            "%s %s ORDER BY %s LIMIT ? OFFSET ?" % (_RCM_SELECT, where_sql, order_by),
+            params + [limit, offset],
+        ).fetchall()
+        return jsonify({"items": [_rcm_row(r) for r in rows],
+                        "total": total, "limit": limit, "offset": offset})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/root-meanings/stats", methods=["GET"])
+@admin_required
+def admin_root_meanings_stats():
+    conn = get_db()
+    try:
+        if not _has_root_core(conn):
+            return jsonify({"total": 0})
+
+        def c(sql):
+            return conn.execute("SELECT COUNT(*) AS c FROM root_core_meanings " + sql).fetchone()["c"]
+
+        return jsonify({
+            "total": c(""),
+            "pending": c("WHERE review_status='pending'"),
+            "approved": c("WHERE review_status='approved'"),
+            "rejected": c("WHERE review_status='rejected'"),
+            "visible": c("WHERE COALESCE(hidden,0)=0"),
+            "hard": c("WHERE gates_json LIKE '%\"hard\"%'"),
+            "soft": c("WHERE gates_json LIKE '%\"soft\"%' AND gates_json NOT LIKE '%\"hard\"%'"),
+            "clean": c("WHERE COALESCE(gates_json,'[]')='[]'"),
+            "split_senses": c("WHERE sense_key != ''"),
+            "declined": c("WHERE verdict='no_insight'"),
+            "edited": c("WHERE edited_at IS NOT NULL"),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/root-meanings/<int:rid>", methods=["PATCH"])
+@admin_required
+def admin_update_root_meaning(rid):
+    data = request.get_json(force=True) or {}
+    sets, params = [], []
+    if "passage" in data:
+        sets.append("passage = ?")
+        params.append((data.get("passage") or "").strip())
+    for field in ("review_status", "hidden"):
+        if field in data:
+            sets.append("%s = ?" % field)
+            params.append(data[field])
+    if not sets:
+        return jsonify({"error": "nothing to update"}), 400
+    sets.append("edited_at = datetime('now')")
+    conn = get_db()
+    try:
+        conn.execute("UPDATE root_core_meanings SET %s WHERE id = ?" % ", ".join(sets),
+                     params + [rid])
+        conn.commit()
+        row = conn.execute("%s WHERE m.id = ?" % _RCM_SELECT, (rid,)).fetchone()
+        return jsonify(_rcm_row(row) if row else {"ok": True})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/root-meanings/bulk", methods=["POST"])
+@admin_required
+def admin_bulk_root_meanings():
+    data = request.get_json(force=True) or {}
+    ids = [int(i) for i in (data.get("ids") or []) if str(i).isdigit()][:500]
+    op = (data.get("op") or "").strip()
+    if not ids:
+        return jsonify({"error": "ids must be a non-empty list"}), 400
+    ph = ",".join("?" * len(ids))
+    conn = get_db()
+    try:
+        if op in ("approve", "reject", "pending"):
+            rs = {"approve": "approved", "reject": "rejected", "pending": "pending"}[op]
+            # Approving publishes: a row only reaches a reader when it is both
+            # approved AND not hidden, so the two move together here.
+            cur = conn.execute(
+                "UPDATE root_core_meanings SET review_status=?, hidden=?, edited_at=datetime('now') "
+                "WHERE id IN (%s)" % ph, [rs, 0 if op == "approve" else 1] + ids)
+        elif op in ("hide", "unhide"):
+            cur = conn.execute(
+                "UPDATE root_core_meanings SET hidden=? WHERE id IN (%s)" % ph,
+                [1 if op == "hide" else 0] + ids)
+        else:
+            return jsonify({"error": "op must be approve/reject/pending/hide/unhide"}), 400
         conn.commit()
         return jsonify({"ok": True, "op": op, "affected": cur.rowcount})
     finally:

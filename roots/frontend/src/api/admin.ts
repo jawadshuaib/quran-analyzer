@@ -2473,6 +2473,94 @@ export async function bulkAdminQA(ids: number[], op: AdminQABulkOp): Promise<{ a
 }
 
 /* ---------------------------------------------------------------- */
+/* ------------------------------------------------------------------ */
+/*  Root core meanings — the short passage shown in the word tooltip   */
+/*  Keyed by SENSE, not by root: 213 roots carry more than one word in */
+/*  the same radicals, and the reader's lemma picks which one shows.   */
+/* ------------------------------------------------------------------ */
+
+export interface RootMeaningGate {
+  gate: string;
+  severity: 'hard' | 'soft';
+  msg: string;
+}
+
+export interface RootMeaning {
+  id: number;
+  root_buckwalter: string;
+  root_arabic: string | null;
+  sense_key: string;
+  lemmas: string[];
+  passage: string | null;
+  verdict: string | null;
+  verses: number;
+  confidence: string | null;
+  verses_relied_on: string[];
+  stations: string[];
+  gates: RootMeaningGate[];
+  has_hard: boolean;
+  has_soft: boolean;
+  review_status: string;
+  hidden: number;
+  model_used: string | null;
+  prompt_version: string | null;
+  edited_at: string | null;
+}
+
+export interface RootMeaningStats {
+  total: number; pending: number; approved: number; rejected: number;
+  visible: number; hard: number; soft: number; clean: number;
+  split_senses: number; declined: number; edited: number;
+}
+
+export async function fetchRootMeanings(params: {
+  q?: string; review_status?: string; gates?: string; split?: string;
+  sort?: string; limit?: number; offset?: number;
+}): Promise<{ items: RootMeaning[]; total: number; limit: number; offset: number }> {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== '') qs.set(k, String(v));
+  });
+  const res = await authFetch(`${BASE}/root-meanings?${qs}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load root meanings');
+  return data;
+}
+
+export async function fetchRootMeaningStats(): Promise<RootMeaningStats> {
+  const res = await authFetch(`${BASE}/root-meanings/stats`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load stats');
+  return data;
+}
+
+export async function updateRootMeaning(
+  id: number,
+  patch: { passage?: string; review_status?: string; hidden?: number },
+): Promise<RootMeaning> {
+  const res = await authFetch(`${BASE}/root-meanings/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to update');
+  return data;
+}
+
+export async function bulkRootMeanings(
+  ids: number[],
+  op: 'approve' | 'reject' | 'pending' | 'hide' | 'unhide',
+): Promise<{ affected: number }> {
+  const res = await authFetch(`${BASE}/root-meanings/bulk`, {
+    method: 'POST',
+    body: JSON.stringify({ ids, op }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Bulk action failed');
+  return data;
+}
+
+/* ------------------------------------------------------------------ */
 /*  Verse exegesis — teacher-voice commentary distilled from Q&A    */
 /* ---------------------------------------------------------------- */
 

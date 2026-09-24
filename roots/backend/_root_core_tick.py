@@ -61,8 +61,11 @@ def apply_file(c, path):
             "INSERT OR REPLACE INTO root_core_meanings "
             "(root_buckwalter, sense_key, lemmas_json, passage, physical_origin, "
             " stations_json, verses_json, confidence, verdict, model_used, "
-            " prompt_version, gates_json, review_status, hidden, edited_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pending',1,datetime('now'))",
+            " prompt_version, gates_json, review_status, hidden) "
+            # edited_at stays NULL on generation: it means A HUMAN CHANGED THIS,
+            # and stamping it here made all 1,911 rows look hand-edited in the
+            # review queue, which is exactly the signal a reviewer needs.
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'pending',1)",
             (bw, key, json.dumps(r.get('lemma_group') or [], ensure_ascii=False),
              passage, r.get('physical_origin'),
              json.dumps(r.get('stations_used') or [], ensure_ascii=False),

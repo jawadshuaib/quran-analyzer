@@ -221,7 +221,7 @@ function isKnownRoute(): boolean {
   if (/^\/grammar-glossary\/?$/.test(path)) return true;
   if (/^\/quran-vocabulary\/?$/.test(path)) return true;
   if (/^\/dictionary\/?$/.test(path)) return true;
-  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/verse-settings|\/verse-of-the-day|\/stats|\/judge-lessons|\/qa|\/qa-videos|\/exegesis|\/poetry|\/dictionaries|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(path)) return true;
+  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/verse-settings|\/verse-of-the-day|\/stats|\/judge-lessons|\/qa|\/qa-videos|\/exegesis|\/root-meanings|\/poetry|\/dictionaries|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(path)) return true;
   return false;
 }
 
@@ -632,7 +632,7 @@ export default function App() {
     );
   }
 
-  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/verse-settings|\/verse-of-the-day|\/stats|\/judge-lessons|\/qa|\/qa-videos|\/exegesis|\/poetry|\/dictionaries|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(currentPath)) {
+  if (/^\/admin(\/settings|\/scheduler|\/revisions|\/verse-settings|\/verse-of-the-day|\/stats|\/judge-lessons|\/qa|\/qa-videos|\/exegesis|\/root-meanings|\/poetry|\/dictionaries|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(currentPath)) {
     return <AdminPage />;
   }
 
