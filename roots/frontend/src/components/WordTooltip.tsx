@@ -156,6 +156,10 @@ export default function WordTooltip({ word, coreMeaning, aiMeaning, wordDetailUr
 
       {coreMeaning && (
         <div className="mt-2 pt-2 border-t border-stone-100">
+          {/* Ibn Fāris's aṣl: the one sense the letters carry through all their uses. */}
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 mb-1">
+            Root Sense
+          </div>
           <div className="text-xs leading-relaxed text-stone-600">
             {wrapArabicRuns(coreMeaning)}
           </div>
