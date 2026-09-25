@@ -25,7 +25,7 @@ What v2 got wrong, in the owner's words:
 The checklist principle is the owner's too: use an evidence line when there is
 something real to say from it, otherwise pass over it in silence.
 """
-PROMPT_VERSION = 'v3.4-3dict-a210'
+PROMPT_VERSION = 'v3.5-3dict-a210-ar'
 
 # Two different numbers, deliberately.
 #   MAX_CHARS  what the tooltip can actually hold; the gate enforces this.
@@ -171,8 +171,13 @@ Note carefully which way a derivation runs: if a plant is NAMED FOR a quality
 the root already had, the root does not come from the plant.
 
 LENGTH. At most {ask_chars} characters, and shorter is better. Plain English for a
-non-specialist. Transliterate Arabic in Latin letters with diacritics; never
-Arabic script.
+non-specialist.
+
+ARABIC SCRIPT IS WELCOME where you are naming the Arabic word itself -- this is
+a Qur'an site and the reader is looking at Arabic. Write the word in Arabic and
+gloss it: most often as أَكْثَر, "most". Use it for the word under discussion,
+not for whole phrases, because the tooltip is only 320px wide. Transliteration
+with diacritics is equally fine; choose whichever reads better in the sentence.
 
 IF THERE IS NOTHING WORTH SAYING -- no concrete origin, no useful attestation,
 nothing the reader would not already guess from the translation -- return

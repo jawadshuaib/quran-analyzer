@@ -131,8 +131,11 @@ def check(row, conn=None):
             out.append(('G2', 'hard', 'post-Quranic term %r asserted in our own voice: %r'
                         % (m.group(0), s[:90])))
 
-    if ARABIC.search(passage):
-        out.append(('G6', 'hard', 'Arabic script in a passage specified as transliteration only'))
+    # G6 (Arabic script) RETIRED 2026-09-24. It enforced a rule I invented, not
+    # one the site needs: the tooltip renders embedded Arabic properly through
+    # wrapArabicRuns, and on a Qur'an site naming the word in Arabic reads
+    # better than romanising it -- 'most often as أَكْثَر' beats 'as akthar'.
+    # It was the single largest source of hard failures (11 of 19).
 
     refs = set(row.get('verses_relied_on') or []) | {'%s:%s' % m for m in VERSE_REF.findall(passage)}
     for ref in sorted(refs):
