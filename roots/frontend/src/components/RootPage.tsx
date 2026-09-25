@@ -9,8 +9,7 @@ import { buildRootContext } from '../utils/context-builders';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
-import PoetryComparison from './PoetryComparison';
-import RootPoeticUsage from './RootPoeticUsage';
+import RootPoetrySection from './RootPoetrySection';
 import DictionaryPanel from './DictionaryPanel';
 import FormattedText, { FormattedInline } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
@@ -357,11 +356,9 @@ export default function RootPage({ rootBw }: Props) {
         </section>
       )}
 
-      {/* In Pre-Islamic Poetry — auto-hides when the root has no approved comparison */}
-      <PoetryComparison rootBw={rootBw} />
-
-      {/* Contemporaneous lexicon — what a root-sense passage means by "the old poetry" */}
-      <RootPoeticUsage key={rootBw} rootBw={rootBw} />
+      {/* In Pre-Islamic Poetry — the attested senses plus, where one exists, the
+          comparison with the Qurʾān. Auto-hides when the root has neither. */}
+      <RootPoetrySection key={rootBw} rootBw={rootBw} />
 
       {/* Sample verses */}
       {data.sample_verses.length > 0 && (

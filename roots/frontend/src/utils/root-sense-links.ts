@@ -1,7 +1,7 @@
 import type { CoreEvidence } from '../types';
 
 /** Root-page section a root-sense passage can point its evidence at. */
-export type EvidenceSection = 'poetry' | 'poetic-usage' | 'dictionaries' | 'cognates';
+export type EvidenceSection = 'poetry' | 'dictionaries' | 'cognates';
 
 export type SenseSegment =
   | { kind: 'text'; text: string }
@@ -37,7 +37,7 @@ const QURAN_RE = /\bQur['ʾ’]?[aā]n\b/;
 
 const POETRY_SECTION: Record<NonNullable<CoreEvidence['poetry']>, EvidenceSection> = {
   comparison: 'poetry',
-  lexicon: 'poetic-usage',
+  lexicon: 'poetry',
   dictionary: 'dictionaries',
 };
 
