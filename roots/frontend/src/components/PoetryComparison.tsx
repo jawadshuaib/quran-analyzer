@@ -36,7 +36,7 @@ export default function PoetryComparison({ rootBw }: { rootBw: string }) {
   const colloc = data.collocations;
 
   return (
-    <section className="mb-8">
+    <section id="poetry" className="mb-8 scroll-mt-24">
       <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">
         In Pre-Islamic Poetry
       </h2>

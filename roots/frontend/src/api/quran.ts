@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootLexiconEntry, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -233,6 +233,15 @@ export async function fetchVersePoetry(
   const res = await fetch(`${BASE}/verse/${surah}:${ayah}/poetry`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error('Failed to load poetry note');
+  return res.json();
+}
+
+/** A root's contemporaneous-attestation lexicon entry (what it is attested to
+ *  mean in 6th-c. poetry), or null when the root has none. */
+export async function fetchRootLexicon(rootBw: string): Promise<RootLexiconEntry | null> {
+  const res = await fetch(`${BASE}/root/${encodeURIComponent(rootBw)}/lexicon`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to load poetic lexicon');
   return res.json();
 }
 

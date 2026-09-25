@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { RootDetailData, VerseData, Word } from '../types';
+import type { CoreEvidence, RootDetailData, VerseData, Word } from '../types';
 import CognateTable from './CognateTable';
 import { fetchRoot, fetchVerse } from '../api/quran';
 import { verseUrl, ejtaalUrl } from '../utils/urls';
@@ -10,6 +10,7 @@ import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
 import PoetryComparison from './PoetryComparison';
+import RootPoeticUsage from './RootPoeticUsage';
 import DictionaryPanel from './DictionaryPanel';
 import FormattedText, { FormattedInline } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
@@ -32,6 +33,7 @@ export default function RootPage({ rootBw }: Props) {
   // Resolved word + its core-meaning passage for the hovered word
   const [hoveredWord, setHoveredWord] = useState<Word | null>(null);
   const [hoveredCore, setHoveredCore] = useState<string | undefined>(undefined);
+  const [hoveredEvidence, setHoveredEvidence] = useState<CoreEvidence | undefined>(undefined);
 
   // AI root meaning sometimes references a grammar-glossary term (e.g. "Form
   // II", "jussive") that's opaque without a definition — same treatment as
@@ -50,6 +52,60 @@ export default function RootPage({ rootBw }: Props) {
         setError(err instanceof Error ? err.message : 'Failed to load root data');
       })
       .finally(() => setLoading(false));
+  }, [rootBw]);
+
+  // A root-sense tooltip links its evidence here as /root/<bw>#poetry and the
+  // like. The sections it points at each load on their own after the page does,
+  // so the browser's jump to the hash finds nothing. Wait for the section (and
+  // for the page's load, whose own fragment jump would otherwise cancel ours),
+  // bring it into view and flash it once so the reader sees what the link meant.
+  // Sections above it may still be loading and push it down, so hold it in place
+  // for a few seconds -- unless the reader starts scrolling.
+  useEffect(() => {
+    let poll: ReturnType<typeof setInterval> | undefined;
+    let pin: ReturnType<typeof setInterval> | undefined;
+    const stopPin = () => {
+      if (pin) clearInterval(pin);
+      pin = undefined;
+    };
+    function scrollToHash(onLoad: boolean) {
+      if (poll) clearInterval(poll);
+      stopPin();
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      if (!id) return;
+      let tries = 0;
+      poll = setInterval(() => {
+        const el = document.getElementById(id);
+        if (!el || document.readyState !== 'complete') {
+          if (++tries > 100) clearInterval(poll);
+          return;
+        }
+        clearInterval(poll);
+        el.scrollIntoView({ behavior: onLoad ? 'auto' : 'smooth', block: 'start' });
+        el.classList.add('ring-2', 'ring-amber-300', 'ring-offset-4', 'rounded-xl');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-amber-300', 'ring-offset-4', 'rounded-xl'), 1800);
+        if (!onLoad) return;
+        const settled = el.getBoundingClientRect().top;
+        let ticks = 0;
+        pin = setInterval(() => {
+          if (++ticks > 25) return stopPin();
+          if (Math.abs(el.getBoundingClientRect().top - settled) > 30) {
+            el.scrollIntoView({ behavior: 'auto', block: 'start' });
+          }
+        }, 150);
+      }, 100);
+    }
+    const onHash = () => scrollToHash(false);
+    scrollToHash(true);
+    window.addEventListener('hashchange', onHash);
+    const userScroll = ['wheel', 'touchstart', 'keydown'] as const;
+    userScroll.forEach((ev) => window.addEventListener(ev, stopPin, { passive: true }));
+    return () => {
+      if (poll) clearInterval(poll);
+      stopPin();
+      window.removeEventListener('hashchange', onHash);
+      userScroll.forEach((ev) => window.removeEventListener(ev, stopPin));
+    };
   }, [rootBw]);
 
   const handleWordEnter = useCallback(async (surah: number, ayah: number, position: number) => {
@@ -75,12 +131,14 @@ export default function RootPage({ rootBw }: Props) {
     const lemma = word.segments.find((s) => s.lemma_arabic)?.lemma_arabic;
     setHoveredWord(word);
     setHoveredCore(lemma ? verse.core_meanings?.[lemma] : undefined);
+    setHoveredEvidence(lemma ? verse.core_evidence?.[lemma] : undefined);
   }, []);
 
   const handleWordLeave = useCallback(() => {
     setHoveredKey(null);
     setHoveredWord(null);
     setHoveredCore(undefined);
+    setHoveredEvidence(undefined);
   }, []);
 
   if (loading) {
@@ -276,7 +334,7 @@ export default function RootPage({ rootBw }: Props) {
 
       {/* Cognate data */}
       {data.cognate && (
-        <section className="mb-8">
+        <section id="cognates" className="mb-8 scroll-mt-24">
           <h2 className="text-sm font-semibold text-stone-500 uppercase tracking-wide mb-3">
             Semitic Cognates
           </h2>
@@ -301,6 +359,9 @@ export default function RootPage({ rootBw }: Props) {
 
       {/* In Pre-Islamic Poetry — auto-hides when the root has no approved comparison */}
       <PoetryComparison rootBw={rootBw} />
+
+      {/* Contemporaneous lexicon — what a root-sense passage means by "the old poetry" */}
+      <RootPoeticUsage key={rootBw} rootBw={rootBw} />
 
       {/* Sample verses */}
       {data.sample_verses.length > 0 && (
@@ -351,6 +412,7 @@ export default function RootPage({ rootBw }: Props) {
                             <WordTooltip
                               word={hoveredWord}
                               coreMeaning={hoveredCore}
+                              coreEvidence={hoveredEvidence}
                             />
                           )}
                         </span>

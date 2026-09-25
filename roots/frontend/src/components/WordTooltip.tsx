@@ -1,7 +1,8 @@
 import { Fragment, type ReactNode } from 'react';
-import type { Word } from '../types';
+import type { CoreEvidence, Word } from '../types';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { verseUrl } from '../utils/urls';
+import { segmentRootSense } from '../utils/root-sense-links';
 import {
   HIGHLIGHT_COLORS,
   HIGHLIGHT_SWATCH,
@@ -23,45 +24,64 @@ export interface WordHighlightTarget {
   meta?: VerseMeta;
 }
 
-// "2:173", "83:27-28", "56:15–16". The lookbehind (not \b) still catches the
-// digits in "Q47:15".
-const VERSE_REF_RE = /(?<!\d)(\d{1,3}):(\d{1,3})(?:[–-]\d{1,3})?(?!\d)/g;
+const EVIDENCE_STYLE: Record<'poetry' | 'cognates' | 'dictionary', { cls: string; title: string }> = {
+  poetry: {
+    cls: 'text-amber-700 decoration-amber-400 hover:text-amber-900',
+    title: 'See the pre-Islamic poetry for this root',
+  },
+  cognates: {
+    cls: 'text-indigo-600 decoration-indigo-300 hover:text-indigo-800',
+    title: 'See the Semitic cognates for this root',
+  },
+  dictionary: {
+    cls: 'text-emerald-700 decoration-emerald-400 hover:text-emerald-900',
+    title: 'See the classical dictionaries for this root',
+  },
+};
 
-/** The root-sense passage with each verse it cites linked to that verse, in a
- *  new tab so the reader keeps their place. Plain links rather than
- *  VerseRefText's hover previews: a second popup opening out of this one would
- *  fight it for the pointer. A range links to its first verse. */
-function linkVerseRefs(text: string): ReactNode {
-  const parts: ReactNode[] = [];
-  let last = 0;
-  VERSE_REF_RE.lastIndex = 0;
-  let m: RegExpExecArray | null;
-  while ((m = VERSE_REF_RE.exec(text)) !== null) {
-    const surah = Number(m[1]);
-    const ayah = Number(m[2]);
-    if (surah < 1 || surah > 114 || ayah < 1) continue;
-    if (m.index > last) {
-      parts.push(<Fragment key={`t-${last}`}>{wrapArabicRuns(text.slice(last, m.index))}</Fragment>);
+/** The root-sense passage with its references made checkable: each verse it
+ *  cites opens that verse, and the first mention of each kind of evidence --
+ *  the poetry, the sister languages, a lexicographer -- opens the root page at
+ *  the section holding it. New tab so the reader keeps their place, unless the
+ *  reader is already on that root's page, where the link just scrolls. Plain
+ *  links rather than VerseRefText's hover previews: a second popup opening out
+ *  of this one would fight it for the pointer. A range links to its first verse. */
+function linkRootSense(text: string, evidence?: CoreEvidence | null): ReactNode {
+  const segs = segmentRootSense(text, evidence);
+  if (segs.length === 1 && segs[0].kind === 'text') return wrapArabicRuns(text);
+  const onRootPage =
+    evidence && decodeURIComponent(window.location.pathname) === `/root/${evidence.root}`;
+  return segs.map((s, i) => {
+    if (s.kind === 'text') return <Fragment key={i}>{wrapArabicRuns(s.text)}</Fragment>;
+    if (s.kind === 'verse') {
+      return (
+        <a
+          key={i}
+          href={verseUrl(s.surah, s.ayah)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-violet-600 underline decoration-violet-300 underline-offset-2 hover:text-violet-800 hover:decoration-violet-500"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {s.text}
+        </a>
+      );
     }
-    parts.push(
+    const style = EVIDENCE_STYLE[s.category];
+    const href = `${onRootPage ? '' : `/root/${encodeURIComponent(evidence!.root)}`}#${s.section}`;
+    return (
       <a
-        key={`v-${m.index}`}
-        href={verseUrl(surah, ayah)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-violet-600 underline decoration-violet-300 underline-offset-2 hover:text-violet-800 hover:decoration-violet-500"
+        key={i}
+        href={href}
+        {...(onRootPage ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+        title={style.title}
+        className={`underline decoration-dotted underline-offset-2 ${style.cls}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {m[0]}
-      </a>,
+        {wrapArabicRuns(s.text)}
+      </a>
     );
-    last = m.index + m[0].length;
-  }
-  if (last === 0) return wrapArabicRuns(text);
-  if (last < text.length) {
-    parts.push(<Fragment key={`t-${last}`}>{wrapArabicRuns(text.slice(last))}</Fragment>);
-  }
-  return parts;
+  });
 }
 
 interface Props {
@@ -70,6 +90,9 @@ interface Props {
    *  Semitic-cognate list, which listed sister languages without deepening
    *  the reader's understanding of the word in front of them. */
   coreMeaning?: string | null;
+  /** Which root-page sections back that passage; its mentions of poetry,
+   *  sister languages and lexicographers link to them. */
+  coreEvidence?: CoreEvidence | null;
   aiMeaning?: string;
   wordDetailUrl?: string;
   preferredTranslation?: string;
@@ -77,7 +100,7 @@ interface Props {
   highlight?: WordHighlightTarget;
 }
 
-export default function WordTooltip({ word, coreMeaning, aiMeaning, wordDetailUrl, preferredTranslation, highlight }: Props) {
+export default function WordTooltip({ word, coreMeaning, coreEvidence, aiMeaning, wordDetailUrl, preferredTranslation, highlight }: Props) {
   const mainRootSeg = word.segments.find((s) => s.root_arabic);
   const mainRoot = mainRootSeg?.root_arabic;
   const mainRootBw = mainRootSeg?.root_buckwalter;
@@ -204,7 +227,7 @@ export default function WordTooltip({ word, coreMeaning, aiMeaning, wordDetailUr
             Root Sense
           </div>
           <div className="text-xs leading-relaxed text-stone-600">
-            {linkVerseRefs(coreMeaning)}
+            {linkRootSense(coreMeaning, coreEvidence)}
           </div>
         </div>
       )}

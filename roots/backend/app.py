@@ -1678,6 +1678,54 @@ def _core_meanings_for_verse(conn, surah: int, ayah: int) -> dict:
     return {r["lem"]: r["passage"] for r in rows}
 
 
+def _root_has(conn, sql: str, bw: str) -> bool:
+    """True when `sql` finds a row for this root. A table that has not reached
+    this database yet (prod gains them one sync at a time) counts as no row."""
+    try:
+        return conn.execute(sql, (bw,)).fetchone() is not None
+    except sqlite3.OperationalError:
+        return False
+
+
+def _core_evidence_for_verse(conn, surah: int, ayah: int) -> dict:
+    """{lemma_arabic: {root, poetry, cognates, dictionary}} -- which of the root
+    page's evidence sections exist for each passage in core_meanings, so the
+    tooltip links a mention of poetry, a sister language or a lexicographer only
+    when there is a section to land on.
+
+    poetry names the best section holding the poetic evidence: the root-level
+    comparison where one exists, else the contemporaneous lexicon, else the
+    classical dictionaries (where the passages' remaining poets are quoted)."""
+    if not _has_root_core(conn):
+        return {}
+    rows = conn.execute(
+        "SELECT DISTINCT lemma_arabic AS lem, root_buckwalter AS bw FROM morphology "
+        "WHERE chapter = ? AND verse = ? AND COALESCE(lemma_arabic, '') != '' "
+        "  AND COALESCE(root_buckwalter, '') != ''",
+        (surah, ayah),
+    ).fetchall()
+    by_root: dict = {}
+    for bw in {r["bw"] for r in rows}:
+        comparison = _root_has(
+            conn, "SELECT 1 FROM root_poetry_comparisons WHERE root_buckwalter = ? "
+                  "AND review_status = 'approved' AND COALESCE(hidden,0) = 0", bw)
+        lexicon = _root_has(
+            conn, "SELECT 1 FROM root_poetic_lexicon WHERE root_buckwalter = ? "
+                  "AND review_status = 'approved' AND COALESCE(hidden,0) = 0", bw)
+        dictionary = _root_has(
+            conn, "SELECT 1 FROM dictionary_entries WHERE root_buckwalter = ? "
+                  "AND review_status = 'approved' AND COALESCE(hidden,0) = 0 "
+                  "AND COALESCE(harmonized_en, '') != ''", bw)
+        by_root[bw] = {
+            "root": bw,
+            "poetry": ("comparison" if comparison else "lexicon" if lexicon
+                       else "dictionary" if dictionary else None),
+            "cognates": bool(_get_cognate(conn, bw)),
+            "dictionary": dictionary,
+        }
+    return {r["lem"]: by_root[r["bw"]] for r in rows}
+
+
 def _get_cognate(conn, bw_root: str) -> dict | None:
     """Look up Semitic cognate data for a Buckwalter root."""
     if not _has_semitic_tables(conn):
@@ -3304,6 +3352,7 @@ def get_verse(surah: int, ayah: int):
             # once per verse rather than per word: a verse has many words but
             # few distinct lemmas.
             "core_meanings": _core_meanings_for_verse(conn, surah, ayah),
+            "core_evidence": _core_evidence_for_verse(conn, surah, ayah),
             "previous": previous,
             "next": next_ref,
         })

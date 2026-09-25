@@ -71,6 +71,9 @@ export interface VerseData {
    *  Keyed by lemma rather than root because 213 roots carry more than one
    *  word in the same radicals (tarf "glance" vs taraf "edge"). */
   core_meanings?: Record<string, string>;
+  /** lemma_arabic -> which root-page evidence sections exist for that passage,
+   *  so the tooltip only links a mention it can back up. */
+  core_evidence?: Record<string, CoreEvidence>;
   previous?: VerseNavRef | null;
   next?: VerseNavRef | null;
 }
@@ -610,6 +613,17 @@ export interface VerseRootLexicon {
   surah: number;
   ayah: number;
   words: VerseRootLexiconWord[];
+}
+
+/** Evidence sections on the root page that a root-sense passage can point to.
+ *  poetry is the best section for its poetic evidence: the root-level
+ *  comparison, else the contemporaneous lexicon, else the classical
+ *  dictionaries where the poet is quoted. */
+export interface CoreEvidence {
+  root: string;
+  poetry: 'comparison' | 'lexicon' | 'dictionary' | null;
+  cognates: boolean;
+  dictionary: boolean;
 }
 
 export interface GrammarTerm {

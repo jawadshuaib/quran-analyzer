@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type { VerseData, Word, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon } from '../types';
+import type { CoreEvidence, VerseData, Word, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon } from '../types';
 import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry, fetchVerseRootLexicon } from '../api/quran';
 import RootLexiconPanel from './RootLexiconPanel';
 import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from './FormattedText';
@@ -122,6 +122,12 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   function getCoreMeaning(word: Word): string | undefined {
     const lemma = word.segments.find((s) => s.lemma_arabic)?.lemma_arabic;
     return lemma ? data.core_meanings?.[lemma] : undefined;
+  }
+
+  // Which root-page sections back that passage, so the tooltip can link them.
+  function getCoreEvidence(word: Word): CoreEvidence | undefined {
+    const lemma = word.segments.find((s) => s.lemma_arabic)?.lemma_arabic;
+    return lemma ? data.core_evidence?.[lemma] : undefined;
   }
 
   // Reset state when verse changes
@@ -557,6 +563,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                 <WordTooltip
                   word={wordData}
                   coreMeaning={getCoreMeaning(wordData)}
+                  coreEvidence={getCoreEvidence(wordData)}
                   aiMeaning={wordMeanings[String(pos)]?.meaning_short}
                   wordDetailUrl={wordMeanings[String(pos)]?.has_detail ? `/word/${data.surah}:${data.ayah}/${pos}` : undefined}
                   preferredTranslation={wordMeanings[String(pos)]?.preferred_translation}

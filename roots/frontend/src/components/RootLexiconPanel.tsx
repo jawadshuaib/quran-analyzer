@@ -16,7 +16,7 @@ const STRENGTH_LABEL: Record<string, string> = {
   unattested: 'not attested',
 };
 
-function StrengthBadge({ strength }: { strength: string }) {
+export function StrengthBadge({ strength }: { strength: string }) {
   const unattested = strength === 'unattested' || strength === 'thin';
   return (
     <span

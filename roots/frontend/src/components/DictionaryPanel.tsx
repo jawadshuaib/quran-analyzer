@@ -162,7 +162,7 @@ export default function DictionaryPanel({ rootBw }: { rootBw: string }) {
   if (!data || data.count === 0) return null;
 
   return (
-    <section className="mb-8">
+    <section id="dictionaries" className="mb-8 scroll-mt-24">
       <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-stone-500">
         Classical Dictionaries
       </h2>
