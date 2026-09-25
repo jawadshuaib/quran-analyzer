@@ -1,5 +1,7 @@
+import { Fragment, type ReactNode } from 'react';
 import type { Word } from '../types';
 import { wrapArabicRuns } from '../utils/arabic-runs';
+import { verseUrl } from '../utils/urls';
 import {
   HIGHLIGHT_COLORS,
   HIGHLIGHT_SWATCH,
@@ -19,6 +21,47 @@ export interface WordHighlightTarget {
   activeColor?: HighlightColor;
   /** Verse text carried onto the auto-saved item, as with drag-highlighting. */
   meta?: VerseMeta;
+}
+
+// "2:173", "83:27-28", "56:15–16". The lookbehind (not \b) still catches the
+// digits in "Q47:15".
+const VERSE_REF_RE = /(?<!\d)(\d{1,3}):(\d{1,3})(?:[–-]\d{1,3})?(?!\d)/g;
+
+/** The root-sense passage with each verse it cites linked to that verse, in a
+ *  new tab so the reader keeps their place. Plain links rather than
+ *  VerseRefText's hover previews: a second popup opening out of this one would
+ *  fight it for the pointer. A range links to its first verse. */
+function linkVerseRefs(text: string): ReactNode {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  VERSE_REF_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = VERSE_REF_RE.exec(text)) !== null) {
+    const surah = Number(m[1]);
+    const ayah = Number(m[2]);
+    if (surah < 1 || surah > 114 || ayah < 1) continue;
+    if (m.index > last) {
+      parts.push(<Fragment key={`t-${last}`}>{wrapArabicRuns(text.slice(last, m.index))}</Fragment>);
+    }
+    parts.push(
+      <a
+        key={`v-${m.index}`}
+        href={verseUrl(surah, ayah)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-violet-600 underline decoration-violet-300 underline-offset-2 hover:text-violet-800 hover:decoration-violet-500"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {m[0]}
+      </a>,
+    );
+    last = m.index + m[0].length;
+  }
+  if (last === 0) return wrapArabicRuns(text);
+  if (last < text.length) {
+    parts.push(<Fragment key={`t-${last}`}>{wrapArabicRuns(text.slice(last))}</Fragment>);
+  }
+  return parts;
 }
 
 interface Props {
@@ -161,7 +204,7 @@ export default function WordTooltip({ word, coreMeaning, aiMeaning, wordDetailUr
             Root Sense
           </div>
           <div className="text-xs leading-relaxed text-stone-600">
-            {wrapArabicRuns(coreMeaning)}
+            {linkVerseRefs(coreMeaning)}
           </div>
         </div>
       )}
