@@ -7,30 +7,8 @@ import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 /** Per-verse, word-by-word contemporaneous-attestation lexicon.
  *  Shows, for each content word, what its root is *attested* to mean in
  *  authenticated 6th-century poetry — evidence for the Qurʾān's own usage,
- *  never a later codified definition. Words with no entry are skipped. */
-
-const STRENGTH_LABEL: Record<string, string> = {
-  rich: 'richly attested',
-  moderate: 'attested',
-  thin: 'thinly attested',
-  unattested: 'not attested',
-};
-
-export function StrengthBadge({ strength }: { strength: string }) {
-  const unattested = strength === 'unattested' || strength === 'thin';
-  return (
-    <span
-      className={
-        'rounded-full px-1.5 py-0.5 text-[10px] font-medium ' +
-        (unattested
-          ? 'bg-stone-100 text-stone-500'
-          : 'bg-amber-100 text-amber-700')
-      }
-    >
-      {STRENGTH_LABEL[strength] ?? strength}
-    </span>
-  );
-}
+ *  never a later codified definition. Words with no entry are skipped. No
+ *  one-word attestation label is shown; the senses make the case. */
 
 function WordRow({ w, grammarTerms }: { w: VerseRootLexiconWord; grammarTerms: Record<string, GrammarTerm> | null }) {
   const [open, setOpen] = useState(false);
@@ -51,7 +29,6 @@ function WordRow({ w, grammarTerms }: { w: VerseRootLexiconWord; grammarTerms: R
             <span className="font-arabic text-sm text-amber-700" dir="rtl">
               {w.root_arabic}
             </span>
-            <StrengthBadge strength={lex.attestation_strength} />
           </span>
           <span className="mt-0.5 block text-sm text-stone-600">
             {senseList.length > 0

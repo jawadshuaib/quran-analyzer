@@ -12,10 +12,10 @@ export type SenseSegment =
 // digits in "Q47:15".
 const VERSE_REF_RE = /(?<!\d)(\d{1,3}):(\d{1,3})(?:[–-]\d{1,3})?(?!\d)/g;
 
-// How the passages speak of the poetry: "the old poetry", "a pre-Islamic poet",
-// "an old poem". Bare "verse"/"line" are left alone -- in these passages they
+// How the passages speak of the poetry: "pre-Islamic poetry", "a pre-Islamic
+// poet", "pre-Islamic raid poetry" (older passages said "the old poetry"). Bare "verse"/"line" are left alone -- in these passages they
 // usually mean a verse of the Qur'an.
-const POETRY_RE = /\b(?:pre-Islamic (?:poets?|poetry|verse)|old (?:poetry|poets?|poems?|verse|line)|poets?|poetry)\b/i;
+const POETRY_RE = /\b(?:pre-Islamic (?:raid )?(?:poets?|poetry|poems?|verse|lines?)|old (?:poetry|poets?|poems?|verse|line)|poets?|poetry)\b/i;
 
 // A run of named languages ("Akkadian, Hebrew and Ugaritic") links as one span;
 // failing a name, the generic "sister languages" / "the cognates".

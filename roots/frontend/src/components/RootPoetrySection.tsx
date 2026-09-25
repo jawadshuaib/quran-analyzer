@@ -18,7 +18,7 @@ import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
  *  one-word label (attestation strength, shift type) is shown, the prose makes
  *  its case; and the lexicon's own notes fold away when a comparison is
  *  there to read. Mounted with key={rootBw}; auto-hides when a root has neither.
- *  This is what a root-sense passage's "the old poetry" links to (#poetry). */
+ *  This is what a root-sense passage's "pre-Islamic poetry" links to (#poetry). */
 export default function RootPoetrySection({ rootBw }: { rootBw: string }) {
   const [lexicon, setLexicon] = useState<RootLexiconEntry | null>(null);
   const [comparison, setComparison] = useState<RootPoetryComparison | null>(null);
