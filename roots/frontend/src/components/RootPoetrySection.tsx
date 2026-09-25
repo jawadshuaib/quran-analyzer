@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { RootLexiconEntry, RootPoetryComparison } from '../types';
 import { fetchRootLexicon, fetchRootPoetry } from '../api/quran';
 import FormattedText from './FormattedText';
-import { StrengthBadge } from './RootLexiconPanel';
 import { PoetryComparisonBody, POETRY_SOURCE_NOTE } from './PoetryComparison';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
@@ -11,12 +10,13 @@ import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
  *
  *  - the contemporaneous lexicon (255 roots): what the root is *attested* to
  *    mean in 6th-century poetry, sense by sense -- the evidence;
- *  - the comparison (60 roots): how that usage stands against the Qurʾān's,
- *    with a verdict -- the reading of the evidence.
+ *  - the comparison (60 roots): how that usage stands against the Qurʾān's
+ *    -- the reading of the evidence.
  *
  *  They used to be two sections, and a root with both showed two essays with
- *  two different verdicts. Here the senses come first, the comparison carries
- *  the only verdict, and the lexicon's own notes fold away when a comparison is
+ *  two different verdicts. Here the senses come first, then the comparison; no
+ *  one-word label (attestation strength, shift type) is shown, the prose makes
+ *  its case; and the lexicon's own notes fold away when a comparison is
  *  there to read. Mounted with key={rootBw}; auto-hides when a root has neither.
  *  This is what a root-sense passage's "the old poetry" links to (#poetry). */
 export default function RootPoetrySection({ rootBw }: { rootBw: string }) {
@@ -66,7 +66,6 @@ export default function RootPoetrySection({ rootBw }: { rootBw: string }) {
           <div>
             <div className="mb-2 flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-amber-800">What the poetry attests</span>
-              <StrengthBadge strength={lexicon.attestation_strength} />
               {lexicon.poetry_occurrences > 0 && (
                 <span className="text-[11px] text-stone-500">
                   {lexicon.poetry_occurrences} line{lexicon.poetry_occurrences === 1 ? '' : 's'} in the corpus

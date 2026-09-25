@@ -3,7 +3,8 @@ import FormattedText from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 
 /** A root's pre-Islamic poetry comparison: how the poets used the root set
- *  against how the Qurʾān does, with a verdict. Rendered inside the root page's
+ *  against how the Qurʾān does. The essay makes its own case; the one-word
+ *  verdict it was filed under (shift_type) is not shown as a label. Rendered inside the root page's
  *  RootPoetrySection, after the senses the poetry attests. A warm sand palette
  *  sets it apart from the violet AI-meaning panel and the indigo cognates: this
  *  one looks *backward in time* rather than outward across languages.
@@ -16,7 +17,7 @@ export const POETRY_SOURCE_NOTE =
   'Drawn from the most reliably transmitted pre-Islamic poetry (the Muʿallaqāt and major ' +
   'dīwāns). Hover a highlighted line for the poet and translation; tap it to read the full poem.';
 
-/** The comparison itself: verdict, prose, and the company the word keeps. */
+/** The comparison itself: its prose and the company the word keeps. */
 export function PoetryComparisonBody({
   data,
   rootBw,
@@ -26,22 +27,9 @@ export function PoetryComparisonBody({
   rootBw: string;
   grammarTerms?: Record<string, GrammarTerm> | null;
 }) {
-  const verdict = data.continuity ? 'continuity' : data.shift_type;
   const colloc = data.collocations;
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <span
-          className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-            data.continuity
-              ? 'bg-emerald-100 text-emerald-700'
-              : 'bg-amber-200/70 text-amber-900'
-          }`}
-        >
-          {verdict}
-        </span>
-      </div>
-
       {/* the comparison prose — poetic lines are linked inline (the [[q:…]]
           markers resolve against quoted_lines into hover-tooltip links) */}
       <FormattedText
