@@ -772,6 +772,31 @@ export interface DictionaryRootItem {
   gloss: string | null;
 }
 
+/** /api/dictionary/search — why a root matched the query. */
+export interface DictionarySearchReason {
+  kind: 'root' | 'word' | 'alias' | 'gloss' | 'dictionary' | 'semantic' | 'guess';
+  label: string;
+  dictionary_slug?: string;
+  snippet?: string;
+  detail?: string;
+}
+
+export interface DictionarySearchResult {
+  buckwalter: string;
+  arabic: string;
+  gloss: string | null;
+  entries: number;
+  score: number;
+  reasons: DictionarySearchReason[];
+}
+
+export interface DictionarySearchResponse {
+  query: string;
+  results: DictionarySearchResult[];
+  engine?: { lexical: boolean; dense: string | null; fts: boolean };
+  degraded?: boolean;
+}
+
 export interface DictionaryRootsResponse {
   root_count: number;
   entry_count: number;

@@ -1,0 +1,2075 @@
+{
+ "version": 1,
+ "notes": "Gold set for the /dictionary page search (1,639 roots from GET /api/dictionary-roots). A query passes if ANY id in 'expect' appears in the top k results. Ids are the site's case-sensitive Buckwalter root ids (hamza/alif = A, so أمن -> Amn, سأل -> sAl, قرأ -> qrA). k=1 for exact root notations; 3-5 for words and meanings; no-result rows (expect [], k 0) pass if the search returns without error (results allowed but none expected). Expected roots come from the corpus morphology (quran.db morphology/word_glosses) and the displayed dictionary entries (_dict_guide_tool.py); dictionary-sense rows name meanings that are absent from the one-line glosses but recorded in at least two classical dictionaries. Written blind to any search implementation.",
+ "queries": [
+  {
+   "q": "kfr",
+   "category": "bw-exact",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for كفر; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "Elm",
+   "category": "bw-exact",
+   "expect": [
+    "Elm"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for علم; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "$kr",
+   "category": "bw-exact",
+   "expect": [
+    "$kr"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for شكر; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "*kr",
+   "category": "bw-exact",
+   "expect": [
+    "*kr"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for ذكر; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "Amn",
+   "category": "bw-exact",
+   "expect": [
+    "Amn"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for امن; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "rHm",
+   "category": "bw-exact",
+   "expect": [
+    "rHm"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for رحم; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "xlq",
+   "category": "bw-exact",
+   "expect": [
+    "xlq"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for خلق; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "qwl",
+   "category": "bw-exact",
+   "expect": [
+    "qwl"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for قول; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "Swm",
+   "category": "bw-exact",
+   "expect": [
+    "Swm"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for صوم; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "Tlb",
+   "category": "bw-exact",
+   "expect": [
+    "Tlb"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for طلب; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "Zlm",
+   "category": "bw-exact",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for ظلم; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "gfr",
+   "category": "bw-exact",
+   "expect": [
+    "gfr"
+   ],
+   "k": 1,
+   "why": "Exact site Buckwalter id for غفر; must be the top hit (ids are case-sensitive)."
+  },
+  {
+   "q": "dxn",
+   "category": "bw-exact",
+   "expect": [
+    "dxn"
+   ],
+   "k": 1,
+   "why": "Exact id for دخن (smoke); a rarer root, 7 dictionary entries."
+  },
+  {
+   "q": "Enkb",
+   "category": "bw-exact",
+   "expect": [
+    "Enkb"
+   ],
+   "k": 1,
+   "why": "Exact 4-letter id for عنكب (spider, 29:41); tests quadriliteral ids."
+  },
+  {
+   "q": "k-f-r",
+   "category": "root-hyphen",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Hyphenated root notation for ك ف ر; the owner's headline example."
+  },
+  {
+   "q": "kh-l-q",
+   "category": "root-hyphen",
+   "expect": [
+    "xlq"
+   ],
+   "k": 1,
+   "why": "Digraph kh = خ (Buckwalter x); only xlq exists."
+  },
+  {
+   "q": "sh-k-r",
+   "category": "root-hyphen",
+   "expect": [
+    "$kr"
+   ],
+   "k": 1,
+   "why": "Digraph sh = ش (Buckwalter $)."
+  },
+  {
+   "q": "dh-k-r",
+   "category": "root-hyphen",
+   "expect": [
+    "*kr"
+   ],
+   "k": 1,
+   "why": "Digraph dh = ذ (Buckwalter *); ض-k-r does not exist, so unambiguous."
+  },
+  {
+   "q": "gh-f-r",
+   "category": "root-hyphen",
+   "expect": [
+    "gfr"
+   ],
+   "k": 1,
+   "why": "Digraph gh = غ (Buckwalter g)."
+  },
+  {
+   "q": "th-w-b",
+   "category": "root-hyphen",
+   "expect": [
+    "vwb"
+   ],
+   "k": 1,
+   "why": "Digraph th = ث (Buckwalter v); ثوب (thawāb/thiyāb)."
+  },
+  {
+   "q": "k–f–r",
+   "category": "root-hyphen",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "En-dash separators (pasted from typeset text) should behave like hyphens."
+  },
+  {
+   "q": "k f r",
+   "category": "root-spaced",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Space-separated root letters."
+  },
+  {
+   "q": "kh l q",
+   "category": "root-spaced",
+   "expect": [
+    "xlq"
+   ],
+   "k": 1,
+   "why": "Space-separated with a digraph (kh = خ)."
+  },
+  {
+   "q": "r h m",
+   "category": "root-spaced",
+   "expect": [
+    "rHm"
+   ],
+   "k": 1,
+   "why": "Space-separated; plain h must be read as ح (no ر ه م root exists)."
+  },
+  {
+   "q": "k.f.r",
+   "category": "root-dotted",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Dot-separated root letters."
+  },
+  {
+   "q": "k/f/r",
+   "category": "root-slashed",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Slash-separated root letters."
+  },
+  {
+   "q": "sh.k.r",
+   "category": "root-dotted",
+   "expect": [
+    "$kr"
+   ],
+   "k": 1,
+   "why": "Dot-separated with a digraph (sh = ش)."
+  },
+  {
+   "q": "KFR",
+   "category": "root-uppercase",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Upper-case root; case-folding must not break it (Buckwalter uppercase would otherwise mean emphatics, but K/F/R have no uppercase BW meaning)."
+  },
+  {
+   "q": "KTB",
+   "category": "root-uppercase",
+   "expect": [
+    "ktb"
+   ],
+   "k": 1,
+   "why": "Upper-case root; ك ت ب."
+  },
+  {
+   "q": "SH-K-R",
+   "category": "root-uppercase",
+   "expect": [
+    "$kr"
+   ],
+   "k": 1,
+   "why": "Upper-case hyphenated digraph; SH must fold to sh = ش, not ص + ه."
+  },
+  {
+   "q": "ḥ-m-d",
+   "category": "root-scholarly",
+   "expect": [
+    "Hmd"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ḥ (h-dot) = ح; distinguishes from همد."
+  },
+  {
+   "q": "ʿ-l-m",
+   "category": "root-scholarly",
+   "expect": [
+    "Elm"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ʿ (ayn, U+02BF) = ع."
+  },
+  {
+   "q": "ʾ-m-n",
+   "category": "root-scholarly",
+   "expect": [
+    "Amn"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ʾ (hamza, U+02BE) = ء/ا; site id Amn."
+  },
+  {
+   "q": "ṣ-b-r",
+   "category": "root-scholarly",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ṣ = ص."
+  },
+  {
+   "q": "ḍ-r-b",
+   "category": "root-scholarly",
+   "expect": [
+    "Drb"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ḍ = ض."
+  },
+  {
+   "q": "ṭ-l-b",
+   "category": "root-scholarly",
+   "expect": [
+    "Tlb"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ṭ = ط."
+  },
+  {
+   "q": "ẓ-l-m",
+   "category": "root-scholarly",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ẓ = ظ; distinguishes from زلم (divining arrows)."
+  },
+  {
+   "q": "ʿ-b-d",
+   "category": "root-scholarly",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ʿ = ع; distinguishes from ابد."
+  },
+  {
+   "q": "ʾ-l-h",
+   "category": "root-scholarly",
+   "expect": [
+    "Alh"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: ʾ = hamza; site id Alh (اله)."
+  },
+  {
+   "q": "š-k-r",
+   "category": "root-scholarly",
+   "expect": [
+    "$kr"
+   ],
+   "k": 1,
+   "why": "Scholarly transliteration with diacritics: DMG/German-style š = ش."
+  },
+  {
+   "q": "'-m-n",
+   "category": "root-scholarly-substitute",
+   "expect": [
+    "Amn"
+   ],
+   "k": 1,
+   "why": "ASCII apostrophe for ʾ; ع-م-ن does not exist, so only امن fits."
+  },
+  {
+   "q": "`-l-m",
+   "category": "root-scholarly-substitute",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "Backtick is the usual ASCII stand-in for ʿ (علم); ألم (Alm) is a possible misreading, hence k=3."
+  },
+  {
+   "q": "'lm",
+   "category": "root-scholarly-substitute",
+   "expect": [
+    "Elm",
+    "Alm"
+   ],
+   "k": 3,
+   "why": "Apostrophe could be ʿ (علم, knowledge) or ʾ (ألم, pain); both exist."
+  },
+  {
+   "q": "'-b-d",
+   "category": "root-scholarly-substitute",
+   "expect": [
+    "Ebd",
+    "Abd"
+   ],
+   "k": 3,
+   "why": "Apostrophe could be ʿ (عبد, serve) or ʾ (ابد, eternity); both exist."
+  },
+  {
+   "q": "3lm",
+   "category": "root-arabizi",
+   "expect": [
+    "Elm"
+   ],
+   "k": 1,
+   "why": "Arabizi (chat alphabet) digits: 3 = ع."
+  },
+  {
+   "q": "7md",
+   "category": "root-arabizi",
+   "expect": [
+    "Hmd"
+   ],
+   "k": 1,
+   "why": "Arabizi (chat alphabet) digits: 7 = ح."
+  },
+  {
+   "q": "5lq",
+   "category": "root-arabizi",
+   "expect": [
+    "xlq"
+   ],
+   "k": 1,
+   "why": "Arabizi (chat alphabet) digits: 5 = خ."
+  },
+  {
+   "q": "9br",
+   "category": "root-arabizi",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 1,
+   "why": "Arabizi (chat alphabet) digits: 9 = ص."
+  },
+  {
+   "q": "2mn",
+   "category": "root-arabizi",
+   "expect": [
+    "Amn"
+   ],
+   "k": 1,
+   "why": "Arabizi (chat alphabet) digits: 2 = ء."
+  },
+  {
+   "q": "3'fr",
+   "category": "root-arabizi",
+   "expect": [
+    "gfr"
+   ],
+   "k": 1,
+   "why": "Arabizi (chat alphabet) digits: 3' = غ."
+  },
+  {
+   "q": "hmd",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "Hmd",
+    "hmd"
+   ],
+   "k": 3,
+   "why": "h may be ح or ه: حمد (praise, very common) and همد (barren, 22:5) both exist; hmd is also همد's exact id."
+  },
+  {
+   "q": "slh",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "SlH",
+    "slH"
+   ],
+   "k": 3,
+   "why": "s may be ص and h may be ح: صلح (righteousness, common) and سلح (weapons) both exist."
+  },
+  {
+   "q": "sbr",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "Undotted s-b-r: only صبر exists (no سبر root)."
+  },
+  {
+   "q": "dll",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "Dll",
+    "dll"
+   ],
+   "k": 3,
+   "why": "d may be ض: ضلل (go astray, common) and دلل (guide to; also dll's exact id) both exist."
+  },
+  {
+   "q": "tlb",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "Tlb"
+   ],
+   "k": 3,
+   "why": "Undotted t = ط; only طلب exists."
+  },
+  {
+   "q": "zlm",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "Zlm",
+    "zlm"
+   ],
+   "k": 3,
+   "why": "z may be ظ: ظلم (wrong, very common) and زلم (divining arrows; zlm's exact id) both exist."
+  },
+  {
+   "q": "hsb",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "Hsb",
+    "HSb"
+   ],
+   "k": 3,
+   "why": "حسب (reckon, common) is the intended one; حصب (pebbles) is also reachable via s = ص."
+  },
+  {
+   "q": "nzr",
+   "category": "root-latin-ambiguous",
+   "expect": [
+    "nZr",
+    "n*r"
+   ],
+   "k": 3,
+   "why": "z may be ظ (نظر, look) or ذ (نذر, warn/vow); no plain نزر root exists."
+  },
+  {
+   "q": "كفر",
+   "category": "arabic-root-letters",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Bare Arabic root letters."
+  },
+  {
+   "q": "ك ف ر",
+   "category": "arabic-root-letters",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Space-separated Arabic root letters (the notation the site itself displays)."
+  },
+  {
+   "q": "ك-ف-ر",
+   "category": "arabic-root-letters",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Hyphen-separated Arabic root letters."
+  },
+  {
+   "q": "ك.ف.ر",
+   "category": "arabic-root-letters",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "Dot-separated Arabic root letters."
+  },
+  {
+   "q": "دخن",
+   "category": "arabic-root-letters",
+   "expect": [
+    "dxn"
+   ],
+   "k": 1,
+   "why": "Bare Arabic root letters of a rarer root (smoke)."
+  },
+  {
+   "q": "ع ل م",
+   "category": "arabic-root-letters",
+   "expect": [
+    "Elm"
+   ],
+   "k": 1,
+   "why": "Space-separated Arabic root letters."
+  },
+  {
+   "q": "أمن",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "Amn"
+   ],
+   "k": 1,
+   "why": "Hamza on alif; site stores the root as امن (id Amn)."
+  },
+  {
+   "q": "امن",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "Amn"
+   ],
+   "k": 1,
+   "why": "Bare alif, exactly as the site spells the root."
+  },
+  {
+   "q": "ءمن",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "Amn"
+   ],
+   "k": 1,
+   "why": "Standalone hamza for the first radical."
+  },
+  {
+   "q": "سأل",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "sAl"
+   ],
+   "k": 1,
+   "why": "Hamza on alif in the middle radical; site spells it سال."
+  },
+  {
+   "q": "سال",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "sAl",
+    "syl"
+   ],
+   "k": 3,
+   "why": "Hamza-less spelling is the site's form of سأل (ask), but سال is also the past tense of سيل (to flow, 13:17)."
+  },
+  {
+   "q": "قرأ",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "qrA"
+   ],
+   "k": 1,
+   "why": "Final hamza on alif; site stores قرا (id qrA)."
+  },
+  {
+   "q": "قرا",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "qrA"
+   ],
+   "k": 1,
+   "why": "Hamza-less spelling, exactly as the site spells it."
+  },
+  {
+   "q": "ملأ",
+   "category": "arabic-hamza-variant",
+   "expect": [
+    "mlA"
+   ],
+   "k": 1,
+   "why": "Final hamza; site stores ملا (fill / the chiefs)."
+  },
+  {
+   "q": "كَفَرُوا",
+   "category": "arabic-word-vowelled",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "Fully vowelled perfect verb 'they disbelieved' (morphology: root kfr, 189x)."
+  },
+  {
+   "q": "يَعْلَمُونَ",
+   "category": "arabic-word-vowelled",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "Vowelled imperfect 'they know' (morphology: Elm)."
+  },
+  {
+   "q": "رَحْمَة",
+   "category": "arabic-word-vowelled",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Vowelled noun 'mercy' (morphology: rHm)."
+  },
+  {
+   "q": "ٱلْكِتَٰبِ",
+   "category": "arabic-word-vowelled",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "Uthmani spelling with wasla and dagger alif, 'the Book' (morphology: ktb)."
+  },
+  {
+   "q": "ٱلصَّلَوٰةَ",
+   "category": "arabic-word-vowelled",
+   "expect": [
+    "Slw"
+   ],
+   "k": 3,
+   "why": "Uthmani spelling of al-ṣalāh with waw + dagger alif (morphology: Slw)."
+  },
+  {
+   "q": "ٱسْتَغْفِرُوا",
+   "category": "arabic-word-vowelled",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "Form X imperative 'ask forgiveness' — prefix ist- hides the root (morphology: gfr)."
+  },
+  {
+   "q": "قَالُوا",
+   "category": "arabic-word-vowelled",
+   "expect": [
+    "qwl"
+   ],
+   "k": 3,
+   "why": "Hollow verb: the middle radical و surfaces as alif (morphology: qwl, 250x)."
+  },
+  {
+   "q": "يعلمون",
+   "category": "arabic-word-plain",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "Unvowelled imperfect 'they know' (morphology: Elm, 82x)."
+  },
+  {
+   "q": "الرحمن",
+   "category": "arabic-word-plain",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "The divine name al-Raḥmān, modern spelling without dagger alif (morphology: rHm)."
+  },
+  {
+   "q": "المؤمنين",
+   "category": "arabic-word-plain",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "'The believers', hamza on waw (morphology: Amn)."
+  },
+  {
+   "q": "الصلاة",
+   "category": "arabic-word-plain",
+   "expect": [
+    "Slw"
+   ],
+   "k": 3,
+   "why": "Modern spelling of al-ṣalāh (the Qur'an writes الصلوة); root صلو."
+  },
+  {
+   "q": "القرآن",
+   "category": "arabic-word-plain",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "Modern spelling with madda (the Qur'an writes القرءان); root قرا."
+  },
+  {
+   "q": "الشيطان",
+   "category": "arabic-word-plain",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "Modern spelling with alif (the Qur'an writes الشيطن); root شطن."
+  },
+  {
+   "q": "والكتاب",
+   "category": "arabic-with-clitics",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "wa- + al- prefixes on كتاب (morphology: ktb)."
+  },
+  {
+   "q": "بالله",
+   "category": "arabic-with-clitics",
+   "expect": [
+    "Alh"
+   ],
+   "k": 3,
+   "why": "bi- preposition + Allah (morphology: Alh, 139x)."
+  },
+  {
+   "q": "فسبح",
+   "category": "arabic-with-clitics",
+   "expect": [
+    "sbH"
+   ],
+   "k": 3,
+   "why": "fa- conjunction + imperative 'glorify' (morphology: sbH)."
+  },
+  {
+   "q": "وللمؤمنين",
+   "category": "arabic-with-clitics",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "wa- + li- + al- stacked on 'believers' (morphology: Amn)."
+  },
+  {
+   "q": "فاستغفروا",
+   "category": "arabic-with-clitics",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "fa- + Form X imperative (morphology: gfr)."
+  },
+  {
+   "q": "فصل",
+   "category": "arabic-with-clitics",
+   "expect": [
+    "Slw",
+    "fSl"
+   ],
+   "k": 5,
+   "why": "Ambiguous: faṣl/faṣala (separate, root fSl, 3x) or fa-ṣalli 'so pray' (108:2, root Slw) — morphology records both."
+  },
+  {
+   "q": "kafara",
+   "category": "translit-word",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: 'he disbelieved' — كفر."
+  },
+  {
+   "q": "kafir",
+   "category": "translit-word",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: kāfir, 'disbeliever' — كفر."
+  },
+  {
+   "q": "kuffar",
+   "category": "translit-word",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: kuffār, plural of kāfir — كفر; doubled f."
+  },
+  {
+   "q": "rahma",
+   "category": "translit-word",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: raḥma 'mercy' — رحم."
+  },
+  {
+   "q": "rahmah",
+   "category": "translit-word",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: raḥmah with final h for tā' marbūṭa — رحم."
+  },
+  {
+   "q": "rahman",
+   "category": "translit-word",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: al-Raḥmān — رحم."
+  },
+  {
+   "q": "raheem",
+   "category": "translit-word",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: al-Raḥīm, 'ee' spelling of ī — رحم."
+  },
+  {
+   "q": "istighfar",
+   "category": "translit-word",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: istighfār (Form X verbal noun) — غفر; prefix ist- must be seen through."
+  },
+  {
+   "q": "maghfira",
+   "category": "translit-word",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: maghfira 'forgiveness' (m- prefix) — غفر."
+  },
+  {
+   "q": "jannah",
+   "category": "translit-word",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "Common transliteration: janna 'garden' — جنن."
+  },
+  {
+   "q": "taqwa",
+   "category": "translit-word",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "Common transliteration: taqwā — root وقي (the t is from the Form VIII assimilation, not a radical)."
+  },
+  {
+   "q": "zakat",
+   "category": "translit-word",
+   "expect": [
+    "zkw"
+   ],
+   "k": 3,
+   "why": "Common transliteration: zakāt — زكو."
+  },
+  {
+   "q": "salat",
+   "category": "translit-word",
+   "expect": [
+    "Slw"
+   ],
+   "k": 3,
+   "why": "Common transliteration: ṣalāt 'prayer' — صلو."
+  },
+  {
+   "q": "salah",
+   "category": "translit-word",
+   "expect": [
+    "Slw",
+    "SlH"
+   ],
+   "k": 3,
+   "why": "Common transliteration: Usually ṣalāh (prayer, صلو) but also ṣalāḥ (righteousness, صلح)."
+  },
+  {
+   "q": "sabr",
+   "category": "translit-word",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: ṣabr 'patience' — صبر."
+  },
+  {
+   "q": "shukr",
+   "category": "translit-word",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: shukr 'gratitude' — شكر."
+  },
+  {
+   "q": "dhikr",
+   "category": "translit-word",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: dhikr 'remembrance' — ذكر."
+  },
+  {
+   "q": "zikr",
+   "category": "translit-word",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: South-Asian/Persian pronunciation of dhikr (z for ذ) — ذكر."
+  },
+  {
+   "q": "qalb",
+   "category": "translit-word",
+   "expect": [
+    "qlb"
+   ],
+   "k": 3,
+   "why": "Common transliteration: qalb 'heart' — قلب."
+  },
+  {
+   "q": "nafs",
+   "category": "translit-word",
+   "expect": [
+    "nfs"
+   ],
+   "k": 3,
+   "why": "Common transliteration: nafs 'soul/self' — نفس."
+  },
+  {
+   "q": "ruh",
+   "category": "translit-word",
+   "expect": [
+    "rwH"
+   ],
+   "k": 3,
+   "why": "Common transliteration: rūḥ 'spirit' — hollow root روح."
+  },
+  {
+   "q": "iman",
+   "category": "translit-word",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "Common transliteration: īmān 'faith' — امن (initial hamza not written)."
+  },
+  {
+   "q": "islam",
+   "category": "translit-word",
+   "expect": [
+    "slm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: islām — سلم (Form IV verbal noun)."
+  },
+  {
+   "q": "kitab",
+   "category": "translit-word",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "Common transliteration: kitāb 'book' — كتب."
+  },
+  {
+   "q": "quran",
+   "category": "translit-word",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "Common transliteration: qur'ān — قرا (not قرن, which the bare consonants q-r-n would suggest)."
+  },
+  {
+   "q": "allah",
+   "category": "translit-word",
+   "expect": [
+    "Alh"
+   ],
+   "k": 3,
+   "why": "Common transliteration: Allāh — the corpus assigns root اله (Alh)."
+  },
+  {
+   "q": "rabb",
+   "category": "translit-word",
+   "expect": [
+    "rbb"
+   ],
+   "k": 3,
+   "why": "Common transliteration: rabb 'Lord' — ربب."
+  },
+  {
+   "q": "hajj",
+   "category": "translit-word",
+   "expect": [
+    "Hjj"
+   ],
+   "k": 3,
+   "why": "Common transliteration: ḥajj 'pilgrimage' — حجج."
+  },
+  {
+   "q": "sawm",
+   "category": "translit-word",
+   "expect": [
+    "Swm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: ṣawm 'fasting' — صوم (not سوم, 'mark', despite the letters)."
+  },
+  {
+   "q": "siyam",
+   "category": "translit-word",
+   "expect": [
+    "Swm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: ṣiyām 'fasting' — hollow root صوم with w→y."
+  },
+  {
+   "q": "jihad",
+   "category": "translit-word",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "Common transliteration: jihād — جهد."
+  },
+  {
+   "q": "shaytan",
+   "category": "translit-word",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "Common transliteration: shayṭān — شطن."
+  },
+  {
+   "q": "iblis",
+   "category": "translit-word",
+   "expect": [
+    "bls"
+   ],
+   "k": 5,
+   "why": "Common transliteration: Iblīs has no root in the corpus morphology, but the dictionaries under بلس (10 of them) derive the name from ablasa 'to despair'."
+  },
+  {
+   "q": "malak",
+   "category": "translit-word",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "Common transliteration: malak 'angel' — the corpus and dictionaries put it under ملك."
+  },
+  {
+   "q": "nabi",
+   "category": "translit-word",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "Common transliteration: nabī 'prophet' — corpus root نبا (nbA)."
+  },
+  {
+   "q": "rasul",
+   "category": "translit-word",
+   "expect": [
+    "rsl"
+   ],
+   "k": 3,
+   "why": "Common transliteration: rasūl 'messenger' — رسل."
+  },
+  {
+   "q": "dunya",
+   "category": "translit-word",
+   "expect": [
+    "dnw"
+   ],
+   "k": 3,
+   "why": "Common transliteration: al-dunyā 'the near/lower world' — دنو."
+  },
+  {
+   "q": "akhira",
+   "category": "translit-word",
+   "expect": [
+    "Axr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: al-ākhira 'the hereafter' — اخر."
+  },
+  {
+   "q": "qiyama",
+   "category": "translit-word",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "Common transliteration: yawm al-qiyāma — hollow root قوم."
+  },
+  {
+   "q": "hisab",
+   "category": "translit-word",
+   "expect": [
+    "Hsb"
+   ],
+   "k": 3,
+   "why": "Common transliteration: ḥisāb 'reckoning' — حسب."
+  },
+  {
+   "q": "ayah",
+   "category": "translit-word",
+   "expect": [
+    "Ayy"
+   ],
+   "k": 3,
+   "why": "Common transliteration: āya 'sign/verse' — site id Ayy (ايي)."
+  },
+  {
+   "q": "surah",
+   "category": "translit-word",
+   "expect": [
+    "swr"
+   ],
+   "k": 3,
+   "why": "Common transliteration: sūra 'chapter' — سور (not صور)."
+  },
+  {
+   "q": "mercy",
+   "category": "english-word",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "raḥma; gloss 'Mercy/compassion'."
+  },
+  {
+   "q": "forgive",
+   "category": "english-word",
+   "expect": [
+    "gfr",
+    "Efw",
+    "SfH"
+   ],
+   "k": 3,
+   "why": "ghafara / ʿafā / ṣafaḥa — all Qur'anic words for forgiving."
+  },
+  {
+   "q": "smoke",
+   "category": "english-word",
+   "expect": [
+    "dxn"
+   ],
+   "k": 3,
+   "why": "dukhān (44:10); gloss 'Smoke'."
+  },
+  {
+   "q": "book",
+   "category": "english-word",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "kitāb; ktb's gloss says 'Write/Record', not 'book' — needs semantics."
+  },
+  {
+   "q": "heart",
+   "category": "english-word",
+   "expect": [
+    "qlb",
+    "fAd",
+    "lbb"
+   ],
+   "k": 3,
+   "why": "qalb / fu'ād / lubb."
+  },
+  {
+   "q": "camel",
+   "category": "english-word",
+   "expect": [
+    "Abl",
+    "jml",
+    "nwq",
+    "bEr"
+   ],
+   "k": 5,
+   "why": "ibil / jamal (7:40) / nāqa / baʿīr — several camel words."
+  },
+  {
+   "q": "water",
+   "category": "english-word",
+   "expect": [
+    "mwh"
+   ],
+   "k": 3,
+   "why": "mā' — root موه."
+  },
+  {
+   "q": "fire",
+   "category": "english-word",
+   "expect": [
+    "nwr",
+    "Hrq",
+    "sEr",
+    "lhb",
+    "jHm"
+   ],
+   "k": 5,
+   "why": "nār is under نور; many other fire roots (burn, blaze, flame, hellfire) are fair."
+  },
+  {
+   "q": "light",
+   "category": "english-word",
+   "expect": [
+    "nwr",
+    "DwA"
+   ],
+   "k": 3,
+   "why": "nūr / ḍiyā'."
+  },
+  {
+   "q": "patience",
+   "category": "english-word",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "ṣabr; gloss says 'Endure / Restrain oneself'. حلم (forbearing) may also rank."
+  },
+  {
+   "q": "gratitude",
+   "category": "english-word",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "shukr; gloss 'Acknowledge favor' does not contain the word."
+  },
+  {
+   "q": "lie",
+   "category": "english-word",
+   "expect": [
+    "k*b",
+    "fry",
+    "Afk"
+   ],
+   "k": 3,
+   "why": "kadhib / iftirā' / ifk."
+  },
+  {
+   "q": "truth",
+   "category": "english-word",
+   "expect": [
+    "Hqq",
+    "Sdq"
+   ],
+   "k": 3,
+   "why": "ḥaqq / ṣidq."
+  },
+  {
+   "q": "fear",
+   "category": "english-word",
+   "expect": [
+    "xwf",
+    "x$y",
+    "rhb"
+   ],
+   "k": 5,
+   "why": "khawf / khashya / rahba — the Qur'an has ~10 fear roots, so k=5."
+  },
+  {
+   "q": "hope",
+   "category": "english-word",
+   "expect": [
+    "rjw",
+    "Aml",
+    "TmE",
+    "Esy"
+   ],
+   "k": 3,
+   "why": "rajā' / amal / ṭamaʿ / ʿasā."
+  },
+  {
+   "q": "death",
+   "category": "english-word",
+   "expect": [
+    "mwt"
+   ],
+   "k": 3,
+   "why": "mawt."
+  },
+  {
+   "q": "life",
+   "category": "english-word",
+   "expect": [
+    "Hyy"
+   ],
+   "k": 3,
+   "why": "ḥayāh."
+  },
+  {
+   "q": "day",
+   "category": "english-word",
+   "expect": [
+    "ywm",
+    "nhr"
+   ],
+   "k": 3,
+   "why": "yawm / nahār."
+  },
+  {
+   "q": "rain",
+   "category": "english-word",
+   "expect": [
+    "mTr",
+    "gyv",
+    "wbl"
+   ],
+   "k": 3,
+   "why": "maṭar / ghayth / wābil."
+  },
+  {
+   "q": "wind",
+   "category": "english-word",
+   "expect": [
+    "rwH",
+    "ESf"
+   ],
+   "k": 3,
+   "why": "rīḥ is under روح; ʿāṣif = storm wind."
+  },
+  {
+   "q": "sea",
+   "category": "english-word",
+   "expect": [
+    "bHr",
+    "ymm"
+   ],
+   "k": 3,
+   "why": "baḥr / yamm."
+  },
+  {
+   "q": "ant",
+   "category": "english-word",
+   "expect": [
+    "nml"
+   ],
+   "k": 3,
+   "why": "naml (27:18); nml's gloss ('Small creature/tip') does not say 'ant'."
+  },
+  {
+   "q": "spider",
+   "category": "english-word",
+   "expect": [
+    "Enkb"
+   ],
+   "k": 3,
+   "why": "ʿankabūt (29:41)."
+  },
+  {
+   "q": "blood",
+   "category": "english-word",
+   "expect": [
+    "sfk",
+    "Elq",
+    "nfs",
+    "HyD"
+   ],
+   "k": 5,
+   "why": "UNSURE: dam (root دمو) has no dictionary entry here; sfk (shed blood), Elq (clot), nfs (nafs = blood in the dictionaries) and HyD (menstrual blood) are the nearest roots."
+  },
+  {
+   "q": "iron",
+   "category": "english-word",
+   "expect": [
+    "Hdd"
+   ],
+   "k": 3,
+   "why": "ḥadīd (sura 57); Hdd's gloss is 'Boundary/Limit' — needs dictionary text or semantics."
+  },
+  {
+   "q": "gold",
+   "category": "english-word",
+   "expect": [
+    "*hb"
+   ],
+   "k": 3,
+   "why": "dhahab."
+  },
+  {
+   "q": "prayer",
+   "category": "english-word",
+   "expect": [
+    "Slw",
+    "dEw"
+   ],
+   "k": 3,
+   "why": "ṣalāh / duʿā'."
+  },
+  {
+   "q": "fasting",
+   "category": "english-word",
+   "expect": [
+    "Swm"
+   ],
+   "k": 3,
+   "why": "ṣawm / ṣiyām."
+  },
+  {
+   "q": "pilgrimage",
+   "category": "english-word",
+   "expect": [
+    "Hjj",
+    "Emr"
+   ],
+   "k": 3,
+   "why": "ḥajj / ʿumra."
+  },
+  {
+   "q": "charity",
+   "category": "english-word",
+   "expect": [
+    "Sdq",
+    "zkw"
+   ],
+   "k": 3,
+   "why": "ṣadaqa / zakāh — neither gloss says 'charity'."
+  },
+  {
+   "q": "justice",
+   "category": "english-word",
+   "expect": [
+    "Edl",
+    "qsT"
+   ],
+   "k": 3,
+   "why": "ʿadl / qisṭ."
+  },
+  {
+   "q": "oppression",
+   "category": "english-word",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓulm."
+  },
+  {
+   "q": "knowledge",
+   "category": "english-word",
+   "expect": [
+    "Elm",
+    "Erf"
+   ],
+   "k": 3,
+   "why": "ʿilm / maʿrifa."
+  },
+  {
+   "q": "ignorance",
+   "category": "english-word",
+   "expect": [
+    "jhl"
+   ],
+   "k": 3,
+   "why": "jahl."
+  },
+  {
+   "q": "usury",
+   "category": "english-word",
+   "expect": [
+    "rbw"
+   ],
+   "k": 3,
+   "why": "ribā (2:275); gloss 'Increase, growth' — needs semantics or dictionary text."
+  },
+  {
+   "q": "to deny the truth",
+   "category": "english-phrase",
+   "expect": [
+    "kfr",
+    "k*b",
+    "jHd"
+   ],
+   "k": 3,
+   "why": "kufr / takdhīb / juḥūd."
+  },
+  {
+   "q": "to be grateful",
+   "category": "english-phrase",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "shakara."
+  },
+  {
+   "q": "to write",
+   "category": "english-phrase",
+   "expect": [
+    "ktb",
+    "sTr",
+    "xTT"
+   ],
+   "k": 3,
+   "why": "kataba / saṭara / khaṭṭa."
+  },
+  {
+   "q": "to fast",
+   "category": "english-phrase",
+   "expect": [
+    "Swm"
+   ],
+   "k": 3,
+   "why": "ṣāma."
+  },
+  {
+   "q": "to repent",
+   "category": "english-phrase",
+   "expect": [
+    "twb",
+    "nwb"
+   ],
+   "k": 3,
+   "why": "tāba / anāba."
+  },
+  {
+   "q": "a she-camel",
+   "category": "english-phrase",
+   "expect": [
+    "nwq"
+   ],
+   "k": 3,
+   "why": "nāqa (Ṣāliḥ's she-camel); gloss 'She-camel'."
+  },
+  {
+   "q": "the day of resurrection",
+   "category": "english-phrase",
+   "expect": [
+    "qwm",
+    "bEv",
+    "n$r",
+    "H$r"
+   ],
+   "k": 5,
+   "why": "yawm al-qiyāma (qwm); baʿth, nushūr, ḥashr also fit; plain ywm alone is not the target."
+  },
+  {
+   "q": "to go astray",
+   "category": "english-phrase",
+   "expect": [
+    "Dll",
+    "gwy"
+   ],
+   "k": 3,
+   "why": "ḍalla / ghawā."
+  },
+  {
+   "q": "to ask forgiveness",
+   "category": "english-phrase",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "istaghfara."
+  },
+  {
+   "q": "to break a promise",
+   "category": "english-phrase",
+   "expect": [
+    "nkv",
+    "nqD",
+    "xlf"
+   ],
+   "k": 5,
+   "why": "nakatha / naqaḍa / akhlafa (al-waʿd)."
+  },
+  {
+   "q": "buried alive",
+   "category": "english-phrase",
+   "expect": [
+    "wAd"
+   ],
+   "k": 3,
+   "why": "al-maw'ūda (81:8); gloss 'Buried alive (female infant)'."
+  },
+  {
+   "q": "date stone",
+   "category": "english-phrase",
+   "expect": [
+    "nqr",
+    "ftl",
+    "qTmr"
+   ],
+   "k": 5,
+   "why": "naqīr / fatīl / qiṭmīr — the three Qur'anic date-stone trifles; nqr's gloss does not mention it."
+  },
+  {
+   "q": "millet",
+   "category": "dictionary-sense",
+   "expect": [
+    "dxn"
+   ],
+   "k": 5,
+   "why": "dukhn = millet (Lisān, Tāj al-ʿArūs, Lane). Other roots only mention millet in passing (a drink made from it, a plant like it), hence k=5."
+  },
+  {
+   "q": "camphor",
+   "category": "dictionary-sense",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "kāfūr = camphor (76:5), recorded under كفر in 8 dictionaries."
+  },
+  {
+   "q": "balsam",
+   "category": "dictionary-sense",
+   "expect": [
+    "bls"
+   ],
+   "k": 3,
+   "why": "balasān = the balsam tree, under بلس in 4 dictionaries (Muḥkam, Asās, Tāj al-ʿArūs, Lane)."
+  },
+  {
+   "q": "musk",
+   "category": "dictionary-sense",
+   "expect": [
+    "msk"
+   ],
+   "k": 3,
+   "why": "misk = musk, under مسك in 11+ dictionaries (gloss says 'Hold, retain')."
+  },
+  {
+   "q": "ladder",
+   "category": "dictionary-sense",
+   "expect": [
+    "slm",
+    "Erj",
+    "rqy"
+   ],
+   "k": 5,
+   "why": "sullam = ladder under سلم (11 dicts); miʿrāj (عرج) and mirqāh (رقي) also mean ladder."
+  },
+  {
+   "q": "ink",
+   "category": "dictionary-sense",
+   "expect": [
+    "Hbr",
+    "mdd"
+   ],
+   "k": 3,
+   "why": "ḥibr = ink (حبر, 10 dicts); midād = ink (مدد, 8 dicts)."
+  },
+  {
+   "q": "vinegar",
+   "category": "dictionary-sense",
+   "expect": [
+    "xll"
+   ],
+   "k": 5,
+   "why": "khall = vinegar under خلل (7 dicts incl. Ṣiḥāḥ and Asās)."
+  },
+  {
+   "q": "barley",
+   "category": "dictionary-sense",
+   "expect": [
+    "$Er"
+   ],
+   "k": 3,
+   "why": "shaʿīr = barley under شعر (12 dicts)."
+  },
+  {
+   "q": "gambling",
+   "category": "dictionary-sense",
+   "expect": [
+    "qmr",
+    "ysr"
+   ],
+   "k": 3,
+   "why": "qimār (قمر, 11 dicts) and maysir (يسر, 10 dicts, 2:219)."
+  },
+  {
+   "q": "blood money",
+   "category": "dictionary-sense",
+   "expect": [
+    "Eql",
+    "wdy"
+   ],
+   "k": 5,
+   "why": "ʿaql = blood-wit under عقل (13 dicts); diya from wadā under ودي (11 dicts)."
+  },
+  {
+   "q": "anemone",
+   "category": "dictionary-sense",
+   "expect": [
+    "$qq",
+    "nEm"
+   ],
+   "k": 3,
+   "why": "shaqā'iq al-Nuʿmān = the anemone, recorded under both شقق (7 dicts) and نعم (6 dicts)."
+  },
+  {
+   "q": "ostrich",
+   "category": "dictionary-sense",
+   "expect": [
+    "nEm",
+    "Zlm"
+   ],
+   "k": 5,
+   "why": "naʿāma = ostrich under نعم (12 dicts); ẓalīm = male ostrich under ظلم (11 dicts)."
+  },
+  {
+   "q": "jerboa",
+   "category": "dictionary-sense",
+   "expect": [
+    "rbE",
+    "nfq"
+   ],
+   "k": 5,
+   "why": "yarbūʿ = jerboa under ربع (11 dicts); nāfiqā' = the jerboa's escape hole under نفق (10 dicts) — the classical etymology of nifāq."
+  },
+  {
+   "q": "saffron",
+   "category": "dictionary-sense",
+   "expect": [
+    "jsd",
+    "Ebr"
+   ],
+   "k": 5,
+   "why": "jisād = saffron under جسد (12 dicts); ʿabīr = saffron/perfume under عبر (10 dicts)."
+  },
+  {
+   "q": "sieve",
+   "category": "dictionary-sense",
+   "expect": [
+    "nxl",
+    "nsf"
+   ],
+   "k": 3,
+   "why": "munkhul = sieve under نخل (11 dicts); minsaf = large sieve under نسف (5 dicts)."
+  },
+  {
+   "q": "awl",
+   "category": "dictionary-sense",
+   "expect": [
+    "$fy",
+    "srd"
+   ],
+   "k": 5,
+   "why": "ishfā = cobbler's awl under شفي (8 dicts); misrad = awl under سرد (8 dicts)."
+  },
+  {
+   "q": "mosquito",
+   "category": "dictionary-sense",
+   "expect": [
+    "bED"
+   ],
+   "k": 3,
+   "why": "baʿūḍa (2:26) = gnat/mosquito under بعض (12 dicts); the gloss says only 'Part, some'."
+  },
+  {
+   "q": "pregnant she-camel",
+   "category": "dictionary-sense",
+   "expect": [
+    "E$r",
+    "xlf"
+   ],
+   "k": 5,
+   "why": "ʿishār (81:4) = she-camels ten months pregnant under عشر (12 dicts); khalifa = pregnant she-camel under خلف (11 dicts)."
+  },
+  {
+   "q": "saddle",
+   "category": "dictionary-sense",
+   "expect": [
+    "srj",
+    "rHl"
+   ],
+   "k": 5,
+   "why": "sarj = saddle under سرج (12 dicts; gloss says 'lamp'); raḥl = camel-saddle under رحل (11 dicts)."
+  },
+  {
+   "q": "necklace",
+   "category": "dictionary-sense",
+   "expect": [
+    "qld",
+    "Eqd"
+   ],
+   "k": 3,
+   "why": "qilāda under قلد and ʿiqd under عقد (12 dicts each)."
+  },
+  {
+   "q": "tar",
+   "category": "dictionary-sense",
+   "expect": [
+    "qTr"
+   ],
+   "k": 3,
+   "why": "qaṭirān = tar/pitch (14:50) under قطر (11 dicts); the gloss says only 'flowing liquid / molten metal'."
+  },
+  {
+   "q": "silk",
+   "category": "dictionary-sense",
+   "expect": [
+    "Hrr",
+    "srq"
+   ],
+   "k": 5,
+   "why": "ḥarīr = silk under حرر (6 dicts); saraq = fine silk under سرق (9 dicts)."
+  },
+  {
+   "q": "crow",
+   "category": "dictionary-sense",
+   "expect": [
+    "grb"
+   ],
+   "k": 3,
+   "why": "ghurāb (5:31) = crow/raven under غرب (12 dicts); gloss says only 'West/setting'."
+  },
+  {
+   "q": "kfrr",
+   "category": "typo",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "Doubled final letter typo for kfr."
+  },
+  {
+   "q": "rahmma",
+   "category": "typo",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Doubled m typo for raḥma."
+  },
+  {
+   "q": "forgivness",
+   "category": "typo",
+   "expect": [
+    "gfr",
+    "Efw",
+    "SfH"
+   ],
+   "k": 3,
+   "why": "Misspelled 'forgiveness'."
+  },
+  {
+   "q": "gratitud",
+   "category": "typo",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "Truncated 'gratitude'."
+  },
+  {
+   "q": "kitaab",
+   "category": "typo",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "Long-vowel doubling spelling of kitāb."
+  },
+  {
+   "q": "qu'ran",
+   "category": "typo",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "Apostrophe in the wrong place for Qur'ān."
+  },
+  {
+   "q": "qur'an",
+   "category": "typo",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "Standard apostrophe spelling of Qur'ān."
+  },
+  {
+   "q": "koran",
+   "category": "typo",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "Old English spelling of Qur'ān (k for ق)."
+  },
+  {
+   "q": "patiance",
+   "category": "typo",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "Misspelled 'patience'."
+  },
+  {
+   "q": "kfr disbelief",
+   "category": "mixed",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "Root id plus English gloss word — both point to كفر."
+  },
+  {
+   "q": "root k-f-r",
+   "category": "mixed",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "The word 'root' in front of a hyphenated root should be ignored."
+  },
+  {
+   "q": "the root ر ح م",
+   "category": "mixed",
+   "expect": [
+    "rHm"
+   ],
+   "k": 1,
+   "why": "English framing words around spaced Arabic root letters."
+  },
+  {
+   "q": "sabr صبر",
+   "category": "mixed",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "Transliteration plus Arabic spelling of the same word."
+  },
+  {
+   "q": "root of يؤمنون",
+   "category": "mixed",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "English framing plus an inflected Arabic word (morphology: Amn)."
+  },
+  {
+   "q": "zzzzqx",
+   "category": "no-result",
+   "expect": [],
+   "k": 0,
+   "why": "Gibberish; should return nothing sensible and must not crash."
+  },
+  {
+   "q": "???",
+   "category": "no-result",
+   "expect": [],
+   "k": 0,
+   "why": "Punctuation only; must not crash (e.g. regex or empty-token errors)."
+  },
+  {
+   "q": "qzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxjqzxj",
+   "category": "no-result",
+   "expect": [],
+   "k": 0,
+   "why": "300-character string; must not crash or hang."
+  },
+  {
+   "q": "<script>alert(1)</script>",
+   "category": "no-result",
+   "expect": [],
+   "k": 0,
+   "why": "HTML/script injection; must be treated as text and not crash."
+  },
+  {
+   "q": "' OR 1=1 --",
+   "category": "no-result",
+   "expect": [],
+   "k": 0,
+   "why": "SQL injection string; must not crash or return every root."
+  },
+  {
+   "q": "😀🙃😀",
+   "category": "no-result",
+   "expect": [],
+   "k": 0,
+   "why": "Emoji only; must not crash."
+  }
+ ]
+}

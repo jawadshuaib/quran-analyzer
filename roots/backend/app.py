@@ -7707,12 +7707,35 @@ def get_dictionary_entry(entry_id: int):
         conn.close()
 
 
+@app.route("/api/dictionary/search")
+def dictionary_search_api():
+    """Search the Qur'anic Dictionary: a root in any notation (kfr, k-f-r, ك ف ر,
+    ʿ-l-m, 3lm), a Qur'anic word (Arabic or transliterated), or an English
+    meaning — see dictionary_search.py. Never 5xx: arms that fail are skipped."""
+    import dictionary_search
+    q = request.args.get("q", "")
+    try:
+        limit = max(1, min(int(request.args.get("limit", 30)), 60))
+    except ValueError:
+        limit = 30
+    try:
+        return jsonify(dictionary_search.search(q, limit=limit))
+    except Exception as e:
+        print(f"[dictionary_search] {e}")
+        return jsonify({"query": q, "results": [], "degraded": True})
+
+
 @app.route("/api/dictionary-roots")
 def get_dictionary_roots():
     """Public index for the Qur'anic Dictionary page (/dictionary): every root
     that has at least one approved, visible harmonized entry, with a concise
     gloss (from ai_root_meanings) and its entry count. Ordered by the Arabic
     root so the frontend can group alphabetically by first radical."""
+    try:  # the page's search box will want this index in a moment
+        import dictionary_search
+        dictionary_search.warm_up()
+    except Exception:
+        pass
     conn = get_db()
     try:
         _ensure_dict_tables(conn)

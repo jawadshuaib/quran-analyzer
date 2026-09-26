@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootLexiconEntry, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootLexiconEntry, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse, DictionarySearchResponse } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -31,6 +31,12 @@ export async function fetchDictionaryEntry(id: number): Promise<DictionaryEntryD
 
 /** The Qur'anic Dictionary index (/dictionary): every root with an approved
  *  lexicon entry, each with a concise gloss + entry count. Ordered by Arabic root. */
+export async function searchDictionary(q: string, signal?: AbortSignal): Promise<DictionarySearchResponse> {
+  const res = await fetch(`${BASE}/dictionary/search?q=${encodeURIComponent(q)}&limit=40`, { signal });
+  if (!res.ok) throw new Error('Dictionary search failed');
+  return res.json();
+}
+
 export async function fetchDictionaryRoots(): Promise<DictionaryRootsResponse> {
   const res = await fetch(`${BASE}/dictionary-roots`);
   if (!res.ok) throw new Error('Failed to load dictionary');
