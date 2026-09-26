@@ -15,6 +15,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="al-nuqta" />
 
+    <!-- SEO_META_START
+      serve_spa (roots/backend/app.py) replaces everything from here to
+      SEO_META_END with the title + meta for the requested path, so crawlers
+      see per-page tags without running JS. Keep both markers: without them
+      every page ships these homepage tags (canonical → "/"). What's below is
+      the homepage fallback, used by the Vite dev server.
+    -->
     <title>al-nuqta — A Root Based Translation of the Quran</title>
     <meta name="description" content="Explore Quranic Arabic through its root words. Trace any word back to its Semitic origins, compare cross-references, and study morphology — all grounded in the Quran's own usage." />
     <link rel="canonical" href="https://al-nuqta.com/" />
@@ -25,13 +32,13 @@
     <meta property="og:url" content="https://al-nuqta.com/" />
     <meta property="og:site_name" content="al-nuqta" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://al-nuqta.com/og-image.png" />
+    <meta property="og:image" content="https://al-nuqta.com/og-default.png" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="al-nuqta — A Root Based Translation of the Quran" />
     <meta name="twitter:description" content="Explore Quranic Arabic through its root words. Trace any word back to its Semitic origins, compare cross-references, and study morphology." />
-    <meta name="twitter:image" content="https://al-nuqta.com/og-image.png" />
+    <meta name="twitter:image" content="https://al-nuqta.com/og-default.png" />
     <!-- Structured Data -->
     <script type="application/ld+json">
     {
@@ -43,11 +50,12 @@
       "description": "Explore Quranic Arabic through its root words. Trace any word back to its Semitic origins, compare cross-references, and study morphology — all grounded in the Quran's own usage.",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://al-nuqta.com/?q={search_term_string}",
+        "target": "https://al-nuqta.com/search?q={search_term_string}",
         "query-input": "required name=search_term_string"
       }
     }
     </script>
+    <!-- SEO_META_END -->
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
