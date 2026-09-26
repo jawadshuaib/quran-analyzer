@@ -5539,6 +5539,22 @@ def learning_ask():
 SITE_URL = os.environ.get("SITE_URL", "https://al-nuqta.com")
 
 
+try:
+    # Generated from the frontend's guide files (see the module docstring).
+    from dictionary_guides_meta import GUIDES as _DICT_GUIDES, GUIDES_BY_SLUG as _DICT_GUIDES_BY_SLUG
+except ImportError:  # pragma: no cover - module missing in an old image
+    _DICT_GUIDES, _DICT_GUIDES_BY_SLUG = [], {}
+
+
+def _dict_guide_slug(path: str):
+    """'' for /classical-dictionaries, the slug for a known guide, else None."""
+    m = re.match(r"^/classical-dictionaries(?:/([a-z0-9-]+))?/?$", path)
+    if not m:
+        return None
+    slug = m.group(1) or ""
+    return slug if (slug == "" or slug in _DICT_GUIDES_BY_SLUG) else None
+
+
 def _is_known_spa_path(path: str) -> bool:
     if path == "/":
         return True
@@ -5571,6 +5587,8 @@ def _is_known_spa_path(path: str) -> bool:
     if re.match(r"^/quran-vocabulary/?$", path):
         return True
     if re.match(r"^/dictionary/?$", path):
+        return True
+    if _dict_guide_slug(path) is not None:
         return True
     if re.match(r"^/502/?$", path):
         return True
@@ -5785,6 +5803,26 @@ def _get_seo_meta(path: str) -> dict:
             "description": "Some Qur'anic roots whose meaning is often narrowed when translated are explored in greater detail. For these roots, we trace every occurrence in the corpus and find the broader meaning that survives every usage.",
             "og_type": "article",
             "canonical": SITE_URL + "/quran-vocabulary",
+            "robots": "index, follow",
+        }
+
+    # Reader's guides to the classical dictionaries: /classical-dictionaries[/<slug>]
+    guide_slug = _dict_guide_slug(path)
+    if guide_slug == "":
+        return {
+            "title": "Classical Arabic Dictionaries \u2014 Reader\u2019s Guides | al-nuqta",
+            "description": "Guides to the classical Arabic dictionaries quoted on al-nuqta\u2019s root and word pages: who wrote each one, how it is organised, what evidence it uses, and how to read its entries when studying the Qur\u2019an.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/classical-dictionaries",
+            "robots": "index, follow",
+        }
+    if guide_slug:
+        g = _DICT_GUIDES_BY_SLUG[guide_slug]
+        return {
+            "title": f"{g['title']} \u2014 How to Read This Classical Dictionary | al-nuqta",
+            "description": g["summary"],
+            "og_type": "article",
+            "canonical": f"{SITE_URL}/classical-dictionaries/{guide_slug}",
             "robots": "index, follow",
         }
 
@@ -6091,6 +6129,9 @@ def sitemap_xml():
     _add(SITE_URL + "/grammar-glossary", "0.6")
     _add(SITE_URL + "/quran-vocabulary", "0.6")
     _add(SITE_URL + "/dictionary", "0.7")
+    _add(SITE_URL + "/classical-dictionaries", "0.6")
+    for g in _DICT_GUIDES:
+        _add(f"{SITE_URL}/classical-dictionaries/{g['slug']}", "0.5")
 
     # All 114 surah reader pages — high priority because they're the
     # main entry points users land on for "read Surah X" searches.
@@ -7578,8 +7619,9 @@ _DICTIONARY_PRIORITY = {
     "ibn-faris-maqayis-al-lugha": 1,
     # The standard Qur'an-specific lexicon: defines words as the Qur'an uses them.
     "al-raghib-al-isfahani-al-mufradat-fi-gharib-al-quran": 2,
-    # Earliest of all (d. 687) and grounds Qur'anic words in pre-Islamic
-    # poetry — exactly the contemporaneous evidence this site leans on.
+    # Answers attributed to Ibn ʿAbbās (d. 687; the recorded versions are
+    # 9th–10th c.) that gloss Qur'anic words with lines of poetry — the kind
+    # of evidence this site leans on. See /classical-dictionaries/gharib-al-quran-fi-shir-al-arab.
     "abdullah-ibn-abbas-gharib-al-quran-fi-shir-al-arab": 3,
     # The first Arabic dictionary; the closest witness to 6th-century usage.
     "al-khalil-b-ahmad-al-farahidi-kitab-al-ain": 4,
@@ -22570,6 +22612,31 @@ def _build_noscript_content(path: str) -> str:
                         )
                 parts.append('</dd>')
             parts.append('</dl>')
+
+    # Reader's guides to the classical dictionaries: title, author, period and
+    # opening paragraph of each, so crawlers see the essay's gist and links.
+    guide_slug = _dict_guide_slug(path)
+    if guide_slug == "":
+        parts.append('<h1>The classical dictionaries</h1>')
+        parts.append('<p>Reader\u2019s guides to the classical Arabic dictionaries quoted on '
+                     'al-nuqta\u2019s root and word pages: who made each one, how it is organised, '
+                     'what evidence it relies on, and how to read its entries.</p>')
+        parts.append('<ul>')
+        for g in _DICT_GUIDES:
+            ar = f' <span lang="ar">{html.escape(g["title_ar"])}</span>' if g.get("title_ar") else ""
+            parts.append(
+                f'<li><a href="/classical-dictionaries/{g["slug"]}">{html.escape(g["title"])}</a>{ar} '
+                f'&mdash; {html.escape(g["author"])}, {html.escape(g["period"])}. {html.escape(g["summary"])}</li>'
+            )
+        parts.append('</ul>')
+    elif guide_slug:
+        g = _DICT_GUIDES_BY_SLUG[guide_slug]
+        parts.append(f'<h1>{html.escape(g["title"])}</h1>')
+        if g.get("title_ar"):
+            parts.append(f'<p lang="ar" dir="rtl">{html.escape(g["title_ar"])}</p>')
+        parts.append(f'<p>{html.escape(g["author"])} &middot; {html.escape(g["period"])} &middot; {html.escape(g["kind"])}</p>')
+        parts.append(f'<p>{html.escape(g["lede"])}</p>')
+        parts.append('<p><a href="/classical-dictionaries">All the classical dictionaries</a></p>')
 
     # Qur'anic Dictionary: /dictionary — static list of every root that has an
     # approved lexicon entry, grouped alphabetically and linking to its root

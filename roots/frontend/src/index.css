@@ -96,3 +96,18 @@ summary {
     size: letter;
   }
 }
+
+/* Serif headings that carry transliteration (the dictionary guides): the
+   Noto Serif subset loaded in index.html holds only ʾ and ʿ, so the browser
+   takes those two from it and everything else from the usual serif stack. */
+.font-serif-translit {
+  font-family: "Noto Serif", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+/* Inline Arabic inside a guide's English prose: Amiri sets visibly smaller
+   than the sans body at the same size, so lift it a little without
+   stretching the line. */
+.guide-prose :where(p, figcaption, li) .font-arabic {
+  font-size: 1.14em;
+  line-height: 1;
+}

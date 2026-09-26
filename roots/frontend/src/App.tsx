@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
 import { fetchVerse, searchWords } from './api/quran';
 import { verseUrl } from './utils/urls';
@@ -29,6 +29,10 @@ import TermsPage from './components/TermsPage';
 import GrammarGlossaryPage from './components/GrammarGlossaryPage';
 import QuranVocabularyPage from './components/QuranVocabularyPage';
 import DictionaryIndexPage from './components/DictionaryIndexPage';
+// The dictionary guides carry long essays; keep them (and their renderer) out
+// of the main bundle.
+const DictionaryGuidesIndex = lazy(() => import('./components/DictionaryGuidesIndex'));
+const DictionaryGuidePage = lazy(() => import('./components/DictionaryGuidePage'));
 import LearningPage from './components/learning/LearningPage';
 import ReaderPage from './components/reader/ReaderPage';
 import SettingsPage from './components/SettingsPage';
@@ -145,6 +149,12 @@ function isDictionaryPath(): boolean {
   return /^\/dictionary\/?$/.test(window.location.pathname);
 }
 
+/** /classical-dictionaries → '' (the overview); /classical-dictionaries/<slug> → slug. */
+function getDictionaryGuideFromPath(): string | null {
+  const m = window.location.pathname.match(/^\/classical-dictionaries(?:\/([a-z0-9-]+))?\/?$/);
+  return m ? (m[1] ?? '') : null;
+}
+
 function isLearningPath(): boolean {
   return /^\/learning(\/root\/.+|\/mnemonic-sheet)?\/?$/.test(window.location.pathname);
 }
@@ -221,6 +231,7 @@ function isKnownRoute(): boolean {
   if (/^\/grammar-glossary\/?$/.test(path)) return true;
   if (/^\/quran-vocabulary\/?$/.test(path)) return true;
   if (/^\/dictionary\/?$/.test(path)) return true;
+  if (/^\/classical-dictionaries(\/[a-z0-9-]+)?\/?$/.test(path)) return true;
   if (/^\/admin(\/settings|\/scheduler|\/revisions|\/vocabulary(\/[^/]+)?|\/proper-nouns(\/\d+)?|\/verse-settings|\/verse-of-the-day|\/stats|\/judge-lessons|\/qa|\/qa-videos|\/exegesis|\/root-meanings|\/poetry|\/dictionaries|\/pipelines(\/recitation|\/educational(\/candidates)?)?|\/media(\/recitations|\/resources|\/music|\/generate|\/explanations|\/generate-explanation|\/pipelines|\/educational(\/word-origins|\/translation-hides|\/grammar-insights|\/pipelines(\/\d+)?)?)?)?\/?$/.test(path)) return true;
   return false;
 }
@@ -591,6 +602,30 @@ export default function App() {
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
         <NavBar currentPath={currentPath} />
         <QuranVocabularyPage />
+        <SiteFooter />
+        <SavedItemsPanel />
+      </div>
+    );
+  }
+
+  const guideSlug = getDictionaryGuideFromPath();
+  if (guideSlug != null) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1">
+          <Suspense
+            fallback={
+              <div className="mx-auto flex max-w-3xl justify-center px-4 py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
+              </div>
+            }
+          >
+            {guideSlug ? <DictionaryGuidePage key={guideSlug} slug={guideSlug} /> : <DictionaryGuidesIndex />}
+          </Suspense>
+        </div>
         <SiteFooter />
         <SavedItemsPanel />
       </div>

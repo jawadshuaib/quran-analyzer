@@ -99,6 +99,11 @@ export default function DictionaryIndexPage() {
           Lisān al-ʿArab, al-Mufradāt and other classical works, harmonized into readable
           English with the original Arabic one click away. Select a root to read its entries.
         </p>
+        <p className="mt-2 text-[13px]">
+          <a href="/classical-dictionaries" className="text-emerald-700 underline decoration-emerald-200 underline-offset-2 hover:text-emerald-900">
+            About the dictionaries: who wrote them and how to read them →
+          </a>
+        </p>
         {data && (
           <p className="mt-3 text-[13px] text-ink-muted">
             {data.rootCount} roots · {data.entryCount} dictionary entries
