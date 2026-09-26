@@ -1,0 +1,7929 @@
+{
+ "version": 1,
+ "notes": "Adversarial regression set built from four independent testers' queries against production (2026-09-26). Expectations are the testers', verified against site data.",
+ "queries": [
+  {
+   "q": "كلالة",
+   "category": "adv-arabic",
+   "expect": [
+    "kll"
+   ],
+   "k": 3,
+   "why": "kalala (4:12, 4:176), morphology kll; arabic_key strips كل as if ka+article -> 'له' = key of الله"
+  },
+  {
+   "q": "كلام",
+   "category": "adv-arabic",
+   "expect": [
+    "klm"
+   ],
+   "k": 3,
+   "why": "kalam (2:75 كَلَٰمَ) klm"
+  },
+  {
+   "q": "بلاغ",
+   "category": "adv-arabic",
+   "expect": [
+    "blg"
+   ],
+   "k": 3,
+   "why": "balagh (blg, 25 forms)"
+  },
+  {
+   "q": "فلاح",
+   "category": "adv-arabic",
+   "expect": [
+    "flH"
+   ],
+   "k": 3,
+   "why": "falah; Qur'an has أفلح/المفلحون (flH)"
+  },
+  {
+   "q": "لمسنا",
+   "category": "adv-arabic",
+   "expect": [
+    "lms"
+   ],
+   "k": 3,
+   "why": "72:8 lamasna (lms); مسّنا (mss) is a different word"
+  },
+  {
+   "q": "لسان",
+   "category": "adv-arabic",
+   "expect": [
+    "lsn"
+   ],
+   "k": 3,
+   "why": "lisan (lsn)"
+  },
+  {
+   "q": "لباس",
+   "category": "adv-arabic",
+   "expect": [
+    "lbs"
+   ],
+   "k": 3,
+   "why": "libas (lbs)"
+  },
+  {
+   "q": "لبثوا",
+   "category": "adv-arabic",
+   "expect": [
+    "lbv"
+   ],
+   "k": 3,
+   "why": "labithu (lbv)"
+  },
+  {
+   "q": "لطيف",
+   "category": "adv-arabic",
+   "expect": [
+    "lTf"
+   ],
+   "k": 3,
+   "why": "latif (lTf)"
+  },
+  {
+   "q": "لهوا",
+   "category": "adv-arabic",
+   "expect": [
+    "lhw"
+   ],
+   "k": 3,
+   "why": "lahwan (lhw)"
+  },
+  {
+   "q": "لؤلؤ",
+   "category": "adv-arabic",
+   "expect": [
+    "lAlA"
+   ],
+   "k": 3,
+   "why": "lu'lu' pearl (lAlA)"
+  },
+  {
+   "q": "ولاية",
+   "category": "adv-arabic",
+   "expect": [
+    "wly"
+   ],
+   "k": 3,
+   "why": "walaya (18:44 ٱلْوَلَٰيَةُ, 8:72 وَلَٰيَتِهِم) wly"
+  },
+  {
+   "q": "هداكم",
+   "category": "adv-arabic",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "hadakum; Qur'an هَدَىٰكُمْ (2:198) hdy"
+  },
+  {
+   "q": "تقواها",
+   "category": "adv-arabic",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "taqwaha 91:8 تَقْوَىٰهَا (wqy)"
+  },
+  {
+   "q": "ضحاها",
+   "category": "adv-arabic",
+   "expect": [
+    "DHw"
+   ],
+   "k": 3,
+   "why": "duhaha 91:1 ضُحَىٰهَا (DHw)"
+  },
+  {
+   "q": "نجاكم",
+   "category": "adv-arabic",
+   "expect": [
+    "njw"
+   ],
+   "k": 3,
+   "why": "najjakum 17:67 نَجَّىٰكُمْ (njw)"
+  },
+  {
+   "q": "مثواكم",
+   "category": "adv-arabic",
+   "expect": [
+    "vwy"
+   ],
+   "k": 3,
+   "why": "mathwakum 6:128 مَثْوَىٰكُمْ (vwy)"
+  },
+  {
+   "q": "آتاكم",
+   "category": "adv-arabic",
+   "expect": [
+    "Aty"
+   ],
+   "k": 3,
+   "why": "atakum 59:7 ءَاتَىٰكُمُ (Aty)"
+  },
+  {
+   "q": "اجتباه",
+   "category": "adv-arabic",
+   "expect": [
+    "jby"
+   ],
+   "k": 3,
+   "why": "ijtabahu 16:121 ٱجْتَبَىٰهُ (jby)"
+  },
+  {
+   "q": "رؤيا",
+   "category": "adv-arabic",
+   "expect": [
+    "rAy"
+   ],
+   "k": 3,
+   "why": "ru'ya (Qur'an ٱلرُّءْيَا) rAy"
+  },
+  {
+   "q": "مسئول",
+   "category": "adv-arabic",
+   "expect": [
+    "sAl"
+   ],
+   "k": 3,
+   "why": "mas'ul, older seat spelling (sAl)"
+  },
+  {
+   "q": "قل هو الله أحد",
+   "category": "adv-arabic",
+   "expect": [
+    "qwl",
+    "Alh",
+    "AHd"
+   ],
+   "k": 3,
+   "why": "112:1 pasted: content roots qwl/Alh/AHd"
+  },
+  {
+   "q": "يا أيها الذين آمنوا",
+   "category": "adv-arabic",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "Vocative formula: only content word is آمنوا (Amn)"
+  },
+  {
+   "q": "لا ريب فيه",
+   "category": "adv-arabic",
+   "expect": [
+    "ryb"
+   ],
+   "k": 3,
+   "why": "2:2 phrase; only content word ريب (ryb)"
+  },
+  {
+   "q": "ما أدراك",
+   "category": "adv-arabic",
+   "expect": [
+    "dry"
+   ],
+   "k": 3,
+   "why": "ma adraka: Form IV of dry"
+  },
+  {
+   "q": "الحمد لله",
+   "category": "adv-arabic",
+   "expect": [
+    "Hmd"
+   ],
+   "k": 3,
+   "why": "al-hamdu lillah; Hmd (Alh also fair)"
+  },
+  {
+   "q": "ﷲ",
+   "category": "adv-arabic",
+   "expect": [
+    "Alh"
+   ],
+   "k": 3,
+   "why": "Allah ligature U+FDF2 as pasted from PDFs/Word"
+  },
+  {
+   "q": "ﻛﺘﺎﺏ",
+   "category": "adv-arabic",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "kitab in Arabic presentation forms (PDF copy)"
+  },
+  {
+   "q": "کفر",
+   "category": "adv-arabic",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "root with Persian keheh"
+  },
+  {
+   "q": "ذکر",
+   "category": "adv-arabic",
+   "expect": [
+    "*kr"
+   ],
+   "k": 1,
+   "why": "dhikr with Persian keheh"
+  },
+  {
+   "q": "کریم",
+   "category": "adv-arabic",
+   "expect": [
+    "krm"
+   ],
+   "k": 3,
+   "why": "karim with keheh + Farsi yeh"
+  },
+  {
+   "q": "نبی",
+   "category": "adv-arabic",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "nabi with Farsi yeh"
+  },
+  {
+   "q": "توبہ",
+   "category": "adv-arabic",
+   "expect": [
+    "twb"
+   ],
+   "k": 3,
+   "why": "tawba Urdu (heh goal for ta marbuta)"
+  },
+  {
+   "q": "رحمۃ",
+   "category": "adv-arabic",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "rahma with Urdu ta marbuta goal U+06C3"
+  },
+  {
+   "q": "ٱلرَّحْمَٰنِ",
+   "category": "adv-arabic",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Uthmani vowelled al-Rahman with dagger alif (morphology rHm 45x)"
+  },
+  {
+   "q": "الزكاة",
+   "category": "adv-arabic",
+   "expect": [
+    "zkw"
+   ],
+   "k": 3,
+   "why": "Modern spelling; Qur'an writes الزكوة (zkw)"
+  },
+  {
+   "q": "الحياة",
+   "category": "adv-arabic",
+   "expect": [
+    "Hyy"
+   ],
+   "k": 3,
+   "why": "Modern spelling; Qur'an writes الحيوة (Hyy)"
+  },
+  {
+   "q": "مشكاة",
+   "category": "adv-arabic",
+   "expect": [
+    "$kw"
+   ],
+   "k": 3,
+   "why": "Modern spelling of mishkat (24:35); Qur'an writes مشكوة, morphology $kw"
+  },
+  {
+   "q": "السماوات",
+   "category": "adv-arabic",
+   "expect": [
+    "smw"
+   ],
+   "k": 3,
+   "why": "Modern spelling; Qur'an ٱلسَّمَٰوَٰت (smw)"
+  },
+  {
+   "q": "ٱلْمَلَٰٓئِكَةُ",
+   "category": "adv-arabic",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "Uthmani al-mala'ika (morphology mlk)"
+  },
+  {
+   "q": "الملائكة",
+   "category": "adv-arabic",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "Modern spelling with alif+hamza on ya; morphology mlk"
+  },
+  {
+   "q": "ءَامَنُوا",
+   "category": "adv-arabic",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "Uthmani with standalone hamza + alif (2:9 ءَامَنُ, Amn)"
+  },
+  {
+   "q": "آمنوا",
+   "category": "adv-arabic",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "Madda spelling of amanu (Amn)"
+  },
+  {
+   "q": "الآخرة",
+   "category": "adv-arabic",
+   "expect": [
+    "Axr"
+   ],
+   "k": 3,
+   "why": "al-akhira with madda (Axr, 90x)"
+  },
+  {
+   "q": "سئل",
+   "category": "adv-arabic",
+   "expect": [
+    "sAl"
+   ],
+   "k": 3,
+   "why": "Passive su'ila, hamza on ya seat (sAl)"
+  },
+  {
+   "q": "يسألون",
+   "category": "adv-arabic",
+   "expect": [
+    "sAl"
+   ],
+   "k": 3,
+   "why": "Modern spelling of yas'aluna; Qur'an يَسْـَٔلُونَ (sAl)"
+  },
+  {
+   "q": "مؤمن",
+   "category": "adv-arabic",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "Hamza on waw (Amn 11x)"
+  },
+  {
+   "q": "بئس",
+   "category": "adv-arabic",
+   "expect": [
+    "bAs"
+   ],
+   "k": 3,
+   "why": "bi'sa, hamza on ya (bAs)"
+  },
+  {
+   "q": "شيء",
+   "category": "adv-arabic",
+   "expect": [
+    "$yA"
+   ],
+   "k": 3,
+   "why": "shay' (modern) (morphology $yA)"
+  },
+  {
+   "q": "رؤوف",
+   "category": "adv-arabic",
+   "expect": [
+    "rAf"
+   ],
+   "k": 3,
+   "why": "Modern spelling ra'uf (Qur'an رءوف, rAf)"
+  },
+  {
+   "q": "يشاء",
+   "category": "adv-arabic",
+   "expect": [
+    "$yA"
+   ],
+   "k": 3,
+   "why": "yasha'u (morphology $yA)"
+  },
+  {
+   "q": "أرأيت",
+   "category": "adv-arabic",
+   "expect": [
+    "rAy"
+   ],
+   "k": 3,
+   "why": "a-ra'ayta (rAy)"
+  },
+  {
+   "q": "يرى",
+   "category": "adv-arabic",
+   "expect": [
+    "rAy"
+   ],
+   "k": 3,
+   "why": "yara: hamza radical dropped + alif maqsura (rAy)"
+  },
+  {
+   "q": "هدى",
+   "category": "adv-arabic",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "huda with alif maqsura (hdy)"
+  },
+  {
+   "q": "هدي",
+   "category": "adv-arabic",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "huda typed with ya instead of alif maqsura (hdy)"
+  },
+  {
+   "q": "اصطفى",
+   "category": "adv-arabic",
+   "expect": [
+    "Sfw"
+   ],
+   "k": 3,
+   "why": "istafa: Form VIII t->T after S, alif maqsura (Sfw)"
+  },
+  {
+   "q": "جنه",
+   "category": "adv-arabic",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "janna typed with ha for ta marbuta (jnn)"
+  },
+  {
+   "q": "رحمه",
+   "category": "adv-arabic",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "rahma typed with ha (rHm)"
+  },
+  {
+   "q": "فأنزلنا",
+   "category": "adv-arabic",
+   "expect": [
+    "nzl"
+   ],
+   "k": 3,
+   "why": "fa- + Form IV + -na (nzl)"
+  },
+  {
+   "q": "وليعلم",
+   "category": "adv-arabic",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "wa- + li- + jussive (Elm)"
+  },
+  {
+   "q": "لنبلونكم",
+   "category": "adv-arabic",
+   "expect": [
+    "blw"
+   ],
+   "k": 3,
+   "why": "la- + energetic + -kum, weak final (blw); Qur'an 2:155 has وَلَنَبْلُوَنَّكُم"
+  },
+  {
+   "q": "أفلا يتدبرون",
+   "category": "adv-arabic",
+   "expect": [
+    "dbr"
+   ],
+   "k": 3,
+   "why": "Two-word phrase (4:82); the content word is dbr"
+  },
+  {
+   "q": "أفلا تعقلون",
+   "category": "adv-arabic",
+   "expect": [
+    "Eql"
+   ],
+   "k": 3,
+   "why": "Two-word phrase; content word Eql"
+  },
+  {
+   "q": "فسيكفيكهم",
+   "category": "adv-arabic",
+   "expect": [
+    "kfy"
+   ],
+   "k": 3,
+   "why": "2:137 fa-sa-yakfi-ka-hum (kfy)"
+  },
+  {
+   "q": "أنلزمكموها",
+   "category": "adv-arabic",
+   "expect": [
+    "lzm"
+   ],
+   "k": 3,
+   "why": "11:28 a-nulzimu-kumu-ha (lzm)"
+  },
+  {
+   "q": "فأسقيناكموه",
+   "category": "adv-arabic",
+   "expect": [
+    "sqy"
+   ],
+   "k": 3,
+   "why": "15:22 fa-asqaynakumuhu (sqy)"
+  },
+  {
+   "q": "قيل",
+   "category": "adv-arabic",
+   "expect": [
+    "qwl"
+   ],
+   "k": 3,
+   "why": "qila passive of hollow qwl"
+  },
+  {
+   "q": "رمى",
+   "category": "adv-arabic",
+   "expect": [
+    "rmy"
+   ],
+   "k": 3,
+   "why": "rama, defective (rmy)"
+  },
+  {
+   "q": "دعا",
+   "category": "adv-arabic",
+   "expect": [
+    "dEw"
+   ],
+   "k": 3,
+   "why": "da'a, defective (dEw)"
+  },
+  {
+   "q": "يعد",
+   "category": "adv-arabic",
+   "expect": [
+    "wEd",
+    "Edd"
+   ],
+   "k": 3,
+   "why": "ya'idu (wEd) or yu'iddu (Edd)"
+  },
+  {
+   "q": "خاف",
+   "category": "adv-arabic",
+   "expect": [
+    "xwf"
+   ],
+   "k": 3,
+   "why": "khafa hollow (xwf)"
+  },
+  {
+   "q": "يخافون",
+   "category": "adv-arabic",
+   "expect": [
+    "xwf"
+   ],
+   "k": 3,
+   "why": "yakhafuna (xwf)"
+  },
+  {
+   "q": "اتقوا",
+   "category": "adv-arabic",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "ittaqu: Form VIII of w-q-y, waw assimilated to t (wqy)"
+  },
+  {
+   "q": "اتخذ",
+   "category": "adv-arabic",
+   "expect": [
+    "Ax*"
+   ],
+   "k": 3,
+   "why": "ittakhadha: Form VIII of A-kh-dh (Ax*)"
+  },
+  {
+   "q": "يوقنون",
+   "category": "adv-arabic",
+   "expect": [
+    "yqn"
+   ],
+   "k": 3,
+   "why": "yuqinuna, Form IV of y-q-n (yqn)"
+  },
+  {
+   "q": "استوى",
+   "category": "adv-arabic",
+   "expect": [
+    "swy"
+   ],
+   "k": 3,
+   "why": "istawa Form VIII (swy)"
+  },
+  {
+   "q": "يتوفاكم",
+   "category": "adv-arabic",
+   "expect": [
+    "wfy"
+   ],
+   "k": 3,
+   "why": "yatawaffakum Form V (wfy)"
+  },
+  {
+   "q": "قم",
+   "category": "adv-arabic",
+   "expect": [
+    "qwm"
+   ],
+   "k": 5,
+   "why": "qum imperative (74:2), only 2 letters (qwm)"
+  },
+  {
+   "q": "اصطبر",
+   "category": "adv-arabic",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "istabir: t->T after S (Sbr; Qur'an واصطبر)"
+  },
+  {
+   "q": "اطمأن",
+   "category": "adv-arabic",
+   "expect": [
+    "Tmn"
+   ],
+   "k": 3,
+   "why": "itma'anna (22:11) (Tmn)"
+  },
+  {
+   "q": "ادّكر",
+   "category": "adv-arabic",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "iddakara (12:45 وادكر): dh+t -> dd (*kr)"
+  },
+  {
+   "q": "ازداد",
+   "category": "adv-arabic",
+   "expect": [
+    "zyd"
+   ],
+   "k": 3,
+   "why": "izdada: t->d after z (zyd)"
+  },
+  {
+   "q": "اضطر",
+   "category": "adv-arabic",
+   "expect": [
+    "Drr"
+   ],
+   "k": 3,
+   "why": "idturra: t->T after D (Drr)"
+  },
+  {
+   "q": "مزدجر",
+   "category": "adv-arabic",
+   "expect": [
+    "zjr"
+   ],
+   "k": 3,
+   "why": "muzdajar 54:4 (zjr)"
+  },
+  {
+   "q": "أنبياء",
+   "category": "adv-arabic",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "anbiya' plural of nabi (nbA)"
+  },
+  {
+   "q": "مساجد",
+   "category": "adv-arabic",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "masajid (sjd)"
+  },
+  {
+   "q": "قلوب",
+   "category": "adv-arabic",
+   "expect": [
+    "qlb"
+   ],
+   "k": 3,
+   "why": "qulub (qlb)"
+  },
+  {
+   "q": "أموال",
+   "category": "adv-arabic",
+   "expect": [
+    "mwl"
+   ],
+   "k": 3,
+   "why": "amwal (mwl)"
+  },
+  {
+   "q": "أولاد",
+   "category": "adv-arabic",
+   "expect": [
+    "wld"
+   ],
+   "k": 3,
+   "why": "awlad (wld)"
+  },
+  {
+   "q": "أساطير",
+   "category": "adv-arabic",
+   "expect": [
+    "sTr"
+   ],
+   "k": 3,
+   "why": "asatir (sTr)"
+  },
+  {
+   "q": "مسجد",
+   "category": "adv-arabic",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "masjid (sjd)"
+  },
+  {
+   "q": "مفتاح",
+   "category": "adv-arabic",
+   "expect": [
+    "ftH"
+   ],
+   "k": 3,
+   "why": "miftah (ftH); Qur'an has plural مفاتح"
+  },
+  {
+   "q": "ميزان",
+   "category": "adv-arabic",
+   "expect": [
+    "wzn"
+   ],
+   "k": 3,
+   "why": "mizan: w->y after i (wzn)"
+  },
+  {
+   "q": "ميقات",
+   "category": "adv-arabic",
+   "expect": [
+    "wqt"
+   ],
+   "k": 3,
+   "why": "miqat (wqt)"
+  },
+  {
+   "q": "ميراث",
+   "category": "adv-arabic",
+   "expect": [
+    "wrv"
+   ],
+   "k": 3,
+   "why": "miirath (wrv)"
+  },
+  {
+   "q": "جنتان",
+   "category": "adv-arabic",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "jannatan 55:46 (jnn)"
+  },
+  {
+   "q": "الوالدين",
+   "category": "adv-arabic",
+   "expect": [
+    "wld"
+   ],
+   "k": 3,
+   "why": "al-walidayn (wld)"
+  },
+  {
+   "q": "الصالحات",
+   "category": "adv-arabic",
+   "expect": [
+    "SlH"
+   ],
+   "k": 3,
+   "why": "al-salihat (SlH)"
+  },
+  {
+   "q": "ربّ",
+   "category": "adv-arabic",
+   "expect": [
+    "rbb"
+   ],
+   "k": 3,
+   "why": "rabb with shadda (rbb)"
+  },
+  {
+   "q": "مدّ",
+   "category": "adv-arabic",
+   "expect": [
+    "mdd"
+   ],
+   "k": 3,
+   "why": "madda with shadda (mdd)"
+  },
+  {
+   "q": "ظنّ",
+   "category": "adv-arabic",
+   "expect": [
+    "Znn"
+   ],
+   "k": 3,
+   "why": "zanna with shadda (Znn)"
+  },
+  {
+   "q": "ق-و-ل",
+   "category": "adv-arabic",
+   "expect": [
+    "qwl"
+   ],
+   "k": 1,
+   "why": "hyphenated Arabic root with weak radical"
+  },
+  {
+   "q": "ق.و.ل",
+   "category": "adv-arabic",
+   "expect": [
+    "qwl"
+   ],
+   "k": 1,
+   "why": "dotted Arabic root"
+  },
+  {
+   "q": "ر ء ي",
+   "category": "adv-arabic",
+   "expect": [
+    "rAy"
+   ],
+   "k": 1,
+   "why": "root with standalone hamza"
+  },
+  {
+   "q": "كـتـب",
+   "category": "adv-arabic",
+   "expect": [
+    "ktb"
+   ],
+   "k": 1,
+   "why": "tatweel-stretched root letters"
+  },
+  {
+   "q": "ق،و،ل",
+   "category": "adv-arabic",
+   "expect": [
+    "qwl"
+   ],
+   "k": 1,
+   "why": "Arabic comma separators"
+  },
+  {
+   "q": "کتاب",
+   "category": "adv-arabic",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "Persian/Urdu keheh (U+06A9) in kitab"
+  },
+  {
+   "q": "ک ت ب",
+   "category": "adv-arabic",
+   "expect": [
+    "ktb"
+   ],
+   "k": 1,
+   "why": "root letters with Persian keheh"
+  },
+  {
+   "q": "هدی",
+   "category": "adv-arabic",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "huda with Farsi yeh (U+06CC)"
+  },
+  {
+   "q": "ہدایت",
+   "category": "adv-arabic",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "Urdu hidayat: heh goal U+06C1 + Farsi yeh"
+  },
+  {
+   "q": "رحمت",
+   "category": "adv-arabic",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "rahmat with open ta (Urdu/Persian; also Qur'anic rasm 7:56)"
+  },
+  {
+   "q": "زکوٰۃ",
+   "category": "adv-arabic",
+   "expect": [
+    "zkw"
+   ],
+   "k": 3,
+   "why": "Urdu zakat: keheh + ta marbuta goal U+06C3"
+  },
+  {
+   "q": "صلوٰۃ",
+   "category": "adv-arabic",
+   "expect": [
+    "Slw"
+   ],
+   "k": 3,
+   "why": "Urdu salat with U+06C3"
+  },
+  {
+   "q": "اللہ",
+   "category": "adv-arabic",
+   "expect": [
+    "Alh"
+   ],
+   "k": 3,
+   "why": "Allah with Urdu heh goal"
+  },
+  {
+   "q": "ایمان",
+   "category": "adv-arabic",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "iman with Farsi yeh"
+  },
+  {
+   "q": "قیامت",
+   "category": "adv-arabic",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "qiyamat with Farsi yeh"
+  },
+  {
+   "q": "ی و م",
+   "category": "adv-arabic",
+   "expect": [
+    "ywm"
+   ],
+   "k": 1,
+   "why": "root letters with Farsi yeh"
+  },
+  {
+   "q": "كلمات",
+   "category": "adv-arabic",
+   "expect": [
+    "klm"
+   ],
+   "k": 3,
+   "why": "kalimat (klm); key 'مت' collides with مت (mwt)"
+  },
+  {
+   "q": "بلاد",
+   "category": "adv-arabic",
+   "expect": [
+    "bld"
+   ],
+   "k": 3,
+   "why": "bilad; Qur'an ٱلْبِلَٰد (bld)"
+  },
+  {
+   "q": "لله",
+   "category": "adv-arabic",
+   "expect": [
+    "Alh"
+   ],
+   "k": 3,
+   "why": "lillah (Alh)"
+  },
+  {
+   "q": "مولاكم",
+   "category": "adv-arabic",
+   "expect": [
+    "wly"
+   ],
+   "k": 3,
+   "why": "mawlakum 3:150 مَوْلَىٰكُمْ (wly)"
+  },
+  {
+   "q": "هواه",
+   "category": "adv-arabic",
+   "expect": [
+    "hwy"
+   ],
+   "k": 3,
+   "why": "hawahu 7:176 هَوَىٰهُ (hwy)"
+  },
+  {
+   "q": "هل أتاك",
+   "category": "adv-arabic",
+   "expect": [
+    "Aty"
+   ],
+   "k": 3,
+   "why": "hal ataka 20:9 أَتَىٰكَ (Aty)"
+  },
+  {
+   "q": "مرساها",
+   "category": "adv-arabic",
+   "expect": [
+    "rsw"
+   ],
+   "k": 3,
+   "why": "mursaha 79:42 مُرْسَىٰهَا (rsw)"
+  },
+  {
+   "q": "ذكراها",
+   "category": "adv-arabic",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "dhikraha 79:43 ذِكْرَىٰهَا (*kr)"
+  },
+  {
+   "q": "يلقاه",
+   "category": "adv-arabic",
+   "expect": [
+    "lqy"
+   ],
+   "k": 3,
+   "why": "yalqahu 17:13 يَلْقَىٰهُ (lqy)"
+  },
+  {
+   "q": "repentance",
+   "category": "adv-english",
+   "expect": [
+    "twb"
+   ],
+   "k": 3,
+   "why": "tawba = توب"
+  },
+  {
+   "q": "repentence",
+   "category": "adv-english",
+   "expect": [
+    "twb"
+   ],
+   "k": 3,
+   "why": "misspelling of repentance"
+  },
+  {
+   "q": "piety",
+   "category": "adv-english",
+   "expect": [
+    "wqy",
+    "brr"
+   ],
+   "k": 3,
+   "why": "taqwa (وقي) / birr (برر)"
+  },
+  {
+   "q": "God-consciousness",
+   "category": "adv-english",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "standard modern rendering of taqwa"
+  },
+  {
+   "q": "god consciousness",
+   "category": "adv-english",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "unhyphenated"
+  },
+  {
+   "q": "worship",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "ʿibāda"
+  },
+  {
+   "q": "to worship",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "verb phrase"
+  },
+  {
+   "q": "worshipper",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "ʿābid"
+  },
+  {
+   "q": "worshiper",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "US spelling"
+  },
+  {
+   "q": "worshipping",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "gerund"
+  },
+  {
+   "q": "idol",
+   "category": "adv-english",
+   "expect": [
+    "Snm",
+    "wvn"
+   ],
+   "k": 3,
+   "why": "ṣanam / wathan"
+  },
+  {
+   "q": "idols",
+   "category": "adv-english",
+   "expect": [
+    "Snm",
+    "wvn"
+   ],
+   "k": 3,
+   "why": "plural"
+  },
+  {
+   "q": "heaven",
+   "category": "adv-english",
+   "expect": [
+    "jnn",
+    "smw"
+   ],
+   "k": 3,
+   "why": "janna or samāʾ"
+  },
+  {
+   "q": "paradise",
+   "category": "adv-english",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "janna"
+  },
+  {
+   "q": "hell",
+   "category": "adv-english",
+   "expect": [
+    "jHm",
+    "sEr",
+    "lZy",
+    "nwr"
+   ],
+   "k": 5,
+   "why": "jahannam not a root; jaḥīm/saʿīr/laẓā"
+  },
+  {
+   "q": "hellfire",
+   "category": "adv-english",
+   "expect": [
+    "jHm",
+    "sEr",
+    "nwr"
+   ],
+   "k": 3,
+   "why": "jaḥīm"
+  },
+  {
+   "q": "prophet",
+   "category": "adv-english",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "nabiyy"
+  },
+  {
+   "q": "prophets",
+   "category": "adv-english",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "anbiyāʾ"
+  },
+  {
+   "q": "angel",
+   "category": "adv-english",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "malak"
+  },
+  {
+   "q": "angels",
+   "category": "adv-english",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "malāʾika"
+  },
+  {
+   "q": "messenger",
+   "category": "adv-english",
+   "expect": [
+    "rsl"
+   ],
+   "k": 3,
+   "why": "rasūl"
+  },
+  {
+   "q": "scripture",
+   "category": "adv-english",
+   "expect": [
+    "ktb",
+    "zbr",
+    "SHf"
+   ],
+   "k": 3,
+   "why": "kitāb/zubur/ṣuḥuf"
+  },
+  {
+   "q": "reward",
+   "category": "adv-english",
+   "expect": [
+    "Ajr",
+    "vwb",
+    "jzy"
+   ],
+   "k": 3,
+   "why": "ajr/thawāb/jazāʾ"
+  },
+  {
+   "q": "punishment",
+   "category": "adv-english",
+   "expect": [
+    "E*b",
+    "Eqb",
+    "jzy",
+    "nkl"
+   ],
+   "k": 3,
+   "why": "ʿadhāb/ʿiqāb"
+  },
+  {
+   "q": "oath",
+   "category": "adv-english",
+   "expect": [
+    "qsm",
+    "Hlf",
+    "ymn"
+   ],
+   "k": 3,
+   "why": "qasam/ḥalf/yamīn"
+  },
+  {
+   "q": "covenant",
+   "category": "adv-english",
+   "expect": [
+    "Ehd",
+    "wvq"
+   ],
+   "k": 3,
+   "why": "ʿahd/mīthāq"
+  },
+  {
+   "q": "sin",
+   "category": "adv-english",
+   "expect": [
+    "*nb",
+    "Avm",
+    "xTA"
+   ],
+   "k": 3,
+   "why": "dhanb/ithm/khaṭīʾa"
+  },
+  {
+   "q": "disbelief",
+   "category": "adv-english",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "kufr"
+  },
+  {
+   "q": "hypocrisy",
+   "category": "adv-english",
+   "expect": [
+    "nfq"
+   ],
+   "k": 3,
+   "why": "nifāq"
+  },
+  {
+   "q": "hypocrite",
+   "category": "adv-english",
+   "expect": [
+    "nfq"
+   ],
+   "k": 3,
+   "why": "munāfiq"
+  },
+  {
+   "q": "hypocrites",
+   "category": "adv-english",
+   "expect": [
+    "nfq"
+   ],
+   "k": 3,
+   "why": "munāfiqūn"
+  },
+  {
+   "q": "hypocricy",
+   "category": "adv-english",
+   "expect": [
+    "nfq"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "arrogance",
+   "category": "adv-english",
+   "expect": [
+    "kbr"
+   ],
+   "k": 3,
+   "why": "istikbār/kibr"
+  },
+  {
+   "q": "arrogence",
+   "category": "adv-english",
+   "expect": [
+    "kbr"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "humility",
+   "category": "adv-english",
+   "expect": [
+    "x$E",
+    "xDE",
+    "DrE",
+    "*ll",
+    "hwn"
+   ],
+   "k": 3,
+   "why": "khushūʿ/taḍarruʿ"
+  },
+  {
+   "q": "wisdom",
+   "category": "adv-english",
+   "expect": [
+    "Hkm"
+   ],
+   "k": 3,
+   "why": "ḥikma"
+  },
+  {
+   "q": "guidance",
+   "category": "adv-english",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "hudā"
+  },
+  {
+   "q": "misguidance",
+   "category": "adv-english",
+   "expect": [
+    "Dll",
+    "gwy"
+   ],
+   "k": 3,
+   "why": "ḍalāl"
+  },
+  {
+   "q": "honour",
+   "category": "adv-english",
+   "expect": [
+    "krm",
+    "Ezz"
+   ],
+   "k": 3,
+   "why": "karāma/ʿizza (British spelling)"
+  },
+  {
+   "q": "colour",
+   "category": "adv-english",
+   "expect": [
+    "lwn"
+   ],
+   "k": 3,
+   "why": "lawn (British spelling)"
+  },
+  {
+   "q": "color",
+   "category": "adv-english",
+   "expect": [
+    "lwn"
+   ],
+   "k": 3,
+   "why": "lawn"
+  },
+  {
+   "q": "to ask for help",
+   "category": "adv-english",
+   "expect": [
+    "Ewn",
+    "gwv",
+    "nSr"
+   ],
+   "k": 3,
+   "why": "istiʿāna / istighātha"
+  },
+  {
+   "q": "to turn away",
+   "category": "adv-english",
+   "expect": [
+    "ErD",
+    "wly",
+    "Sdd",
+    "Sdf",
+    "nAy",
+    "SfH"
+   ],
+   "k": 3,
+   "why": "aʿraḍa / tawallā / ṣadda"
+  },
+  {
+   "q": "to be patient",
+   "category": "adv-english",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "ṣabara"
+  },
+  {
+   "q": "to give thanks",
+   "category": "adv-english",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "shakara"
+  },
+  {
+   "q": "a straight path",
+   "category": "adv-english",
+   "expect": [
+    "SrT",
+    "qwm",
+    "sbl"
+   ],
+   "k": 3,
+   "why": "ṣirāṭ mustaqīm"
+  },
+  {
+   "q": "straight path",
+   "category": "adv-english",
+   "expect": [
+    "SrT",
+    "qwm"
+   ],
+   "k": 3,
+   "why": "ṣirāṭ mustaqīm"
+  },
+  {
+   "q": "what is the root for mercy",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "arabic word for heart",
+   "category": "adv-english",
+   "expect": [
+    "qlb",
+    "fAd",
+    "lbb"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "righteousness",
+   "category": "adv-english",
+   "expect": [
+    "brr",
+    "SlH"
+   ],
+   "k": 3,
+   "why": "birr/ṣalāḥ"
+  },
+  {
+   "q": "rightousness",
+   "category": "adv-english",
+   "expect": [
+    "brr",
+    "SlH"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "belief",
+   "category": "adv-english",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "īmān"
+  },
+  {
+   "q": "faith",
+   "category": "adv-english",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "īmān"
+  },
+  {
+   "q": "polytheism",
+   "category": "adv-english",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "shirk"
+  },
+  {
+   "q": "associating partners with God",
+   "category": "adv-english",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "shirk phrase"
+  },
+  {
+   "q": "trust in God",
+   "category": "adv-english",
+   "expect": [
+    "wkl"
+   ],
+   "k": 3,
+   "why": "tawakkul"
+  },
+  {
+   "q": "sincerity",
+   "category": "adv-english",
+   "expect": [
+    "xlS",
+    "Sdq"
+   ],
+   "k": 3,
+   "why": "ikhlāṣ"
+  },
+  {
+   "q": "envy",
+   "category": "adv-english",
+   "expect": [
+    "Hsd"
+   ],
+   "k": 3,
+   "why": "ḥasad"
+  },
+  {
+   "q": "revelation",
+   "category": "adv-english",
+   "expect": [
+    "wHy",
+    "nzl"
+   ],
+   "k": 3,
+   "why": "waḥy / tanzīl"
+  },
+  {
+   "q": "creator",
+   "category": "adv-english",
+   "expect": [
+    "xlq",
+    "fTr",
+    "brA"
+   ],
+   "k": 3,
+   "why": "khāliq/fāṭir/bāriʾ"
+  },
+  {
+   "q": "orphan",
+   "category": "adv-english",
+   "expect": [
+    "ytm"
+   ],
+   "k": 3,
+   "why": "yatīm"
+  },
+  {
+   "q": "soul",
+   "category": "adv-english",
+   "expect": [
+    "nfs",
+    "rwH"
+   ],
+   "k": 3,
+   "why": "nafs/rūḥ"
+  },
+  {
+   "q": "fornication",
+   "category": "adv-english",
+   "expect": [
+    "zny"
+   ],
+   "k": 3,
+   "why": "zinā"
+  },
+  {
+   "q": "the unseen",
+   "category": "adv-english",
+   "expect": [
+    "gyb"
+   ],
+   "k": 3,
+   "why": "al-ghayb"
+  },
+  {
+   "q": "remembrance of God",
+   "category": "adv-english",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "dhikr Allāh"
+  },
+  {
+   "q": "transgression",
+   "category": "adv-english",
+   "expect": [
+    "Edw",
+    "Tgy",
+    "bgy",
+    "Etw"
+   ],
+   "k": 3,
+   "why": "ʿudwān/ṭughyān"
+  },
+  {
+   "q": "prostration",
+   "category": "adv-english",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "sujūd"
+  },
+  {
+   "q": "to prostrate",
+   "category": "adv-english",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "sajada"
+  },
+  {
+   "q": "praise",
+   "category": "adv-english",
+   "expect": [
+    "Hmd",
+    "sbH"
+   ],
+   "k": 3,
+   "why": "ḥamd"
+  },
+  {
+   "q": "to glorify God",
+   "category": "adv-english",
+   "expect": [
+    "sbH"
+   ],
+   "k": 3,
+   "why": "tasbīḥ"
+  },
+  {
+   "q": "fear of God",
+   "category": "adv-english",
+   "expect": [
+    "x$y",
+    "wqy",
+    "xwf"
+   ],
+   "k": 3,
+   "why": "khashya/taqwā"
+  },
+  {
+   "q": "forbearance",
+   "category": "adv-english",
+   "expect": [
+    "Hlm"
+   ],
+   "k": 3,
+   "why": "ḥilm"
+  },
+  {
+   "q": "intercession",
+   "category": "adv-english",
+   "expect": [
+    "$fE"
+   ],
+   "k": 3,
+   "why": "shafāʿa"
+  },
+  {
+   "q": "glad tidings",
+   "category": "adv-english",
+   "expect": [
+    "b$r"
+   ],
+   "k": 3,
+   "why": "bushrā"
+  },
+  {
+   "q": "warner",
+   "category": "adv-english",
+   "expect": [
+    "n*r"
+   ],
+   "k": 3,
+   "why": "nadhīr"
+  },
+  {
+   "q": "everlasting",
+   "category": "adv-english",
+   "expect": [
+    "xld",
+    "Abd"
+   ],
+   "k": 3,
+   "why": "khālidīn / abadan"
+  },
+  {
+   "q": "trial",
+   "category": "adv-english",
+   "expect": [
+    "blw",
+    "ftn"
+   ],
+   "k": 3,
+   "why": "balāʾ / fitna"
+  },
+  {
+   "q": "lawful",
+   "category": "adv-english",
+   "expect": [
+    "Hll"
+   ],
+   "k": 3,
+   "why": "ḥalāl"
+  },
+  {
+   "q": "forbidden",
+   "category": "adv-english",
+   "expect": [
+    "Hrm"
+   ],
+   "k": 3,
+   "why": "ḥarām"
+  },
+  {
+   "q": "slaughter",
+   "category": "adv-english",
+   "expect": [
+    "*bH"
+   ],
+   "k": 3,
+   "why": "dhabḥ"
+  },
+  {
+   "q": "grief",
+   "category": "adv-english",
+   "expect": [
+    "Hzn"
+   ],
+   "k": 3,
+   "why": "ḥuzn"
+  },
+  {
+   "q": "purification",
+   "category": "adv-english",
+   "expect": [
+    "zkw",
+    "Thr"
+   ],
+   "k": 3,
+   "why": "tazkiya / ṭahāra"
+  },
+  {
+   "q": "pardon",
+   "category": "adv-english",
+   "expect": [
+    "Efw",
+    "gfr",
+    "SfH"
+   ],
+   "k": 3,
+   "why": "ʿafw / maghfira"
+  },
+  {
+   "q": "pardoning",
+   "category": "adv-english",
+   "expect": [
+    "Efw",
+    "gfr",
+    "SfH"
+   ],
+   "k": 3,
+   "why": "gerund"
+  },
+  {
+   "q": "forgiveness",
+   "category": "adv-english",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "maghfira"
+  },
+  {
+   "q": "forgiving",
+   "category": "adv-english",
+   "expect": [
+    "gfr",
+    "Efw"
+   ],
+   "k": 3,
+   "why": "ghafūr"
+  },
+  {
+   "q": "repentant",
+   "category": "adv-english",
+   "expect": [
+    "twb",
+    "Awb",
+    "nwb"
+   ],
+   "k": 3,
+   "why": "tawwāb / awwāb / munīb"
+  },
+  {
+   "q": "to turn to God in repentance",
+   "category": "adv-english",
+   "expect": [
+    "twb",
+    "nwb",
+    "Awb"
+   ],
+   "k": 3,
+   "why": "tāba / anāba"
+  },
+  {
+   "q": "apostle",
+   "category": "adv-english",
+   "expect": [
+    "rsl"
+   ],
+   "k": 3,
+   "why": "rasūl"
+  },
+  {
+   "q": "messengers",
+   "category": "adv-english",
+   "expect": [
+    "rsl"
+   ],
+   "k": 3,
+   "why": "rusul"
+  },
+  {
+   "q": "messanger",
+   "category": "adv-english",
+   "expect": [
+    "rsl"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "prophit",
+   "category": "adv-english",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "prophethood",
+   "category": "adv-english",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "nubuwwa"
+  },
+  {
+   "q": "judgement",
+   "category": "adv-english",
+   "expect": [
+    "dyn",
+    "Hkm",
+    "qDy"
+   ],
+   "k": 5,
+   "why": "British spelling, broad"
+  },
+  {
+   "q": "day of judgement",
+   "category": "adv-english",
+   "expect": [
+    "dyn",
+    "qwm"
+   ],
+   "k": 3,
+   "why": "yawm al-dīn"
+  },
+  {
+   "q": "the hereafter",
+   "category": "adv-english",
+   "expect": [
+    "Axr"
+   ],
+   "k": 3,
+   "why": "al-ākhira"
+  },
+  {
+   "q": "afterlife",
+   "category": "adv-english",
+   "expect": [
+    "Axr"
+   ],
+   "k": 3,
+   "why": "al-ākhira"
+  },
+  {
+   "q": "resurrection",
+   "category": "adv-english",
+   "expect": [
+    "bEv",
+    "qwm",
+    "H$r",
+    "n$r"
+   ],
+   "k": 3,
+   "why": "baʿth/qiyāma/ḥashr/nushūr"
+  },
+  {
+   "q": "resurection",
+   "category": "adv-english",
+   "expect": [
+    "bEv",
+    "qwm",
+    "H$r",
+    "n$r"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "gardens",
+   "category": "adv-english",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "jannāt"
+  },
+  {
+   "q": "paradice",
+   "category": "adv-english",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "went astray",
+   "category": "adv-english",
+   "expect": [
+    "Dll",
+    "gwy"
+   ],
+   "k": 3,
+   "why": "ḍalla"
+  },
+  {
+   "q": "to lead astray",
+   "category": "adv-english",
+   "expect": [
+    "Dll",
+    "gwy"
+   ],
+   "k": 3,
+   "why": "aḍalla / aghwā"
+  },
+  {
+   "q": "disbelievers",
+   "category": "adv-english",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "kāfirūn"
+  },
+  {
+   "q": "unbelievers",
+   "category": "adv-english",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "kāfirūn"
+  },
+  {
+   "q": "to disbelieve",
+   "category": "adv-english",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "kafara"
+  },
+  {
+   "q": "believers",
+   "category": "adv-english",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "muʾminūn"
+  },
+  {
+   "q": "beleive",
+   "category": "adv-english",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "the righteous",
+   "category": "adv-english",
+   "expect": [
+    "SlH",
+    "brr",
+    "wqy"
+   ],
+   "k": 3,
+   "why": "ṣāliḥūn / abrār"
+  },
+  {
+   "q": "rightious",
+   "category": "adv-english",
+   "expect": [
+    "SlH",
+    "brr"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "God-fearing",
+   "category": "adv-english",
+   "expect": [
+    "wqy",
+    "x$y"
+   ],
+   "k": 3,
+   "why": "muttaqīn"
+  },
+  {
+   "q": "godfearing",
+   "category": "adv-english",
+   "expect": [
+    "wqy",
+    "x$y"
+   ],
+   "k": 3,
+   "why": "one word"
+  },
+  {
+   "q": "mindfulness of God",
+   "category": "adv-english",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "taqwā rendering"
+  },
+  {
+   "q": "the pious",
+   "category": "adv-english",
+   "expect": [
+    "wqy",
+    "brr"
+   ],
+   "k": 3,
+   "why": "muttaqūn / abrār"
+  },
+  {
+   "q": "obedience",
+   "category": "adv-english",
+   "expect": [
+    "TwE"
+   ],
+   "k": 3,
+   "why": "ṭāʿa"
+  },
+  {
+   "q": "disobedience",
+   "category": "adv-english",
+   "expect": [
+    "ESy"
+   ],
+   "k": 3,
+   "why": "maʿṣiya"
+  },
+  {
+   "q": "injustice",
+   "category": "adv-english",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓulm"
+  },
+  {
+   "q": "wrongdoers",
+   "category": "adv-english",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓālimūn"
+  },
+  {
+   "q": "corruption",
+   "category": "adv-english",
+   "expect": [
+    "fsd"
+   ],
+   "k": 3,
+   "why": "fasād"
+  },
+  {
+   "q": "mischief",
+   "category": "adv-english",
+   "expect": [
+    "fsd"
+   ],
+   "k": 3,
+   "why": "fasād (common translation)"
+  },
+  {
+   "q": "good deeds",
+   "category": "adv-english",
+   "expect": [
+    "SlH",
+    "Hsn"
+   ],
+   "k": 3,
+   "why": "ṣāliḥāt"
+  },
+  {
+   "q": "evil",
+   "category": "adv-english",
+   "expect": [
+    "swA",
+    "$rr"
+   ],
+   "k": 3,
+   "why": "sūʾ / sharr"
+  },
+  {
+   "q": "alms",
+   "category": "adv-english",
+   "expect": [
+    "Sdq",
+    "zkw"
+   ],
+   "k": 3,
+   "why": "ṣadaqa / zakāt"
+  },
+  {
+   "q": "almsgiving",
+   "category": "adv-english",
+   "expect": [
+    "zkw",
+    "Sdq"
+   ],
+   "k": 3,
+   "why": "zakāt"
+  },
+  {
+   "q": "honor",
+   "category": "adv-english",
+   "expect": [
+    "krm",
+    "Ezz"
+   ],
+   "k": 3,
+   "why": "US spelling"
+  },
+  {
+   "q": "humble",
+   "category": "adv-english",
+   "expect": [
+    "x$E",
+    "xDE",
+    "DrE",
+    "*ll"
+   ],
+   "k": 3,
+   "why": "khāshiʿ"
+  },
+  {
+   "q": "humilty",
+   "category": "adv-english",
+   "expect": [
+    "x$E",
+    "xDE",
+    "DrE",
+    "*ll",
+    "hwn"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "pride",
+   "category": "adv-english",
+   "expect": [
+    "kbr",
+    "fxr",
+    "bTr"
+   ],
+   "k": 3,
+   "why": "kibr"
+  },
+  {
+   "q": "arrogant",
+   "category": "adv-english",
+   "expect": [
+    "kbr"
+   ],
+   "k": 3,
+   "why": "mustakbir"
+  },
+  {
+   "q": "to seek refuge",
+   "category": "adv-english",
+   "expect": [
+    "Ew*"
+   ],
+   "k": 3,
+   "why": "aʿūdhu"
+  },
+  {
+   "q": "seek refuge in God",
+   "category": "adv-english",
+   "expect": [
+    "Ew*"
+   ],
+   "k": 3,
+   "why": "istiʿādha"
+  },
+  {
+   "q": "supplication",
+   "category": "adv-english",
+   "expect": [
+    "dEw",
+    "DrE"
+   ],
+   "k": 3,
+   "why": "duʿāʾ"
+  },
+  {
+   "q": "to call upon God",
+   "category": "adv-english",
+   "expect": [
+    "dEw"
+   ],
+   "k": 3,
+   "why": "daʿā"
+  },
+  {
+   "q": "thankfulness",
+   "category": "adv-english",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "shukr"
+  },
+  {
+   "q": "thankfull",
+   "category": "adv-english",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "to rely on God",
+   "category": "adv-english",
+   "expect": [
+    "wkl"
+   ],
+   "k": 3,
+   "why": "tawakkul"
+  },
+  {
+   "q": "to guide",
+   "category": "adv-english",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "hadā"
+  },
+  {
+   "q": "guided",
+   "category": "adv-english",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "muhtadūn"
+  },
+  {
+   "q": "guidence",
+   "category": "adv-english",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "rightly guided",
+   "category": "adv-english",
+   "expect": [
+    "hdy",
+    "r$d"
+   ],
+   "k": 3,
+   "why": "rāshidūn / muhtadūn"
+  },
+  {
+   "q": "wisdome",
+   "category": "adv-english",
+   "expect": [
+    "Hkm"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "all-wise",
+   "category": "adv-english",
+   "expect": [
+    "Hkm"
+   ],
+   "k": 3,
+   "why": "al-ḥakīm"
+  },
+  {
+   "q": "most merciful",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥīm"
+  },
+  {
+   "q": "the most gracious",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥmān (common rendering)"
+  },
+  {
+   "q": "mercey",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "all-knowing",
+   "category": "adv-english",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "al-ʿalīm"
+  },
+  {
+   "q": "all-hearing",
+   "category": "adv-english",
+   "expect": [
+    "smE"
+   ],
+   "k": 3,
+   "why": "al-samīʿ"
+  },
+  {
+   "q": "all-seeing",
+   "category": "adv-english",
+   "expect": [
+    "bSr"
+   ],
+   "k": 3,
+   "why": "al-baṣīr"
+  },
+  {
+   "q": "lord of the worlds",
+   "category": "adv-english",
+   "expect": [
+    "rbb"
+   ],
+   "k": 3,
+   "why": "rabb al-ʿālamīn"
+  },
+  {
+   "q": "lord",
+   "category": "adv-english",
+   "expect": [
+    "rbb"
+   ],
+   "k": 3,
+   "why": "rabb"
+  },
+  {
+   "q": "sustenance",
+   "category": "adv-english",
+   "expect": [
+    "rzq"
+   ],
+   "k": 3,
+   "why": "rizq"
+  },
+  {
+   "q": "provider",
+   "category": "adv-english",
+   "expect": [
+    "rzq"
+   ],
+   "k": 3,
+   "why": "al-razzāq"
+  },
+  {
+   "q": "satan",
+   "category": "adv-english",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "shayṭān"
+  },
+  {
+   "q": "the devil",
+   "category": "adv-english",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "shayṭān"
+  },
+  {
+   "q": "devils",
+   "category": "adv-english",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "shayāṭīn"
+  },
+  {
+   "q": "idolater",
+   "category": "adv-english",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "mushrik"
+  },
+  {
+   "q": "idolaters",
+   "category": "adv-english",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "mushrikūn"
+  },
+  {
+   "q": "idolatry",
+   "category": "adv-english",
+   "expect": [
+    "$rk",
+    "wvn",
+    "Snm"
+   ],
+   "k": 3,
+   "why": "shirk"
+  },
+  {
+   "q": "hearts",
+   "category": "adv-english",
+   "expect": [
+    "qlb"
+   ],
+   "k": 3,
+   "why": "qulūb"
+  },
+  {
+   "q": "intellect",
+   "category": "adv-english",
+   "expect": [
+    "Eql",
+    "lbb"
+   ],
+   "k": 3,
+   "why": "ʿaql"
+  },
+  {
+   "q": "falsehood",
+   "category": "adv-english",
+   "expect": [
+    "bTl",
+    "k*b"
+   ],
+   "k": 3,
+   "why": "bāṭil"
+  },
+  {
+   "q": "liar",
+   "category": "adv-english",
+   "expect": [
+    "k*b"
+   ],
+   "k": 3,
+   "why": "kādhib"
+  },
+  {
+   "q": "liars",
+   "category": "adv-english",
+   "expect": [
+    "k*b"
+   ],
+   "k": 3,
+   "why": "kādhibūn"
+  },
+  {
+   "q": "equity",
+   "category": "adv-english",
+   "expect": [
+    "qsT",
+    "Edl"
+   ],
+   "k": 3,
+   "why": "qisṭ"
+  },
+  {
+   "q": "the scales",
+   "category": "adv-english",
+   "expect": [
+    "wzn"
+   ],
+   "k": 3,
+   "why": "mīzān"
+  },
+  {
+   "q": "monks",
+   "category": "adv-english",
+   "expect": [
+    "rhb"
+   ],
+   "k": 3,
+   "why": "ruhbān"
+  },
+  {
+   "q": "monasticism",
+   "category": "adv-english",
+   "expect": [
+    "rhb"
+   ],
+   "k": 3,
+   "why": "rahbāniyya"
+  },
+  {
+   "q": "rabbis",
+   "category": "adv-english",
+   "expect": [
+    "Hbr",
+    "rbb"
+   ],
+   "k": 3,
+   "why": "aḥbār / rabbāniyyūn"
+  },
+  {
+   "q": "christians",
+   "category": "adv-english",
+   "expect": [
+    "nSr"
+   ],
+   "k": 3,
+   "why": "naṣārā"
+  },
+  {
+   "q": "jews",
+   "category": "adv-english",
+   "expect": [
+    "hwd"
+   ],
+   "k": 3,
+   "why": "yahūd / hūd"
+  },
+  {
+   "q": "submission to God",
+   "category": "adv-english",
+   "expect": [
+    "slm"
+   ],
+   "k": 3,
+   "why": "islām"
+  },
+  {
+   "q": "peace",
+   "category": "adv-english",
+   "expect": [
+    "slm"
+   ],
+   "k": 3,
+   "why": "salām"
+  },
+  {
+   "q": "holy",
+   "category": "adv-english",
+   "expect": [
+    "qds"
+   ],
+   "k": 3,
+   "why": "quds / muqaddas"
+  },
+  {
+   "q": "holy spirit",
+   "category": "adv-english",
+   "expect": [
+    "rwH",
+    "qds"
+   ],
+   "k": 3,
+   "why": "rūḥ al-qudus"
+  },
+  {
+   "q": "spirit",
+   "category": "adv-english",
+   "expect": [
+    "rwH"
+   ],
+   "k": 3,
+   "why": "rūḥ"
+  },
+  {
+   "q": "this world",
+   "category": "adv-english",
+   "expect": [
+    "dnw"
+   ],
+   "k": 3,
+   "why": "al-dunyā"
+  },
+  {
+   "q": "worldly life",
+   "category": "adv-english",
+   "expect": [
+    "dnw"
+   ],
+   "k": 3,
+   "why": "al-ḥayāt al-dunyā"
+  },
+  {
+   "q": "eternal",
+   "category": "adv-english",
+   "expect": [
+    "xld",
+    "Abd"
+   ],
+   "k": 3,
+   "why": "khālid"
+  },
+  {
+   "q": "night vigil",
+   "category": "adv-english",
+   "expect": [
+    "hjd"
+   ],
+   "k": 3,
+   "why": "tahajjud"
+  },
+  {
+   "q": "root word for patience",
+   "category": "adv-english",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "what is the arabic root for knowledge",
+   "category": "adv-english",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "which root means to guide",
+   "category": "adv-english",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "how do you say forgiveness in arabic",
+   "category": "adv-english",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "meaning of humility",
+   "category": "adv-english",
+   "expect": [
+    "x$E",
+    "xDE",
+    "DrE",
+    "*ll",
+    "hwn"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "arabic word for angel",
+   "category": "adv-english",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "arabic root for worship",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "question form"
+  },
+  {
+   "q": "hipocrisy",
+   "category": "adv-english",
+   "expect": [
+    "nfq"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "punishmnet",
+   "category": "adv-english",
+   "expect": [
+    "E*b",
+    "Eqb"
+   ],
+   "k": 3,
+   "why": "typo"
+  },
+  {
+   "q": "covenent",
+   "category": "adv-english",
+   "expect": [
+    "Ehd",
+    "wvq"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "sincerety",
+   "category": "adv-english",
+   "expect": [
+    "xlS",
+    "Sdq"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "polythiesm",
+   "category": "adv-english",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "idolatory",
+   "category": "adv-english",
+   "expect": [
+    "$rk",
+    "wvn",
+    "Snm"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "worshop",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "typo"
+  },
+  {
+   "q": "prostation",
+   "category": "adv-english",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "gratefull",
+   "category": "adv-english",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "sins",
+   "category": "adv-english",
+   "expect": [
+    "*nb",
+    "Avm",
+    "xTA",
+    "sy'",
+    "swA"
+   ],
+   "k": 3,
+   "why": "plural of sin (collision risk with letter name 'sin')"
+  },
+  {
+   "q": "stars",
+   "category": "adv-english",
+   "expect": [
+    "njm",
+    "kwkb"
+   ],
+   "k": 3,
+   "why": "nujūm / kawākib"
+  },
+  {
+   "q": "signs",
+   "category": "adv-english",
+   "expect": [
+    "Ayy"
+   ],
+   "k": 3,
+   "why": "āyāt"
+  },
+  {
+   "q": "graves",
+   "category": "adv-english",
+   "expect": [
+    "qbr"
+   ],
+   "k": 3,
+   "why": "qubūr"
+  },
+  {
+   "q": "mountains",
+   "category": "adv-english",
+   "expect": [
+    "jbl"
+   ],
+   "k": 3,
+   "why": "jibāl"
+  },
+  {
+   "q": "trees",
+   "category": "adv-english",
+   "expect": [
+    "$jr"
+   ],
+   "k": 3,
+   "why": "shajar"
+  },
+  {
+   "q": "ships",
+   "category": "adv-english",
+   "expect": [
+    "flk",
+    "sfn"
+   ],
+   "k": 3,
+   "why": "fulk / safīna"
+  },
+  {
+   "q": "birds",
+   "category": "adv-english",
+   "expect": [
+    "Tyr"
+   ],
+   "k": 3,
+   "why": "ṭayr"
+  },
+  {
+   "q": "tongues",
+   "category": "adv-english",
+   "expect": [
+    "lsn"
+   ],
+   "k": 3,
+   "why": "alsina"
+  },
+  {
+   "q": "gods",
+   "category": "adv-english",
+   "expect": [
+    "Alh"
+   ],
+   "k": 3,
+   "why": "āliha"
+  },
+  {
+   "q": "wives",
+   "category": "adv-english",
+   "expect": [
+    "zwj"
+   ],
+   "k": 3,
+   "why": "azwāj"
+  },
+  {
+   "q": "prayers",
+   "category": "adv-english",
+   "expect": [
+    "Slw",
+    "dEw"
+   ],
+   "k": 3,
+   "why": "ṣalawāt"
+  },
+  {
+   "q": "names",
+   "category": "adv-english",
+   "expect": [
+    "smw"
+   ],
+   "k": 3,
+   "why": "asmāʾ"
+  },
+  {
+   "q": "tidings",
+   "category": "adv-english",
+   "expect": [
+    "b$r",
+    "nbA"
+   ],
+   "k": 3,
+   "why": "bushrā / nabaʾ"
+  },
+  {
+   "q": "day of judgment",
+   "category": "adv-english",
+   "expect": [
+    "dyn",
+    "qwm"
+   ],
+   "k": 3,
+   "why": "US spelling of yawm al-dīn"
+  },
+  {
+   "q": "judgment day",
+   "category": "adv-english",
+   "expect": [
+    "dyn",
+    "qwm"
+   ],
+   "k": 3,
+   "why": "reordered"
+  },
+  {
+   "q": "Day of Judgement",
+   "category": "adv-english",
+   "expect": [
+    "dyn",
+    "qwm"
+   ],
+   "k": 3,
+   "why": "capitalised British"
+  },
+  {
+   "q": "the day of reckoning",
+   "category": "adv-english",
+   "expect": [
+    "Hsb",
+    "dyn"
+   ],
+   "k": 3,
+   "why": "yawm al-ḥisāb"
+  },
+  {
+   "q": "wrongdoer",
+   "category": "adv-english",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓālim"
+  },
+  {
+   "q": "the wrongdoers",
+   "category": "adv-english",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "al-ẓālimūn"
+  },
+  {
+   "q": "oppressors",
+   "category": "adv-english",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓālimūn"
+  },
+  {
+   "q": "to wrong oneself",
+   "category": "adv-english",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓalama nafsahu"
+  },
+  {
+   "q": "the disbelievers",
+   "category": "adv-english",
+   "expect": [
+    "kfr"
+   ],
+   "k": 3,
+   "why": "al-kāfirūn"
+  },
+  {
+   "q": "polytheists",
+   "category": "adv-english",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "mushrikūn"
+  },
+  {
+   "q": "those who associate partners",
+   "category": "adv-english",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "alladhīna ashrakū"
+  },
+  {
+   "q": "the god-conscious",
+   "category": "adv-english",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "al-muttaqūn"
+  },
+  {
+   "q": "god-conscious",
+   "category": "adv-english",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "muttaqī"
+  },
+  {
+   "q": "self-restraint",
+   "category": "adv-english",
+   "expect": [
+    "Sbr",
+    "wqy"
+   ],
+   "k": 3,
+   "why": "ṣabr / taqwā"
+  },
+  {
+   "q": "steadfastness",
+   "category": "adv-english",
+   "expect": [
+    "Sbr",
+    "vbt"
+   ],
+   "k": 3,
+   "why": "ṣabr"
+  },
+  {
+   "q": "perseverance",
+   "category": "adv-english",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "ṣabr"
+  },
+  {
+   "q": "to invoke God",
+   "category": "adv-english",
+   "expect": [
+    "dEw"
+   ],
+   "k": 3,
+   "why": "daʿā"
+  },
+  {
+   "q": "prayer of supplication",
+   "category": "adv-english",
+   "expect": [
+    "dEw"
+   ],
+   "k": 3,
+   "why": "duʿāʾ"
+  },
+  {
+   "q": "to beseech",
+   "category": "adv-english",
+   "expect": [
+    "dEw",
+    "DrE"
+   ],
+   "k": 3,
+   "why": "tadarruʿ / duʿāʾ"
+  },
+  {
+   "q": "the spirit",
+   "category": "adv-english",
+   "expect": [
+    "rwH"
+   ],
+   "k": 3,
+   "why": "al-rūḥ"
+  },
+  {
+   "q": "soul and spirit",
+   "category": "adv-english",
+   "expect": [
+    "nfs",
+    "rwH"
+   ],
+   "k": 3,
+   "why": "both"
+  },
+  {
+   "q": "almighty",
+   "category": "adv-english",
+   "expect": [
+    "Ezz",
+    "qdr"
+   ],
+   "k": 3,
+   "why": "al-ʿazīz / qadīr"
+  },
+  {
+   "q": "the most merciful",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥīm"
+  },
+  {
+   "q": "most gracious",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥmān"
+  },
+  {
+   "q": "the beneficent",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥmān (Pickthall)"
+  },
+  {
+   "q": "the compassionate",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥīm"
+  },
+  {
+   "q": "charitable giving",
+   "category": "adv-english",
+   "expect": [
+    "Sdq",
+    "zkw",
+    "nfq"
+   ],
+   "k": 3,
+   "why": "ṣadaqa / infāq"
+  },
+  {
+   "q": "to spend in the cause of God",
+   "category": "adv-english",
+   "expect": [
+    "nfq"
+   ],
+   "k": 3,
+   "why": "anfaqa fī sabīl Allāh"
+  },
+  {
+   "q": "striving in the way of God",
+   "category": "adv-english",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "jihād fī sabīl Allāh"
+  },
+  {
+   "q": "to strive",
+   "category": "adv-english",
+   "expect": [
+    "jhd",
+    "sEy"
+   ],
+   "k": 3,
+   "why": "jāhada / saʿā"
+  },
+  {
+   "q": "martyr",
+   "category": "adv-english",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "shahīd"
+  },
+  {
+   "q": "witness",
+   "category": "adv-english",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "shāhid"
+  },
+  {
+   "q": "hellfire punishment",
+   "category": "adv-english",
+   "expect": [
+    "jHm",
+    "E*b",
+    "nwr",
+    "sEr"
+   ],
+   "k": 3,
+   "why": "compound"
+  },
+  {
+   "q": "to weep",
+   "category": "adv-english",
+   "expect": [
+    "bky"
+   ],
+   "k": 3,
+   "why": "bakā"
+  },
+  {
+   "q": "to laugh",
+   "category": "adv-english",
+   "expect": [
+    "DHk"
+   ],
+   "k": 3,
+   "why": "ḍaḥika"
+  },
+  {
+   "q": "idolatrous",
+   "category": "adv-english",
+   "expect": [
+    "$rk",
+    "wvn",
+    "Snm"
+   ],
+   "k": 3,
+   "why": "adjective"
+  },
+  {
+   "q": "idol worshipper",
+   "category": "adv-english",
+   "expect": [
+    "$rk",
+    "Ebd",
+    "Snm",
+    "wvn"
+   ],
+   "k": 3,
+   "why": "phrase"
+  },
+  {
+   "q": "idol worship",
+   "category": "adv-english",
+   "expect": [
+    "Snm",
+    "wvn",
+    "$rk",
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "phrase"
+  },
+  {
+   "q": "merciful",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "raḥīm — the core rendering"
+  },
+  {
+   "q": "the merciful",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥīm"
+  },
+  {
+   "q": "mercifull",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "gracious",
+   "category": "adv-english",
+   "expect": [
+    "rHm",
+    "nEm",
+    "fDl",
+    "krm"
+   ],
+   "k": 5,
+   "why": "broad"
+  },
+  {
+   "q": "beneficent",
+   "category": "adv-english",
+   "expect": [
+    "rHm",
+    "Hsn",
+    "nEm",
+    "fDl"
+   ],
+   "k": 5,
+   "why": "Pickthall's al-raḥmān; broad"
+  },
+  {
+   "q": "all-merciful",
+   "category": "adv-english",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "al-raḥmān"
+  },
+  {
+   "q": "to believe",
+   "category": "adv-english",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "āmana"
+  },
+  {
+   "q": "to fear",
+   "category": "adv-english",
+   "expect": [
+    "xwf",
+    "x$y",
+    "wqy",
+    "rhb"
+   ],
+   "k": 3,
+   "why": "khāfa"
+  },
+  {
+   "q": "to love",
+   "category": "adv-english",
+   "expect": [
+    "Hbb",
+    "wdd"
+   ],
+   "k": 3,
+   "why": "aḥabba"
+  },
+  {
+   "q": "love",
+   "category": "adv-english",
+   "expect": [
+    "Hbb",
+    "wdd"
+   ],
+   "k": 3,
+   "why": "ḥubb"
+  },
+  {
+   "q": "hatred",
+   "category": "adv-english",
+   "expect": [
+    "bgD",
+    "$nA",
+    "mqt"
+   ],
+   "k": 3,
+   "why": "bughḍ"
+  },
+  {
+   "q": "to know",
+   "category": "adv-english",
+   "expect": [
+    "Elm",
+    "Erf"
+   ],
+   "k": 3,
+   "why": "ʿalima"
+  },
+  {
+   "q": "to create",
+   "category": "adv-english",
+   "expect": [
+    "xlq"
+   ],
+   "k": 3,
+   "why": "khalaqa"
+  },
+  {
+   "q": "to send down",
+   "category": "adv-english",
+   "expect": [
+    "nzl"
+   ],
+   "k": 3,
+   "why": "anzala"
+  },
+  {
+   "q": "to swear an oath",
+   "category": "adv-english",
+   "expect": [
+    "qsm",
+    "Hlf"
+   ],
+   "k": 3,
+   "why": "aqsama / ḥalafa"
+  },
+  {
+   "q": "to break an oath",
+   "category": "adv-english",
+   "expect": [
+    "nkv",
+    "Hlf",
+    "ymn"
+   ],
+   "k": 3,
+   "why": "nakatha"
+  },
+  {
+   "q": "to keep a promise",
+   "category": "adv-english",
+   "expect": [
+    "wfy",
+    "wEd",
+    "Ehd"
+   ],
+   "k": 3,
+   "why": "awfā bi-l-ʿahd"
+  },
+  {
+   "q": "promise",
+   "category": "adv-english",
+   "expect": [
+    "wEd"
+   ],
+   "k": 3,
+   "why": "waʿd"
+  },
+  {
+   "q": "to lie",
+   "category": "adv-english",
+   "expect": [
+    "k*b"
+   ],
+   "k": 3,
+   "why": "kadhaba"
+  },
+  {
+   "q": "to thank",
+   "category": "adv-english",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "shakara"
+  },
+  {
+   "q": "to cry",
+   "category": "adv-english",
+   "expect": [
+    "bky"
+   ],
+   "k": 5,
+   "why": "bakā; ambiguous with 'cry out'"
+  },
+  {
+   "q": "weeping",
+   "category": "adv-english",
+   "expect": [
+    "bky"
+   ],
+   "k": 3,
+   "why": "bukāʾ"
+  },
+  {
+   "q": "wife",
+   "category": "adv-english",
+   "expect": [
+    "zwj"
+   ],
+   "k": 3,
+   "why": "zawj"
+  },
+  {
+   "q": "name",
+   "category": "adv-english",
+   "expect": [
+    "smw"
+   ],
+   "k": 3,
+   "why": "ism"
+  },
+  {
+   "q": "the name of God",
+   "category": "adv-english",
+   "expect": [
+    "smw"
+   ],
+   "k": 3,
+   "why": "bismi-llāh"
+  },
+  {
+   "q": "compasion",
+   "category": "adv-english",
+   "expect": [
+    "rHm",
+    "rAf",
+    "Hnn"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "worshipers",
+   "category": "adv-english",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "US plural"
+  },
+  {
+   "q": "angells",
+   "category": "adv-english",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "misspelling"
+  },
+  {
+   "q": "prophecy",
+   "category": "adv-english",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "nubuwwa"
+  },
+  {
+   "q": "heavenly",
+   "category": "adv-english",
+   "expect": [
+    "smw",
+    "jnn"
+   ],
+   "k": 3,
+   "why": "adjective"
+  },
+  {
+   "q": "heavens and earth",
+   "category": "adv-english",
+   "expect": [
+    "smw",
+    "ArD"
+   ],
+   "k": 3,
+   "why": "al-samāwāt wa-l-arḍ"
+  },
+  {
+   "q": "the heavens",
+   "category": "adv-english",
+   "expect": [
+    "smw"
+   ],
+   "k": 3,
+   "why": "al-samāwāt"
+  },
+  {
+   "q": "sky",
+   "category": "adv-english",
+   "expect": [
+    "smw"
+   ],
+   "k": 3,
+   "why": "samāʾ"
+  },
+  {
+   "q": "breath",
+   "category": "adv-english",
+   "expect": [
+    "nfs",
+    "rwH"
+   ],
+   "k": 3,
+   "why": "nafas / rūḥ"
+  },
+  {
+   "q": "divine decree",
+   "category": "adv-english",
+   "expect": [
+    "qdr",
+    "qDy"
+   ],
+   "k": 3,
+   "why": "qadar / qaḍāʾ"
+  },
+  {
+   "q": "predestination",
+   "category": "adv-english",
+   "expect": [
+    "qdr"
+   ],
+   "k": 3,
+   "why": "qadar"
+  },
+  {
+   "q": "fate",
+   "category": "adv-english",
+   "expect": [
+    "qdr",
+    "qDy"
+   ],
+   "k": 3,
+   "why": "qadar"
+  },
+  {
+   "q": "gratefulness",
+   "category": "adv-english",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "shukr"
+  },
+  {
+   "q": "ungrateful",
+   "category": "adv-english",
+   "expect": [
+    "kfr",
+    "$kr"
+   ],
+   "k": 3,
+   "why": "kafūr"
+  },
+  {
+   "q": "ingratitude",
+   "category": "adv-english",
+   "expect": [
+    "kfr",
+    "$kr"
+   ],
+   "k": 3,
+   "why": "kufrān"
+  },
+  {
+   "q": "milk",
+   "category": "adv-english",
+   "expect": [
+    "lbn"
+   ],
+   "k": 3,
+   "why": "laban (collision risk m-l-k)"
+  },
+  {
+   "q": "sun",
+   "category": "adv-english",
+   "expect": [
+    "$ms"
+   ],
+   "k": 3,
+   "why": "shams"
+  },
+  {
+   "q": "moon",
+   "category": "adv-english",
+   "expect": [
+    "qmr"
+   ],
+   "k": 3,
+   "why": "qamar"
+  },
+  {
+   "q": "night",
+   "category": "adv-english",
+   "expect": [
+    "lyl"
+   ],
+   "k": 3,
+   "why": "layl"
+  },
+  {
+   "q": "salt",
+   "category": "adv-english",
+   "expect": [
+    "mlH"
+   ],
+   "k": 3,
+   "why": "milḥ"
+  },
+  {
+   "q": "dog",
+   "category": "adv-english",
+   "expect": [
+    "klb"
+   ],
+   "k": 3,
+   "why": "kalb"
+  },
+  {
+   "q": "cow",
+   "category": "adv-english",
+   "expect": [
+    "bqr"
+   ],
+   "k": 3,
+   "why": "baqara"
+  },
+  {
+   "q": "fig",
+   "category": "adv-english",
+   "expect": [
+    "tyn"
+   ],
+   "k": 3,
+   "why": "tīn"
+  },
+  {
+   "q": "honey",
+   "category": "adv-english",
+   "expect": [
+    "Esl"
+   ],
+   "k": 3,
+   "why": "ʿasal"
+  },
+  {
+   "q": "wine",
+   "category": "adv-english",
+   "expect": [
+    "xmr"
+   ],
+   "k": 3,
+   "why": "khamr"
+  },
+  {
+   "q": "horses",
+   "category": "adv-english",
+   "expect": [
+    "xyl"
+   ],
+   "k": 3,
+   "why": "khayl"
+  },
+  {
+   "q": "grapes",
+   "category": "adv-english",
+   "expect": [
+    "Enb"
+   ],
+   "k": 3,
+   "why": "ʿinab"
+  },
+  {
+   "q": "olive",
+   "category": "adv-english",
+   "expect": [
+    "zyt"
+   ],
+   "k": 3,
+   "why": "zaytūn"
+  },
+  {
+   "q": "pomegranate",
+   "category": "adv-english",
+   "expect": [
+    "rmn"
+   ],
+   "k": 3,
+   "why": "rummān"
+  },
+  {
+   "q": "earthquake",
+   "category": "adv-english",
+   "expect": [
+    "zlzl"
+   ],
+   "k": 3,
+   "why": "zalzala"
+  },
+  {
+   "q": "golden calf",
+   "category": "adv-english",
+   "expect": [
+    "Ejl"
+   ],
+   "k": 3,
+   "why": "ʿijl"
+  },
+  {
+   "q": "wolf",
+   "category": "adv-english",
+   "expect": [
+    "*Ab"
+   ],
+   "k": 3,
+   "why": "dhiʾb"
+  },
+  {
+   "q": "elephant",
+   "category": "adv-english",
+   "expect": [
+    "fyl"
+   ],
+   "k": 3,
+   "why": "fīl"
+  },
+  {
+   "q": "donkey",
+   "category": "adv-english",
+   "expect": [
+    "Hmr"
+   ],
+   "k": 3,
+   "why": "ḥimār"
+  },
+  {
+   "q": "hoopoe",
+   "category": "adv-english",
+   "expect": [
+    "hdhd"
+   ],
+   "k": 3,
+   "why": "hudhud"
+  },
+  {
+   "q": "fly",
+   "category": "adv-english",
+   "expect": [
+    "*bb",
+    "Tyr"
+   ],
+   "k": 3,
+   "why": "dhubāb / ṭāra (ambiguous)"
+  },
+  {
+   "q": "frogs",
+   "category": "adv-english",
+   "expect": [
+    "DfdE"
+   ],
+   "k": 3,
+   "why": "ḍafādiʿ"
+  },
+  {
+   "q": "locusts",
+   "category": "adv-english",
+   "expect": [
+    "jrd"
+   ],
+   "k": 3,
+   "why": "jarād"
+  },
+  {
+   "q": "date palm",
+   "category": "adv-english",
+   "expect": [
+    "nxl"
+   ],
+   "k": 3,
+   "why": "nakhl"
+  },
+  {
+   "q": "dust",
+   "category": "adv-english",
+   "expect": [
+    "trb"
+   ],
+   "k": 3,
+   "why": "turāb"
+  },
+  {
+   "q": "hand",
+   "category": "adv-english",
+   "expect": [
+    "ydy"
+   ],
+   "k": 3,
+   "why": "yad"
+  },
+  {
+   "q": "to lie down",
+   "category": "adv-english",
+   "expect": [
+    "DjE",
+    "rqd",
+    "nwm"
+   ],
+   "k": 5,
+   "why": "iḍṭajaʿa — sense of 'lie' not 'deceive'"
+  },
+  {
+   "q": "a lie",
+   "category": "adv-english",
+   "expect": [
+    "k*b",
+    "Afk"
+   ],
+   "k": 3,
+   "why": "kadhib / ifk"
+  },
+  {
+   "q": "lying",
+   "category": "adv-english",
+   "expect": [
+    "k*b"
+   ],
+   "k": 3,
+   "why": "kadhib"
+  },
+  {
+   "q": "ḏikr",
+   "category": "adv-notation",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "DMG ḏ = ذ; ذِكْر"
+  },
+  {
+   "q": "šukr",
+   "category": "adv-notation",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "DMG š = ش; شُكْر"
+  },
+  {
+   "q": "ǧanna",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "DMG ǧ = ج; جَنَّة"
+  },
+  {
+   "q": "ḫalq",
+   "category": "adv-notation",
+   "expect": [
+    "xlq"
+   ],
+   "k": 3,
+   "why": "DMG ḫ = خ; خَلْق"
+  },
+  {
+   "q": "ṯawāb",
+   "category": "adv-notation",
+   "expect": [
+    "vwb"
+   ],
+   "k": 3,
+   "why": "DMG ṯ = ث; ثَوَاب"
+  },
+  {
+   "q": "ġafūr",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "DMG ġ = غ; غَفُور"
+  },
+  {
+   "q": "ẓulm",
+   "category": "adv-notation",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓ = ظ; ظُلْم"
+  },
+  {
+   "q": "ʿaḏāb",
+   "category": "adv-notation",
+   "expect": [
+    "E*b"
+   ],
+   "k": 3,
+   "why": "ʿayn + ḏ; عَذَاب"
+  },
+  {
+   "q": "tawḥīd",
+   "category": "adv-notation",
+   "expect": [
+    "wHd"
+   ],
+   "k": 3,
+   "why": "ALA-LC tawḥīd -> w-ḥ-d"
+  },
+  {
+   "q": "ṣirāṭ",
+   "category": "adv-notation",
+   "expect": [
+    "SrT"
+   ],
+   "k": 3,
+   "why": "ALA-LC ṣirāṭ -> ص ر ط (1:6)"
+  },
+  {
+   "q": "šayṭān",
+   "category": "adv-notation",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "DMG šayṭān -> ش ط ن"
+  },
+  {
+   "q": "ǧ-h-d",
+   "category": "adv-notation",
+   "expect": [
+    "jhd"
+   ],
+   "k": 1,
+   "why": "DMG root notation ǧ-h-d"
+  },
+  {
+   "q": "ḫ-š-y",
+   "category": "adv-notation",
+   "expect": [
+    "x$y"
+   ],
+   "k": 1,
+   "why": "DMG root notation ḫ-š-y"
+  },
+  {
+   "q": "ḏ-k-r",
+   "category": "adv-notation",
+   "expect": [
+    "*kr"
+   ],
+   "k": 1,
+   "why": "DMG root notation ḏ-k-r"
+  },
+  {
+   "q": "ġ-f-r",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 1,
+   "why": "DMG root notation ġ-f-r"
+  },
+  {
+   "q": "djihad",
+   "category": "adv-notation",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "French/EI dj = ج"
+  },
+  {
+   "q": "djinn",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "French/EI dj = ج; جِنّ"
+  },
+  {
+   "q": "chahada",
+   "category": "adv-notation",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "French ch = ش; شَهَادَة"
+  },
+  {
+   "q": "chirk",
+   "category": "adv-notation",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "French ch = ش; شِرْك"
+  },
+  {
+   "q": "sourate",
+   "category": "adv-notation",
+   "expect": [
+    "swr"
+   ],
+   "k": 3,
+   "why": "French ou = u; سُورَة"
+  },
+  {
+   "q": "rasoul",
+   "category": "adv-notation",
+   "expect": [
+    "rsl"
+   ],
+   "k": 3,
+   "why": "French ou = u; رَسُول"
+  },
+  {
+   "q": "moustaqim",
+   "category": "adv-notation",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "French ou; مُسْتَقِيم"
+  },
+  {
+   "q": "chaytane",
+   "category": "adv-notation",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "French ch; شَيْطَان"
+  },
+  {
+   "q": "Schahada",
+   "category": "adv-notation",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "German sch = ش"
+  },
+  {
+   "q": "Schirk",
+   "category": "adv-notation",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "German sch = ش"
+  },
+  {
+   "q": "Dschinn",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "German dsch = ج"
+  },
+  {
+   "q": "Dschihad",
+   "category": "adv-notation",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "German dsch = ج"
+  },
+  {
+   "q": "tevhid",
+   "category": "adv-notation",
+   "expect": [
+    "wHd"
+   ],
+   "k": 3,
+   "why": "Turkish v for w; tevhid"
+  },
+  {
+   "q": "cennet",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "Turkish c = ج"
+  },
+  {
+   "q": "şükür",
+   "category": "adv-notation",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "Turkish ş = ش"
+  },
+  {
+   "q": "sabır",
+   "category": "adv-notation",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "Turkish dotless ı"
+  },
+  {
+   "q": "kıyamet",
+   "category": "adv-notation",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "Turkish kıyamet = qiyāma"
+  },
+  {
+   "q": "secde",
+   "category": "adv-notation",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "Turkish c = ج; sajda"
+  },
+  {
+   "q": "tövbe",
+   "category": "adv-notation",
+   "expect": [
+    "twb"
+   ],
+   "k": 3,
+   "why": "Turkish tövbe = tawba"
+  },
+  {
+   "q": "ahiret",
+   "category": "adv-notation",
+   "expect": [
+    "Axr"
+   ],
+   "k": 3,
+   "why": "Turkish ahiret = ākhira"
+  },
+  {
+   "q": "tawheed",
+   "category": "adv-notation",
+   "expect": [
+    "wHd"
+   ],
+   "k": 3,
+   "why": "Urdu/English tawheed"
+  },
+  {
+   "q": "jannat",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "Urdu jannat"
+  },
+  {
+   "q": "rahmat",
+   "category": "adv-notation",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "Urdu rahmat"
+  },
+  {
+   "q": "qiyamat",
+   "category": "adv-notation",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "Urdu qiyamat"
+  },
+  {
+   "q": "kareem",
+   "category": "adv-notation",
+   "expect": [
+    "krm"
+   ],
+   "k": 3,
+   "why": "kareem = كَرِيم"
+  },
+  {
+   "q": "ghafur",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "ghafur = غَفُور"
+  },
+  {
+   "q": "sirat",
+   "category": "adv-notation",
+   "expect": [
+    "SrT"
+   ],
+   "k": 3,
+   "why": "sirat = صِرَاط"
+  },
+  {
+   "q": "mustaqim",
+   "category": "adv-notation",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "mustaqim = مُسْتَقِيم"
+  },
+  {
+   "q": "sajda",
+   "category": "adv-notation",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "sajda"
+  },
+  {
+   "q": "barakat",
+   "category": "adv-notation",
+   "expect": [
+    "brk"
+   ],
+   "k": 3,
+   "why": "barakat"
+  },
+  {
+   "q": "solat",
+   "category": "adv-notation",
+   "expect": [
+    "Slw"
+   ],
+   "k": 3,
+   "why": "Malay solat"
+  },
+  {
+   "q": "syukur",
+   "category": "adv-notation",
+   "expect": [
+    "$kr"
+   ],
+   "k": 3,
+   "why": "Malay sy = ش"
+  },
+  {
+   "q": "syirik",
+   "category": "adv-notation",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "Malay syirik"
+  },
+  {
+   "q": "rezeki",
+   "category": "adv-notation",
+   "expect": [
+    "rzq"
+   ],
+   "k": 3,
+   "why": "Malay rezeki = rizq"
+  },
+  {
+   "q": "taubat",
+   "category": "adv-notation",
+   "expect": [
+    "twb"
+   ],
+   "k": 3,
+   "why": "Malay taubat = tawba"
+  },
+  {
+   "q": "kiamat",
+   "category": "adv-notation",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "Malay kiamat"
+  },
+  {
+   "q": "zakah",
+   "category": "adv-notation",
+   "expect": [
+    "zkw"
+   ],
+   "k": 3,
+   "why": "zakah"
+  },
+  {
+   "q": "su'al",
+   "category": "adv-notation",
+   "expect": [
+    "sAl"
+   ],
+   "k": 3,
+   "why": "su'al = سُؤَال"
+  },
+  {
+   "q": "ta'wil",
+   "category": "adv-notation",
+   "expect": [
+    "Awl"
+   ],
+   "k": 3,
+   "why": "ta'wil = تَأْوِيل"
+  },
+  {
+   "q": "ba'd",
+   "category": "adv-notation",
+   "expect": [
+    "bEd"
+   ],
+   "k": 3,
+   "why": "ba'd = بَعْد"
+  },
+  {
+   "q": "mu'min",
+   "category": "adv-notation",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "mu'min"
+  },
+  {
+   "q": "ni'ma",
+   "category": "adv-notation",
+   "expect": [
+    "nEm"
+   ],
+   "k": 3,
+   "why": "ni'ma = نِعْمَة"
+  },
+  {
+   "q": "ma'ruf",
+   "category": "adv-notation",
+   "expect": [
+    "Erf"
+   ],
+   "k": 3,
+   "why": "ma'ruf = مَعْرُوف"
+  },
+  {
+   "q": "du'a",
+   "category": "adv-notation",
+   "expect": [
+    "dEw"
+   ],
+   "k": 3,
+   "why": "du'a = دُعَاء"
+  },
+  {
+   "q": "shi'r",
+   "category": "adv-notation",
+   "expect": [
+    "$Er"
+   ],
+   "k": 3,
+   "why": "shi'r = شِعْر"
+  },
+  {
+   "q": "ijtihad",
+   "category": "adv-notation",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "Form VIII of j-h-d"
+  },
+  {
+   "q": "istiqama",
+   "category": "adv-notation",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "Form X of q-w-m"
+  },
+  {
+   "q": "ittaqa",
+   "category": "adv-notation",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "Form VIII of w-q-y (ittaqā)"
+  },
+  {
+   "q": "istikbar",
+   "category": "adv-notation",
+   "expect": [
+    "kbr"
+   ],
+   "k": 3,
+   "why": "Form X of k-b-r"
+  },
+  {
+   "q": "ittaba'a",
+   "category": "adv-notation",
+   "expect": [
+    "tbE"
+   ],
+   "k": 3,
+   "why": "Form VIII of t-b-ʿ"
+  },
+  {
+   "q": "ikhtilaf",
+   "category": "adv-notation",
+   "expect": [
+    "xlf"
+   ],
+   "k": 3,
+   "why": "Form VIII of kh-l-f"
+  },
+  {
+   "q": "ihtada",
+   "category": "adv-notation",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "Form VIII of h-d-y"
+  },
+  {
+   "q": "iftara",
+   "category": "adv-notation",
+   "expect": [
+    "fry"
+   ],
+   "k": 3,
+   "why": "Form VIII of f-r-y"
+  },
+  {
+   "q": "mustakbirun",
+   "category": "adv-notation",
+   "expect": [
+    "kbr"
+   ],
+   "k": 3,
+   "why": "Form X participle plural"
+  },
+  {
+   "q": "muttaqin",
+   "category": "adv-notation",
+   "expect": [
+    "wqy"
+   ],
+   "k": 3,
+   "why": "Form VIII participle plural"
+  },
+  {
+   "q": "kutub",
+   "category": "adv-notation",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "plural of kitāb"
+  },
+  {
+   "q": "anbiya",
+   "category": "adv-notation",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "plural of nabī"
+  },
+  {
+   "q": "awliya",
+   "category": "adv-notation",
+   "expect": [
+    "wly"
+   ],
+   "k": 3,
+   "why": "plural of walī"
+  },
+  {
+   "q": "masajid",
+   "category": "adv-notation",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "plural of masjid"
+  },
+  {
+   "q": "ashab",
+   "category": "adv-notation",
+   "expect": [
+    "SHb"
+   ],
+   "k": 3,
+   "why": "plural of ṣāḥib"
+  },
+  {
+   "q": "rusul",
+   "category": "adv-notation",
+   "expect": [
+    "rsl"
+   ],
+   "k": 3,
+   "why": "plural of rasūl"
+  },
+  {
+   "q": "qulub",
+   "category": "adv-notation",
+   "expect": [
+    "qlb"
+   ],
+   "k": 3,
+   "why": "plural of qalb"
+  },
+  {
+   "q": "asnam",
+   "category": "adv-notation",
+   "expect": [
+    "Snm"
+   ],
+   "k": 3,
+   "why": "plural of ṣanam"
+  },
+  {
+   "q": "qala",
+   "category": "adv-notation",
+   "expect": [
+    "qwl"
+   ],
+   "k": 3,
+   "why": "qāla"
+  },
+  {
+   "q": "yaqulu",
+   "category": "adv-notation",
+   "expect": [
+    "qwl"
+   ],
+   "k": 3,
+   "why": "yaqūlu"
+  },
+  {
+   "q": "ramā",
+   "category": "adv-notation",
+   "expect": [
+    "rmy"
+   ],
+   "k": 3,
+   "why": "ramā (8:17)"
+  },
+  {
+   "q": "da'a",
+   "category": "adv-notation",
+   "expect": [
+    "dEw"
+   ],
+   "k": 3,
+   "why": "daʿā"
+  },
+  {
+   "q": "wa'ada",
+   "category": "adv-notation",
+   "expect": [
+    "wEd"
+   ],
+   "k": 3,
+   "why": "waʿada"
+  },
+  {
+   "q": "kana",
+   "category": "adv-notation",
+   "expect": [
+    "kwn"
+   ],
+   "k": 3,
+   "why": "kāna"
+  },
+  {
+   "q": "sha'a",
+   "category": "adv-notation",
+   "expect": [
+    "$yA"
+   ],
+   "k": 3,
+   "why": "shāʾa"
+  },
+  {
+   "q": "khafa",
+   "category": "adv-notation",
+   "expect": [
+    "xwf"
+   ],
+   "k": 3,
+   "why": "khāfa"
+  },
+  {
+   "q": "yarmi",
+   "category": "adv-notation",
+   "expect": [
+    "rmy"
+   ],
+   "k": 3,
+   "why": "yarmī"
+  },
+  {
+   "q": "radd",
+   "category": "adv-notation",
+   "expect": [
+    "rdd"
+   ],
+   "k": 3,
+   "why": "radd"
+  },
+  {
+   "q": "madd",
+   "category": "adv-notation",
+   "expect": [
+    "mdd"
+   ],
+   "k": 3,
+   "why": "madd"
+  },
+  {
+   "q": "sirr",
+   "category": "adv-notation",
+   "expect": [
+    "srr"
+   ],
+   "k": 3,
+   "why": "sirr = secret"
+  },
+  {
+   "q": "haqq",
+   "category": "adv-notation",
+   "expect": [
+    "Hqq"
+   ],
+   "k": 3,
+   "why": "ḥaqq"
+  },
+  {
+   "q": "zann",
+   "category": "adv-notation",
+   "expect": [
+    "Znn"
+   ],
+   "k": 3,
+   "why": "ẓann"
+  },
+  {
+   "q": "shakk",
+   "category": "adv-notation",
+   "expect": [
+    "$kk"
+   ],
+   "k": 3,
+   "why": "shakk"
+  },
+  {
+   "q": "ar-Rahman",
+   "category": "adv-notation",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "ar-Raḥmān"
+  },
+  {
+   "q": "as-sirat al-mustaqim",
+   "category": "adv-notation",
+   "expect": [
+    "SrT",
+    "qwm"
+   ],
+   "k": 3,
+   "why": "the straight path"
+  },
+  {
+   "q": "Al-Ghafur",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "al-Ghafūr"
+  },
+  {
+   "q": "al - kitab",
+   "category": "adv-notation",
+   "expect": [
+    "ktb"
+   ],
+   "k": 3,
+   "why": "spaced hyphen"
+  },
+  {
+   "q": "laylat al-qadr",
+   "category": "adv-notation",
+   "expect": [
+    "qdr",
+    "lyl"
+   ],
+   "k": 3,
+   "why": "Night of Power"
+  },
+  {
+   "q": "TaWBa",
+   "category": "adv-notation",
+   "expect": [
+    "twb"
+   ],
+   "k": 3,
+   "why": "mixed case tawba"
+  },
+  {
+   "q": "JANNAH",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "all caps jannah"
+  },
+  {
+   "q": "Sh-K-R",
+   "category": "adv-notation",
+   "expect": [
+    "$kr"
+   ],
+   "k": 1,
+   "why": "mixed case root"
+  },
+  {
+   "q": "ʿibād",
+   "category": "adv-notation",
+   "expect": [
+    "Ebd"
+   ],
+   "k": 3,
+   "why": "ʿibād"
+  },
+  {
+   "q": "ẓālimīn",
+   "category": "adv-notation",
+   "expect": [
+    "Zlm"
+   ],
+   "k": 3,
+   "why": "ẓālimīn"
+  },
+  {
+   "q": "tawhid",
+   "category": "adv-notation",
+   "expect": [
+    "wHd"
+   ],
+   "k": 3,
+   "why": "tawḥīd, plain ASCII"
+  },
+  {
+   "q": "ǧihād",
+   "category": "adv-notation",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "DMG ǧihād"
+  },
+  {
+   "q": "ǧinn",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "DMG ǧinn"
+  },
+  {
+   "q": "ḥaǧǧ",
+   "category": "adv-notation",
+   "expect": [
+    "Hjj"
+   ],
+   "k": 3,
+   "why": "DMG ḥaǧǧ"
+  },
+  {
+   "q": "ḫayr",
+   "category": "adv-notation",
+   "expect": [
+    "xyr"
+   ],
+   "k": 3,
+   "why": "DMG ḫayr = خير"
+  },
+  {
+   "q": "āḫira",
+   "category": "adv-notation",
+   "expect": [
+    "Axr"
+   ],
+   "k": 3,
+   "why": "DMG āḫira"
+  },
+  {
+   "q": "ḫalīfa",
+   "category": "adv-notation",
+   "expect": [
+    "xlf"
+   ],
+   "k": 3,
+   "why": "DMG ḫalīfa"
+  },
+  {
+   "q": "ḏanb",
+   "category": "adv-notation",
+   "expect": [
+    "*nb"
+   ],
+   "k": 3,
+   "why": "DMG ḏanb = ذنب"
+  },
+  {
+   "q": "širk",
+   "category": "adv-notation",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "DMG širk"
+  },
+  {
+   "q": "šahāda",
+   "category": "adv-notation",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "DMG šahāda"
+  },
+  {
+   "q": "ġayb",
+   "category": "adv-notation",
+   "expect": [
+    "gyb"
+   ],
+   "k": 3,
+   "why": "DMG ġayb"
+  },
+  {
+   "q": "qurʾān",
+   "category": "adv-notation",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "ALA-LC with ʾ"
+  },
+  {
+   "q": "ʿilm",
+   "category": "adv-notation",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "ALA-LC ʿilm"
+  },
+  {
+   "q": "k̲h̲alq",
+   "category": "adv-notation",
+   "expect": [
+    "xlq"
+   ],
+   "k": 3,
+   "why": "EI underlined digraph (combining macron below)"
+  },
+  {
+   "q": "d̲j̲inn",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "EI underlined dj"
+  },
+  {
+   "q": "hadj",
+   "category": "adv-notation",
+   "expect": [
+    "Hjj"
+   ],
+   "k": 3,
+   "why": "French hadj"
+  },
+  {
+   "q": "salât",
+   "category": "adv-notation",
+   "expect": [
+    "Slw"
+   ],
+   "k": 3,
+   "why": "French circumflex salât"
+  },
+  {
+   "q": "zakât",
+   "category": "adv-notation",
+   "expect": [
+    "zkw"
+   ],
+   "k": 3,
+   "why": "French/Turkish zakât"
+  },
+  {
+   "q": "djanna",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 3,
+   "why": "French djanna"
+  },
+  {
+   "q": "nour",
+   "category": "adv-notation",
+   "expect": [
+    "nwr"
+   ],
+   "k": 3,
+   "why": "French ou: nūr"
+  },
+  {
+   "q": "chari'a",
+   "category": "adv-notation",
+   "expect": [
+    "$rE"
+   ],
+   "k": 3,
+   "why": "French chari'a (45:18 sharīʿa)"
+  },
+  {
+   "q": "choura",
+   "category": "adv-notation",
+   "expect": [
+    "$wr"
+   ],
+   "k": 3,
+   "why": "French choura (42:38 shūrā)"
+  },
+  {
+   "q": "Schaitan",
+   "category": "adv-notation",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "German sch"
+  },
+  {
+   "q": "Hadsch",
+   "category": "adv-notation",
+   "expect": [
+    "Hjj"
+   ],
+   "k": 3,
+   "why": "German dsch for ج"
+  },
+  {
+   "q": "Schura",
+   "category": "adv-notation",
+   "expect": [
+    "$wr"
+   ],
+   "k": 3,
+   "why": "German sch"
+  },
+  {
+   "q": "cihad",
+   "category": "adv-notation",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "Turkish c = ج"
+  },
+  {
+   "q": "şeytan",
+   "category": "adv-notation",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "Turkish ş"
+  },
+  {
+   "q": "şirk",
+   "category": "adv-notation",
+   "expect": [
+    "$rk"
+   ],
+   "k": 3,
+   "why": "Turkish ş"
+  },
+  {
+   "q": "Kuran",
+   "category": "adv-notation",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "Turkish Kuran"
+  },
+  {
+   "q": "nikmat",
+   "category": "adv-notation",
+   "expect": [
+    "nEm"
+   ],
+   "k": 3,
+   "why": "Malay nikmat = niʿma"
+  },
+  {
+   "q": "kiblat",
+   "category": "adv-notation",
+   "expect": [
+    "qbl"
+   ],
+   "k": 3,
+   "why": "Malay kiblat = qibla"
+  },
+  {
+   "q": "syariat",
+   "category": "adv-notation",
+   "expect": [
+    "$rE"
+   ],
+   "k": 3,
+   "why": "Malay syariat"
+  },
+  {
+   "q": "malaikat",
+   "category": "adv-notation",
+   "expect": [
+    "mlk"
+   ],
+   "k": 3,
+   "why": "Malay malaikat (morphology: malāʾika -> mlk)"
+  },
+  {
+   "q": "wahyu",
+   "category": "adv-notation",
+   "expect": [
+    "wHy"
+   ],
+   "k": 3,
+   "why": "Malay wahyu"
+  },
+  {
+   "q": "rukuk",
+   "category": "adv-notation",
+   "expect": [
+    "rkE"
+   ],
+   "k": 3,
+   "why": "Malay rukuk = rukūʿ"
+  },
+  {
+   "q": "muddakir",
+   "category": "adv-notation",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "Form VIII assimilated (54:17 muddakir)"
+  },
+  {
+   "q": "tawakkul",
+   "category": "adv-notation",
+   "expect": [
+    "wkl"
+   ],
+   "k": 3,
+   "why": "Form V of w-k-l"
+  },
+  {
+   "q": "infaq",
+   "category": "adv-notation",
+   "expect": [
+    "nfq"
+   ],
+   "k": 3,
+   "why": "Form IV verbal noun"
+  },
+  {
+   "q": "inshiqaq",
+   "category": "adv-notation",
+   "expect": [
+    "$qq"
+   ],
+   "k": 3,
+   "why": "Form VII, surah name"
+  },
+  {
+   "q": "nubuwwah",
+   "category": "adv-notation",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "al-nubuwwa (morphology nbA)"
+  },
+  {
+   "q": "muzdajar",
+   "category": "adv-notation",
+   "expect": [
+    "zjr"
+   ],
+   "k": 3,
+   "why": "Form VIII with z->zd (54:4)"
+  },
+  {
+   "q": "ayyam",
+   "category": "adv-notation",
+   "expect": [
+    "ywm"
+   ],
+   "k": 3,
+   "why": "plural of yawm"
+  },
+  {
+   "q": "anfus",
+   "category": "adv-notation",
+   "expect": [
+    "nfs"
+   ],
+   "k": 3,
+   "why": "plural of nafs"
+  },
+  {
+   "q": "ikhwan",
+   "category": "adv-notation",
+   "expect": [
+    "Axw"
+   ],
+   "k": 3,
+   "why": "plural of akh"
+  },
+  {
+   "q": "asatir",
+   "category": "adv-notation",
+   "expect": [
+    "sTr"
+   ],
+   "k": 3,
+   "why": "asāṭīr al-awwalīn"
+  },
+  {
+   "q": "kun fayakun",
+   "category": "adv-notation",
+   "expect": [
+    "kwn"
+   ],
+   "k": 3,
+   "why": "kun fa-yakūn"
+  },
+  {
+   "q": "qul",
+   "category": "adv-notation",
+   "expect": [
+    "qwl"
+   ],
+   "k": 3,
+   "why": "imperative qul (2 letters)"
+  },
+  {
+   "q": "yara",
+   "category": "adv-notation",
+   "expect": [
+    "rAy"
+   ],
+   "k": 5,
+   "why": "yarā (sees), r-ʾ-y"
+  },
+  {
+   "q": "ja'a",
+   "category": "adv-notation",
+   "expect": [
+    "jyA"
+   ],
+   "k": 3,
+   "why": "jāʾa"
+  },
+  {
+   "q": "hubb",
+   "category": "adv-notation",
+   "expect": [
+    "Hbb"
+   ],
+   "k": 3,
+   "why": "ḥubb"
+  },
+  {
+   "q": "mass",
+   "category": "adv-notation",
+   "expect": [
+    "mss"
+   ],
+   "k": 5,
+   "why": "massa (touch) - also English word"
+  },
+  {
+   "q": "tamma",
+   "category": "adv-notation",
+   "expect": [
+    "tmm"
+   ],
+   "k": 3,
+   "why": "tamma"
+  },
+  {
+   "q": "bi-smi-llah",
+   "category": "adv-notation",
+   "expect": [
+    "Alh",
+    "smw"
+   ],
+   "k": 3,
+   "why": "basmala spelling"
+  },
+  {
+   "q": "al-hamdu-lillah",
+   "category": "adv-notation",
+   "expect": [
+    "Hmd"
+   ],
+   "k": 3,
+   "why": "al-ḥamdu li-llāh"
+  },
+  {
+   "q": "Rabb-ul-Alameen",
+   "category": "adv-notation",
+   "expect": [
+    "rbb",
+    "Elm"
+   ],
+   "k": 3,
+   "why": "rabb al-ʿālamīn"
+  },
+  {
+   "q": "astaghfirullah",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "astaghfiru llāh joined"
+  },
+  {
+   "q": "Subhan-Allah",
+   "category": "adv-notation",
+   "expect": [
+    "sbH"
+   ],
+   "k": 3,
+   "why": "subḥān allāh"
+  },
+  {
+   "q": "al‑rahman",
+   "category": "adv-notation",
+   "expect": [
+    "rHm"
+   ],
+   "k": 3,
+   "why": "non-breaking hyphen U+2011"
+  },
+  {
+   "q": "al_ghafur",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "underscore separator"
+  },
+  {
+   "q": "k - f - r",
+   "category": "adv-notation",
+   "expect": [
+    "kfr"
+   ],
+   "k": 1,
+   "why": "spaced hyphens"
+  },
+  {
+   "q": "SABR",
+   "category": "adv-notation",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "all caps sabr"
+  },
+  {
+   "q": "ShaHaDa",
+   "category": "adv-notation",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "mixed case"
+  },
+  {
+   "q": "bismillah",
+   "category": "adv-notation",
+   "expect": [
+    "smw",
+    "Alh"
+   ],
+   "k": 3,
+   "why": "bi-smi llāh joined"
+  },
+  {
+   "q": "alhamdulillah",
+   "category": "adv-notation",
+   "expect": [
+    "Hmd"
+   ],
+   "k": 3,
+   "why": "al-ḥamdu li-llāh joined"
+  },
+  {
+   "q": "subhanallah",
+   "category": "adv-notation",
+   "expect": [
+    "sbH"
+   ],
+   "k": 3,
+   "why": "subḥāna llāh joined"
+  },
+  {
+   "q": "inshallah",
+   "category": "adv-notation",
+   "expect": [
+    "$yA"
+   ],
+   "k": 3,
+   "why": "in shāʾa llāh joined (18:24)"
+  },
+  {
+   "q": "astaghfiru llah",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "astaghfiru llāh spaced"
+  },
+  {
+   "q": "mescid",
+   "category": "adv-notation",
+   "expect": [
+    "sjd"
+   ],
+   "k": 3,
+   "why": "Turkish c = ج; masjid"
+  },
+  {
+   "q": "cuma",
+   "category": "adv-notation",
+   "expect": [
+    "jmE"
+   ],
+   "k": 3,
+   "why": "Turkish cuma = jumuʿa (62:9)"
+  },
+  {
+   "q": "hac",
+   "category": "adv-notation",
+   "expect": [
+    "Hjj"
+   ],
+   "k": 3,
+   "why": "Turkish hac = ḥajj"
+  },
+  {
+   "q": "qur’an",
+   "category": "adv-notation",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "right single quote U+2019 for hamza"
+  },
+  {
+   "q": "ni‘ma",
+   "category": "adv-notation",
+   "expect": [
+    "nEm"
+   ],
+   "k": 3,
+   "why": "left single quote U+2018 for ʿayn"
+  },
+  {
+   "q": "niʻma",
+   "category": "adv-notation",
+   "expect": [
+    "nEm"
+   ],
+   "k": 3,
+   "why": "okina U+02BB for ʿayn"
+  },
+  {
+   "q": "`ilm",
+   "category": "adv-notation",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "backtick for ʿayn"
+  },
+  {
+   "q": "anbiya'",
+   "category": "adv-notation",
+   "expect": [
+    "nbA"
+   ],
+   "k": 3,
+   "why": "trailing hamza apostrophe"
+  },
+  {
+   "q": "shu'ara'",
+   "category": "adv-notation",
+   "expect": [
+    "$Er"
+   ],
+   "k": 3,
+   "why": "shuʿarāʾ (26)"
+  },
+  {
+   "q": "a'mal",
+   "category": "adv-notation",
+   "expect": [
+    "Eml"
+   ],
+   "k": 3,
+   "why": "aʿmāl"
+  },
+  {
+   "q": "ulama'",
+   "category": "adv-notation",
+   "expect": [
+    "Elm"
+   ],
+   "k": 3,
+   "why": "ʿulamāʾ (35:28)"
+  },
+  {
+   "q": "s-'-l",
+   "category": "adv-notation",
+   "expect": [
+    "sAl"
+   ],
+   "k": 1,
+   "why": "root with middle hamza apostrophe"
+  },
+  {
+   "q": "q-r-ʾ",
+   "category": "adv-notation",
+   "expect": [
+    "qrA"
+   ],
+   "k": 1,
+   "why": "root with final hamza ʾ"
+  },
+  {
+   "q": "r-ʾ-y",
+   "category": "adv-notation",
+   "expect": [
+    "rAy"
+   ],
+   "k": 1,
+   "why": "hamzated root r-ʾ-y"
+  },
+  {
+   "q": "d-ʿ-w",
+   "category": "adv-notation",
+   "expect": [
+    "dEw"
+   ],
+   "k": 1,
+   "why": "ALA-LC root d-ʿ-w"
+  },
+  {
+   "q": "istiġfār",
+   "category": "adv-notation",
+   "expect": [
+    "gfr"
+   ],
+   "k": 3,
+   "why": "DMG Form X"
+  },
+  {
+   "q": "iǧtihād",
+   "category": "adv-notation",
+   "expect": [
+    "jhd"
+   ],
+   "k": 3,
+   "why": "DMG Form VIII"
+  },
+  {
+   "q": "ḍalāl",
+   "category": "adv-notation",
+   "expect": [
+    "Dll"
+   ],
+   "k": 3,
+   "why": "ḍalāl"
+  },
+  {
+   "q": "qāla",
+   "category": "adv-notation",
+   "expect": [
+    "qwl"
+   ],
+   "k": 3,
+   "why": "qāla with macron"
+  },
+  {
+   "q": "šāʾa",
+   "category": "adv-notation",
+   "expect": [
+    "$yA"
+   ],
+   "k": 3,
+   "why": "DMG šāʾa"
+  },
+  {
+   "q": "ǧāʾa",
+   "category": "adv-notation",
+   "expect": [
+    "jyA"
+   ],
+   "k": 3,
+   "why": "DMG ǧāʾa"
+  },
+  {
+   "q": "ḫawf",
+   "category": "adv-notation",
+   "expect": [
+    "xwf"
+   ],
+   "k": 3,
+   "why": "DMG ḫawf = fear"
+  },
+  {
+   "q": "ḫušūʿ",
+   "category": "adv-notation",
+   "expect": [
+    "x$E"
+   ],
+   "k": 3,
+   "why": "DMG ḫušūʿ"
+  },
+  {
+   "q": "taḫfīf",
+   "category": "adv-notation",
+   "expect": [
+    "xff"
+   ],
+   "k": 3,
+   "why": "DMG taḫfīf = lightening (2:178)"
+  },
+  {
+   "q": "Haqq",
+   "category": "adv-notation",
+   "expect": [
+    "Hqq"
+   ],
+   "k": 3,
+   "why": "Capitalised"
+  },
+  {
+   "q": "Hajj",
+   "category": "adv-notation",
+   "expect": [
+    "Hjj"
+   ],
+   "k": 3,
+   "why": "Capitalised"
+  },
+  {
+   "q": "tahajjud",
+   "category": "adv-notation",
+   "expect": [
+    "hjd"
+   ],
+   "k": 3,
+   "why": "Form V of h-j-d (17:79 fa-tahajjad)"
+  },
+  {
+   "q": "duha",
+   "category": "adv-notation",
+   "expect": [
+    "DHw"
+   ],
+   "k": 3,
+   "why": "al-ḍuḥā (93:1 wa-l-ḍuḥā); morphology DHw"
+  },
+  {
+   "q": "asr",
+   "category": "adv-notation",
+   "expect": [
+    "ESr"
+   ],
+   "k": 3,
+   "why": "al-ʿaṣr (103:1 wa-l-ʿaṣri); morphology ESr"
+  },
+  {
+   "q": "adiyat",
+   "category": "adv-notation",
+   "expect": [
+    "Edw"
+   ],
+   "k": 3,
+   "why": "al-ʿādiyāt (100:1); morphology Edw"
+  },
+  {
+   "q": "naziat",
+   "category": "adv-notation",
+   "expect": [
+    "nzE"
+   ],
+   "k": 3,
+   "why": "al-nāziʿāt (79:1); morphology nzE"
+  },
+  {
+   "q": "dhariyat",
+   "category": "adv-notation",
+   "expect": [
+    "*rw"
+   ],
+   "k": 3,
+   "why": "al-dhāriyāt (51:1); morphology *rw"
+  },
+  {
+   "q": "saffat",
+   "category": "adv-notation",
+   "expect": [
+    "Sff"
+   ],
+   "k": 3,
+   "why": "al-ṣāffāt (37:1); morphology Sff"
+  },
+  {
+   "q": "shu'ara",
+   "category": "adv-notation",
+   "expect": [
+    "$Er"
+   ],
+   "k": 3,
+   "why": "al-shuʿarāʾ; only Qur'anic occurrence is wa-l-shuʿarāʾu (26:224)"
+  },
+  {
+   "q": "zaytun",
+   "category": "adv-notation",
+   "expect": [
+    "zyt"
+   ],
+   "k": 3,
+   "why": "zaytūn (also wa-l-zaytūni 95:1)"
+  },
+  {
+   "q": "Kur'an",
+   "category": "adv-notation",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "Turkish Kur'an"
+  },
+  {
+   "q": "ayet",
+   "category": "adv-notation",
+   "expect": [
+    "Ayy"
+   ],
+   "k": 3,
+   "why": "Turkish ayet = āya"
+  },
+  {
+   "q": "cin",
+   "category": "adv-notation",
+   "expect": [
+    "jnn"
+   ],
+   "k": 5,
+   "why": "Turkish cin = jinn"
+  },
+  {
+   "q": "hadith",
+   "category": "adv-notation",
+   "expect": [
+    "Hdv"
+   ],
+   "k": 3,
+   "why": "ḥadīth"
+  },
+  {
+   "q": "Coran",
+   "category": "adv-notation",
+   "expect": [
+    "qrA"
+   ],
+   "k": 3,
+   "why": "French Coran"
+  },
+  {
+   "q": "tauhid",
+   "category": "adv-notation",
+   "expect": [
+    "wHd"
+   ],
+   "k": 3,
+   "why": "Malay/Indonesian tauhid"
+  },
+  {
+   "q": "syaitan",
+   "category": "adv-notation",
+   "expect": [
+    "$Tn"
+   ],
+   "k": 3,
+   "why": "Malay syaitan"
+  },
+  {
+   "q": "syahadah",
+   "category": "adv-notation",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "Malay syahadah"
+  },
+  {
+   "q": "zikir",
+   "category": "adv-notation",
+   "expect": [
+    "*kr"
+   ],
+   "k": 3,
+   "why": "Malay zikir = dhikr"
+  },
+  {
+   "q": "mukmin",
+   "category": "adv-notation",
+   "expect": [
+    "Amn"
+   ],
+   "k": 3,
+   "why": "Malay mukmin = muʾmin"
+  },
+  {
+   "q": "sabar",
+   "category": "adv-notation",
+   "expect": [
+    "Sbr"
+   ],
+   "k": 3,
+   "why": "Malay sabar = ṣabr"
+  },
+  {
+   "q": "doa",
+   "category": "adv-notation",
+   "expect": [
+    "dEw"
+   ],
+   "k": 3,
+   "why": "Malay doa = duʿāʾ"
+  },
+  {
+   "q": "hidayah",
+   "category": "adv-notation",
+   "expect": [
+    "hdy"
+   ],
+   "k": 3,
+   "why": "Malay hidayah = hidāya"
+  },
+  {
+   "q": "istiqamah",
+   "category": "adv-notation",
+   "expect": [
+    "qwm"
+   ],
+   "k": 3,
+   "why": "Malay istiqamah"
+  },
+  {
+   "q": "tevbe",
+   "category": "adv-notation",
+   "expect": [
+    "twb"
+   ],
+   "k": 3,
+   "why": "Turkish tevbe = tawba"
+  },
+  {
+   "q": "tick",
+   "category": "adv-senses",
+   "expect": [
+    "qrd",
+    "Hlm",
+    "TlH",
+    "Sfr"
+   ],
+   "k": 3,
+   "why": "qurād tick under q-r-d (7 dicts); ḥalam ticks under ḥ-l-m (12)"
+  },
+  {
+   "q": "chameleon",
+   "category": "adv-senses",
+   "expect": [
+    "Hrb",
+    "H*r"
+   ],
+   "k": 3,
+   "why": "ḥirbāʾ chameleon under ḥ-r-b in 10 dicts"
+  },
+  {
+   "q": "termite",
+   "category": "adv-senses",
+   "expect": [
+    "ArD"
+   ],
+   "k": 3,
+   "why": "araḍa termite/woodworm under ʾ-r-ḍ in 9 dicts"
+  },
+  {
+   "q": "eagle",
+   "category": "adv-senses",
+   "expect": [
+    "Eqb",
+    "nsr"
+   ],
+   "k": 3,
+   "why": "ʿuqāb under ʿ-q-b (11 dicts); nasr gloss"
+  },
+  {
+   "q": "pigeon",
+   "category": "adv-senses",
+   "expect": [
+    "Hmm",
+    "ymm",
+    "wrq",
+    "Twq",
+    "qmr",
+    "swq"
+   ],
+   "k": 5,
+   "why": "ḥamām under ḥ-m-m (7 dicts); yamām etc."
+  },
+  {
+   "q": "quail",
+   "category": "adv-senses",
+   "expect": [
+    "smn",
+    "slw",
+    "smm"
+   ],
+   "k": 3,
+   "why": "summānā under s-m-n (9), salwā under s-l-w (5)"
+  },
+  {
+   "q": "owl",
+   "category": "adv-senses",
+   "expect": [
+    "Sdy",
+    "frT",
+    "nhr",
+    "lwH",
+    "Syf",
+    "DbH"
+   ],
+   "k": 3,
+   "why": "ṣadā owl under ṣ-d-y (6 dicts)"
+  },
+  {
+   "q": "frankincense",
+   "category": "adv-senses",
+   "expect": [
+    "lbn"
+   ],
+   "k": 3,
+   "why": "lubān frankincense under l-b-n (6 dicts)"
+  },
+  {
+   "q": "aloeswood",
+   "category": "adv-senses",
+   "expect": [
+    "Ewd"
+   ],
+   "k": 3,
+   "why": "ʿūd aloeswood under ʿ-w-d (10 dicts)"
+  },
+  {
+   "q": "butter",
+   "category": "adv-senses",
+   "expect": [
+    "zbd",
+    "smn"
+   ],
+   "k": 3,
+   "why": "zubd butter under z-b-d (7 dicts)"
+  },
+  {
+   "q": "leaven",
+   "category": "adv-senses",
+   "expect": [
+    "xmr"
+   ],
+   "k": 3,
+   "why": "khamīr leaven under kh-m-r"
+  },
+  {
+   "q": "mud bricks",
+   "category": "adv-senses",
+   "expect": [
+    "lbn",
+    "Ajr",
+    "Twy",
+    "Tbq"
+   ],
+   "k": 3,
+   "why": "libn unbaked brick under l-b-n (8 dicts); ājurr baked brick under ʾ-j-r"
+  },
+  {
+   "q": "spearhead",
+   "category": "adv-senses",
+   "expect": [
+    "snn",
+    "Hrb",
+    "H$r",
+    "Slb",
+    "qrn",
+    "Amr"
+   ],
+   "k": 3,
+   "why": "sinān spearhead under s-n-n (8); ḥarba etc."
+  },
+  {
+   "q": "whetstone",
+   "category": "adv-senses",
+   "expect": [
+    "snn",
+    "Slb",
+    "wqE"
+   ],
+   "k": 3,
+   "why": "misann under s-n-n (6), ṣullabiyya under ṣ-l-b, mīqaʿa under w-q-ʿ"
+  },
+  {
+   "q": "bowstring",
+   "category": "adv-senses",
+   "expect": [
+    "wtr"
+   ],
+   "k": 3,
+   "why": "watar bowstring under w-t-r (6 dicts)"
+  },
+  {
+   "q": "quiver for arrows",
+   "category": "adv-senses",
+   "expect": [
+    "knn"
+   ],
+   "k": 3,
+   "why": "kināna quiver under k-n-n (8 dicts)"
+  },
+  {
+   "q": "hobble a camel",
+   "category": "adv-senses",
+   "expect": [
+    "Eql",
+    "qyd"
+   ],
+   "k": 3,
+   "why": "ʿiqāl hobble under ʿ-q-l (12 dicts)"
+  },
+  {
+   "q": "lute",
+   "category": "adv-senses",
+   "expect": [
+    "Ewd"
+   ],
+   "k": 3,
+   "why": "ʿūd lute under ʿ-w-d (9 dicts)"
+  },
+  {
+   "q": "cooking pot",
+   "category": "adv-senses",
+   "expect": [
+    "qdr",
+    "jEl",
+    "Syd",
+    "nSb",
+    "fwr",
+    "jmE"
+   ],
+   "k": 3,
+   "why": "qidr cooking-pot under q-d-r (13 dicts)"
+  },
+  {
+   "q": "lamp wick",
+   "category": "adv-senses",
+   "expect": [
+    "ftl",
+    "srj",
+    "$El",
+    "nsl",
+    "SbH",
+    "slT"
+   ],
+   "k": 3,
+   "why": "fatīla (ftl 4), shaʿīla ($El 6), masraja (srj)"
+  },
+  {
+   "q": "pulley",
+   "category": "adv-senses",
+   "expect": [
+    "bkr"
+   ],
+   "k": 3,
+   "why": "bakra well-pulley under b-k-r (11 dicts)"
+  },
+  {
+   "q": "tent pole",
+   "category": "adv-senses",
+   "expect": [
+    "Emd"
+   ],
+   "k": 3,
+   "why": "ʿamūd tent-pole under ʿ-m-d (11 dicts)"
+  },
+  {
+   "q": "ship's cable",
+   "category": "adv-senses",
+   "expect": [
+    "jml"
+   ],
+   "k": 3,
+   "why": "jummal cable under j-m-l (9 dicts; variant reading of Q 7:40)"
+  },
+  {
+   "q": "liver",
+   "category": "adv-senses",
+   "expect": [
+    "kbd"
+   ],
+   "k": 3,
+   "why": "kabid liver under k-b-d (7 dicts)"
+  },
+  {
+   "q": "elbow",
+   "category": "adv-senses",
+   "expect": [
+    "rfq",
+    "*rE",
+    "qbH"
+   ],
+   "k": 3,
+   "why": "mirfaq elbow under r-f-q (12 dicts)"
+  },
+  {
+   "q": "eyebrow",
+   "category": "adv-senses",
+   "expect": [
+    "Hjb",
+    "qrn",
+    "bld"
+   ],
+   "k": 3,
+   "why": "ḥājib eyebrow under ḥ-j-b (12 dicts)"
+  },
+  {
+   "q": "navel",
+   "category": "adv-senses",
+   "expect": [
+    "srr",
+    "nqb",
+    "srb"
+   ],
+   "k": 3,
+   "why": "surra navel under s-r-r (8 dicts)"
+  },
+  {
+   "q": "nail clippings",
+   "category": "adv-senses",
+   "expect": [
+    "qlm",
+    "Zfr"
+   ],
+   "k": 3,
+   "why": "qulāma under q-l-m (11 dicts)"
+  },
+  {
+   "q": "camel's hump",
+   "category": "adv-senses",
+   "expect": [
+    "snm",
+    "jbl"
+   ],
+   "k": 3,
+   "why": "sanām hump under s-n-m (6 dicts)"
+  },
+  {
+   "q": "turban",
+   "category": "adv-senses",
+   "expect": [
+    "Emm",
+    "ESb",
+    "Emr",
+    "Ewm",
+    "kwr",
+    "dwr"
+   ],
+   "k": 3,
+   "why": "ʿimāma under ʿ-m-m (7), kawwara under k-w-r (7)"
+  },
+  {
+   "q": "sackcloth",
+   "category": "adv-senses",
+   "expect": [
+    "msH",
+    "bls"
+   ],
+   "k": 3,
+   "why": "misḥ hair-cloth under m-s-ḥ (9), balās under b-l-s"
+  },
+  {
+   "q": "girdle",
+   "category": "adv-senses",
+   "expect": [
+    "nTq"
+   ],
+   "k": 3,
+   "why": "minṭaqa/niṭāq under n-ṭ-q (13 dicts)"
+  },
+  {
+   "q": "coat of mail",
+   "category": "adv-senses",
+   "expect": [
+    "lbs",
+    "HSd",
+    "HSn",
+    "fyD",
+    "jdl",
+    "Hrb",
+    "srd",
+    "sbg",
+    "bdn",
+    "drE"
+   ],
+   "k": 5,
+   "why": "labūs, sard, ḥaṣīna... many roots"
+  },
+  {
+   "q": "white blaze on a horse's forehead",
+   "category": "adv-senses",
+   "expect": [
+    "grr"
+   ],
+   "k": 3,
+   "why": "ghurra under gh-r-r (7 dicts)"
+  },
+  {
+   "q": "ash-grey colour",
+   "category": "adv-senses",
+   "expect": [
+    "wrq",
+    "rmd"
+   ],
+   "k": 5,
+   "why": "wurqa ash-colour under w-r-q (11)"
+  },
+  {
+   "q": "money changer",
+   "category": "adv-senses",
+   "expect": [
+    "Srf"
+   ],
+   "k": 3,
+   "why": "ṣayrafī/ṣarrāf under ṣ-r-f (11 dicts)"
+  },
+  {
+   "q": "midwife",
+   "category": "adv-senses",
+   "expect": [
+    "qbl"
+   ],
+   "k": 3,
+   "why": "qābila under q-b-l"
+  },
+  {
+   "q": "blacksmith",
+   "category": "adv-senses",
+   "expect": [
+    "Hdd",
+    "hlk",
+    "Trq",
+    "qyn"
+   ],
+   "k": 5,
+   "why": "ḥaddād under ḥ-d-d; hālikī under h-l-k"
+  },
+  {
+   "q": "sailor",
+   "category": "adv-senses",
+   "expect": [
+    "mlH",
+    "dwr",
+    "Srr",
+    "flH",
+    "Edl",
+    "rdy",
+    "krr"
+   ],
+   "k": 5,
+   "why": "mallāḥ under m-l-ḥ (4), ṣarārī under ṣ-r-r (5)"
+  },
+  {
+   "q": "fuller who bleaches cloth",
+   "category": "adv-senses",
+   "expect": [
+    "Hwr",
+    "qSr"
+   ],
+   "k": 3,
+   "why": "ḥawārī = fuller/bleacher under ḥ-w-r (7 dicts)"
+  },
+  {
+   "q": "augury from the flight of birds",
+   "category": "adv-senses",
+   "expect": [
+    "Tyr",
+    "zjr"
+   ],
+   "k": 3,
+   "why": "ṭiyara/zajr"
+  },
+  {
+   "q": "east wind",
+   "category": "adv-senses",
+   "expect": [
+    "Sbw"
+   ],
+   "k": 3,
+   "why": "ṣabā east wind under ṣ-b-w (4+ dicts)"
+  },
+  {
+   "q": "west wind",
+   "category": "adv-senses",
+   "expect": [
+    "dbr"
+   ],
+   "k": 3,
+   "why": "dabūr west wind under d-b-r (9 dicts)"
+  },
+  {
+   "q": "south wind",
+   "category": "adv-senses",
+   "expect": [
+    "jnb"
+   ],
+   "k": 3,
+   "why": "janūb under j-n-b"
+  },
+  {
+   "q": "north wind",
+   "category": "adv-senses",
+   "expect": [
+    "$ml"
+   ],
+   "k": 3,
+   "why": "shamāl under sh-m-l (12 dicts)"
+  },
+  {
+   "q": "Canopus",
+   "category": "adv-senses",
+   "expect": [
+    "shl"
+   ],
+   "k": 3,
+   "why": "Suhayl = Canopus under s-h-l (4 dicts)"
+  },
+  {
+   "q": "young camel",
+   "category": "adv-senses",
+   "expect": [
+    "bkr",
+    "Hwr",
+    "fSl",
+    "bEr",
+    "qlS"
+   ],
+   "k": 5,
+   "why": "bakr, ḥuwār, faṣīl"
+  },
+  {
+   "q": "a well that has dried up",
+   "category": "adv-senses",
+   "expect": [
+    "qTE",
+    "Ewr",
+    "xsf",
+    "nzf",
+    "nfd",
+    "gwr",
+    "HbT",
+    "ybs"
+   ],
+   "k": 5,
+   "why": "quṭiʿat al-biʾr, ʿawwara, bi'r makhsūfa, nazafa, anfadat"
+  },
+  {
+   "q": "an arrow without feathers",
+   "category": "adv-senses",
+   "expect": [
+    "ErD",
+    "zlm",
+    "qdH",
+    "ry$",
+    "kvb"
+   ],
+   "k": 5,
+   "why": "miʿrāḍ (7), azlām (3), qidḥ (3)"
+  },
+  {
+   "q": "the white of dawn",
+   "category": "adv-senses",
+   "expect": [
+    "xyT",
+    "fjr",
+    "flq",
+    "SbH",
+    "grb",
+    "sfr",
+    "lwH",
+    "fDH",
+    "Hwr"
+   ],
+   "k": 5,
+   "why": "white thread of dawn etc."
+  },
+  {
+   "q": "the yearning cry of a she-camel",
+   "category": "adv-senses",
+   "expect": [
+    "sjr",
+    "Sgr",
+    "rjE",
+    "Hnn",
+    "Dgn",
+    "nzE"
+   ],
+   "k": 5,
+   "why": "sajarat (5), aṣgharat, ḥanīn"
+  },
+  {
+   "q": "a horse standing on three legs",
+   "category": "adv-senses",
+   "expect": [
+    "Sfn"
+   ],
+   "k": 3,
+   "why": "ṣāfināt"
+  },
+  {
+   "q": "a lote tree with its thorns removed",
+   "category": "adv-senses",
+   "expect": [
+    "xDd",
+    "sdr"
+   ],
+   "k": 3,
+   "why": "makhḍūd"
+  },
+  {
+   "q": "قراد",
+   "category": "adv-senses",
+   "expect": [
+    "qrd"
+   ],
+   "k": 3,
+   "why": "qurād tick"
+  },
+  {
+   "q": "حرباء",
+   "category": "adv-senses",
+   "expect": [
+    "Hrb"
+   ],
+   "k": 3,
+   "why": "chameleon"
+  },
+  {
+   "q": "أرضة",
+   "category": "adv-senses",
+   "expect": [
+    "ArD"
+   ],
+   "k": 3,
+   "why": "termite"
+  },
+  {
+   "q": "كنانة",
+   "category": "adv-senses",
+   "expect": [
+    "knn"
+   ],
+   "k": 3,
+   "why": "quiver"
+  },
+  {
+   "q": "عمامة",
+   "category": "adv-senses",
+   "expect": [
+    "Emm"
+   ],
+   "k": 3,
+   "why": "turban"
+  },
+  {
+   "q": "زبدة",
+   "category": "adv-senses",
+   "expect": [
+    "zbd"
+   ],
+   "k": 3,
+   "why": "butter"
+  },
+  {
+   "q": "خميرة",
+   "category": "adv-senses",
+   "expect": [
+    "xmr"
+   ],
+   "k": 3,
+   "why": "leaven"
+  },
+  {
+   "q": "سنان",
+   "category": "adv-senses",
+   "expect": [
+    "snn"
+   ],
+   "k": 3,
+   "why": "spearhead"
+  },
+  {
+   "q": "لبان",
+   "category": "adv-senses",
+   "expect": [
+    "lbn"
+   ],
+   "k": 3,
+   "why": "frankincense"
+  },
+  {
+   "q": "عقال",
+   "category": "adv-senses",
+   "expect": [
+    "Eql"
+   ],
+   "k": 3,
+   "why": "hobble"
+  },
+  {
+   "q": "سنام",
+   "category": "adv-senses",
+   "expect": [
+    "snm"
+   ],
+   "k": 3,
+   "why": "hump"
+  },
+  {
+   "q": "إزار",
+   "category": "adv-senses",
+   "expect": [
+    "Azr"
+   ],
+   "k": 3,
+   "why": "waist-wrapper"
+  },
+  {
+   "q": "حاجب",
+   "category": "adv-senses",
+   "expect": [
+    "Hjb"
+   ],
+   "k": 3,
+   "why": "eyebrow / chamberlain"
+  },
+  {
+   "q": "صراف",
+   "category": "adv-senses",
+   "expect": [
+    "Srf"
+   ],
+   "k": 3,
+   "why": "money changer"
+  },
+  {
+   "q": "الدبور",
+   "category": "adv-senses",
+   "expect": [
+    "dbr"
+   ],
+   "k": 3,
+   "why": "west wind"
+  },
+  {
+   "q": "سهيل",
+   "category": "adv-senses",
+   "expect": [
+    "shl"
+   ],
+   "k": 3,
+   "why": "Canopus"
+  },
+  {
+   "q": "قلامة",
+   "category": "adv-senses",
+   "expect": [
+    "qlm"
+   ],
+   "k": 3,
+   "why": "nail clipping"
+  },
+  {
+   "q": "فتيلة",
+   "category": "adv-senses",
+   "expect": [
+    "ftl"
+   ],
+   "k": 3,
+   "why": "wick"
+  },
+  {
+   "q": "مسوح",
+   "category": "adv-senses",
+   "expect": [
+    "msH"
+   ],
+   "k": 3,
+   "why": "hair-cloth"
+  },
+  {
+   "q": "عمود",
+   "category": "adv-senses",
+   "expect": [
+    "Emd"
+   ],
+   "k": 3,
+   "why": "pole"
+  },
+  {
+   "q": "ملاح",
+   "category": "adv-senses",
+   "expect": [
+    "mlH"
+   ],
+   "k": 3,
+   "why": "sailor / salt"
+  },
+  {
+   "q": "حمام",
+   "category": "adv-senses",
+   "expect": [
+    "Hmm"
+   ],
+   "k": 3,
+   "why": "doves (also Qur'anic ḥamīm root)"
+  },
+  {
+   "q": "kinana",
+   "category": "adv-senses",
+   "expect": [
+    "knn"
+   ],
+   "k": 3,
+   "why": "kināna quiver"
+  },
+  {
+   "q": "qurad",
+   "category": "adv-senses",
+   "expect": [
+    "qrd"
+   ],
+   "k": 3,
+   "why": "qurād tick"
+  },
+  {
+   "q": "hirba",
+   "category": "adv-senses",
+   "expect": [
+    "Hrb"
+   ],
+   "k": 3,
+   "why": "ḥirbāʾ chameleon"
+  },
+  {
+   "q": "iqal",
+   "category": "adv-senses",
+   "expect": [
+    "Eql"
+   ],
+   "k": 3,
+   "why": "ʿiqāl"
+  },
+  {
+   "q": "zubd",
+   "category": "adv-senses",
+   "expect": [
+    "zbd"
+   ],
+   "k": 3,
+   "why": "butter"
+  },
+  {
+   "q": "luban",
+   "category": "adv-senses",
+   "expect": [
+    "lbn"
+   ],
+   "k": 3,
+   "why": "frankincense"
+  },
+  {
+   "q": "sinan",
+   "category": "adv-senses",
+   "expect": [
+    "snn"
+   ],
+   "k": 3,
+   "why": "spearhead"
+  },
+  {
+   "q": "sayrafi",
+   "category": "adv-senses",
+   "expect": [
+    "Srf"
+   ],
+   "k": 3,
+   "why": "money changer"
+  },
+  {
+   "q": "hobble",
+   "category": "adv-senses",
+   "expect": [
+    "Eql",
+    "$kl",
+    "hjr",
+    "Tmv"
+   ],
+   "k": 3,
+   "why": "single-word control for 'hobble a camel'"
+  },
+  {
+   "q": "hump",
+   "category": "adv-senses",
+   "expect": [
+    "snm",
+    "Hdb",
+    "jbt"
+   ],
+   "k": 3,
+   "why": "control for camel's hump"
+  },
+  {
+   "q": "camel hump",
+   "category": "adv-senses",
+   "expect": [
+    "snm"
+   ],
+   "k": 3,
+   "why": "sanām (6 dicts) without the possessive"
+  },
+  {
+   "q": "camel's",
+   "category": "adv-senses",
+   "expect": [
+    "jml",
+    "nwq",
+    "Abl",
+    "bEr",
+    "Ebl"
+   ],
+   "k": 5,
+   "why": "probe of possessive 's handling"
+  },
+  {
+   "q": "wind",
+   "category": "adv-senses",
+   "expect": [
+    "rwH",
+    "ESf"
+   ],
+   "k": 3,
+   "why": "control for the named-wind queries (already in the gold set)"
+  },
+  {
+   "q": "the west wind",
+   "category": "adv-senses",
+   "expect": [
+    "dbr"
+   ],
+   "k": 3,
+   "why": "dabūr, variant with article"
+  },
+  {
+   "q": "horse's mane",
+   "category": "adv-senses",
+   "expect": [
+    "Erf"
+   ],
+   "k": 3,
+   "why": "ʿurf mane (12 dicts); possessive probe"
+  },
+  {
+   "q": "horse mane",
+   "category": "adv-senses",
+   "expect": [
+    "Erf"
+   ],
+   "k": 3,
+   "why": "control without possessive"
+  },
+  {
+   "q": "a dog's collar",
+   "category": "adv-senses",
+   "expect": [
+    "Hrj",
+    "sjr",
+    "klb"
+   ],
+   "k": 3,
+   "why": "miḥraj/sājūr; possessive probe"
+  },
+  {
+   "q": "dove",
+   "category": "adv-senses",
+   "expect": [
+    "Hmm",
+    "ymm",
+    "Twq",
+    "qmr",
+    "swq",
+    "wrq"
+   ],
+   "k": 5,
+   "why": "ḥamām, yamām"
+  },
+  {
+   "q": "carpenter's saw",
+   "category": "adv-senses",
+   "expect": [
+    "n$r"
+   ],
+   "k": 3,
+   "why": "minshār saw under n-sh-r (12 dicts)"
+  },
+  {
+   "q": "brown bear",
+   "category": "adv-senses",
+   "expect": [
+    "dbb"
+   ],
+   "k": 3,
+   "why": "dubb bear under d-b-b (7 dicts)"
+  },
+  {
+   "q": "mole rat",
+   "category": "adv-senses",
+   "expect": [
+    "xld"
+   ],
+   "k": 3,
+   "why": "khuld mole(-rat) under kh-l-d (7 dicts)"
+  },
+  {
+   "q": "molten lead",
+   "category": "adv-senses",
+   "expect": [
+    "rSS",
+    "qTr"
+   ],
+   "k": 3,
+   "why": "raṣāṣ lead under r-ṣ-ṣ (3 dicts)"
+  },
+  {
+   "q": "brass",
+   "category": "adv-senses",
+   "expect": [
+    "Sfr",
+    "nHs"
+   ],
+   "k": 3,
+   "why": "ṣufr brass under ṣ-f-r (11 dicts)"
+  },
+  {
+   "q": "copper",
+   "category": "adv-senses",
+   "expect": [
+    "nHs",
+    "qTr",
+    "Syd",
+    "Sfr"
+   ],
+   "k": 3,
+   "why": "nuḥās, qiṭr, ṣufr"
+  },
+  {
+   "q": "swallow bird",
+   "category": "adv-senses",
+   "expect": [
+    "xTf"
+   ],
+   "k": 3,
+   "why": "khuṭṭāf swallow under kh-ṭ-f (8 dicts)"
+  },
+  {
+   "q": "pupil of the eye",
+   "category": "adv-senses",
+   "expect": [
+    "Hdq",
+    "Ans",
+    "Eyr",
+    "nZr"
+   ],
+   "k": 3,
+   "why": "ḥadaqa (12), insān al-ʿayn (8)"
+  },
+  {
+   "q": "hoof",
+   "category": "adv-senses",
+   "expect": [
+    "Hfr",
+    "Zfr"
+   ],
+   "k": 3,
+   "why": "ḥāfir under ḥ-f-r (6), ẓufr"
+  },
+  {
+   "q": "tail",
+   "category": "adv-senses",
+   "expect": [
+    "*nb"
+   ],
+   "k": 3,
+   "why": "dhanab tail under dh-n-b (13 dicts)"
+  },
+  {
+   "q": "beak",
+   "category": "adv-senses",
+   "expect": [
+    "nqr"
+   ],
+   "k": 3,
+   "why": "minqār beak under n-q-r"
+  },
+  {
+   "q": "gazelle's lair",
+   "category": "adv-senses",
+   "expect": [
+    "kns"
+   ],
+   "k": 3,
+   "why": "kinās lair under k-n-s (6 dicts)"
+  },
+  {
+   "q": "cheese",
+   "category": "adv-senses",
+   "expect": [
+    "jbn"
+   ],
+   "k": 3,
+   "why": "jubn cheese under j-b-n (5 dicts)"
+  },
+  {
+   "q": "honeycomb",
+   "category": "adv-senses",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "shahd honeycomb under sh-h-d (9 dicts)"
+  },
+  {
+   "q": "arrow notch",
+   "category": "adv-senses",
+   "expect": [
+    "fwq"
+   ],
+   "k": 3,
+   "why": "fūq arrow-nock under f-w-q"
+  },
+  {
+   "q": "large bucket",
+   "category": "adv-senses",
+   "expect": [
+    "sjl",
+    "dlw",
+    "*nb",
+    "grb"
+   ],
+   "k": 3,
+   "why": "sajl (13), dalw, dhanūb"
+  },
+  {
+   "q": "waterskin",
+   "category": "adv-senses",
+   "expect": [
+    "qrb",
+    "sqy",
+    "ESm",
+    "ktb",
+    "srb",
+    "$rb",
+    "Ezl",
+    "xrz"
+   ],
+   "k": 3,
+   "why": "qirba, siqāʾ"
+  },
+  {
+   "q": "water trough",
+   "category": "adv-senses",
+   "expect": [
+    "jby",
+    "nSb",
+    "Eqr",
+    "EDd",
+    "Eqb",
+    "HwD"
+   ],
+   "k": 3,
+   "why": "jābiya/jawāb (7), naṣīb"
+  },
+  {
+   "q": "blood revenge",
+   "category": "adv-senses",
+   "expect": [
+    "wtr",
+    "qSS",
+    "vAr",
+    "dmw",
+    "Evr"
+   ],
+   "k": 5,
+   "why": "watr blood-revenge (5), qiṣāṣ"
+  },
+  {
+   "q": "spindle",
+   "category": "adv-senses",
+   "expect": [
+    "gzl"
+   ],
+   "k": 3,
+   "why": "mighzal spindle under gh-z-l (5)"
+  },
+  {
+   "q": "Orion",
+   "category": "adv-senses",
+   "expect": [
+    "jwz",
+    "jbr",
+    "nZm"
+   ],
+   "k": 3,
+   "why": "al-jawzāʾ / al-jabbār"
+  },
+  {
+   "q": "hospitality to a guest",
+   "category": "adv-senses",
+   "expect": [
+    "qry",
+    "Dyf"
+   ],
+   "k": 3,
+   "why": "qirā under q-r-y (6), ḍayf"
+  },
+  {
+   "q": "drought",
+   "category": "adv-senses",
+   "expect": [
+    "mHl",
+    "snw",
+    "jdb",
+    "qHT",
+    "HTm",
+    "H$r",
+    "Afk",
+    "fsd",
+    "ESb",
+    "qHm",
+    "sn"
+   ],
+   "k": 5,
+   "why": "maḥl, sana, ḥaṭma ..."
+  },
+  {
+   "q": "the redness of the sky after sunset",
+   "category": "adv-senses",
+   "expect": [
+    "$fq"
+   ],
+   "k": 3,
+   "why": "shafaq (8 dicts)"
+  },
+  {
+   "q": "spathe of a palm tree",
+   "category": "adv-senses",
+   "expect": [
+    "TlE",
+    "kfr",
+    "kmm",
+    "Erjn",
+    "jdr",
+    "hDm"
+   ],
+   "k": 3,
+   "why": "ṭalʿ (6), kufurrā (8)"
+  },
+  {
+   "q": "a dog panting with its tongue out",
+   "category": "adv-senses",
+   "expect": [
+    "lhv"
+   ],
+   "k": 3,
+   "why": "lahatha"
+  },
+  {
+   "q": "flame without smoke",
+   "category": "adv-senses",
+   "expect": [
+    "$wZ",
+    "mrj"
+   ],
+   "k": 3,
+   "why": "shuwāẓ; mārij"
+  },
+  {
+   "q": "clay that rings when struck",
+   "category": "adv-senses",
+   "expect": [
+    "SlSl"
+   ],
+   "k": 3,
+   "why": "ṣalṣāl"
+  },
+  {
+   "q": "dust raised by galloping horses",
+   "category": "adv-senses",
+   "expect": [
+    "nqE",
+    "vwr",
+    "gbr"
+   ],
+   "k": 3,
+   "why": "naqʿ"
+  },
+  {
+   "q": "منشار",
+   "category": "adv-senses",
+   "expect": [
+    "n$r"
+   ],
+   "k": 3,
+   "why": "saw"
+  },
+  {
+   "q": "دب",
+   "category": "adv-senses",
+   "expect": [
+    "dbb"
+   ],
+   "k": 3,
+   "why": "bear"
+  },
+  {
+   "q": "رصاص",
+   "category": "adv-senses",
+   "expect": [
+    "rSS"
+   ],
+   "k": 3,
+   "why": "lead"
+  },
+  {
+   "q": "خطاف",
+   "category": "adv-senses",
+   "expect": [
+    "xTf"
+   ],
+   "k": 3,
+   "why": "swallow"
+  },
+  {
+   "q": "حدقة",
+   "category": "adv-senses",
+   "expect": [
+    "Hdq"
+   ],
+   "k": 3,
+   "why": "pupil"
+  },
+  {
+   "q": "منقار",
+   "category": "adv-senses",
+   "expect": [
+    "nqr"
+   ],
+   "k": 3,
+   "why": "beak"
+  },
+  {
+   "q": "جبن",
+   "category": "adv-senses",
+   "expect": [
+    "jbn"
+   ],
+   "k": 3,
+   "why": "cheese/cowardice"
+  },
+  {
+   "q": "قربة",
+   "category": "adv-senses",
+   "expect": [
+    "qrb"
+   ],
+   "k": 3,
+   "why": "waterskin (also qurba nearness, Qur'anic)"
+  },
+  {
+   "q": "مغزل",
+   "category": "adv-senses",
+   "expect": [
+    "gzl"
+   ],
+   "k": 3,
+   "why": "spindle"
+  },
+  {
+   "q": "حافر",
+   "category": "adv-senses",
+   "expect": [
+    "Hfr"
+   ],
+   "k": 3,
+   "why": "hoof"
+  },
+  {
+   "q": "الجوزاء",
+   "category": "adv-senses",
+   "expect": [
+    "jwz"
+   ],
+   "k": 3,
+   "why": "Orion/Gemini"
+  },
+  {
+   "q": "minshar",
+   "category": "adv-senses",
+   "expect": [
+    "n$r"
+   ],
+   "k": 3,
+   "why": "saw"
+  },
+  {
+   "q": "rasas",
+   "category": "adv-senses",
+   "expect": [
+    "rSS"
+   ],
+   "k": 3,
+   "why": "lead"
+  },
+  {
+   "q": "jubn",
+   "category": "adv-senses",
+   "expect": [
+    "jbn"
+   ],
+   "k": 3,
+   "why": "cheese"
+  },
+  {
+   "q": "minqar",
+   "category": "adv-senses",
+   "expect": [
+    "nqr"
+   ],
+   "k": 3,
+   "why": "beak"
+  },
+  {
+   "q": "khuttaf",
+   "category": "adv-senses",
+   "expect": [
+    "xTf"
+   ],
+   "k": 3,
+   "why": "swallow"
+  },
+  {
+   "q": "hadaqa",
+   "category": "adv-senses",
+   "expect": [
+    "Hdq"
+   ],
+   "k": 3,
+   "why": "pupil"
+  },
+  {
+   "q": "qirba",
+   "category": "adv-senses",
+   "expect": [
+    "qrb"
+   ],
+   "k": 3,
+   "why": "waterskin"
+  },
+  {
+   "q": "ghurra",
+   "category": "adv-senses",
+   "expect": [
+    "grr"
+   ],
+   "k": 3,
+   "why": "blaze"
+  },
+  {
+   "q": "dubb",
+   "category": "adv-senses",
+   "expect": [
+    "dbb"
+   ],
+   "k": 3,
+   "why": "bear"
+  },
+  {
+   "q": "shahd",
+   "category": "adv-senses",
+   "expect": [
+    "$hd"
+   ],
+   "k": 3,
+   "why": "honeycomb"
+  },
+  {
+   "q": "saw",
+   "category": "adv-senses",
+   "expect": [
+    "n$r",
+    "A$r",
+    "rAy",
+    "bSr"
+   ],
+   "k": 5,
+   "why": "ambiguous (tool or past of see) — control"
+  },
+  {
+   "q": "a saw",
+   "category": "adv-senses",
+   "expect": [
+    "n$r",
+    "A$r"
+   ],
+   "k": 3,
+   "why": "minshār/mi'shar saw (n-sh-r 12 dicts)"
+  },
+  {
+   "q": "bear",
+   "category": "adv-senses",
+   "expect": [
+    "dbb",
+    "Hml",
+    "Sbr",
+    "wzr"
+   ],
+   "k": 3,
+   "why": "ambiguous control"
+  },
+  {
+   "q": "trough",
+   "category": "adv-senses",
+   "expect": [
+    "jby",
+    "nSb",
+    "hjr",
+    "frg",
+    "lqf"
+   ],
+   "k": 3,
+   "why": "control for 'water trough'"
+  },
+  {
+   "q": "mole",
+   "category": "adv-senses",
+   "expect": [
+    "xyl",
+    "xld"
+   ],
+   "k": 3,
+   "why": "khāl (skin mole) or khuld (animal)"
+  },
+  {
+   "q": "ذب",
+   "category": "adv-senses",
+   "expect": [
+    "*bb"
+   ],
+   "k": 3,
+   "why": "dhabba to drive off flies; site root ذبب"
+  },
+  {
+   "q": "قط",
+   "category": "adv-senses",
+   "expect": [
+    "qTT"
+   ],
+   "k": 3,
+   "why": "qiṭṭ; qaṭṭ"
+  },
+  {
+   "q": "دبب",
+   "category": "adv-senses",
+   "expect": [
+    "dbb"
+   ],
+   "k": 1,
+   "why": "exact root letters"
+  },
+  {
+   "q": "ذباب",
+   "category": "adv-senses",
+   "expect": [
+    "*bb"
+   ],
+   "k": 3,
+   "why": "Qur'anic word"
+  },
+  {
+   "q": "bellows",
+   "category": "adv-senses",
+   "expect": [
+    "nfx",
+    "xbv",
+    "kyr"
+   ],
+   "k": 3,
+   "why": "minfākh bellows under n-f-kh (10 dicts)"
+  },
+  {
+   "q": "anvil",
+   "category": "adv-senses",
+   "expect": [
+    "Elw",
+    "zbr",
+    "snd",
+    "wqE"
+   ],
+   "k": 3,
+   "why": "ʿalāt (7), zubra (5)"
+  },
+  {
+   "q": "blacksmith's tongs",
+   "category": "adv-senses",
+   "expect": [
+    "klb",
+    "wqE",
+    "Trq"
+   ],
+   "k": 3,
+   "why": "kalbatān tongs under k-l-b (6 dicts)"
+  },
+  {
+   "q": "hyena",
+   "category": "adv-senses",
+   "expect": [
+    "Erj",
+    "smE",
+    "Emr",
+    "Elm",
+    "Erf",
+    "Dbe"
+   ],
+   "k": 3,
+   "why": "ʿarjāʾ hyena under ʿ-r-j (10 dicts)"
+  },
+  {
+   "q": "wild ass",
+   "category": "adv-senses",
+   "expect": [
+    "Ewn",
+    "Eyr",
+    "Hmr",
+    "SEd",
+    "HwT",
+    "frA"
+   ],
+   "k": 3,
+   "why": "ʿāna (9), ʿayr (8), yaḥmūr (6)"
+  },
+  {
+   "q": "a swarm of locusts",
+   "category": "adv-senses",
+   "expect": [
+    "rjl",
+    "jrd",
+    "Hsb",
+    "brq"
+   ],
+   "k": 3,
+   "why": "rijl of locusts (8 dicts), jarād"
+  },
+  {
+   "q": "scorpion's sting",
+   "category": "adv-senses",
+   "expect": [
+    "Hmy",
+    "zbn",
+    "Drb",
+    "Hmm"
+   ],
+   "k": 3,
+   "why": "ḥuma (8), zabānā (5)"
+  },
+  {
+   "q": "hedgehog",
+   "category": "adv-senses",
+   "expect": [
+    "drj",
+    "nfr",
+    "dll",
+    "$hb",
+    "H$r"
+   ],
+   "k": 3,
+   "why": "durrāj (6), qunfudh (nfr 6)"
+  },
+  {
+   "q": "the braying of a donkey",
+   "category": "adv-senses",
+   "expect": [
+    "E$r",
+    "sHl",
+    "SEq",
+    "$rb",
+    "Hmr",
+    "nkr",
+    "Swt"
+   ],
+   "k": 5,
+   "why": "muʿashshir, saḥīl, ṣaʿiq"
+  },
+  {
+   "q": "كلبتان",
+   "category": "adv-senses",
+   "expect": [
+    "klb"
+   ],
+   "k": 3,
+   "why": "tongs"
+  },
+  {
+   "q": "منفاخ",
+   "category": "adv-senses",
+   "expect": [
+    "nfx"
+   ],
+   "k": 3,
+   "why": "bellows"
+  },
+  {
+   "q": "سندان",
+   "category": "adv-senses",
+   "expect": [
+    "snd"
+   ],
+   "k": 3,
+   "why": "anvil"
+  },
+  {
+   "q": "العرجاء",
+   "category": "adv-senses",
+   "expect": [
+    "Erj"
+   ],
+   "k": 3,
+   "why": "hyena"
+  },
+  {
+   "q": "scorpion sting",
+   "category": "adv-senses",
+   "expect": [
+    "Hmy",
+    "zbn",
+    "Drb",
+    "$wk",
+    "smm"
+   ],
+   "k": 3,
+   "why": "control without possessive"
+  },
+  {
+   "q": "cat",
+   "category": "adv-senses",
+   "expect": [
+    "qTT",
+    "mAy"
+   ],
+   "k": 5,
+   "why": "qiṭṭ cat only 2 dicts — control"
+  },
+  {
+   "q": "lamb",
+   "category": "adv-senses",
+   "expect": [
+    "Hml",
+    "DAn",
+    "nEj",
+    "bhm",
+    "Amr"
+   ],
+   "k": 3,
+   "why": "ḥamal lamb (12 dicts)"
+  },
+  {
+   "q": "calf",
+   "category": "adv-senses",
+   "expect": [
+    "Ejl"
+   ],
+   "k": 3,
+   "why": "ʿijl"
+  },
+  {
+   "q": "a calf",
+   "category": "adv-senses",
+   "expect": [
+    "Ejl"
+   ],
+   "k": 3,
+   "why": "ʿijl"
+  },
+  {
+   "q": "a bear",
+   "category": "adv-senses",
+   "expect": [
+    "dbb"
+   ],
+   "k": 3,
+   "why": "noun with article"
+  },
+  {
+   "q": "the bear animal",
+   "category": "adv-senses",
+   "expect": [
+    "dbb"
+   ],
+   "k": 3,
+   "why": "disambiguated"
+  },
+  {
+   "q": "polar bear",
+   "category": "adv-senses",
+   "expect": [
+    "dbb"
+   ],
+   "k": 3,
+   "why": "adjective + bear"
+  }
+ ]
+}

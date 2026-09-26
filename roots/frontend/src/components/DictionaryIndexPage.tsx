@@ -72,6 +72,14 @@ function ReasonChip({ r, rootBw }: { r: DictionarySearchReason; rootBw: string }
       tone = 'bg-sky-50 text-sky-800';
       body = <>Means {r.label}</>;
       break;
+    case 'term':
+      tone = 'bg-sky-50 text-sky-800';
+      body = <>{r.label}</>;
+      break;
+    case 'typo':
+      tone = 'bg-stone-100 text-stone-600';
+      body = <>{r.label}</>;
+      break;
     case 'gloss':
       return null; // the gloss is already shown on the card
     case 'dictionary':
@@ -272,7 +280,9 @@ export default function DictionaryIndexPage() {
               setQuery(e.target.value);
               setUrlQuery(e.target.value.trim());
             }}
-            placeholder="A root (k-f-r, ك ف ر), a word (kafara, يعلمون) or a meaning…"
+            // U+2068/U+2069 isolate the Arabic so it can't reorder the
+            // parentheses and commas around it
+            placeholder={'A root (k-f-r, \u2068ك ف ر\u2069), a word (kafara, \u2068يعلمون\u2069) or a meaning…'}
             className="w-full px-4 py-2.5 pr-10 rounded-lg border border-stone-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
             aria-label="Search the dictionary by root, word or meaning"
             autoComplete="off"

@@ -1454,6 +1454,16 @@ except Exception as _sv2_exc:  # never let search v2 break app startup
     print(f"[search_v2] init skipped: {_sv2_exc}")
     search_v2 = None
 
+# The Qur'anic Dictionary search keeps its own small index (dictionary_search.py);
+# build it in the background shortly after the worker starts. Skipped for
+# scripts that import app.py (AL_NUQTA_NO_SCHEDULER), like the scheduler is.
+if not os.environ.get("AL_NUQTA_NO_SCHEDULER"):
+    try:
+        import dictionary_search as _dictionary_search
+        _dictionary_search.warm_up(delay=5)
+    except Exception as _ds_exc:
+        print(f"[dictionary_search] warm-up skipped: {_ds_exc}")
+
 
 def _get_embedding_model():
     """Lazy-load the sentence transformer model (thread-safe).

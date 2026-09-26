@@ -774,7 +774,7 @@ export interface DictionaryRootItem {
 
 /** /api/dictionary/search — why a root matched the query. */
 export interface DictionarySearchReason {
-  kind: 'root' | 'word' | 'alias' | 'gloss' | 'dictionary' | 'semantic' | 'guess';
+  kind: 'root' | 'word' | 'term' | 'alias' | 'gloss' | 'dictionary' | 'semantic' | 'guess' | 'typo';
   label: string;
   dictionary_slug?: string;
   snippet?: string;
