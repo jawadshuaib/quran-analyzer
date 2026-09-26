@@ -419,6 +419,15 @@ def scrape_root(conn, root_bw, session):
     n = 0
     for slug, info in merged.items():
         used_slug = info["src_slug"]
+        # Never overwrite a stored original that was corrected after it was scraped (its
+        # text no longer hashes to scrape_hash), or an entry made by splitting an article
+        # off another root (no scrape_hash): a re-scrape would silently undo the fix.
+        have = conn.execute("SELECT original_text_ar, scrape_hash FROM dictionary_entries "
+                            "WHERE root_buckwalter = ? AND dictionary_slug = ?", (root_bw, slug)).fetchone()
+        if have and (not have["scrape_hash"] or hashlib.sha256(
+                (have["original_text_ar"] or "").encode()).hexdigest()[:16] != have["scrape_hash"]):
+            print(f"  {root_bw:6} {slug}: kept the corrected text")
+            continue
         conn.execute(
             "INSERT INTO dictionary_entries (root_buckwalter, root_arabic, dictionary_slug, "
             "original_text_ar, source_url, source_anchor, scrape_hash) VALUES (?,?,?,?,?,?,?) "
