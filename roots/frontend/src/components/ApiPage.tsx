@@ -424,7 +424,7 @@ export default function ApiPage() {
           <Endpoint
             method="GET"
             path="/api/v1/roots/{root_bw}/dictionaries"
-            description="The Lexicon Library for a root: harmonized English definitions from the great classical Arabic dictionaries (Maqāyīs, Mufradāt, Lisān al-ʿArab, Lane, Tāj al-ʿArūs, and more), one entry per author, ordered by author death-year — chronology is the method. Returns an empty list (still 200) for roots not yet covered. Use the entry_id with /dictionaries/entries/{id} to fetch the original Arabic and a faithful translation."
+            description="The Lexicon Library for a root: harmonized English definitions from the great classical Arabic dictionaries (Maqāyīs, Mufradāt, Lisān al-ʿArab, Lane, Tāj al-ʿArūs, and more), one entry per author, ordered by author death-year — chronology is the method. Where a bare death year would mislead, date_approx marks the year as an estimate and date_note says what it is (e.g. “recorded late 9th–10th c.”, “published 1890”). Returns an empty list (still 200) for roots not yet covered. Use the entry_id with /dictionaries/entries/{id} to fetch the original Arabic and a faithful translation."
             example="/api/v1/roots/rHm/dictionaries"
             response={`{
   "ok": true,
@@ -437,6 +437,7 @@ export default function ApiPage() {
         "dictionary_slug": "ibn-faris-maqayis-al-lugha",
         "name_en": "Maqāyīs al-Lugha", "name_ar": "مقاييس اللغة",
         "author": "Ibn Fāris", "author_death_year": 1004,
+        "date_approx": false, "date_note": null,
         "language": "ar", "is_quran_specific": false,
         "harmonized_en": "Ibn Fāris treats the three letters r–ḥ–m as one root..."
       }
@@ -502,6 +503,7 @@ export default function ApiPage() {
     "root_buckwalter": "rHm", "root_arabic": "ر ح م",
     "dictionary_slug": "ibn-faris-maqayis-al-lugha",
     "name_en": "Maqāyīs al-Lugha", "author": "Ibn Fāris", "author_death_year": 1004,
+    "date_approx": false, "date_note": null,
     "language": "ar", "is_quran_specific": false,
     "harmonized_en": "...",
     "original_text_ar": "الراء والحاء والميم أصلٌ واحد...",

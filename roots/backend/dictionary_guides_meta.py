@@ -7,16 +7,6 @@ Used for server-rendered SEO meta, crawler <noscript> text and the sitemap.
 
 GUIDES = [
     {
-        "slug": "gharib-al-quran-fi-shir-al-arab",
-        "title": "Gharīb al-Qurʾān fī Shiʿr al-ʿArab",
-        "title_ar": "غريب القرآن في شعر العرب",
-        "author": "Attributed to ʿAbdullāh ibn ʿAbbās",
-        "period": "Answers attributed to Ibn ʿAbbās (d. 68 AH / 687–8 CE); recorded versions from the late 9th–10th c. CE",
-        "kind": "Question-and-answer glossary",
-        "summary": "Short exchanges in which a questioner, named as Nāfiʿ ibn al-Azraq, asks Ibn ʿAbbās about an unfamiliar Qurʾanic word, hears a brief gloss, then a line of poetry offered as proof. Attributed rather than authored; useful for early readings of single verses and their poetic witnesses.",
-        "lede": "Nothing here is arranged like a dictionary. Each entry is a small scene: a questioner — in the story that frames the collection, the Khārijite leader Nāfiʿ ibn al-Azraq — asks Ibn ʿAbbās what a word in the Qurʾan means, receives a gloss of a few words, and presses: “Do the Arabs know that?” The answer is always a line of poetry. Read it as an early record of how single Qurʾanic words were explained and then defended from Arab speech: a text attributed to Ibn ʿAbbās and shaped by those who handed it down, not a lexicon he wrote.",
-    },
-    {
         "slug": "kitab-al-ayn",
         "title": "Kitāb al-ʿAyn",
         "title_ar": "كتاب العين",
@@ -25,6 +15,16 @@ GUIDES = [
         "kind": "Sound-ordered root dictionary",
         "summary": "The dictionary credited to al-Khalīl ibn Aḥmad: letters ordered by where they are sounded in the throat and mouth, each root filed with the rearrangements of its letters. Its entries set everyday words beside Qur'anic citations and poetry; who completed it is disputed.",
         "lede": "Instead of starting with alif, this dictionary starts with ʿayn, the sound its introduction places deepest in the throat, and files each root with every rearrangement of its letters found in use. It is the oldest surviving attempt to take in the whole Arabic vocabulary by a system. Reading it well takes two keys: the filing system, and an ear for the voices in it — al-Khalīl's, his transmitter al-Layth's, and later hands.",
+    },
+    {
+        "slug": "gharib-al-quran-fi-shir-al-arab",
+        "title": "Gharīb al-Qurʾān fī Shiʿr al-ʿArab",
+        "title_ar": "غريب القرآن في شعر العرب",
+        "author": "Attributed to ʿAbdullāh ibn ʿAbbās",
+        "period": "Answers attributed to Ibn ʿAbbās (d. 68 AH / 687–8 CE); recorded versions from the late 9th–10th c. CE",
+        "kind": "Question-and-answer glossary",
+        "summary": "Short exchanges in which a questioner, named as Nāfiʿ ibn al-Azraq, asks Ibn ʿAbbās about an unfamiliar Qurʾanic word, hears a brief gloss, then a line of poetry offered as proof. Attributed rather than authored; useful for early readings of single verses and their poetic witnesses.",
+        "lede": "Nothing here is arranged like a dictionary. Each entry is a small scene: a questioner — in the story that frames the collection, the Khārijite leader Nāfiʿ ibn al-Azraq — asks Ibn ʿAbbās what a word in the Qurʾan means, receives a gloss of a few words, and presses: “Do the Arabs know that?” The answer is always a line of poetry. Read it as an early record of how single Qurʾanic words were explained and then defended from Arab speech: a text attributed to Ibn ʿAbbās and shaped by those who handed it down, not a lexicon he wrote.",
     },
     {
         "slug": "al-muhit-fi-l-lugha",

@@ -33,7 +33,10 @@ async function fetchDictionariesBlock(
     for (const it of dicts.slice(0, maxDicts)) {
       const body = clip(collapse(String(it.harmonized_en || '')), perDictChars);
       if (!body) continue;
-      out.push(`- ${it.name_en} (${it.author}, d. ${it.author_death_year}): ${body}`);
+      const when = it.date_note
+        ? String(it.date_note)
+        : `d. ${it.date_approx ? 'c. ' : ''}${it.author_death_year}`;
+      out.push(`- ${it.name_en} (${it.author}, ${when}): ${body}`);
     }
     return out.length > 1 ? out : [];
   } catch {

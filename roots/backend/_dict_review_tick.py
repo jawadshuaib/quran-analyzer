@@ -117,7 +117,7 @@ def remaining_and_chunk(n):
     rows = [dict(r) for r in conn.execute(
         "SELECT e.id, e.root_buckwalter, e.root_arabic, e.dictionary_slug, e.original_text_ar, "
         "e.translation_en, e.harmonized_en, d.name_en, d.author, d.author_death_year, "
-        "d.is_quran_specific, d.language "
+        "d.date_approx, d.date_note, d.is_quran_specific, d.language "
         "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
         "WHERE e.review_status='pending' AND e.harmonized_en IS NOT NULL AND e.harmonized_en<>'' "
         "AND (e.gen_meta IS NULL OR e.gen_meta NOT LIKE '%\"ai_review\"%')").fetchall()]

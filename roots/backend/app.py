@@ -7688,15 +7688,26 @@ def align_quotes(surah: int, ayah: int):
     return jsonify({"anchors": anchors})
 
 
+# How the panel dates a work. author_death_year is the year a work is filed
+# under: the author's death where that is known. date_approx marks it as an
+# estimate (shown "c. 1020"), and date_note replaces the plain century wherever
+# a bare death year would mislead — a disputed death, a text dated by its
+# recorded transmission, a publication year.
+_DICT_DATE_COLUMNS = (("date_approx", "INTEGER DEFAULT 0"), ("date_note", "TEXT"))
+_dict_date_columns_ready = False
+
+
 def _ensure_dict_tables(conn):
     """Self-heal the Lexicon Library tables (prod before its first sync)."""
+    global _dict_date_columns_ready
     conn.executescript("""
     CREATE TABLE IF NOT EXISTS dictionaries (
         id INTEGER PRIMARY KEY, slug TEXT UNIQUE NOT NULL,
         hawramani_category_id INTEGER, name_en TEXT, name_ar TEXT,
         author TEXT, author_death_year INTEGER, language TEXT,
         is_quran_specific INTEGER DEFAULT 0, phase INTEGER DEFAULT 1,
-        sort_order INTEGER, description_en TEXT
+        sort_order INTEGER, description_en TEXT,
+        date_approx INTEGER DEFAULT 0, date_note TEXT
     );
     CREATE TABLE IF NOT EXISTS dictionary_entries (
         id INTEGER PRIMARY KEY,
@@ -7711,6 +7722,13 @@ def _ensure_dict_tables(conn):
     );
     CREATE INDEX IF NOT EXISTS idx_dictentry_root ON dictionary_entries(root_buckwalter);
     """)
+    if not _dict_date_columns_ready:
+        for col, coltype in _DICT_DATE_COLUMNS:
+            try:
+                conn.execute(f"ALTER TABLE dictionaries ADD COLUMN {col} {coltype}")
+            except sqlite3.OperationalError:
+                pass  # column already exists
+        _dict_date_columns_ready = True
     conn.commit()
 
 
@@ -7723,7 +7741,9 @@ def _dict_meta(r):
     return {
         "dictionary_slug": r["dictionary_slug"], "name_en": r["name_en"],
         "name_ar": r["name_ar"], "author": r["author"],
-        "author_death_year": r["author_death_year"], "language": r["language"],
+        "author_death_year": r["author_death_year"],
+        "date_approx": bool(r["date_approx"]), "date_note": r["date_note"],
+        "language": r["language"],
         "is_quran_specific": bool(r["is_quran_specific"]),
     }
 
@@ -7777,7 +7797,7 @@ def get_root_dictionaries(root_bw: str):
         _ensure_dict_tables(conn)
         rows = conn.execute(
             "SELECT e.id, e.root_arabic, e.dictionary_slug, e.harmonized_en, e.confidence, "
-            "d.name_en, d.name_ar, d.author, d.author_death_year, d.language, d.is_quran_specific "
+            "d.name_en, d.name_ar, d.author, d.author_death_year, d.date_approx, d.date_note, d.language, d.is_quran_specific "
             "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
             "WHERE e.root_buckwalter = ? AND e.review_status = 'approved' "
             "AND COALESCE(e.hidden,0) = 0 AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
@@ -7812,7 +7832,7 @@ def get_dictionary_entry(entry_id: int):
     try:
         _ensure_dict_tables(conn)
         r = conn.execute(
-            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, "
+            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, d.date_approx, d.date_note, "
             "d.language, d.is_quran_specific "
             "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
             "WHERE e.id = ? AND e.review_status = 'approved' AND COALESCE(e.hidden,0) = 0",

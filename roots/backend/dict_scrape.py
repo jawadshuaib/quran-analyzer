@@ -21,6 +21,7 @@ Usage:
 import hashlib
 import os
 import re
+import sqlite3
 import sys
 import time
 
@@ -46,25 +47,40 @@ PILOT_ROOTS = ["Amn", "rHm", "ktb", "Elm", "xlq", "Hmd", "slm", "qwl", "Sbr", "$
 #     which is also the join key in each scraped definition-container's link. ---
 SEED_DICTS = [
     # slug, cat_id, name_en, author, death_year, lang, quran_specific, phase, name_ar
-    ("abdullah-ibn-abbas-gharib-al-quran-fi-shir-al-arab", 41, "Gharīb al-Qurʾān fī Shiʿr al-ʿArab", "ʿAbdullāh ibn ʿAbbās", 687, "ar", 1, 1, "غريب القرآن في شعر العرب"),
-    ("al-khalil-b-ahmad-al-farahidi-kitab-al-ain", 5, "Kitāb al-ʿAin", "al-Khalīl al-Farāhīdī", 786, "ar", 0, 1, "كتاب العين"),
+    # death_year is the year the panel files the work under; see DATE_NOTES.
+    ("abdullah-ibn-abbas-gharib-al-quran-fi-shir-al-arab", 41, "Gharīb al-Qurʾān fī Shiʿr al-ʿArab", "Attributed to ʿAbdullāh ibn ʿAbbās", 900, "ar", 1, 1, "غريب القرآن في شعر العرب"),
+    ("al-khalil-b-ahmad-al-farahidi-kitab-al-ain", 5, "Kitāb al-ʿAyn", "al-Khalīl al-Farāhīdī", 786, "ar", 0, 1, "كتاب العين"),
     ("al-sahib-bin-abbad-al-muhit-fi-l-lugha", 36, "al-Muḥīṭ fī l-Lugha", "al-Ṣāḥib b. ʿAbbād", 995, "ar", 0, 1, "المحيط في اللغة"),
     ("ibn-faris-maqayis-al-lugha", 9, "Maqāyīs al-Lugha", "Ibn Fāris", 1004, "ar", 0, 1, "مقاييس اللغة"),
-    ("al-raghib-al-isfahani-al-mufradat-fi-gharib-al-quran", 33, "al-Mufradāt fī Gharīb al-Qurʾān", "al-Rāghib al-Iṣfahānī", 1109, "ar", 1, 1, "المفردات في غريب القرآن"),
-    ("al-zamakhshari-asas-al-balagha", 11, "Asās al-Balāgha", "al-Zamakhsharī", 1143, "ar", 0, 1, "أساس البلاغة"),
+    ("al-raghib-al-isfahani-al-mufradat-fi-gharib-al-quran", 33, "al-Mufradāt fī Gharīb al-Qurʾān", "al-Rāghib al-Iṣfahānī", 1020, "ar", 1, 1, "المفردات في غريب القرآن"),
+    ("al-zamakhshari-asas-al-balagha", 11, "Asās al-Balāgha", "al-Zamakhsharī", 1144, "ar", 0, 1, "أساس البلاغة"),
     ("zayn-al-din-al-razi-mukhtar-al-sihah", 14, "Mukhtār al-Ṣiḥāḥ", "Zayn al-Dīn al-Rāzī", 1268, "ar", 0, 1, "مختار الصحاح"),
     ("ibn-manzur-lisan-al-arab", 3, "Lisān al-ʿArab", "Ibn Manẓūr", 1311, "ar", 0, 1, "لسان العرب"),
     ("al-fayyumi-al-misbah-al-munir-fi-gharib-al-sharh-al-kabir", 19, "al-Miṣbāḥ al-Munīr", "al-Fayyūmī", 1368, "ar", 0, 1, "المصباح المنير"),
-    ("william-edward-lane-arabic-english-lexicon", 50, "Arabic-English Lexicon", "Edward William Lane", 1876, "en", 0, 1, "Lane's Lexicon"),
+    ("william-edward-lane-arabic-english-lexicon", 50, "Arabic-English Lexicon", "Edward William Lane", 1876, "en", 0, 1, "مدّ القاموس"),
     # Phase 2
     ("ismail-bin-hammad-al-jawhari-taj-al-lugha-wa-sihah-al-arabiya", 8, "al-Ṣiḥāḥ", "al-Jawharī", 1003, "ar", 0, 2, "الصحاح"),
     ("ibn-sida-al-mursi-al-muhkam-wa-l-muhit-al-aazam", 10, "al-Muḥkam wa-l-Muḥīṭ al-Aʿẓam", "Ibn Sīda al-Mursī", 1066, "ar", 0, 2, "المحكم والمحيط الأعظم"),
     ("abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib", 18, "Tuḥfat al-Arīb", "Abū Ḥayyān al-Gharnāṭī", 1344, "ar", 1, 2, "تحفة الأريب بما في القرآن من الغريب"),
-    ("firuzabadi-al-qamus-al-muhit", 21, "al-Qāmūs al-Muḥīṭ", "Firūzābādī", 1414, "ar", 0, 2, "القاموس المحيط"),
-    ("murtada-al-zabidi-taj-al-arus-fi-jawahir-al-qamus", 27, "Tāj al-ʿArūs", "Murtaḍā al-Zabīdī", 1790, "ar", 0, 2, "تاج العروس"),
-    ("habib-anthony-salmone-an-advanced-learners-arabic-english-dictionary", 52, "An Advanced Learner's Arabic-English Dictionary", "Habib Anthony Salmoné", 1889, "en", 0, 2, "Salmoné"),
+    ("firuzabadi-al-qamus-al-muhit", 21, "al-Qāmūs al-Muḥīṭ", "al-Fīrūzābādī", 1415, "ar", 0, 2, "القاموس المحيط"),
+    ("murtada-al-zabidi-taj-al-arus-fi-jawahir-al-qamus", 27, "Tāj al-ʿArūs", "Murtaḍā al-Zabīdī", 1791, "ar", 0, 2, "تاج العروس"),
+    ("habib-anthony-salmone-an-advanced-learners-arabic-english-dictionary", 52, "An Advanced Learner's Arabic-English Dictionary", "Habib Anthony Salmoné", 1890, "en", 0, 2, "Salmoné"),
 ]
 SELECTED_SLUGS = {d[0] for d in SEED_DICTS}
+
+# Where a bare death year would mislead: slug -> (date_approx, date_note).
+# Evidence in docs/research/dictionary-guides/ (the guide for each work).
+DATE_NOTES = {
+    # answers attributed to Ibn ʿAbbās (d. 687); the text as we have it comes
+    # from chains dated 288/900 and 344/955 and al-Mubarrad (d. 898)
+    "abdullah-ibn-abbas-gharib-al-quran-fi-shir-al-arab": (1, "recorded late 9th–10th c."),
+    # 502/1108 is unsupported; oldest Mufradāt MS 409/1018, editor c. 425/1033
+    "al-raghib-al-isfahani-al-mufradat-fi-gharib-al-quran": (1, "early 11th c.; death date disputed"),
+    # last trace of him is in Konya in 666/1267–68
+    "zayn-al-din-al-razi-mukhtar-al-sihah": (0, "d. after 1268"),
+    # preface dated 21 Nov 1889; London: Trübner, 1890; death year unknown
+    "habib-anthony-salmone-an-advanced-learners-arabic-english-dictionary": (0, "published 1890"),
+}
 
 
 def ensure_schema(conn):
@@ -74,7 +90,8 @@ def ensure_schema(conn):
         hawramani_category_id INTEGER, name_en TEXT, name_ar TEXT,
         author TEXT, author_death_year INTEGER, language TEXT,
         is_quran_specific INTEGER DEFAULT 0, phase INTEGER DEFAULT 1,
-        sort_order INTEGER, description_en TEXT
+        sort_order INTEGER, description_en TEXT,
+        date_approx INTEGER DEFAULT 0, date_note TEXT
     );
     CREATE TABLE IF NOT EXISTS dictionary_entries (
         id INTEGER PRIMARY KEY,
@@ -94,6 +111,11 @@ def ensure_schema(conn):
     );
     CREATE INDEX IF NOT EXISTS idx_slug_norm ON root_slug_index(normalized_root);
     """)
+    for col, coltype in (("date_approx", "INTEGER DEFAULT 0"), ("date_note", "TEXT")):
+        try:
+            conn.execute(f"ALTER TABLE dictionaries ADD COLUMN {col} {coltype}")
+        except sqlite3.OperationalError:
+            pass  # column already exists
     conn.commit()
 
 
@@ -109,6 +131,9 @@ def seed_dictionaries(conn):
             "is_quran_specific=excluded.is_quran_specific, phase=excluded.phase, sort_order=excluded.sort_order",
             (slug, cat, name_en, name_ar, author, dy, lang, quran, phase, dy),  # sort by death year
         )
+        approx, note = DATE_NOTES.get(slug, (0, None))
+        conn.execute("UPDATE dictionaries SET date_approx = ?, date_note = ? WHERE slug = ?",
+                     (approx, note, slug))
     conn.commit()
 
 

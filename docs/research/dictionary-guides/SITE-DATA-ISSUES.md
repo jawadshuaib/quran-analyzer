@@ -1,5 +1,14 @@
 # Site-data issues found while writing the dictionary guides (2026-09-26)
-Reported by the research and verification agents; NOT yet acted on unless noted. Each item names its evidence.
+Reported by the research and verification agents; NOT yet acted on unless listed under "Fixed" below. Each item names its evidence.
+
+## Fixed (2026-09-26, local and production databases)
+- **Panel dates.** `dictionaries` gained `date_approx` (shown "c. 1020") and `date_note` (replaces the plain century on the panel, the API and generator prompts). Ibn ʿAbbās: filed at c. 900, "recorded late 9th–10th c." (was 687). al-Rāghib: c. 1020, "early 11th c.; death date disputed" (was 1109). Salmoné: 1890, "published 1890" (was 1889). Mukhtār al-Ṣiḥāḥ: 1268, "d. after 1268". `sort_order` now matches for Asās 1144, Qāmūs 1415, Tāj 1791.
+- **Dates inside the English.** Entry headers repeated the old stored years; brought in line: al-Rāghib 152 texts, Salmoné 13, Mukhtār 15, and the headers left behind by the earlier Asās 1143→1144 (369), Qāmūs 1414→1415 (37) and Tāj 1790→1791 (1,315) corrections. `dict_scrape.py`'s seed list now carries every corrected label and date, so a re-scrape keeps them.
+- **Misfiled Ibn ʿAbbās entries moved** to the root the site's morphology gives the Qurʾanic word: 11147 xbt→xbw (خَبَتْ, Q 17:97), 9775 Ent→Enw (عَنَتِ, Q 20:111), 15503 snh→wsn (سِنَةٌ, Q 2:255). Where the source's own heading differs (ع ن ت, س ن و), the English now says so.
+- **nqb (11538):** Q35:44 → Q50:36 in both English versions.
+- **"Pre-Islamic" in the Ibn ʿAbbās English** removed where the poet lived into Islam or is not named: Amr, ryb (Ibn al-Zibaʿrā), zbr (Kaʿb ibn Mālik), nqE (Ḥassān, a Conquest-of-Mecca line), nHb (Labīd), ASr and Sld (Abū Ṭālib), fwm (Abū Miḥjan), xmT, rmz, Dnk, Htm, xbt. Kept where the poet died before Islam (Qays ibn al-Khaṭīm, al-Nābigha, al-Aʿshā, ʿAdī ibn Zayd, Zuhayr, Uḥayḥa, Imruʾ al-Qays).
+
+Everything below is still open unless it restates one of these.
 
 ## gharib-al-quran-fi-shir-al-arab
 - Author label 'ʿAbdullāh ibn ʿAbbās' treats an attribution as authorship. The answers are attributed to Ibn ʿAbbās and the questions to Nāfiʿ ibn al-Azraq, and the collection reaches us through later chains, one of them through ʿĪsā ibn Daʾb, whom Tārīkh Baghdād (vol. 12, pp. 468, 472) reports was accused of fabrication. The label should read 'Attributed to ʿAbdullāh ibn ʿAbbās'.

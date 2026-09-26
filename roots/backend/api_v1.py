@@ -890,7 +890,7 @@ def get_root_dictionaries_v1(root_bw: str):
         mod._ensure_dict_tables(conn)
         rows = conn.execute(
             "SELECT e.id, e.root_arabic, e.dictionary_slug, e.harmonized_en, e.confidence, "
-            "d.name_en, d.name_ar, d.author, d.author_death_year, d.language, d.is_quran_specific "
+            "d.name_en, d.name_ar, d.author, d.author_death_year, d.date_approx, d.date_note, d.language, d.is_quran_specific "
             "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
             "WHERE e.root_buckwalter = ? AND e.review_status = 'approved' "
             "AND COALESCE(e.hidden,0) = 0 AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
@@ -920,7 +920,7 @@ def get_dictionary_entry_v1(entry_id: int):
     try:
         mod._ensure_dict_tables(conn)
         r = conn.execute(
-            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, "
+            "SELECT e.*, d.name_en, d.name_ar, d.author, d.author_death_year, d.date_approx, d.date_note, "
             "d.language, d.is_quran_specific "
             "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
             "WHERE e.id = ? AND e.review_status = 'approved' AND COALESCE(e.hidden,0) = 0",

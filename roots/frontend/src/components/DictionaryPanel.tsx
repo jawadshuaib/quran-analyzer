@@ -97,6 +97,7 @@ function DictionaryCard({
   const [open, setOpen] = useState(defaultOpen);
   const [showOriginal, setShowOriginal] = useState(false);
   const century = item.author_death_year ? Math.floor(item.author_death_year / 100) + 1 : null;
+  const when = item.date_note || (century ? `${century}th c.` : '');
   const teaser = item.harmonized_en.replace(/\s+/g, ' ').trim().slice(0, 150);
   const guideHref = guidePathForDictionary(item.dictionary_slug);
   const bodyId = `dict-body-${item.entry_id}`;
@@ -119,7 +120,10 @@ function DictionaryCard({
           <button>). */}
       <div className="relative flex w-full items-baseline gap-3 py-3 text-left">
         <span className="w-11 shrink-0 text-right">
-          <span className="block text-xs font-semibold tabular-nums text-emerald-700">
+          <span className="block whitespace-nowrap text-xs font-semibold tabular-nums text-emerald-700">
+            {item.date_approx && (
+              <abbr title="circa (approximately)" className="font-normal no-underline">c.&nbsp;</abbr>
+            )}
             {item.author_death_year ?? '—'}
           </span>
           <span className="block text-[9px] uppercase tracking-wide text-stone-400">CE</span>
@@ -152,7 +156,7 @@ function DictionaryCard({
           </span>
           <span className="mt-0.5 block text-xs text-stone-500">
             {item.author}
-            {century ? ` · ${century}th c.` : ''}
+            {when ? ` · ${when}` : ''}
           </span>
           {!open && (
             <span className="mt-1 block text-sm text-stone-500 line-clamp-2">{teaser}…</span>

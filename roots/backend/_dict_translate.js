@@ -14,7 +14,7 @@ const DUMP = '/Users/jawadshuaib/Desktop/projects/quran-related/roots/backend/da
 const READ = (id) =>
   `python3 -c "import json; d=[r for r in json.load(open('${DUMP}',encoding='utf-8')) if r['id']==${id}][0]; ` +
   `print('ROOT', d['root_buckwalter'], d['root_arabic']); ` +
-  `print('DICTIONARY', d['name_en'], '—', d['author'], '(d.'+str(d['author_death_year'])+' CE)'); ` +
+  `print('DICTIONARY', d['name_en'], '—', d['author'], '('+(d.get('date_note') or 'd. '+('c. ' if d.get('date_approx') else '')+str(d['author_death_year'])+' CE')+')'); ` +
   `print('LANGUAGE', d['language'], '| QURAN_SPECIFIC', d['is_quran_specific']); ` +
   `print('=== ORIGINAL ==='); print(d['original_text_ar'])"`
 

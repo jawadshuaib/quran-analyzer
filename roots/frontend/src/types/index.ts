@@ -736,7 +736,13 @@ export interface DictionaryItem {
   name_en: string;
   name_ar: string | null;
   author: string | null;
+  /** The year the panel files the work under: the author's death where known. */
   author_death_year: number | null;
+  /** The year is an estimate (shown "c. 1020"). */
+  date_approx?: boolean;
+  /** Replaces the plain century where a bare death year would mislead
+   *  ("recorded late 9th–10th c.", "published 1890"). */
+  date_note?: string | null;
   language: string;
   is_quran_specific: boolean;
   harmonized_en: string;
