@@ -296,10 +296,10 @@ function TopExtensionBar({ storeUrl }: { storeUrl: string }) {
 }
 
 const FOOTER_LINKS: Array<{ href: string; label: string }> = [
-  { href: '/learning', label: 'Learn' },
-  { href: '/meters', label: 'Metres' },
   { href: '/grammar-glossary', label: 'Grammar' },
-  { href: '/dictionary', label: 'Dictionary' },
+  { href: '/meters', label: 'Metres' },
+  { href: '/methodology', label: 'Methodology' },
+  { href: '/settings', label: 'Settings' },
   { href: '/developers', label: 'API' },
   { href: '/privacy', label: 'Privacy' },
   { href: '/terms', label: 'Terms' },

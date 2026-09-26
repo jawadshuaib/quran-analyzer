@@ -15,10 +15,10 @@ import { getSavedCount, subscribeToSavedItems } from '../../utils/saved-items';
  *
  * Right-side links:
  *   - Saved (always; badge shows the count)
- *   - Methodology
- *   - Settings
- *   (Learn, Metres, Grammar + API live in the footer; Notes live inside
- *   the Saved page under their verses, so there's no top-nav Notes link.)
+ *   - Dictionary
+ *   (Methodology, Settings, Metres, Grammar + API live in the footer; Notes
+ *   live inside the Saved page under their verses, so there's no top-nav
+ *   Notes link.)
  */
 interface Props {
   currentPath: string;
@@ -28,8 +28,7 @@ interface Props {
 }
 
 const STATIC_LINKS = [
-  { label: 'Methodology', href: '/methodology' },
-  { label: 'Settings', href: '/settings' },
+  { label: 'Dictionary', href: '/dictionary' },
 ];
 
 const SCROLL_THRESHOLD = 80;
