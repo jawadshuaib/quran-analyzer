@@ -86,6 +86,9 @@ LATIN_UNITS = {
     "ẓ": [("Z", 0)], "ṯ": [("v", 0)], "ḫ": [("x", 0)], "ẖ": [("x", 0)],
     "ḏ": [("*", 0)], "š": [("$", 0)], "ġ": [("g", 0)], "ǧ": [("j", 0)],
     "ĝ": [("j", 0)], "ž": [("Z", 1)],
+    # IPA and Encyclopaedia of Islam letters
+    "ʔ": [("A", 0)], "ʕ": [("E", 0)], "ḳ": [("q", 0)], "ħ": [("H", 0)], "ɣ": [("g", 0)],
+    "χ": [("x", 0)], "θ": [("v", 0)], "ð": [("*", 0)], "ʃ": [("$", 0)],
     # hamza and ʿayn marks (and what people type for them)
     "ʾ": [("A", 0)], "ʼ": [("A", 0)], "ˀ": [("A", 0)], "´": [("A", 0)],
     "'": [("A", 0), ("E", 1)], "’": [("A", 0), ("E", 1)],
@@ -110,6 +113,7 @@ STOPWORDS = {
     "something", "someone", "one", "thing", "what", "how", "whats", "say", "said", "called",
     "term", "english", "translate", "translation", "define", "definition", "does", "do",
     "i", "you", "me", "my", "your", "there", "please", "find", "search", "look", "up",
+    "most", "very", "more", "much",
 }
 # English words so general they should only break ties inside a phrase
 # ("remembrance of God", "hobble a camel", "water trough")
@@ -134,7 +138,10 @@ _AR_EQUIV = str.maketrans({
 })
 # Scholarly single letters that stand for a digraph elsewhere, so both
 # spellings meet (ḫayr = khayr, šukr = shukr, ǧanna = janna)
-_LAT_PREMAP = [("ḫ", "kh"), ("ẖ", "kh"), ("š", "sh"), ("ş", "sh"), ("ġ", "gh"), ("ğ", "gh"),
+_LAT_PREMAP = [("3'", "gh"), ("7'", "kh"), ("6'", "ẓ"), ("9'", "ḍ"), ("5", "kh"), ("7", "ḥ"), ("9", "ṣ"),
+               ("6", "ṭ"), ("8", "gh"), ("2", "ʾ"), ("3", "ʿ"), ("ʔ", "ʾ"), ("ʕ", "ʿ"), ("ḳ", "q"), ("ḵ", "kh"),
+               ("ħ", "ḥ"), ("ɣ", "gh"), ("χ", "kh"), ("θ", "th"), ("ð", "dh"), ("ʃ", "sh"),
+               ("ḫ", "kh"), ("ẖ", "kh"), ("š", "sh"), ("ş", "sh"), ("ġ", "gh"), ("ğ", "gh"),
                ("ǧ", "j"), ("ĝ", "j"), ("ṯ", "th"), ("ḏ", "dh"), ("č", "ch"), ("ç", "ch"),
                ("ı", "i"), ("ö", "o"), ("ü", "u"), ("ʻ", "ʿ"), ("‘", "ʿ"), ("’", "'"), ("ʼ", "ʾ")]
 
@@ -170,6 +177,13 @@ TRANSLATION_TERMS = {
     "spirit": ["rwH"], "soul": ["nfs"], "supplication": ["dEw"], "invocation": ["dEw"],
     "prayer of supplication": ["dEw"], "weep": ["bky"], "cry": ["bky"], "caliph": ["xlf"],
     "successor": ["xlf"], "vicegerent": ["xlf"], "lord": ["rbb"], "god": ["Alh"],
+    "backbiting": ["gyb", "hmz", "lmz"], "backbiter": ["hmz", "lmz"], "slander": ["hmz", "lmz", "bht"],
+    "wastefulness": ["srf", "b*r"], "wasteful": ["srf", "b*r"], "extravagance": ["srf", "b*r"],
+    "squander": ["b*r", "srf"], "witchcraft": ["sHr"], "magic": ["sHr"], "sorcery": ["sHr"],
+    "apostasy": ["rdd"], "apostate": ["rdd"], "statue": ["mvl", "Snm"], "rainbow": ["qws"],
+    "usury": ["rbw"], "interest": ["rbw"], "breastfeed": ["rDE"], "suckle": ["rDE"], "wet nurse": ["rDE"],
+    "heaven": ["smw", "jnn"], "sky": ["smw"], "earth": ["ArD"], "fire": ["nwr"], "hell": ["nwr", "jHm"],
+    "criterion": ["frq"], "furqan": ["frq"], "divorce": ["Tlq"], "inheritance": ["wrv"],
 }
 
 
@@ -265,7 +279,9 @@ def _ar_variants(tok):
         out.append(plain[:-1] + "ة")               # Persian/Urdu قیامت ~ قيامة
     for v in list(out):
         if v.endswith("اة"):
-            out.append(v[:-2] + "وة")
+            out.insert(1, v[:-2] + "وة")           # صلاة ~ صلوة: the Qur'an's own spelling
+    if re.search(r"[^او]ا$", plain) and len(plain) >= 3:
+        out.append(plain[:-1] + "وا")              # الربا ~ ٱلرِّبَوٰا
     idx = [i for i, ch in enumerate(plain) if ch == "ا" and 0 < i < len(plain) - 1]
     for i in idx[:3]:
         out.append(plain[:i] + "ى" + plain[i + 1:])
@@ -282,7 +298,7 @@ AR_PARTICLES = {_ar_norm(w) for w in (
 _LOOSE_COMMON = [("dsch", "j"), ("tsch", "$"), ("sch", "$"), ("kh", "x"), ("gh", "g"), ("sh", "$"),
                  ("sy", "$"), ("th", "s"), ("ts", "s"), ("dh", "z"), ("dz", "z"), ("dj", "j"), ("ch", "$"),
                  ("ou", "u"), ("au", "aw"), ("ai", "ay"), ("ei", "ay"), ("ee", "i"), ("oo", "u"),
-                 ("ḥ", "h"), ("ṣ", "s"), ("ḍ", "d"), ("ṭ", "t"), ("ẓ", "z"), ("q", "k"), ("v", "w")]
+                 ("ḥ", "h"), ("ṣ", "s"), ("ḍ", "d"), ("ṭ", "t"), ("ẓ", "z"), ("q", "k"), ("v", "w"), ("p", "b")]
 _LOOSE_VARIANTS = [[("c", "k")], [("c", "j")]]   # English/Malay vs Turkish c
 _PARTICLE_SEGS = {"wa", "fa", "bi", "li", "ka", "la", "sa", "a", "al", "el", "ul", "l", "wal", "fal", "bil", "lil"}
 
@@ -319,12 +335,17 @@ def _loose_keys(word, corpus=False):
             bases.add(segs[0][m.end():])
     keys = set()
     has_marks = bool(re.search(r"[ʿʾ'`´’]", w))
+    if corpus and re.search(r"ḍ|ẓ|dh", w):
+        # Urdu/Persian say z for ض ظ ذ: riḍwān ~ rizwan, ḥāḍir ~ hazir
+        bases |= {re.sub(r"ḍ|ẓ|dh", "z", b) for b in bases}
     for b in bases:
         for extra in _LOOSE_VARIANTS:
             if has_marks:
                 km = re.sub(r"[^a-z$']", "", _loose_one(b, extra, marks=True))
                 if len(km) >= 3 and "'" in km:
                     keys.add(km)                       # shu'ara' ~ shuʿarāʾu
+                    if corpus and re.search(r"(an|un|in)$", b) and km.endswith("n"):
+                        keys.add(km[:-1])              # biʾrin ~ bi'r
             k = _loose_one(b, extra)
             k = re.sub(r"[^a-z$]", "", k)
             if not k:
@@ -644,8 +665,10 @@ def _root_notation(ix, q, hits):
 
     # 2. Arabic letters (ك ف ر, كفر, ك-ف-ر, أمن)
     if _AR_CHAR.search(raw):
-        # only the Arabic: "the root ر ح م" is a root, whatever surrounds it
-        letters = "".join(ch for ch in _AR_DIAC.sub("", _norm_query(raw)) if ch in AR2BW)
+        # only the Arabic: "the root ر ح م" / "جذر ك ت ب" is a root, whatever surrounds it
+        body = " ".join(t for t in _norm_query(raw).split()
+                        if _ar_norm(t) not in {_ar_norm(w) for w in ("جذر", "الجذر", "جذور", "مادة", "كلمة")})
+        letters = "".join(ch for ch in _AR_DIAC.sub("", body) if ch in AR2BW)
         spaced = len(_SEPARATORS.findall(raw)) > 0
         if 3 <= len(letters) <= 5:
             key = "".join(AR2BW[ch] for ch in letters)
@@ -656,8 +679,8 @@ def _root_notation(ix, q, hits):
             # two letters: a doubled root (دب -> د ب ب) or one with a weak or
             # hamza radical left out (قل -> ق و ل)
             a, b = (AR2BW[ch] for ch in letters)
-            for key, sc in ((a + b + b, 950), (a + "w" + b, 900), (a + "y" + b, 900), (a + b + "y", 890),
-                            (a + b + "w", 890), ("A" + a + b, 880), (a + "A" + b, 880), (a + b + "A", 880)):
+            for key, sc in ((a + b + b, 820), (a + "w" + b, 790), (a + "y" + b, 790), (a + b + "y", 780),
+                            (a + b + "w", 780), ("A" + a + b, 770), (a + "A" + b, 770), (a + b + "A", 770)):
                 if key in ix.roots:
                     hits.add(key, sc + _freq_bonus(ix, key) / 2, "root",
                              "Root letters " + " ".join(ix.roots[key]["arabic"]))
@@ -725,8 +748,10 @@ def _arabic_word(ix, q, hits):
                 total = sum(c.values())
                 for root, n in c.most_common(4):
                     ex = ix.word_example.get((kind, key, root)) or tok
-                    variant_pen = 0 if i == 0 else (40 if typed_found else 10)
-                    sc = (base - variant_pen - (25 if root not in strict else 0)) * (0.75 + 0.25 * n / total)
+                    if root in strict:
+                        ex = _AR_MARKUP.sub("", _AR_DIAC.sub("", _norm_query(v)))
+                    variant_pen = 0 if i == 0 else (40 if typed_found else 5)
+                    sc = (base - variant_pen - (45 if root not in strict else 0)) * (0.75 + 0.25 * n / total)
                     hits.add(root, sc, "word", f"{label} {ex}")
                     found = True
                     if i == 0 and root in strict:
@@ -865,6 +890,7 @@ def _latin_word(ix, q, hits):
         keys = {translit.translit_key(v) for v in variants}
         keys.discard("")
         exact_key = translit.translit_key(norm)
+        marked = bool(re.search(r"[ʿʾāīūḥṣḍṭẓ]", low))    # the reader wrote ʿadl, not adl
         for key in keys:
             c = ix.tr_words.get(key)
             if not c or len(key) < 3:
@@ -872,8 +898,8 @@ def _latin_word(ix, q, hits):
             total = sum(c.values())
             for root, n in c.most_common(3):
                 ex = ix.word_example.get(("tr", key, root)) or tok
-                hits.add(root, (880 if key == exact_key else 850) * (0.75 + 0.25 * n / total), "word",
-                         f"Qurʾānic word {ex}", soft=len(key) <= 4)
+                hits.add(root, (880 + (30 if marked else 0) if key == exact_key else 850) * (0.75 + 0.25 * n / total),
+                         "word", f"Qurʾānic word {ex}", soft=len(key) <= 4 and not marked)
                 matched = True
         # 2. the consonants, whatever the spelling convention (cennet, solat,
         #    tauhid, tövbe, chirk, mescid)
@@ -885,7 +911,7 @@ def _latin_word(ix, q, hits):
             for root, n in c.most_common(3):
                 ex = ix.word_example.get(("lo", key, root)) or tok
                 hits.add(root, 820 * (0.75 + 0.25 * n / total), "word", f"Qurʾānic word {ex}",
-                         soft=len(key) <= 3)
+                         soft=True)
                 matched = True
         # 3. consonant skeleton after likely affixes (a weaker guess)
         _latin_skeleton(ix, low, hits, weak=matched)
@@ -997,9 +1023,9 @@ def _typo(ix, q, hits):
                 vocab[w[0]].add(w)
         ix.typo_vocab = {k: sorted(v) for k, v in vocab.items()}
     pool = ix.typo_vocab.get(t[0], []) + ix.typo_vocab.get(t[1], [])
-    for m in difflib.get_close_matches(t, pool, n=1, cutoff=0.8):
+    for m in difflib.get_close_matches(t, pool, n=1, cutoff=0.76):
         ratio = difflib.SequenceMatcher(None, t, m).ratio()
-        ceiling = 500 + 300 * (ratio - 0.8) / 0.2        # compasion ~ compassion: ~725
+        ceiling = 480 + 300 * (ratio - 0.76) / 0.24       # compasion ~ compassion: ~720
         sub = _Hits()
         _aliases(ix, m, sub)
         _gloss(ix, m, sub)
@@ -1188,7 +1214,15 @@ def _embed(ix, q):
         import app
         mname = getattr(app, "_SEMANTIC_MODEL_NAME", "all-MiniLM-L6-v2")
         if mname in ix.vector_models and not _AR_CHAR.search(q):
-            model = app._get_embedding_model()
+            voyage_here = False
+            try:
+                import search_v2
+                voyage_here = bool(search_v2.active_model_name() in ix.vector_models and search_v2._get_voyage_api_key())
+            except Exception:
+                pass
+            # where Voyage is the engine, a slow answer must not turn into a
+            # multi-second model load: use MiniLM only if already in memory
+            model = getattr(app, "_embedding_model", None) if voyage_here else app._get_embedding_model()
             if model is not None:
                 v = model.encode([q], normalize_embeddings=True)[0]
                 return "minilm", mname, np.asarray(v, dtype=np.float32)
@@ -1320,8 +1354,9 @@ def search(q, limit=30):
 
     # A misspelt English word ("patiance"): nothing recognised it as a root,
     # a word, an alias or a gloss, and the dictionaries barely mention it.
-    strong = max(scores("root", "word", "alias", "gloss", "term"), default=0)
-    if strong < 700 and max(scores("dictionary"), default=0) < 560:
+    strong = max((r["score"] for ks in hits.reasons.values() for k, r in ks.items()
+                  if k in ("root", "word", "alias", "gloss", "term") and not r.get("soft")), default=0)
+    if strong < 700 and not scores("dictionary"):
         try:
             _typo(ix, q, hits)
         except Exception as e:
@@ -1350,6 +1385,12 @@ def search(q, limit=30):
 
     if not _AR_CHAR.search(q):
         english = max(scores("alias", "gloss", "term"), default=0)
+        english_text = max(scores("dictionary"), default=0)
+        if english_text and english < 560:
+            # a word the dictionaries' English uses (hammer, ghee, udders):
+            # vowel-blind matches with Qur'anic words step below that evidence
+            hits.cap("word", english_text - 10, only_soft=True)
+            hits.cap("root", english_text - 10, only_soft=True)
         if english >= 560:
             # an English word the site knows ("sun", "moon", "owl") beats an
             # accidental match with a short Qur'anic word key (ṣunʿan) or a
