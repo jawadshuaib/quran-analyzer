@@ -710,7 +710,10 @@ export default function App() {
     );
   }
   const [data, setData] = useState<VerseData | null>(null);
-  const [loading, setLoading] = useState(false);
+  // A /verse/X:Y deep link starts in the loading state so HomePage never
+  // mounts for that first frame — its useSEO would overwrite the server's
+  // verse canonical/description with the homepage's.
+  const [loading, setLoading] = useState(() => getVerseFromPath() !== null);
   const [error, setError] = useState('');
 
   const [wordSearchResults, setWordSearchResults] = useState<WordSearchResponse | null>(null);

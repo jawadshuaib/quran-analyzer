@@ -5580,6 +5580,13 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/word/\d+:\d+/\d+$", path):
         return True
+    if re.match(r"^/(poems|meters)/?$", path):
+        return True
+    if re.match(r"^/poem/\d+/?$", path):
+        return True
+    m = re.match(r"^/meter/([a-z]+)/?$", path)
+    if m and m.group(1) in _METER_BY_KEY:
+        return True
     if re.match(r"^/learning(/root/.+|/mnemonic-sheet)?/?$", path):
         return True
     if re.match(r"^/settings/?$", path):
@@ -5703,7 +5710,7 @@ def _get_seo_meta(path: str) -> dict:
                 (surah, ayah),
             ).fetchone()
             if v_row:
-                arabic = v_row["text_uthmani"][:80]
+                arabic = _strip_bismillah(v_row["text_uthmani"], surah, ayah)[:80]
             conn.close()
         except Exception:
             pass
@@ -5764,13 +5771,16 @@ def _get_seo_meta(path: str) -> dict:
         word_gloss = ""
         try:
             conn = get_db()
+            # The word is its segments joined in order (بِ + سْمِ → بِسْمِ);
+            # any single row may be just a prefix.
             w_row = conn.execute(
-                "SELECT form_arabic, lemma_arabic FROM morphology "
-                "WHERE chapter = ? AND verse = ? AND word_pos = ? LIMIT 1",
+                "SELECT GROUP_CONCAT(form_arabic, '') AS word FROM ("
+                "SELECT form_arabic FROM morphology "
+                "WHERE chapter = ? AND verse = ? AND word_pos = ? ORDER BY segment)",
                 (surah, ayah, pos),
             ).fetchone()
             if w_row:
-                word_arabic = w_row["form_arabic"] or ""
+                word_arabic = w_row["word"] or ""
             glosses = _fetch_word_glosses(conn, surah, ayah)
             word_gloss = glosses.get(pos, "")
             conn.close()
@@ -5915,13 +5925,115 @@ def _get_seo_meta(path: str) -> dict:
             "robots": "index, follow",
         }
 
-    # Unknown page
+    # Pre-Islamic poetry library: /poems
+    if re.match(r"^/poems/?$", path):
+        return {
+            "title": "Pre-Islamic Poetry — the sources | al-nuqta",
+            "description": "The poems behind al-nuqta’s pre-Islamic poetry notes — the Muʿallaqāt and the major dīwāns of the Jāhilī age, each given in full with an English translation.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/poems",
+            "robots": "index, follow",
+        }
+
+    # One poem: /poem/1
+    m = re.match(r"^/poem/(\d+)/?$", path)
+    if m:
+        poem_id = int(m.group(1))
+        p = None
+        try:
+            conn = get_db()
+            try:
+                p = conn.execute(
+                    "SELECT poet, poet_latin, title, title_en FROM poetry_poems WHERE id = ?",
+                    (poem_id,),
+                ).fetchone()
+            finally:
+                conn.close()
+        except Exception:
+            pass
+        if not p:
+            return {
+                "title": "Pre-Islamic Poem | al-nuqta",
+                "description": "A pre-Islamic Arabic poem, line by line with English translation.",
+                "og_type": "article",
+                "canonical": f"{SITE_URL}/poem/{poem_id}",
+                "robots": "noindex, follow",
+            }
+        poet = p["poet_latin"] or p["poet"] or "an unknown poet"
+        name = p["title_en"] or p["title"] or f"A poem by {poet}"
+        return {
+            "title": f"{name} — a pre-Islamic poem | al-nuqta",
+            "description": f"Read {name} by {poet} — a pre-Islamic Arabic poem — in full, line by line, with English translation.",
+            "og_type": "article",
+            "canonical": f"{SITE_URL}/poem/{poem_id}",
+            "robots": "index, follow",
+        }
+
+    # Metres index: /meters
+    if re.match(r"^/meters/?$", path):
+        return {
+            "title": "The metres of Arabic poetry | al-nuqta",
+            "description": "Every classical Arabic poem keeps time to a baḥr — a fixed pattern of long and short syllables. The metres the pre-Islamic poets used, each with its beat to hear and verses written in it.",
+            "og_type": "article",
+            "canonical": SITE_URL + "/meters",
+            "robots": "index, follow",
+        }
+
+    # One metre: /meter/tawil (_is_known_spa_path already checked the key)
+    m = re.match(r"^/meter/([a-z]+)/?$", path)
+    if m and m.group(1) in _METER_BY_KEY:
+        entry = _METER_BY_KEY[m.group(1)]
+        return {
+            "title": f"{entry['en']} — an Arabic poetic metre | al-nuqta",
+            "description": f"The {entry['en']} metre ({entry['ar']}, “{entry['meaning']}”) of classical Arabic poetry: hear its beat, see its pattern of long and short syllables, and read pre-Islamic verses written in it.",
+            "og_type": "article",
+            "canonical": f"{SITE_URL}/meter/{entry['key']}",
+            "robots": "index, follow",
+        }
+
+    # Personal / tool pages: served, but kept out of the index.
+    if re.match(r"^/settings/?$", path):
+        return {
+            "title": "Settings | al-nuqta",
+            "description": "Configure your al-nuqta experience. Set up “Ask the Quran” with your own API key to get answers grounded in the Quran’s text.",
+            "og_type": "website",
+            "canonical": SITE_URL + "/settings",
+            "robots": "noindex, follow",
+        }
+    if re.match(r"^/saved/?$", path):
+        return {
+            "title": "Saved | al-nuqta",
+            "description": "Your saved verses, roots, and words, organized into study folders — stored locally on your device.",
+            "og_type": "website",
+            "canonical": SITE_URL + "/saved",
+            "robots": "noindex, follow",
+        }
+    if re.match(r"^/search/?$", path):
+        return {
+            "title": "Search | al-nuqta",
+            "description": "Search the Qur’an by meaning, root, or reference.",
+            "og_type": "website",
+            "canonical": SITE_URL + "/search",
+            "robots": "noindex, follow",
+        }
+    if re.match(r"^/admin(/|$)", path):
+        return {
+            "title": "Admin | al-nuqta",
+            "description": "al-nuqta administration.",
+            "og_type": "website",
+            "canonical": SITE_URL + path.rstrip("/"),
+            "robots": "noindex, nofollow",
+        }
+
+    # Any other page the SPA serves: the homepage's title and description,
+    # but a self-referencing canonical (pointing it at "/" would tell search
+    # engines the page is a duplicate of the homepage).
     return {
-        "title": "Page Not Found | al-nuqta",
-        "description": "The requested page does not exist.",
+        "title": "al-nuqta — A Root Based Translation of the Quran",
+        "description": "Explore Quranic Arabic through its root words. Trace any word back to its Semitic origins, compare cross-references across 6,236 verses, and study morphology — all grounded in the Quran’s own usage.",
         "og_type": "website",
-        "canonical": SITE_URL + path,
-        "robots": "noindex, follow",
+        "canonical": SITE_URL + (path.rstrip("/") or "/"),
+        "robots": "index, follow",
     }
 
 
@@ -5992,10 +6104,11 @@ def _build_meta_tags(meta: dict) -> str:
             "@type": "WebSite",
             "name": "al-nuqta",
             "url": SITE_URL,
+            "alternateName": "A Root Based Translation of the Quran",
             "potentialAction": {
                 "@type": "SearchAction",
-                "target": f"{SITE_URL}/verse/{{surah}}:{{ayah}}",
-                "query-input": "required name=surah,ayah",
+                "target": f"{SITE_URL}/search?q={{search_term_string}}",
+                "query-input": "required name=search_term_string",
             },
         })
     elif ld_type == "Surah":
@@ -22773,6 +22886,70 @@ def redirect_report_to_m4th(rest):
 
 _index_html_cache: str | None = None
 
+# index.html wraps its homepage <title>, meta, canonical and JSON-LD in these
+# two comments; _render_spa_html swaps the whole block for the requested
+# path's. If they go missing, every page ships the homepage tags again.
+_SEO_BLOCK_RE = re.compile(r"<!-- SEO_META_START[\s\S]*?<!-- SEO_META_END -->")
+_seo_block_missing_warned = False
+
+
+def _render_spa_html(template: str, req_path: str) -> tuple[str, int]:
+    """index.html with req_path's SEO head, noscript body and GA injected.
+
+    Returns (html, HTTP status).
+    """
+    global _seo_block_missing_warned
+
+    # Unknown paths: still serve the SPA shell so React can render
+    # the friendly NotFound page (verse of the day, recovery links).
+    # We return HTTP 404 and tag the page noindex,nofollow so search
+    # engines don't index unknown URLs as if they were real pages.
+    is_unknown = not _is_known_spa_path(req_path)
+
+    if is_unknown:
+        page_title = "404 — Page Not Found | al-nuqta"
+        meta_tags = "\n    ".join([
+            '<meta name="description" content="The page you are looking for does not exist." />',
+            '<meta name="robots" content="noindex, nofollow" />',
+            '<meta property="og:title" content="Page Not Found | al-nuqta" />',
+            '<meta property="og:site_name" content="al-nuqta" />',
+        ])
+        noscript_html = (
+            '<noscript><h1>404 — Page Not Found</h1>'
+            '<p>Go to <a href="/">al-nuqta</a></p></noscript>'
+        )
+    else:
+        meta = _get_seo_meta(req_path)
+        meta_tags = _build_meta_tags(meta)
+        page_title = meta["title"]
+        noscript_html = _build_noscript_content(req_path)
+
+    head = f"<title>{html.escape(page_title)}</title>\n    {meta_tags}"
+    # A callable replacement, so the backslashes in the JSON-LD
+    # (e.g. "<") aren't read as regex escapes.
+    html_doc, found = _SEO_BLOCK_RE.subn(lambda _m: head, template, count=1)
+    if not found and not _seo_block_missing_warned:
+        _seo_block_missing_warned = True
+        print("[seo] index.html has no SEO_META_START/END block — every page "
+              "is serving the homepage title and canonical", flush=True)
+
+    # Inject Google Analytics if the admin has set a Measurement ID.
+    # Skipped on /admin paths so admin activity isn't counted as user
+    # traffic.
+    ga_id = _get_google_analytics_id()
+    if ga_id and not req_path.startswith("/admin"):
+        ga_snippet = _build_ga_snippet(ga_id)
+        if ga_snippet:
+            html_doc = html_doc.replace("</head>", f"{ga_snippet}</head>", 1)
+    if noscript_html:
+        html_doc = html_doc.replace(
+            '<div id="root"></div>',
+            f'<div id="root"></div>\n{noscript_html}',
+        )
+
+    return html_doc, (404 if is_unknown else 200)
+
+
 if SERVE_STATIC:
     @app.route("/", defaults={"path": ""})
     @app.route("/<path:path>")
@@ -22847,52 +23024,9 @@ if SERVE_STATIC:
             with open(os.path.join(STATIC_DIR, "index.html"), "r") as f:
                 _index_html_cache = f.read()
 
-        # Inject SEO meta tags
         req_path = "/" + path if path else "/"
-
-        # Unknown paths: still serve the SPA shell so React can render
-        # the friendly NotFound page (verse of the day, recovery links).
-        # We return HTTP 404 and tag the page noindex,nofollow so search
-        # engines don't index unknown URLs as if they were real pages.
-        is_unknown = not _is_known_spa_path(req_path)
-
-        if is_unknown:
-            meta_tags = (
-                '<meta name="robots" content="noindex, nofollow">'
-                '<meta property="og:title" content="Page Not Found | al-nuqta">'
-            )
-            page_title = "404 — Page Not Found | al-nuqta"
-            noscript_html = (
-                '<noscript><h1>404 — Page Not Found</h1>'
-                '<p>Go to <a href="/">al-nuqta</a></p></noscript>'
-            )
-        else:
-            meta = _get_seo_meta(req_path)
-            meta_tags = _build_meta_tags(meta)
-            page_title = meta["title"]
-            noscript_html = _build_noscript_content(req_path)
-
-        html_doc = _index_html_cache
-        html_doc = html_doc.replace("<!-- SEO_META_PLACEHOLDER -->", meta_tags)
-        html_doc = html_doc.replace(
-            "<title>al-nuqta</title>",
-            f"<title>{html.escape(page_title)}</title>",
-        )
-        # Inject Google Analytics if the admin has set a Measurement ID.
-        # Skipped on /admin paths so admin activity isn't counted as user
-        # traffic.
-        ga_id = _get_google_analytics_id()
-        if ga_id and not req_path.startswith("/admin"):
-            ga_snippet = _build_ga_snippet(ga_id)
-            if ga_snippet:
-                html_doc = html_doc.replace("</head>", f"{ga_snippet}</head>", 1)
-        if noscript_html:
-            html_doc = html_doc.replace(
-                '<div id="root"></div>',
-                f'<div id="root"></div>\n{noscript_html}',
-            )
-
-        return Response(html_doc, mimetype="text/html", status=404 if is_unknown else 200)
+        html_doc, status = _render_spa_html(_index_html_cache, req_path)
+        return Response(html_doc, mimetype="text/html", status=status)
 
 
 if __name__ == "__main__":

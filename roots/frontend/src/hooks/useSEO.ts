@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 const SITE_NAME = 'al-nuqta';
 const SITE_URL = 'https://al-nuqta.com';
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
+const DEFAULT_OG_IMAGE = `${SITE_URL}/og-default.png`;
 
 interface SEOProps {
   title: string;
