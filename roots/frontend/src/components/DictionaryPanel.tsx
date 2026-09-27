@@ -27,6 +27,16 @@ function hashTarget(): string | null {
  *  Auto-hides (renders nothing) when a root has no approved entries yet, exactly
  *  like the poetry / lexicon panels. ejtaal.net is kept as an external reference. */
 
+/** The site an entry's text was taken from (hawramani for most; Shamela for the
+ *  Lisān articles hawramani lacks). */
+function sourceHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return 'source';
+  }
+}
+
 /** View 2 — lazy-loaded original Arabic beside its faithful translation. */
 function OriginalView({ entryId }: { entryId: number }) {
   const [d, setD] = useState<DictionaryEntryDetail | null>(null);
@@ -75,7 +85,7 @@ function OriginalView({ entryId }: { entryId: number }) {
             rel="noopener noreferrer"
             className="mt-2 inline-block text-[10px] text-stone-400 hover:text-emerald-600"
           >
-            Source: arabiclexicon.hawramani.com ↗
+            Source: {sourceHost(d.source_url)} ↗
           </a>
         )}
       </div>
