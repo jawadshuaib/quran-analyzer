@@ -66,7 +66,7 @@ function Example({ label, children }: { label: React.ReactNode; children: React.
 export default function MethodologyPage() {
   useSEO({
     title: 'Methodology — How We Translate the Quran',
-    description: 'Our translation methodology uses three lenses: the Quran\'s own internal cross-references, Semitic cognate etymology across 59 languages, and morphological precision — ensuring every word is grounded in evidence.',
+    description: 'How we read the Quran\'s words: its own internal usage first, then the pre-Islamic poetry of its time, sixteen classical Arabic dictionaries, Semitic cognates across 59 languages, and morphology — every step grounded in open evidence.',
     path: '/methodology',
   });
 
@@ -79,10 +79,11 @@ export default function MethodologyPage() {
           How we translate the Quran
         </h1>
         <p className="text-sm sm:text-[15px] text-ink-secondary leading-relaxed max-w-2xl mx-auto">
-          Rather than inheriting earlier English glosses, every word and verse
-          is examined through three independent lenses: the Quran's own
-          internal usage, the morphological form of each word, and the
-          etymological record preserved across Semitic languages.
+          Rather than inheriting earlier English glosses, we read each word
+          against the evidence of how Arabic was actually used: first the
+          Quran's own internal usage, then the poetry of the Quran's own time,
+          the classical Arabic dictionaries, the related Semitic languages, and
+          the grammatical form of the word itself.
         </p>
       </div>
 
@@ -147,10 +148,151 @@ export default function MethodologyPage() {
           </p>
         </Section>
 
-        {/* ─── 2. Root & Cognate Analysis ─── */}
+        {/* ─── 2. Pre-Islamic poetry ─── */}
+        <Section
+          id="poetry"
+          number="2"
+          title="The poetry of the Quran's own time"
+          subtitle="How the Quran's first hearers used its words, as the poetry before Islam records it."
+        >
+          <p>
+            The Quran was addressed to people who already spoke its language.
+            The fullest record of how they spoke is the poetry of the
+            generations before Islam: the Muʿallaqāt and the collected poems of
+            Imruʾ al-Qays, Ṭarafa, Zuhayr, al-Nābigha, ʿAntara and their
+            contemporaries. When a root turns up in that poetry, it shows what
+            the word could mean in the Quran's own time, before later
+            scholarship gave many words a settled technical sense.
+          </p>
+          <p>
+            That record needs care. The poems were carried by memory and
+            written down only in the eighth and ninth centuries, and critics
+            from Ibn Sallām al-Jumaḥī in the ninth century to Ṭāhā Ḥusayn in
+            the twentieth showed that some of it was reworked or invented
+            later. So every poem is graded by how reliably it was transmitted:
+            the Muʿallaqāt first, then the collected poems of the major poets,
+            then the rest. A contrast between the poets and the Quran is never
+            drawn from the least reliable poems alone.
+          </p>
+          <p>
+            On a root's page, <em>In Pre-Islamic Poetry</em> sets out the
+            senses the root carries in this poetry, each backed by quoted lines
+            that open in the full poem, with a translation. For some roots it
+            also compares the poets' usage with the Quran's. A comparison says
+            the Quran departs from the poets only after a search for
+            counter-examples, and it reports continuity where it finds it: the
+            poets already use <span className="italic">taqwā</span> (root{' '}
+            <a href="/root/wqy#poetry" className="text-emerald-700 hover:underline font-medium">w-q-y</a>)
+            for a person's moral character, so the Quran inherited the word's
+            inward sense rather than coining it.
+          </p>
+
+          <Example label={<>Example · Root <a href="/root/dhr#poetry" className="text-gold-hover hover:text-gold">د ه ر (d-h-r)</a></>}>
+            <a
+              href="/poem/296#line-13"
+              dir="rtl"
+              lang="ar"
+              className="block font-arabic text-xl text-ink text-right leading-[2] mb-1 hover:text-gold-hover transition-colors"
+            >
+              فَسَطا عَلَيَّ الدَهرُ سَطوَةَ غادِرٍ وَالدَهرُ يَبخُلُ تارَةً وَيَجودُ
+            </a>
+            <p className="text-sm text-ink-secondary italic mb-3">
+              "Time assailed me like a traitor; Time is now miserly, now generous." (ʿAntara)
+            </p>
+            <p className="text-sm text-ink-secondary">
+              In the poets, <span className="font-medium text-ink">dahr</span>,
+              "time", is a power that gives, withholds and destroys. The Quran
+              quotes that view in the mouths of those who say there is nothing
+              beyond this life, "nothing destroys us but time"
+              (<a href="/verse/45:24" className="text-gold-hover hover:text-gold font-medium">45:24</a>),
+              and answers it: "of that they have no knowledge; they only
+              conjecture." Its one other use of the word
+              (<a href="/verse/76:1" className="text-gold-hover hover:text-gold font-medium">76:1</a>)
+              is a plain stretch of time.
+            </p>
+          </Example>
+
+          <p>
+            The poetry corroborates; it never overrides. The Quran's own usage
+            stays the primary evidence, and the poetry is kept out of the
+            exegesis notes, which draw on the Quran alone. Where a verse has a
+            poetry note, it sits below the exegesis under its own heading. The
+            poems can be read in full on the{' '}
+            <a href="/poems" className="text-gold-hover hover:text-gold font-medium underline underline-offset-2">Pre-Islamic Poetry</a>{' '}
+            page, and the metres they were composed in are explained, with
+            their rhythms, on the{' '}
+            <a href="/meters" className="text-gold-hover hover:text-gold font-medium underline underline-offset-2">Metres</a>{' '}
+            pages.
+          </p>
+        </Section>
+
+        {/* ─── 3. Classical dictionaries ─── */}
+        <Section
+          id="dictionaries"
+          number="3"
+          title="The classical Arabic dictionaries"
+          subtitle="Sixteen dictionaries, from the eighth century to the nineteenth, read as witnesses to usage."
+        >
+          <p>
+            From the late eighth century, Arab philologists gathered the
+            language from Bedouin speakers, poetry and proverbs and set it down
+            in dictionaries. Each root's page gathers what up to sixteen of
+            them say about it, in the order their authors lived: from
+            al-Khalīl's <span className="italic">Kitāb al-ʿAyn</span>, the first
+            Arabic dictionary, through Ibn Fāris's{' '}
+            <span className="italic">Maqāyīs al-Lugha</span> and Ibn Manẓūr's{' '}
+            <span className="italic">Lisān al-ʿArab</span>, to the Arabic–English
+            lexicons of Lane and Salmoné in the nineteenth century. Each entry
+            has a readable English version, with the original text (and, for
+            the Arabic works, a close translation) one click beneath it, and a
+            link to where the text was taken from.
+          </p>
+          <p>
+            The dictionaries come after the Quran. The earliest was compiled
+            more than a century later, and by then some words had taken on the
+            settled meanings of religious practice and law. So they are read as
+            witnesses, not as final authorities. They are most valuable where
+            they preserve older usage: a line of verse, a Bedouin expression,
+            the concrete sense a word was built from. Where a dictionary gives
+            a later technical definition, it is reported as that
+            lexicographer's account, not as the meaning of the Quran's word,
+            and each view is credited to the scholar the dictionary quotes.
+          </p>
+
+          <Example label={<>Example · Root <a href="/root/kfr#dict-ibn-faris-maqayis-al-lugha" className="text-gold-hover hover:text-gold">ك ف ر (k-f-r)</a> in the <span className="normal-case italic">Maqāyīs</span></>}>
+            <p className="text-sm text-ink-secondary">
+              Ibn Fāris (d. 1004) traces <span className="font-medium text-ink">k-f-r</span> to
+              a single meaning: covering and concealing. A man who puts a
+              garment over his mail-coat has <span className="italic">kafara</span> it,
+              and a sower is a <span className="italic">kāfir</span> because he
+              covers the seed with soil. He cites the Quran's own use of the
+              word for sowers: rain "whose growth delights the{' '}
+              <span className="italic">kuffār</span>"
+              (<a href="/verse/57:20" className="text-gold-hover hover:text-gold font-medium">57:20</a>).
+              <span className="italic"> Kufr</span>, usually rendered
+              "disbelief", he derives from the same sense, as a covering-over of
+              the truth, just as <span className="italic">kufrān al-niʿma</span>,
+              ingratitude, covers over a kindness received.
+            </p>
+          </Example>
+
+          <p>
+            Reading the dictionaries in order of date is part of the method: it
+            shows when a sense first appears and how the account grows over the
+            centuries. A{' '}
+            <a href="/classical-dictionaries" className="text-gold-hover hover:text-gold font-medium underline underline-offset-2">reader's guide</a>{' '}
+            to each dictionary explains who wrote it, how it is arranged and
+            what to watch for, and the{' '}
+            <a href="/dictionary" className="text-gold-hover hover:text-gold font-medium underline underline-offset-2">dictionary search</a>{' '}
+            finds a root from an English meaning, an Arabic word or a
+            transliteration.
+          </p>
+        </Section>
+
+        {/* ─── 4. Root & Cognate Analysis ─── */}
         <Section
           id="roots"
-          number="2"
+          number="4"
           title="Root words and Semitic cognates"
           subtitle="Tracing each Arabic root back through its family of Semitic languages."
         >
@@ -200,10 +342,10 @@ export default function MethodologyPage() {
           </Example>
         </Section>
 
-        {/* ─── 3. Morphological Precision ─── */}
+        {/* ─── 5. Morphological Precision ─── */}
         <Section
           id="morphology"
-          number="3"
+          number="5"
           title="Morphological precision"
           subtitle="Verb forms, case, voice, and number as hard constraints on meaning."
         >
@@ -266,10 +408,10 @@ export default function MethodologyPage() {
           </p>
         </Section>
 
-        {/* ─── 4. Word-by-word alignment ─── */}
+        {/* ─── 6. Word-by-word alignment ─── */}
         <Section
           id="word-by-word"
-          number="4"
+          number="6"
           title="Word-by-word transparency"
           subtitle="Every Arabic word has its own tooltip gloss, aligned with the verse translation."
         >
@@ -306,16 +448,16 @@ export default function MethodologyPage() {
           </Example>
         </Section>
 
-        {/* ─── 5. Evidence hierarchy ─── */}
+        {/* ─── 7. Evidence hierarchy ─── */}
         <Section
           id="evidence"
-          number="5"
+          number="7"
           title="Evidence hierarchy"
           subtitle="When sources disagree, a clear priority determines the outcome."
         >
           <p>
-            Not all evidence carries equal weight. Our translations follow a
-            strict hierarchy:
+            Not all evidence carries equal weight. Across the site it is
+            weighed in a strict order:
           </p>
 
           <div className="space-y-3">
@@ -342,6 +484,28 @@ export default function MethodologyPage() {
             <div className="flex items-start gap-3">
               <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">3</span>
               <div>
+                <p className="font-medium text-ink text-sm">Usage in the Quran's own time</p>
+                <p className="text-sm text-ink-secondary">
+                  How the poets of the Quran's age used the root, graded by how
+                  reliably each poem was transmitted. It can confirm or narrow a
+                  reading, but never overrides the Quran's own usage.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">4</span>
+              <div>
+                <p className="font-medium text-ink text-sm">The classical dictionaries</p>
+                <p className="text-sm text-ink-secondary">
+                  The philologists' record of usage, read in order of date:
+                  strongest where it preserves older usage, and weighed against
+                  the Quran where it gives a later technical definition.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">5</span>
+              <div>
                 <p className="font-medium text-ink text-sm">Semitic cognate evidence</p>
                 <p className="text-sm text-ink-secondary">
                   The etymological record confirms Quranic usage or
@@ -351,7 +515,7 @@ export default function MethodologyPage() {
               </div>
             </div>
             <div className="flex items-start gap-3">
-              <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">4</span>
+              <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center justify-center">6</span>
               <div>
                 <p className="font-medium text-ink text-sm">Morphological constraints</p>
                 <p className="text-sm text-ink-secondary">
@@ -369,10 +533,10 @@ export default function MethodologyPage() {
           </p>
         </Section>
 
-        {/* ─── 6. Departure transparency ─── */}
+        {/* ─── 8. Departure transparency ─── */}
         <Section
           id="departures"
-          number="6"
+          number="8"
           title="Departure notes"
           subtitle="When we differ from convention, we explain why."
         >
@@ -419,10 +583,10 @@ export default function MethodologyPage() {
           </Example>
         </Section>
 
-        {/* ─── 7. Verse exegesis ─── */}
+        {/* ─── 9. Verse exegesis ─── */}
         <Section
           id="exegesis"
-          number="7"
+          number="9"
           title="Verse exegesis"
           subtitle="A short reflection on each verse, built only from the Quran's own cross-references."
         >

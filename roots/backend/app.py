@@ -5800,7 +5800,7 @@ def _get_seo_meta(path: str) -> dict:
     if re.match(r"^/methodology/?$", path):
         return {
             "title": "Methodology \u2014 How We Translate the Quran | al-nuqta",
-            "description": "Our translation uses three lenses: the Quran\u2019s own internal cross-references, Semitic cognate etymology across 59 languages, and morphological precision \u2014 ensuring every word is grounded in evidence.",
+            "description": "How we read the Quran\u2019s words: its own internal usage first, then the pre-Islamic poetry of its time, sixteen classical Arabic dictionaries, Semitic cognates across 59 languages, and morphology \u2014 every step grounded in open evidence.",
             "og_type": "article",
             "canonical": SITE_URL + "/methodology",
             "robots": "index, follow",
