@@ -1,0 +1,1843 @@
+[
+ {
+  "root": "Elm",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "qwl",
+  "ratio_openiti_to_stored": 1.49,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "$kr",
+  "ratio_openiti_to_stored": 1.37,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "Alh",
+  "ratio_openiti_to_stored": 0.89,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "kfr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "$yA",
+  "ratio_openiti_to_stored": 0.07,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "ywm",
+  "ratio_openiti_to_stored": 1.63,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "kll",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "jEl",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "rAy",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "nzl",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "k*b",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different opening"
+ },
+ {
+  "root": "jyA",
+  "ratio_openiti_to_stored": 0.23,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Ebd",
+  "ratio_openiti_to_stored": 0.76,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "nws",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "mlk",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "jnn",
+  "ratio_openiti_to_stored": 0.74,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "xyr",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "smE",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "SlH",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different ending"
+ },
+ {
+  "root": "sbl",
+  "ratio_openiti_to_stored": 0.85,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "qtl",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "mvl",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "qlb",
+  "ratio_openiti_to_stored": 1.03,
+  "issue": "different ending"
+ },
+ {
+  "root": "nbA",
+  "ratio_openiti_to_stored": 0.43,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Sdq",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "qdr",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "n*r",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "sAl",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different opening"
+ },
+ {
+  "root": "Ahl",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "xwf",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different ending"
+ },
+ {
+  "root": "ydy",
+  "ratio_openiti_to_stored": 0.49,
+  "issue": "stored text repeated"
+ },
+ {
+  "root": "Amm",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "nfq",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "Ajr",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different ending"
+ },
+ {
+  "root": "rjE",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "wld",
+  "ratio_openiti_to_stored": 0.84,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "A*n",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "Ans",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "Hbb",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "lyl",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "qrA",
+  "ratio_openiti_to_stored": 0.57,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Hrm",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "zwj",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "wjh",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "blg",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "Alm",
+  "ratio_openiti_to_stored": 0.89,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "byt",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "frq",
+  "ratio_openiti_to_stored": 1.04,
+  "issue": "different ending"
+ },
+ {
+  "root": "mtE",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "Znn",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "hlk",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "jrm",
+  "ratio_openiti_to_stored": 0.92,
+  "issue": "different ending"
+ },
+ {
+  "root": "xsr",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different opening"
+ },
+ {
+  "root": "sHr",
+  "ratio_openiti_to_stored": 0.86,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "qDy",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "*wq",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different ending"
+ },
+ {
+  "root": "rwH",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "Ajl",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "*hb",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "fsq",
+  "ratio_openiti_to_stored": 1.02,
+  "issue": "different ending"
+ },
+ {
+  "root": "xbr",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "tHt",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Hll",
+  "ratio_openiti_to_stored": 0.87,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Tyb",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "Eql",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different ending"
+ },
+ {
+  "root": "x$y",
+  "ratio_openiti_to_stored": 0.76,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Ehd",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "ysr",
+  "ratio_openiti_to_stored": 1.1,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "srr",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "fwq",
+  "ratio_openiti_to_stored": 0.71,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "fSl",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "Sdd",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hzn",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "lEn",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "mlA",
+  "ratio_openiti_to_stored": 0.33,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Tgy",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different opening"
+ },
+ {
+  "root": "mrA",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "qTE",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "Any",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "jnH",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "qsm",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "wSy",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "vlv",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hyv",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "$rr",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "Afk",
+  "ratio_openiti_to_stored": 0.9,
+  "issue": "different opening"
+ },
+ {
+  "root": "wdd",
+  "ratio_openiti_to_stored": 0.87,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "vny",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "fwz",
+  "ratio_openiti_to_stored": 0.85,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "dry",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "Tyr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "yqn",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "n$A",
+  "ratio_openiti_to_stored": 0.32,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "qmr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "msk",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "mnn",
+  "ratio_openiti_to_stored": 1.08,
+  "issue": "different ending"
+ },
+ {
+  "root": "bwb",
+  "ratio_openiti_to_stored": 0.85,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "qsT",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different ending"
+ },
+ {
+  "root": "bTn",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hwl",
+  "ratio_openiti_to_stored": 0.81,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "gDb",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "Emr",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "ytm",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "nkH",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different opening"
+ },
+ {
+  "root": "xTA",
+  "ratio_openiti_to_stored": 0.23,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "rbE",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "gwy",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "Erb",
+  "ratio_openiti_to_stored": 1.42,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "bqy",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "H*r",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "nfx",
+  "ratio_openiti_to_stored": 0.68,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "lEb",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "fTr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "SnE",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "vmn",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "bld",
+  "ratio_openiti_to_stored": 0.86,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "TlE",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "xSm",
+  "ratio_openiti_to_stored": 0.81,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "nfr",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "mll",
+  "ratio_openiti_to_stored": 0.9,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "nqm",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "mnE",
+  "ratio_openiti_to_stored": 0.52,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "bwA",
+  "ratio_openiti_to_stored": 0.1,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Ew*",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "xwn",
+  "ratio_openiti_to_stored": 0.51,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "sTr",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "swm",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "mTr",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "kff",
+  "ratio_openiti_to_stored": 1.17,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "bdA",
+  "ratio_openiti_to_stored": 0.5,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "rkE",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "qnt",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "njm",
+  "ratio_openiti_to_stored": 0.83,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "nSH",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "jwr",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "glm",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "bgt",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "SyH",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "Aby",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "sfr",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "nyl",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "knn",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different ending"
+ },
+ {
+  "root": "bxl",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "$ml",
+  "ratio_openiti_to_stored": 1.02,
+  "issue": "different ending"
+ },
+ {
+  "root": "wqd",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "Trq",
+  "ratio_openiti_to_stored": 0.82,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Ewn",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "Enb",
+  "ratio_openiti_to_stored": 0.82,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "$fq",
+  "ratio_openiti_to_stored": 1.06,
+  "issue": "different ending"
+ },
+ {
+  "root": "sfl",
+  "ratio_openiti_to_stored": 1.15,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "rEy",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "mAy",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "Ezl",
+  "ratio_openiti_to_stored": 0.89,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "DHk",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "ASl",
+  "ratio_openiti_to_stored": 1.16,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "rmy",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "bqr",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "Erj",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Ebr",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "*bH",
+  "ratio_openiti_to_stored": 0.47,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "xtm",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "qbr",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "frT",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "brhn",
+  "ratio_openiti_to_stored": 1.16,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "Hjb",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "Eqr",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "DrE",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "xmr",
+  "ratio_openiti_to_stored": 0.92,
+  "issue": "different ending"
+ },
+ {
+  "root": "xTf",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "skr",
+  "ratio_openiti_to_stored": 1.05,
+  "issue": "different ending"
+ },
+ {
+  "root": "mwj",
+  "ratio_openiti_to_stored": 0.87,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "fyA",
+  "ratio_openiti_to_stored": 0.3,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Emd",
+  "ratio_openiti_to_stored": 1.08,
+  "issue": "different ending"
+ },
+ {
+  "root": "ESf",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different ending"
+ },
+ {
+  "root": "wTA",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "vqf",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different opening"
+ },
+ {
+  "root": "rSd",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "qmS",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "brq",
+  "ratio_openiti_to_stored": 0.9,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hbr",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "HSr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "DwA",
+  "ratio_openiti_to_stored": 0.68,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "*rA",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "sds",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "sbT",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "rbT",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "nq*",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different opening"
+ },
+ {
+  "root": "nkl",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different opening"
+ },
+ {
+  "root": "jwE",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "gwv",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "dhn",
+  "ratio_openiti_to_stored": 0.92,
+  "issue": "different ending"
+ },
+ {
+  "root": "bgD",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different opening"
+ },
+ {
+  "root": "Tms",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "Snm",
+  "ratio_openiti_to_stored": 0.86,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Hwt",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "ESb",
+  "ratio_openiti_to_stored": 4.63,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "zll",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "xsA",
+  "ratio_openiti_to_stored": 0.55,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "xrq",
+  "ratio_openiti_to_stored": 0.87,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "xfD",
+  "ratio_openiti_to_stored": 1.11,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "wrq",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "wqf",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "sfn",
+  "ratio_openiti_to_stored": 0.89,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "sdr",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different opening"
+ },
+ {
+  "root": "qld",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "nEj",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "kwb",
+  "ratio_openiti_to_stored": 0.89,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "kEb",
+  "ratio_openiti_to_stored": 1.1,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "jsd",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "hyA",
+  "ratio_openiti_to_stored": 0.52,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "hnA",
+  "ratio_openiti_to_stored": 0.49,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "gwr",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different ending"
+ },
+ {
+  "root": "drr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "dHr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "bwl",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "HmA",
+  "ratio_openiti_to_stored": 0.63,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Amd",
+  "ratio_openiti_to_stored": 1.25,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "Afl",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "$An",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "zqm",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "zfr",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "zbd",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "slx",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "rwg",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different ending"
+ },
+ {
+  "root": "rmn",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "rkm",
+  "ratio_openiti_to_stored": 1.06,
+  "issue": "different opening"
+ },
+ {
+  "root": "nvr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "nsb",
+  "ratio_openiti_to_stored": 0.47,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "nDd",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "mzj",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different ending"
+ },
+ {
+  "root": "mrH",
+  "ratio_openiti_to_stored": 0.91,
+  "issue": "different ending"
+ },
+ {
+  "root": "mDg",
+  "ratio_openiti_to_stored": 0.9,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "ljA",
+  "ratio_openiti_to_stored": 0.16,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "lhb",
+  "ratio_openiti_to_stored": 0.84,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "lft",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "l**",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "fsH",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different opening"
+ },
+ {
+  "root": "bhm",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "ZmA",
+  "ratio_openiti_to_stored": 0.32,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "TfA",
+  "ratio_openiti_to_stored": 0.76,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "SbA",
+  "ratio_openiti_to_stored": 0.77,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Hlq",
+  "ratio_openiti_to_stored": 0.76,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Eyr",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "Dgv",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "Ajj",
+  "ratio_openiti_to_stored": 0.51,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Afq",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "$nA",
+  "ratio_openiti_to_stored": 0.1,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "xmS",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "xdd",
+  "ratio_openiti_to_stored": 0.5,
+  "issue": "stored text repeated"
+ },
+ {
+  "root": "wsm",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "sfk",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different opening"
+ },
+ {
+  "root": "sEd",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "rsx",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "rmm",
+  "ratio_openiti_to_stored": 0.67,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "rjj",
+  "ratio_openiti_to_stored": 0.85,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "qsTs",
+  "ratio_openiti_to_stored": 2.71,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "qrTs",
+  "ratio_openiti_to_stored": 1.15,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "nsA",
+  "ratio_openiti_to_stored": 0.54,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "nEs",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different opening"
+ },
+ {
+  "root": "mlH",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "mHn",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "lqT",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "lmH",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "lhv",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "lbd",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "kyn",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "krs",
+  "ratio_openiti_to_stored": 0.94,
+  "issue": "different ending"
+ },
+ {
+  "root": "jzE",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "hwr",
+  "ratio_openiti_to_stored": 4.84,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "h$m",
+  "ratio_openiti_to_stored": 1.41,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "bsl",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "Sdy",
+  "ratio_openiti_to_stored": 0.92,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hbs",
+  "ratio_openiti_to_stored": 1.03,
+  "issue": "different ending"
+ },
+ {
+  "root": "HZr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "HTb",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "Eyl",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Evr",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "EDl",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Dmm",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "Awh",
+  "ratio_openiti_to_stored": 1.21,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "Arb",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "$TA",
+  "ratio_openiti_to_stored": 0.86,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "$Eb",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "znm",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different opening"
+ },
+ {
+  "root": "yqZ",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different ending"
+ },
+ {
+  "root": "xym",
+  "ratio_openiti_to_stored": 0.25,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "xmT",
+  "ratio_openiti_to_stored": 1.01,
+  "issue": "different ending"
+ },
+ {
+  "root": "xbA",
+  "ratio_openiti_to_stored": 0.34,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "xDd",
+  "ratio_openiti_to_stored": 0.9,
+  "issue": "different ending"
+ },
+ {
+  "root": "x$b",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "wtn",
+  "ratio_openiti_to_stored": 0.24,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "wH$",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "w$y",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "tyn",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "tqn",
+  "ratio_openiti_to_stored": 0.84,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "tEs",
+  "ratio_openiti_to_stored": 1.02,
+  "issue": "different opening"
+ },
+ {
+  "root": "smd",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "sTH",
+  "ratio_openiti_to_stored": 0.87,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "rbH",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "qvA",
+  "ratio_openiti_to_stored": 0.51,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "qss",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different opening"
+ },
+ {
+  "root": "qmH",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "qfl",
+  "ratio_openiti_to_stored": 0.64,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "qdH",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "qbH",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "qTT",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "nwS",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "nwA",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "nw$",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "nsr",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different opening"
+ },
+ {
+  "root": "nqE",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "njd",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "ngD",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "nfH",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different opening"
+ },
+ {
+  "root": "nbT",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "nTH",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "nHr",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "nHb",
+  "ratio_openiti_to_stored": 0.89,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "mHl",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "lqH",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "ksd",
+  "ratio_openiti_to_stored": 0.84,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "kns",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "klA",
+  "ratio_openiti_to_stored": 0.61,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "jws",
+  "ratio_openiti_to_stored": 0.91,
+  "issue": "different ending"
+ },
+ {
+  "root": "jrr",
+  "ratio_openiti_to_stored": 1.33,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "jrE",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "jmm",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different opening"
+ },
+ {
+  "root": "jfA",
+  "ratio_openiti_to_stored": 0.64,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "jbt",
+  "ratio_openiti_to_stored": 0.74,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "gT$",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "gSb",
+  "ratio_openiti_to_stored": 12.07,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "ftq",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "ftA",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "fsr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "fln",
+  "ratio_openiti_to_stored": 1.03,
+  "issue": "different ending"
+ },
+ {
+  "root": "drhm",
+  "ratio_openiti_to_stored": 0.86,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "dhm",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "dfq",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "dfA",
+  "ratio_openiti_to_stored": 0.36,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "btk",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "bql",
+  "ratio_openiti_to_stored": 1.54,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "bTA",
+  "ratio_openiti_to_stored": 0.31,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "bAr",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "Twd",
+  "ratio_openiti_to_stored": 0.87,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "TrH",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "Tff",
+  "ratio_openiti_to_stored": 0.99,
+  "issue": "different ending"
+ },
+ {
+  "root": "SwE",
+  "ratio_openiti_to_stored": 0.96,
+  "issue": "different ending"
+ },
+ {
+  "root": "Smt",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "SmE",
+  "ratio_openiti_to_stored": 1.02,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hyf",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "Hyd",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hrs",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "Hrd",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different ending"
+ },
+ {
+  "root": "Esl",
+  "issue": "no OpenITI article with this headword"
+ },
+ {
+  "root": "Emq",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Eds",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "EbA",
+  "ratio_openiti_to_stored": 0.37,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Dyz",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "Dyr",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "Dnn",
+  "ratio_openiti_to_stored": 0.93,
+  "issue": "different ending"
+ },
+ {
+  "root": "Dmr",
+  "ratio_openiti_to_stored": 0.95,
+  "issue": "different ending"
+ },
+ {
+  "root": "DhA",
+  "ratio_openiti_to_stored": 0.89,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Aym",
+  "ratio_openiti_to_stored": 0.97,
+  "issue": "different opening"
+ },
+ {
+  "root": "Avl",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different opening"
+ },
+ {
+  "root": "Anm",
+  "ratio_openiti_to_stored": 1.53,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "Add",
+  "ratio_openiti_to_stored": 0.88,
+  "issue": "stored text longer (extra material, e.g. a run-on into the next article)"
+ },
+ {
+  "root": "Abb",
+  "ratio_openiti_to_stored": 0.98,
+  "issue": "different opening"
+ },
+ {
+  "root": "$wZ",
+  "ratio_openiti_to_stored": 1.02,
+  "issue": "different ending"
+ },
+ {
+  "root": "$mx",
+  "ratio_openiti_to_stored": 2.64,
+  "issue": "stored text shorter (article cut short)"
+ },
+ {
+  "root": "$fh",
+  "ratio_openiti_to_stored": 1.0,
+  "issue": "different ending"
+ },
+ {
+  "root": "tmm",
+  "ratio_openiti_to_stored": 0.92,
+  "issue": "different opening"
+ }
+]

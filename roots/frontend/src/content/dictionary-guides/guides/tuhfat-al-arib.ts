@@ -28,7 +28,7 @@ That last promise shapes the entries: the Qur'anic word or phrase, set in braces
 
 ## One line, one verse
 
-By our count, about half the 1,080 entries displayed here are forty characters or shorter, headword included, and more than half gloss a single Qur'anic word with no alternative. The entry on [[root:Znn|abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib|ظ ن ن]] repays a slow reading:
+By our count, about half the 1,081 entries displayed here are forty characters or shorter, headword included, and more than half gloss a single Qur'anic word with no alternative. The entry on [[root:Znn|abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib|ظ ن ن]] repays a slow reading:
 
 :::excerpt Znn|abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib
 ظنن : {بظنين}: بمتهم. {يظنون}: يوقنون.
@@ -89,7 +89,7 @@ A recent study says the *Tuḥfa* cites no supporting texts (*shawāhid*), repor
 The *Tuḥfa* offers a quick first answer to "what does this word mean here?" But a gloss written some seven centuries after the Qur'an records how its author read a word; how the Qur'an's first hearers used it must be tested against the word's other occurrences and the fuller dictionaries on the same root page.`,
   onOurSite: `Our copy comes from arabiclexicon.hawramani.com, which does not say which edition it used.[^hawramani] Every entry we display matches the wording of the digital text of Samīr al-Majdhūb's 1983 edition in al-Maktaba al-Shāmila, down to the bracketed corrections in that text (one is marked "as in ظ", the editor's siglum for a manuscript), so that is the edition cited on this page.[^tuhfa] The work had been printed at least twice before, at Ḥamāh in 1926 and in 1977.[^hatib|p. 55] The braces around Qur'anic words and the square brackets belong to that modern text, not to Abū Ḥayyān.
 
-We display 1,080 roots. About fifty headwords of the printed book, for example برزخ, عدن and ويل, have no entry here.[^tuhfa|pp. 63, 230, 317] Under [[root:Hlm|none|ح ل م]] the book has only a heading with nothing under it: two of its editor's manuscripts give the heading followed by a blank, and the third lacks it,[^tuhfa-scan|p. 104, n. 5] so we do not show that entry. The edition's footnotes, which record manuscript variants, are not part of our copy.
+We display 1,081 roots. About fifty headwords of the printed book, for example برزخ, عدن and ويل, have no entry here.[^tuhfa|pp. 63, 230, 317] These three, like many of the others, have no root in the Qur'anic Arabic Corpus, which our word pages follow, so there is no root page to show them on. Under [[root:Hlm|none|ح ل م]] the book has only a heading with nothing under it: two of its editor's manuscripts give the heading followed by a blank, and the third lacks it,[^tuhfa-scan|p. 104, n. 5] so we do not show that entry. The edition's footnotes, which record manuscript variants, are not part of our copy.
 
 Entries sit under Abū Ḥayyān's own choice of root, which can differ from our word pages. These file *istakānū* under [[root:kyn|none|ك ي ن]], a derivation his commentary also records, from al-Azharī and Abū ʿAlī;[^bahr|vol. 3, p. 373] the *Tuḥfa* has no entry there and glosses the word under [[root:kwn|abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib|ك و ن]].`,
   sources: [
