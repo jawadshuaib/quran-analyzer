@@ -7900,11 +7900,21 @@ def get_dictionary_roots():
             "entries": r["entries"],
             "gloss": _clean_root_gloss(r["gloss"]),
         } for r in rows]
-        return jsonify({
+        resp = jsonify({
             "root_count": len(roots),
             "entry_count": sum(r["entries"] for r in roots),
             "roots": roots,
         })
+        # ~165 KB of JSON and nothing upstream compresses it; gzip cuts it
+        # to roughly a fifth, which is what phones on slow links wait on.
+        if "gzip" in (request.headers.get("Accept-Encoding") or ""):
+            import gzip
+            resp.set_data(gzip.compress(resp.get_data(), compresslevel=6))
+            resp.headers["Content-Encoding"] = "gzip"
+            resp.headers["Content-Length"] = str(len(resp.get_data()))
+        resp.headers["Vary"] = "Accept-Encoding"
+        resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
     finally:
         conn.close()
 

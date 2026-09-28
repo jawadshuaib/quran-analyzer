@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useSEO } from '../hooks/useSEO';
 import { fetchDictionaryRoots, searchDictionary } from '../api/quran';
 import type {
@@ -28,6 +28,11 @@ import { wrapArabicRuns } from '../utils/arabic-runs';
  * a jump-index (here the Arabic alphabet), and a static noscript render on
  * the backend so crawlers see every root link without running JavaScript.
  */
+
+// The full index is ~1,600 roots; mounting every card at once stalls phones.
+// Render the first chunk, then grow the list as the reader scrolls near its end.
+const FIRST_CHUNK = 60;
+const NEXT_CHUNK = 200;
 
 const EXAMPLES = ['k-f-r', 'ر ح م', 'ʿ-l-m', 'kafara', 'يعلمون', 'forgive', 'smoke', "camel's hump"];
 
@@ -161,6 +166,10 @@ export default function DictionaryIndexPage() {
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '');
   // the server's answer, tagged with the query it answers (so a stale answer
   // is never shown for a newer query)
+  const [limit, setLimit] = useState(FIRST_CHUNK);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // letter to scroll to once the jump-index has rendered far enough to include it
+  const [pendingJump, setPendingJump] = useState<string | null>(null);
   const [answer, setAnswer] = useState<{ q: string; data: DictionarySearchResponse | null; failed: boolean } | null>(null);
 
   useSEO({
@@ -241,6 +250,65 @@ export default function DictionaryIndexPage() {
     return out;
   }, [filtered, q, current]);
 
+  const total = useMemo(() => grouped.reduce((n, [, items]) => n + items.length, 0), [grouped]);
+
+  // The first `limit` roots of the grouped list, still grouped.
+  const visible = useMemo(() => {
+    const out: Array<[string, DictionaryRootItem[]]> = [];
+    let left = limit;
+    for (const [letter, items] of grouped) {
+      if (left <= 0) break;
+      out.push([letter, items.length > left ? items.slice(0, left) : items]);
+      left -= items.length;
+    }
+    return out;
+  }, [grouped, limit]);
+
+  // Grow the list when the sentinel below it comes near the viewport.
+  const more = limit < total;
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !more) return;
+    const io = new IntersectionObserver(
+      (es) => {
+        if (es.some((e) => e.isIntersecting)) setLimit((n) => n + NEXT_CHUNK);
+      },
+      { rootMargin: '1200px 0px' },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [more, visible]);
+
+  // A jump-index click (or a #let-X link) to a letter not yet rendered:
+  // render up to the end of that letter, then scroll to it.
+  function jumpTo(letter: string) {
+    let upTo = 0;
+    for (const [l, items] of grouped) {
+      upTo += items.length;
+      if (l === letter) break;
+    }
+    setLimit((n) => Math.max(n, upTo));
+    setPendingJump(letter);
+  }
+  useEffect(() => {
+    if (!pendingJump) return;
+    const el = document.getElementById(`let-${pendingJump}`);
+    if (el) {
+      el.scrollIntoView();
+      history.replaceState(null, '', `#let-${pendingJump}`);
+      setPendingJump(null);
+    }
+  }, [pendingJump, visible]);
+  // Honour a #let-X hash on first load.
+  useEffect(() => {
+    if (!grouped.length) return;
+    const m = decodeURIComponent(window.location.hash).match(/^#let-(.+)$/);
+    if (m) jumpTo(m[1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grouped.length > 0]);
+
+  const countOf = (letter: string) => grouped.find(([l]) => l === letter)?.[1].length ?? 0;
+
   const ranked = q && current && !current.failed ? current.data?.results ?? [] : null;
   // while a new answer is on its way, keep showing the last one (dimmed)
   const previous = searching && answer && !answer.failed ? answer.data?.results ?? null : null;
@@ -257,11 +325,6 @@ export default function DictionaryIndexPage() {
           Classical Arabic dictionary definitions for every Qur'anic root — drawn from
           Lisān al-ʿArab, al-Mufradāt and other classical works, harmonized into readable
           English with the original Arabic one click away. Select a root to read its entries.
-        </p>
-        <p className="mt-2 text-[13px]">
-          <a href="/classical-dictionaries" className="text-emerald-700 underline decoration-emerald-200 underline-offset-2 hover:text-emerald-900">
-            About the dictionaries: who wrote them and how to read them →
-          </a>
         </p>
         {data && (
           <p className="mt-3 text-[13px] text-ink-muted">
@@ -335,6 +398,10 @@ export default function DictionaryIndexPage() {
             <a
               key={letter}
               href={`#let-${letter}`}
+              onClick={(e) => {
+                e.preventDefault();
+                jumpTo(letter);
+              }}
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-stone-200 bg-white text-stone-600 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 transition-colors"
             >
               <span className="font-arabic text-base leading-none" dir="rtl" lang="ar">{letter}</span>
@@ -387,7 +454,7 @@ export default function DictionaryIndexPage() {
       {/* Alphabetical list */}
       {(!q || current?.failed) && (
         <div className="space-y-8">
-          {grouped.map(([letter, items]) => (
+          {visible.map(([letter, items]) => (
             <section key={letter}>
               <h2
                 id={`let-${letter}`}
@@ -395,7 +462,7 @@ export default function DictionaryIndexPage() {
               >
                 <span className="font-arabic text-xl" dir="rtl" lang="ar">{letter}</span>
                 <span className="text-[11px] font-sans font-normal text-ink-muted">
-                  {items.length} {items.length === 1 ? 'root' : 'roots'}
+                  {countOf(letter)} {countOf(letter) === 1 ? 'root' : 'roots'}
                 </span>
               </h2>
               <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -424,6 +491,7 @@ export default function DictionaryIndexPage() {
               </ul>
             </section>
           ))}
+          {more && <div ref={sentinelRef} className="h-px" aria-hidden />}
         </div>
       )}
 
