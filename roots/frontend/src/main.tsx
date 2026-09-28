@@ -15,6 +15,7 @@ initNavProgress()
 // page's code-split chunk loads, so the splash never flickers.
 const bootSplash = (
   <div className="boot" role="status" aria-label="Loading">
+    <div className="boot-bar" />
     <div className="boot-name">al-nuqta</div>
     <div className="boot-dot" />
   </div>

@@ -14,17 +14,31 @@ const BAR_ID = 'nav-progress';
 function ensureBar(): HTMLDivElement {
   let bar = document.getElementById(BAR_ID) as HTMLDivElement | null;
   if (bar) return bar;
+  // Animated with transform only (never width): iOS Safari stops painting
+  // the page you're leaving once navigation starts, but keeps running
+  // compositor animations, so a width transition froze in place. The grow
+  // is front-loaded so the first second shows clear movement, and a
+  // highlight sweeps along the bar for as long as it's up.
   const style = document.createElement('style');
   style.textContent = `
-#${BAR_ID} { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 9999;
-  background: #BA7517; box-shadow: 0 0 6px rgba(186,117,23,.5); opacity: 0;
-  pointer-events: none; transition: width 8s cubic-bezier(.1,.7,.2,1), opacity .2s; }
-#${BAR_ID}.on { opacity: 1; width: 85%; }
-#${BAR_ID}.start { transition: none; width: 12%; opacity: 1; }
-@media (prefers-reduced-motion: reduce) { #${BAR_ID} { transition: opacity .2s; } }`;
+#${BAR_ID} { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 9999;
+  overflow: hidden; pointer-events: none; opacity: 0; transition: opacity .2s; }
+#${BAR_ID} > i { position: absolute; inset: 0; background: #BA7517; transform-origin: 0 50%;
+  transform: scaleX(0); will-change: transform; }
+#${BAR_ID} > b { position: absolute; top: 0; bottom: 0; left: 0; width: 40%; will-change: transform;
+  background: linear-gradient(90deg, transparent, rgba(255,235,190,.9), transparent);
+  transform: translateX(-100%); }
+#${BAR_ID}.on { opacity: 1; }
+#${BAR_ID}.on > i { animation: np-grow 12s cubic-bezier(.2,.6,.3,1) forwards; }
+#${BAR_ID}.on > b { animation: np-sweep 1.1s linear infinite; }
+@keyframes np-grow { 0% { transform: scaleX(0); } 3% { transform: scaleX(.3); }
+  12% { transform: scaleX(.55); } 35% { transform: scaleX(.75); } 100% { transform: scaleX(.93); } }
+@keyframes np-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) { #${BAR_ID}.on > i { animation: none; transform: scaleX(.6); } }`;
   document.head.appendChild(style);
   bar = document.createElement('div');
   bar.id = BAR_ID;
+  bar.innerHTML = '<i></i><b></b>';
   bar.setAttribute('role', 'progressbar');
   bar.setAttribute('aria-label', 'Loading page');
   document.body.appendChild(bar);
@@ -33,8 +47,8 @@ function ensureBar(): HTMLDivElement {
 
 function start() {
   const bar = ensureBar();
-  // jump to a visible sliver at once, then creep toward 85% while we wait
-  bar.className = 'start';
+  // restart the animations if a second link is tapped mid-load
+  bar.className = '';
   void bar.offsetWidth;
   bar.className = 'on';
 }
