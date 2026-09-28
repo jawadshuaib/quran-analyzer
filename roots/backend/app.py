@@ -55,6 +55,36 @@ CORS(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024  # 500 MB upload limit
 
+
+# Nothing upstream (the nginx in the sibling IV repo) compresses responses,
+# so JSON and HTML went out raw. Gzip them here. Streamed and file responses
+# are left alone: the hashed /assets/* bundle is compressed once and cached
+# in serve_spa instead.
+_GZIP_TYPES = ("application/json", "text/html", "text/plain", "text/css",
+               "application/javascript", "text/javascript", "image/svg+xml")
+
+
+@app.after_request
+def _gzip_response(resp):
+    try:
+        if (resp.direct_passthrough or resp.is_streamed
+                or resp.status_code < 200 or resp.status_code >= 300
+                or "Content-Encoding" in resp.headers
+                or "gzip" not in (request.headers.get("Accept-Encoding") or "")
+                or not (resp.mimetype or "").startswith(_GZIP_TYPES)):
+            return resp
+        data = resp.get_data()
+        if len(data) < 1024:
+            return resp
+        import gzip
+        resp.set_data(gzip.compress(data, compresslevel=6))
+        resp.headers["Content-Encoding"] = "gzip"
+        resp.headers["Content-Length"] = str(len(resp.get_data()))
+        resp.vary.add("Accept-Encoding")
+    except Exception as e:  # never let compression break a response
+        print(f"[gzip] {e}", flush=True)
+    return resp
+
 # Secret key for JWT — persisted so tokens survive restarts
 _SECRET_KEY_FILE = os.path.join(os.path.dirname(__file__), "data", ".admin_secret")
 if os.path.isfile(_SECRET_KEY_FILE):
@@ -7905,14 +7935,7 @@ def get_dictionary_roots():
             "entry_count": sum(r["entries"] for r in roots),
             "roots": roots,
         })
-        # ~165 KB of JSON and nothing upstream compresses it; gzip cuts it
-        # to roughly a fifth, which is what phones on slow links wait on.
-        if "gzip" in (request.headers.get("Accept-Encoding") or ""):
-            import gzip
-            resp.set_data(gzip.compress(resp.get_data(), compresslevel=6))
-            resp.headers["Content-Encoding"] = "gzip"
-            resp.headers["Content-Length"] = str(len(resp.get_data()))
-        resp.headers["Vary"] = "Accept-Encoding"
+        # ~165 KB of JSON (gzipped by _gzip_response); let it be reused briefly
         resp.headers["Cache-Control"] = "public, max-age=300"
         return resp
     finally:
@@ -22972,12 +22995,42 @@ def _render_spa_html(template: str, req_path: str) -> tuple[str, int]:
         if ga_snippet:
             html_doc = html_doc.replace("</head>", f"{ga_snippet}</head>", 1)
     if noscript_html:
-        html_doc = html_doc.replace(
-            '<div id="root"></div>',
-            f'<div id="root"></div>\n{noscript_html}',
-        )
+        # Just before </body>: #root holds the boot splash, so it no longer
+        # has an exact string to anchor on.
+        html_doc = html_doc.replace("</body>", f"{noscript_html}\n</body>", 1)
 
     return html_doc, (404 if is_unknown else 200)
+
+
+# Vite puts a content hash in every /assets/* filename, so a given URL never
+# changes: let browsers (and the iOS home-screen app) keep it for a year
+# instead of re-checking on every launch, and gzip text assets once per
+# process rather than per request (the main bundle is ~1 MB of JS).
+_asset_gzip_cache: dict[str, bytes] = {}
+_ASSET_TEXT_EXT = (".js", ".css", ".svg", ".json", ".map", ".txt")
+
+
+def _serve_hashed_asset(path, file_path):
+    immutable = "public, max-age=31536000, immutable"
+    if (path.endswith(_ASSET_TEXT_EXT)
+            and "gzip" in (request.headers.get("Accept-Encoding") or "")):
+        body = _asset_gzip_cache.get(path)
+        if body is None:
+            import gzip
+            with open(file_path, "rb") as f:
+                body = gzip.compress(f.read(), compresslevel=9)
+            _asset_gzip_cache[path] = body
+        import mimetypes
+        mime = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+        if mime in ("application/javascript", "text/javascript", "text/css", "text/plain"):
+            mime += "; charset=utf-8"
+        resp = Response(body, mimetype=None, content_type=mime)
+        resp.headers["Content-Encoding"] = "gzip"
+        resp.vary.add("Accept-Encoding")
+    else:
+        resp = send_from_directory(STATIC_DIR, path)
+    resp.headers["Cache-Control"] = immutable
+    return resp
 
 
 if SERVE_STATIC:
@@ -22990,6 +23043,8 @@ if SERVE_STATIC:
         # If the file exists in static/, serve it directly
         file_path = os.path.join(STATIC_DIR, path)
         if path and os.path.isfile(file_path):
+            if path.startswith("assets/"):
+                return _serve_hashed_asset(path, file_path)
             return send_from_directory(STATIC_DIR, path)
 
         # Shortcut URLs the user might type by hand. The user doesn't

@@ -57,6 +57,19 @@
     </script>
     <!-- SEO_META_END -->
 
+    <!-- Painted before any stylesheet or script arrives: the cream page and
+         the boot splash inside #root. Without it a home-screen launch shows a
+         blank (black on iOS) screen until the JS bundle has run. The splash
+         markup is repeated as the <Suspense> fallback in main.tsx. -->
+    <style>
+      html, body { background: #FAF8F3; margin: 0; }
+      .boot { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; color: #2C2C2A; font-family: ui-serif, Georgia, 'Times New Roman', serif; }
+      .boot-name { font-size: 22px; letter-spacing: -0.01em; }
+      .boot-dot { width: 7px; height: 7px; border-radius: 50%; background: #BA7517; animation: boot-pulse 1.1s ease-in-out infinite; }
+      @keyframes boot-pulse { 0%, 100% { opacity: .25; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+      @media (prefers-reduced-motion: reduce) { .boot-dot { animation: none; opacity: .6; } }
+    </style>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!--
@@ -68,9 +81,13 @@
       New stays as a secondary fallback for unusual codepoints
       Amiri might not cover.
     -->
+    <!-- media=print + onload: the font CSS loads without blocking first paint
+         (display=swap already lets text render before the font arrives). -->
     <link
       href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
     <!-- Two glyphs only (ʾ ʿ): the serif stack (ui-serif/Georgia) has no
          transliteration hamza/ʿayn marks and borrows an over-wide fallback
@@ -78,10 +95,12 @@
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Noto+Serif:wght@400;500&text=%CA%BE%CA%BF&display=swap"
+      media="print"
+      onload="this.media='all'"
     />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot" role="status" aria-label="Loading"><div class="boot-name">al-nuqta</div><div class="boot-dot"></div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

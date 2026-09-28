@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { lazy } from './utils/lazy-with-reload';
 import type { VerseData, SearchTerm, WordSearchResponse } from './types';
 import { fetchVerse, searchWords } from './api/quran';
 import { verseUrl } from './utils/urls';
@@ -6,41 +7,44 @@ import UnifiedSearch from './components/UnifiedSearch';
 import NavBar from './components/home/NavBar';
 import PageBackground from './components/home/PageBackground';
 import HomePage from './components/home/HomePage';
-import VerseDisplay from './components/VerseDisplay';
-import SurroundingContext from './components/SurroundingContext';
-import RelatedVerses from './components/RelatedVerses';
-import GrammarNotes from './components/GrammarNotes';
-import WordSearchResults from './components/WordSearchResults';
-import SearchPage from './components/search/SearchPage';
-import RootPage from './components/RootPage';
-import WordAnalysisPage from './components/WordAnalysisPage';
-import PoemPage from './components/PoemPage';
-import PoemsIndex from './components/PoemsIndex';
-import MeterPage from './components/MeterPage';
-import MetersIndex from './components/MetersIndex';
-import SavedPage from './components/saved/SavedPage';
 import NotFound from './components/NotFound';
-import BadGateway from './components/BadGateway';
-import ApiPage from './components/ApiPage';
-import MethodologyPage from './components/MethodologyPage';
-import ExtensionPrivacyPage from './components/ExtensionPrivacyPage';
-import PrivacyPage from './components/PrivacyPage';
-import TermsPage from './components/TermsPage';
-import GrammarGlossaryPage from './components/GrammarGlossaryPage';
-import QuranVocabularyPage from './components/QuranVocabularyPage';
-import DictionaryIndexPage from './components/DictionaryIndexPage';
 // The dictionary guides carry long essays; keep them (and their renderer) out
 // of the main bundle.
 const DictionaryGuidesIndex = lazy(() => import('./components/DictionaryGuidesIndex'));
 const DictionaryGuidePage = lazy(() => import('./components/DictionaryGuidePage'));
-import LearningPage from './components/learning/LearningPage';
-import ReaderPage from './components/reader/ReaderPage';
-import SettingsPage from './components/SettingsPage';
-import AskAssistant from './components/AskAssistant';
 import SavedItemsPanel from './components/SavedItemsPanel';
 import HighlightController from './components/HighlightController';
 import CopyModal from './components/CopyModal';
-import AdminPage from './components/admin/AdminPage';
+// Every page except the homepage is split into its own chunk, so the first
+// load (and a home-screen launch) only downloads the code it renders.
+// <Suspense> in main.tsx shows the boot splash while a chunk arrives.
+const VerseDisplay = lazy(() => import('./components/VerseDisplay'));
+const SurroundingContext = lazy(() => import('./components/SurroundingContext'));
+const RelatedVerses = lazy(() => import('./components/RelatedVerses'));
+const GrammarNotes = lazy(() => import('./components/GrammarNotes'));
+const WordSearchResults = lazy(() => import('./components/WordSearchResults'));
+const SearchPage = lazy(() => import('./components/search/SearchPage'));
+const RootPage = lazy(() => import('./components/RootPage'));
+const WordAnalysisPage = lazy(() => import('./components/WordAnalysisPage'));
+const PoemPage = lazy(() => import('./components/PoemPage'));
+const PoemsIndex = lazy(() => import('./components/PoemsIndex'));
+const MeterPage = lazy(() => import('./components/MeterPage'));
+const MetersIndex = lazy(() => import('./components/MetersIndex'));
+const SavedPage = lazy(() => import('./components/saved/SavedPage'));
+const BadGateway = lazy(() => import('./components/BadGateway'));
+const ApiPage = lazy(() => import('./components/ApiPage'));
+const MethodologyPage = lazy(() => import('./components/MethodologyPage'));
+const ExtensionPrivacyPage = lazy(() => import('./components/ExtensionPrivacyPage'));
+const PrivacyPage = lazy(() => import('./components/PrivacyPage'));
+const TermsPage = lazy(() => import('./components/TermsPage'));
+const GrammarGlossaryPage = lazy(() => import('./components/GrammarGlossaryPage'));
+const QuranVocabularyPage = lazy(() => import('./components/QuranVocabularyPage'));
+const DictionaryIndexPage = lazy(() => import('./components/DictionaryIndexPage'));
+const LearningPage = lazy(() => import('./components/learning/LearningPage'));
+const ReaderPage = lazy(() => import('./components/reader/ReaderPage'));
+const SettingsPage = lazy(() => import('./components/SettingsPage'));
+const AskAssistant = lazy(() => import('./components/AskAssistant'));
+const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 import { buildVerseContext } from './utils/context-builders';
 import { getSurahMaxAyah } from './utils/surah-names';
 import { parseVerseRef } from './utils/search-classifier';
@@ -920,6 +924,13 @@ export default function App() {
         )}
 
         {data && (
+          <Suspense
+            fallback={
+              <div className="flex justify-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+              </div>
+            }
+          >
           <div className="space-y-8">
             <VerseDisplay
               data={data}
@@ -963,6 +974,7 @@ export default function App() {
               contextGatherer={() => buildVerseContext(data.surah, data.ayah)}
             />
           </div>
+          </Suspense>
         )}
       </div>
     )}
