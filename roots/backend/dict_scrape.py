@@ -80,6 +80,12 @@ DATE_NOTES = {
     "zayn-al-din-al-razi-mukhtar-al-sihah": (0, "d. after 1268"),
     # preface dated 21 Nov 1889; London: Trübner, 1890; death year unknown
     "habib-anthony-salmone-an-advanced-learners-arabic-english-dictionary": (0, "published 1890"),
+    # al-Khalīl: 170 or 175 AH (al-Suyūṭī, Muzhir vol. 1 p. 66)
+    "al-khalil-b-ahmad-al-farahidi-kitab-al-ain": (0, "d. 786 or 791"),
+    # al-Jawharī: 393 AH per al-Qifṭī; c. 400 in most sources; an autograph dated 396
+    "ismail-bin-hammad-al-jawhari-taj-al-lugha-wa-sihah-al-arabiya": (0, "d. 1003 or c. 1010"),
+    # al-Fayyūmī: after 770 (Ibn Ḥajar), c. 760 (a note reported by al-Ziriklī), 766 (Haywood)
+    "al-fayyumi-al-misbah-al-munir-fi-gharib-al-sharh-al-kabir": (1, "mid-14th c.; death date disputed"),
 }
 
 
