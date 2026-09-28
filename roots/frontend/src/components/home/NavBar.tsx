@@ -87,7 +87,7 @@ export default function NavBar({
 
   return (
     <nav className="w-full bg-cream/90 backdrop-blur-sm border-b border-card-border sticky top-0 z-30">
-      <div className="max-w-3xl mx-auto px-4 flex items-center gap-4 py-3 sm:py-4">
+      <div className="max-w-3xl mx-auto px-4 flex items-center gap-4 py-1.5 sm:py-4">
         <a
           href="/"
           className="font-serif text-lg sm:text-xl font-medium tracking-tight text-ink hover:opacity-80 transition-opacity flex-shrink-0"
@@ -95,10 +95,10 @@ export default function NavBar({
           al-nuqta
         </a>
 
-        <div className="relative flex-1 min-h-[36px] flex items-center justify-end">
+        <div className="relative flex-1 min-h-[44px] sm:min-h-[36px] flex items-center justify-end">
           {/* Nav links (default) */}
           <div
-            className={`absolute inset-0 flex items-center justify-end gap-3 sm:gap-5 text-[12px] sm:text-[13px] text-ink-secondary transition-opacity duration-200 ${
+            className={`absolute inset-0 flex items-center justify-end gap-1 sm:gap-5 -mr-2.5 sm:mr-0 text-[14px] sm:text-[13px] text-ink-secondary transition-opacity duration-200 ${
               compact ? 'opacity-0 pointer-events-none' : 'opacity-100'
             }`}
             aria-hidden={compact}
@@ -107,7 +107,7 @@ export default function NavBar({
               <a
                 key={b.label}
                 href={b.href}
-                className={`hover:text-ink transition-colors inline-flex items-center gap-1 ${
+                className={`min-h-[44px] sm:min-h-0 px-2.5 sm:px-0 rounded-md active:bg-ink/5 sm:active:bg-transparent hover:text-ink transition-colors inline-flex items-center gap-1 ${
                   currentPath.startsWith('/saved') ? 'text-ink font-medium' : ''
                 }`}
               >
@@ -128,7 +128,7 @@ export default function NavBar({
                 <a
                   key={link.label}
                   href={link.href}
-                  className={`hover:text-ink transition-colors ${
+                  className={`min-h-[44px] sm:min-h-0 px-2.5 sm:px-0 rounded-md active:bg-ink/5 sm:active:bg-transparent inline-flex items-center hover:text-ink transition-colors ${
                     isActive ? 'text-ink font-medium' : ''
                   }`}
                 >

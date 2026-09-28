@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { VerseData } from '../../types';
 import { fetchVerse, getDailyVerse } from '../../api/quran';
-import { wrapArabicRuns } from '../../utils/arabic-runs';
+import { TranslationWithChips } from '../TermChip';
 
 // Fallback used only when /api/verse-of-the-day is unreachable
 // (e.g. backend is down on a NotFound or BadGateway page). The
@@ -75,7 +75,9 @@ export default function VerseOfTheDay({ onNavigate }: Props) {
 
       {/* Translation */}
       <p className="font-serif text-base leading-relaxed text-ink-secondary italic">
-        {wrapArabicRuns(data.translation)}
+        <TranslationWithChips
+          text={data.translation}
+        />
       </p>
     </div>
   );
