@@ -1,0 +1,475 @@
+{
+ "batch": "S24",
+ "entries": [
+  {
+   "entry_id": 6621,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core idea: extension or stretching out, in either space or time",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "named from this root because a mountain \"extends\" in length and breadth",
+     "note": "al-Ṭūr, 10 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"he did it stage after stage,\"",
+     "note": "aṭwār, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 665,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "b-n-y as one root meaning to build or construct",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I built the building, I build it\"",
+     "note": "banā, 11 times"
+    },
+    {
+     "kind": "early",
+     "text": "the line of Imruʾ al-Qays: \"…not built close upon its string.\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 17886,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One sound, regular root: pushing something forward.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "dafaqa al-māʾ — water gushed forth; māʾ dāfiq — gushing water",
+     "note": "dāfiq, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 20250,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning (aṣl wāḥid): a thing's entering under concealment and secrecy",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I thrust the thing into the earth\"",
+     "note": "yadussuhu, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "thrust it (yadussuhu) into the dust?\"",
+     "note": "Q 16:59"
+    }
+   ]
+  },
+  {
+   "entry_id": 1342,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: an increase or excess in something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "surplus, extra — and, by extension",
+     "note": "faḍl, 84 times"
+    },
+    {
+     "kind": "quran",
+     "text": "claims superiority over his equals and peers",
+     "note": "yatafaḍḍala, Q 23:24"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays describing a woman who sleeps late",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 20066,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root (aṣl ṣaḥīḥ) indicating an opening up and a parting (tafattuḥ, infirāj)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Fakāk al-rahn is the release of a pledge",
+     "note": "fakk, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "lā yazālu, \"he keeps on doing that.\"",
+     "note": "munfakkīn, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 4152,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core sense is roundness or circularity in a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The celestial sphere / orbit (فَلَكُ السَّمَاء)",
+     "note": "falak, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The ship, فُلْك",
+     "note": "fulk, 23 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 4640,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: gentleness/deliberateness and stillness or quiet",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris takes it from hāda / yahūdu, \"to repent, turn back,\" the verbal noun being hawd.",
+     "note": "hādū, 11 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 17260,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: to pour or tip out something measurable, letting it flow out freely",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the passive participle mahīl (مَهِيل, \"poured/tipped out\")",
+     "note": "mahīl, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 6239,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning the gathering of a thing and coming-together",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I collected the wealth\"",
+     "note": "yujbā, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "a basin or cistern is called جَابِيَة (jābiya)",
+     "note": "jawāb, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "likened to \"the cistern of the Iraqi elder, brimming over.\"",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 17103,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: the smallness/scantiness of what is drunk (a sip).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "jariʿa al-shāribu al-māʾ / jaraʿa yajraʿu — to sip water",
+     "note": "yatajarraʿu, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "\"aflata fulānun bi-jurayʿati al-dhaqan\"",
+     "note": "saying of the Arabs, via al-Farrāʾ"
+    }
+   ]
+  },
+  {
+   "entry_id": 5864,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: **swerving or deviation from the road**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "jāra, jawran = \"to deviate from the way.\"",
+     "note": "jāʾir, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "\"Do not give it to drink the downpour of a rumbling, roaring [cloud].\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 11728,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one single underlying idea: al-lajaʾ / al-malja' — \"the place one takes refuge in.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "Winter has come, and I had not yet made myself a lajaʾ [refuge/shelter]",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 16735,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single, coherent root whose core sense is: taking food by hand to the mouth",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "both mean \"I took it in / swallowed it [as a mouthful].\"",
+     "note": "iltaqama, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 16623,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: extension in a thing, and stretching-out.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry by Imruʾ al-Qays about driving mounts until exhausted, even outrunning the need for reins",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 10488,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core notion is a tearing or rending in something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the doubled (intensive) form مَزَّقَ / يُمَزِّقُ",
+     "note": "muzziqtum, mumazzaq"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I tore the people apart,\" i.e. scattered them",
+     "note": "scattering sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 16368,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root n-h-j carries two separate, unrelated core meanings",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-manhaj = also \"road, path\"; plural al-manahij.",
+     "note": "minhāj, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 7997,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core idea is undoing something that had been made or bound",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "nakatha al-ʿahd, yankuthu",
+     "note": "nakatha, 6 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"Whenever there is a matter of the nakītha, I am present.\"",
+     "note": "Ṭarafa, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 13152,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "taking/picking fruit off a tree.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Noun qiṭf = a cluster or bunch (e.g. of grapes).",
+     "note": "quṭūf, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"but your patron's face scratches\" (walākinna wajha mawlāka taqṭifu)",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 15976,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "a person's cucumber-patch is his مقثأة (maqthaʾa)",
+     "note": "qiththāʾ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 3387,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root, all of it bound to the number three",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Its base sense is the numeral three, as in اثنان وثلاثة (two and three).",
+     "note": "thalātha, thulth"
+    },
+    {
+     "kind": "early",
+     "text": "the image al-Shammākh had in mind in a cited line",
+     "note": "al-Shammākh, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 11155,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core meaning: khushūʿ — humble, lowly submission",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "akhbata yukhbitu ikhbātan means \"he showed khushūʿ\"",
+     "note": "akhbatū, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the Qur'anic word al-mukhbitīn — \"those who are humbly submissive\"",
+     "note": "mukhbitīn, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 12550,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Khardal — classed by the ʿAyn as a kind of ḥarf-plant",
+     "note": "khardal, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "describing someone feeding two lions dust-covered pieces of meat cut this way",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 5755,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning to keep something safe, to guard or store it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I stored away the dirham and the like\"",
+     "note": "khazā'in, khazana"
+    },
+    {
+     "kind": "early",
+     "text": "\"its meat is not stored up among us; only the hoarder's meat is stored\"",
+     "note": "Ṭarafa, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 6448,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "making a thing firm and secure",
+     "note": "first of two origins"
+    },
+    {
+     "kind": "core",
+     "text": "writing and reading",
+     "note": "second of two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "a lump or piece of iron; plural زُبَر",
+     "note": "zubar, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "I wrote the document; from this comes الزَّبُور",
+     "note": "zabūr, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "a line by Ibn Aḥmar",
+     "note": "Ibn Aḥmar, lived into Islam"
+    }
+   ]
+  }
+ ]
+}
