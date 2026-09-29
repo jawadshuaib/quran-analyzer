@@ -1,0 +1,515 @@
+{
+ "batch": "L10",
+ "entries": [
+  {
+   "entry_id": 2467,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single regular root whose core sense is the tasting of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "طَعَام (ṭaʿām) is \"that which is eaten,\" food.",
+     "note": "ṭaʿām, 24 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Feeding (iṭʿām) covers anything ingested, even water.",
+     "note": "iṭʿām, feeding"
+    },
+    {
+     "kind": "early",
+     "text": "a man well-off as to food, illustrated by al-Ḥuṭayʾa's line addressing \"the well-fed, well-clothed one.\"",
+     "note": "al-Ḥuṭayʾa, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "The ḥadīth \"when the imam seeks 'food' from you, feed him\" means: when he falters in recitation and seeks a prompt, supply the words for him.",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 1827,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core sense is distinguishing and separating between two things",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a piece split off from something when it splits apart",
+     "note": "firq, cf. Q 26:63"
+    }
+   ]
+  },
+  {
+   "entry_id": 4944,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a genuine root whose senses cannot all be traced to one underlying idea, though they are of a related family",
+     "note": "Ibn Fāris: no single sense"
+    },
+    {
+     "kind": "quran",
+     "text": "غُروب الشمس (sunset), as the sun's going far from the earth's face",
+     "note": "ghurūb, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الغُراب (well known)",
+     "note": "ghurāb, the crow"
+    },
+    {
+     "kind": "quran",
+     "text": "الغِرْبِيب, deep black, seemingly from the crow's colour",
+     "note": "gharābīb, intensely black"
+    },
+    {
+     "kind": "early",
+     "text": "رِجل الغُراب (\"crow's foot\"), a type of tight knot (verse by al-Kumayt)",
+     "note": "al-Kumayt, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 16799,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "*al-laẓā* means fire; some say specifically pure, smokeless flame.",
+     "note": "root sense: fire"
+    },
+    {
+     "kind": "quran",
+     "text": "Verbs *laẓiyat*, *iltaẓat*, *talaẓẓat* all mean \"it (the fire) blazed.\"",
+     "note": "talaẓẓā, blazing"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of al-Afwah is cited using it this way (\"...as though the men were upon glowing coals and al-laẓā\")",
+     "note": "al-Afwah, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "A hadith about Khayfān visiting ʿUthmān describes a tough clan as men \"on whose spears death *tatalaẓẓā*\" (blazes)",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 13444,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root whose core meaning is al-laban, \"milk\" (the drink)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "A short unattributed verse illustrates the pair: someone falsely claimed to be labin in summer and tamir with dates.",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 2853,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ملا (m-l-w/y) — extension in time and space, and dictation",
+     "note": "first of two roots"
+    },
+    {
+     "kind": "core",
+     "text": "ملأ (m-l-ʾ, with hamza) — fullness",
+     "note": "second of two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "a council/company united on one opinion, who \"fill the eyes\" with splendour and the souls with awe",
+     "note": "malaʾ, the chiefs"
+    },
+    {
+     "kind": "quran",
+     "text": "al-milʾ = the capacity of a full vessel",
+     "note": "milʾ, full"
+    },
+    {
+     "kind": "early",
+     "text": "a poet annexes malwā to \"day and night\" (\"Day and night, whose malwā is unceasing…\")",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 4611,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose core sense is measuring-out / apportioning something (taqdīr) and the carrying-through of a decree (qaḍāʾ) upon it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "مَنِيّ (semen) — the human fluid, so called because a person's formation is measured out from it",
+     "note": "manī, semen"
+    },
+    {
+     "kind": "quran",
+     "text": "تَمَنِّي (wishing, longing): a hope a person measures out for himself",
+     "note": "tamannā, wishing"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid from Ibn al-Ṭathriyya (the drinking-companion urging him to \"rival the people in generosity\")",
+     "note": "Ibn al-Ṭathriyya, Umayyad"
+    },
+    {
+     "kind": "later",
+     "text": "as \"when he recited, Satan cast into his recitation,\" glossing tamannā as \"recited.\"",
+     "note": "the author's own exegesis of Q 22:52"
+    }
+   ]
+  },
+  {
+   "entry_id": 13294,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives everything under this root (n-sh-ṭ) from one core meaning: **vibration and motion** (اهتزاز وحركة)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "peeling draws the thing out from its own skin",
+     "note": "nāshiṭāt, drawing out"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn Fāris cites a line of the poet Dhū al-Rumma describing such a bull — dappled-legged, dark-cheeked, a leader of its kind, a roaming young bull (نَاشِطٌ شَبَبُ) — as illustration.",
+     "note": "Dhū al-Rumma, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 9242,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The organising idea running through the entry is raised, standing up above a level.",
+     "note": "Ibn Sīda's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "نَشَزَ في مَجْلِسِه — to lift oneself up slightly in one's seat",
+     "note": "cf. Q 58:11, rise up"
+    },
+    {
+     "kind": "quran",
+     "text": "أَنْشَزَ الشيءَ — to lift a thing from its place",
+     "note": "cf. Q 2:259, raise up"
+    },
+    {
+     "kind": "quran",
+     "text": "نَشَزَت المرأةُ بِزَوجِها (she is ناشِز) — she rose up against him and came to detest him",
+     "note": "nushūz, rising against a spouse"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā: \"if you test my utmost mettle you will find in me a stout one, already grey, no weakling twin.\"",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 16425,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-nabaz (fatḥa) = \"a nickname/epithet\"",
+     "note": "core noun"
+    },
+    {
+     "kind": "quran",
+     "text": "tanābazū bi-l-alqāb = \"they nicknamed one another.\" al-tanābuz = calling one another out by nicknames",
+     "note": "tanābaz, Q 49:11"
+    },
+    {
+     "kind": "later",
+     "text": "this addressed Muslims calling converts \"O Jew!\" or \"O Christian!\" after their conversion",
+     "note": "exegete Thaʿlab, who calls it weak"
+    },
+    {
+     "kind": "later",
+     "text": "the verse means a Muslim must not taunt a former Jew or Christian, now Muslim, with a nickname recalling his former religion",
+     "note": "exegete al-Zajjāj (d. 923)"
+    }
+   ]
+  },
+  {
+   "entry_id": 2563,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Being unmindful of / neglecting a thing",
+     "note": "first base sense"
+    },
+    {
+     "kind": "core",
+     "text": "Leaving / abandoning a thing",
+     "note": "second base sense"
+    },
+    {
+     "kind": "quran",
+     "text": "نَسِيتُ الشَّيْءَ (\"I forgot it,\" when you fail to remember it)",
+     "note": "nasiya, forgot"
+    },
+    {
+     "kind": "quran",
+     "text": "النِّسْي — the worthless goods travellers drop and leave at a campsite",
+     "note": "nasy, oblivion"
+    },
+    {
+     "kind": "early",
+     "text": "Cited with a line of al-Shanfarā using نِسْي for a dropped/left object.",
+     "note": "al-Shanfarā, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "On this basis Ibn Fāris reads نَسُوا اللَّهَ فَنَسِيَهُمْ (al-Tawba 67) and فَنَسِيَ (of Adam, Ṭāhā 115) as \"leaving/abandoning\"",
+     "note": "the author's own exegesis of Q 9:67, 20:115"
+    }
+   ]
+  },
+  {
+   "entry_id": 20358,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two root meanings: keeping close to something and mingling with it, and a rising in something",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-qinw is the date-cluster (ʿidhq) with what is on it, so called because it keeps close to its tree.",
+     "note": "qinwān, date clusters"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays speaks of \"the first (bikr) of al-muqānāt, whiteness mingled with yellow, nourished by wholesome water.\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 9137,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single governing idea: **striking a thing**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A severe stroke of fortune, so named because it strikes people with its severity.",
+     "note": "qāriʿa, 5 times"
+    },
+    {
+     "kind": "early",
+     "text": "citing Aws: at every trench they leave an armoured man \"dragged as the scab-ridden weanling is dragged.\"",
+     "note": "Aws, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 1329,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a large, regular root whose core sense is returning / sending back (radd) and repetition (takrār)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَجَعَ / يَرْجِعُ / رُجُوعًا (to go back, come back). الرُّجْعَى (al-rujʿā) is a noun meaning the returning.",
+     "note": "rajaʿa, 79 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the sky \"returns\" — it pours rain, then comes back and rains again",
+     "note": "rajʿ, Q 86:11"
+    },
+    {
+     "kind": "early",
+     "text": "Illustrated by Ḥumayd's line imagining a dwelling that might \"return an answer\" to one who questions it.",
+     "note": "Ḥumayd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 20141,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "assigns r-m-m four root meanings (uṣūl), arranged as two opposed pairs: gathering a thing together and mending it, against its wearing out; and silence, against its opposite",
+     "note": "Ibn Fāris's four origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ramīm is decayed bones, as in Q 36:78: \"Who will give life to the bones when they are ramīm?\"",
+     "note": "ramīm, decayed"
+    },
+    {
+     "kind": "early",
+     "text": "In a verse of Aws, a man who marvels at the poet's people would, had war buffeted him, not have stirred his lips (lam yataramram).",
+     "note": "Aws, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 2064,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "saḥar (السَحَر) = the period just before dawn",
+     "note": "saḥar, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "a spell/enchantment (ukhdha). Al-Jawharī's defining principle: anything whose way of taking hold is subtle and fine is called siḥr.",
+     "note": "siḥr, 28 times"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid: Labīd's line calling mankind \"sparrows of this musaḥḥar people.\"",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "al-Jawharī gives two readings — (a) musaḥḥar = one created with a lung (siḥr), i.e. a mortal like others; (b) one of the \"beguiled / sustained with food.\"",
+     "note": "al-Jawharī's reading of Q 26:153"
+    }
+   ]
+  },
+  {
+   "entry_id": 19692,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root meaning of s-b is cutting, and reviling was derived from it",
+     "note": "Ibn Durayd's definition, accepted"
+    },
+    {
+     "kind": "core",
+     "text": "a second root meaning length and extension",
+     "note": "possible second root"
+    },
+    {
+     "kind": "quran",
+     "text": "al-sabb is reviling, which he explains as a cutting: \"there is no severance more severing than reviling\"",
+     "note": "yasubbu, reviling"
+    },
+    {
+     "kind": "early",
+     "text": "cited from Abū Duʾād: \"many a wide, empty wasteland (sabsab), over which its blowing dust runs\"",
+     "note": "Abū Duʾād, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "citing al-Hudhalī: \"he let himself down to it between a rope (sibb) and a cord\"",
+     "note": "al-Hudhalī, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 980,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "around one core idea — soundness and well-being (ṣiḥḥa, ʿāfiya)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "submission/compliance (inqiyād) — so called because the one who submits becomes free of refusal and resistance",
+     "note": "islām, ordinary sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-silm / al-salm (reconciliation, ṣulḥ)",
+     "note": "salm, peace"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-sullam (ladder): also traced to salāma, because someone climbing down is hoped to reach safety",
+     "note": "sullam, ladder"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris reports that \"the people of knowledge\" call God al-Salām because He is free from the defect, deficiency, and perishing that affect created things.",
+     "note": "scholars' reading, attributed"
+    }
+   ]
+  },
+  {
+   "entry_id": 7094,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root whose single idea is **movement combined with shifting appearance or colour**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a bedouin youth present answered: \"from their اخْتِيَال — their swaggering gait,\"",
+     "note": "khayl, horses"
+    },
+    {
+     "kind": "quran",
+     "text": "\"it looks as though it is such-and-such / it is made to appear to me (yukhayyalu ilayya) that it is so\" — i.e. an impression, not a certainty",
+     "note": "yukhayyal, seemed"
+    },
+    {
+     "kind": "early",
+     "text": "al-Shammākh: once you have carried me and my saddle to ʿArāba, choke on the blood of your own aorta.",
+     "note": "al-Shammākh, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 11107,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "zabad: foam/froth on a liquid, or (for milk) the cream/butter that rises and separates",
+     "note": "root sense: foam"
+    },
+    {
+     "kind": "quran",
+     "text": "each casts off its zabad/azbad (\"foam(s)\")",
+     "note": "zabad, foam"
+    },
+    {
+     "kind": "early",
+     "text": "a saying calls it \"more delicious than zabad with dates,\"",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "early",
+     "text": "Closing citation from Khudayr al-Hudhali: \"the hida' (camel-driving song) is the zabad of the heart\"",
+     "note": "Khudayr al-Hudhalī, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "the Prophet is reported to have forbidden \"the zabd of the polytheists\" (accepting a gift/reward from them)",
+     "note": "a hadith"
+    }
+   ]
+  }
+ ]
+}

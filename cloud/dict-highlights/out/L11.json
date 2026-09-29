@@ -1,0 +1,515 @@
+{
+ "batch": "L11",
+ "entries": [
+  {
+   "entry_id": 3518,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Withdrawing from a thing and parting from it (التباعد والمزايلة)",
+     "note": "Ibn Fāris's second base meaning"
+    },
+    {
+     "kind": "core",
+     "text": "Creating (الخلق)",
+     "note": "Ibn Fāris's first base meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "الْبَارِئُ (the Creator/Fashioner) is God",
+     "note": "بَارِئ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الْبُرْء = soundness from sickness",
+     "note": "تُبْرِئُ, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Declaring oneself quit / disowning",
+     "note": "بَرِىء, تَبَرَّأَ"
+    },
+    {
+     "kind": "early",
+     "text": "The poet Umayya pairs the term with al-Khāliq and al-Muṣawwir",
+     "note": "Umayya, named in the entry (pre-Islamic era)"
+    }
+   ]
+  },
+  {
+   "entry_id": 6273,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whiteness (bayāḍ), the opposite of blackness",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "adjective abyaḍ (white)",
+     "note": "أَبْيَض, 8 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Verb: ibyaḍḍa / yabyaḍḍu (to turn white)",
+     "note": "ٱبْيَضَّتْ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "bayḍ (eggs), sing. bayḍa — named for its whiteness",
+     "note": "بَيْض, once"
+    },
+    {
+     "kind": "early",
+     "text": "because whiteness was regarded as the finest of colours",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "early",
+     "text": "is white of Quḍāʿa",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 1392,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core idea: submission/compliance (inqiyād) and lowliness or abasement (dhull)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-dīn is \"obedience.\"",
+     "note": "دِين"
+    },
+    {
+     "kind": "quran",
+     "text": "under the king's ṭāʿa (authority/obedience)",
+     "note": "his explanation of Q 12:76"
+    },
+    {
+     "kind": "quran",
+     "text": "To deal on credit (giving or taking) is dāyana",
+     "note": "دَيْن / تَدَايَن"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid (from Imruʾ al-Qays): \"like your wont (ka-dīnika)",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Debt is humiliation by day and grief by night.",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 2177,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core sense — cutting a thing (qaṭʿ)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "To fabricate: فَرَى كَذِبًا (farā kadhiban) = to invent/concoct a lie",
+     "note": "ٱفْتَرَىٰ, 50 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الْفَرَى also = the marvellous/astonishing thing (same as al-fariyy)",
+     "note": "فَرِيّ, once"
+    },
+    {
+     "kind": "early",
+     "text": "A cited line uses تَفْرِينَ الْفَرِيّ for someone who \"spoke much about a thing and magnified it.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 19593,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root meaning a thing passing into or through something else and becoming fixed there",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Resentment that works its way into the breast.",
+     "note": "غِلّ, 9 times"
+    },
+    {
+     "kind": "quran",
+     "text": "In the case of booty, ghulūl means hiding an item so it is not returned for division",
+     "note": "غَلَّ, 5 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites al-Namir, who prays that God repay Jamra, daughter of Nawfal, \"as one who betrays a trust (mughill) and lies\" is repaid.",
+     "note": "al-Namir, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "In the Prophet's saying \"no ighlāl and no islāl,\" ighlāl is treachery",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 10744,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"covering / concealing,\" combined with a sense of intensity or hardship.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ghamra — total absorption in falsehood and idle amusement",
+     "note": "غَمْرَة, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ghamarātu l-mawt, \"the death-throes/agonies,\"",
+     "note": "غَمَرَٰت, once"
+    },
+    {
+     "kind": "early",
+     "text": "Illustrated with a line from the poet Kuthayyir describing such a man's smile.",
+     "note": "Kuthayyir, Umayyad (no earlier witness)"
+    }
+   ]
+  },
+  {
+   "entry_id": 10591,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose core idea is intensity and strength",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الْكَرْب (al-karb) — intense grief",
+     "note": "كَرْب, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid — al-Ḥuṭayʾa: a people who, when they make a bond for their neighbour, fasten the bucket-strap and then fasten the karab-knot above it",
+     "note": "al-Ḥuṭayʾa, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 993,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "they all trace back to one core sense: ease, pleasant living, and wellbeing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a benefit God bestows on His servant, such as wealth and livelihood",
+     "note": "نِعْمَة, 50 times"
+    },
+    {
+     "kind": "quran",
+     "text": "luxuriating and pleasant living, cited from Q 44:27 (al-Dukhān)",
+     "note": "نَعِيم / نَّعْمَة"
+    },
+    {
+     "kind": "quran",
+     "text": "By the same logic الأنعام (anʿām) means livestock/beasts.",
+     "note": "نَّعَم, 33 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the verb of praise, opposite of بِئْسَ (biʾsa, dispraise)",
+     "note": "نِعْمَ, 18 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 6554,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "from two sound roots that lie close together: (1) a thing's falling short of its full extent, and (2) confinement or restraint.",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Transitive: qaṣṣara — \"I shortened the garment or the rope.\"",
+     "note": "مُقَصِّرِين / تَقْصُرُ"
+    },
+    {
+     "kind": "quran",
+     "text": "qaṣartuhu = \"I confined/imprisoned him\"; maqṣūr = confined",
+     "note": "مَّقْصُورَٰت, once"
+    },
+    {
+     "kind": "quran",
+     "text": "qāṣirat al-ṭarf = a woman who restrains her gaze",
+     "note": "قَٰصِرَٰت, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 20355,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root (aṣl ṣaḥīḥ) meaning \"cutting a thing quickly, crosswise\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-qiṭṭ is said to be the written deed (ṣakk) for a gift (jāʾiza).",
+     "note": "قِطّ, once"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā uses the plural, quṭūṭ, in a line on King al-Nuʿmān \"giving out the quṭūṭ\" on the day the poet met him.",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "those who said it meant, as it were, the documents of reward they are given in the Hereafter",
+     "note": "unnamed exegetes' reading of Q 38:16"
+    }
+   ]
+  },
+  {
+   "entry_id": 4519,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one family built on the number \"four\" and its derivatives",
+     "note": "al-Rāghib's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "أربعة (four), أربعون (forty), رُبع (a quarter), رُباع (four at a time)",
+     "note": "أَرْبَعَة, أَرْبَع, رُّبُع, رُبَٰع"
+    }
+   ]
+  },
+  {
+   "entry_id": 8339,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core idea is throwing, pelting, or flinging",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الرَّدَى is destruction; رَدِيَ يَرْدَى = \"he perished\"; أَرْدَاهُ اللَّهُ = \"God destroyed him.\"",
+     "note": "أَرْدَىٰ / تَرْدَىٰ"
+    },
+    {
+     "kind": "quran",
+     "text": "التَّرَدِّي is plunging into a chasm",
+     "note": "مُتَرَدِّيَة / تَرَدَّىٰ"
+    }
+   ]
+  },
+  {
+   "entry_id": 13020,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one single, regular meaning: assisting and backing someone by giving — a gift or other support",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الرَّفْد (al-rafd) is the verbal noun of \"rafadahu\" — he gave him [something]",
+     "note": "رِّفْد, once"
+    },
+    {
+     "kind": "quran",
+     "text": "\"Urfidtu al-māl\" — I was given/granted the wealth",
+     "note": "مَرْفُود, once"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn Fāris cites a line of al-Farazdaq mentioning \"Iraq and its two Rāfids.\"",
+     "note": "al-Farazdaq, Umayyad (no earlier witness)"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth uses it: \"the fayʾ [war-gained wealth] becomes rifd\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 1779,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one central image — the leg/foot (rijl) of any creature that has one",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الرِّجْل (al-rijl) — the leg/foot of a human or animal",
+     "note": "رِجْل, 15 times"
+    },
+    {
+     "kind": "quran",
+     "text": "foot-soldiers/infantry (al-rajjāla), so named because they travel on their feet",
+     "note": "رَجِل, once"
+    },
+    {
+     "kind": "quran",
+     "text": "الرَّجُل (al-rajul) — a \"man,\" a single adult male",
+     "note": "رَجُل / رِجَال"
+    },
+    {
+     "kind": "early",
+     "text": "Cited verse: a vow to visit \"the House of God, on foot and barefoot.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 7167,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "**flinging or casting a thing away**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَمَيْتُ الشَّيْءَ أَرْمِيهِ — \"I threw (or shot at) the thing, I throw it.\"",
+     "note": "رَمَىٰ, 9 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 11335,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"going in search of something\" — a compound notion combining *going* and *seeking*.",
+     "note": "al-Rāghib's sense for sawm"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-sa'āma is weariness/tedium that comes from something continuing too long",
+     "note": "يَسْـَمُ, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "Supporting verse of poetry: \"I have grown weary of life's burdens; whoever lives eighty years grows weary\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 15477,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the succession of many things, each connected to the next",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "glossed as ensuring the proportion between rivet and hole is exact, neither too tight nor too loose",
+     "note": "his explanation of Q 34:11"
+    },
+    {
+     "kind": "quran",
+     "text": "al-sard — a collective term for chainmail and similar ring-linked work",
+     "note": "سَّرْد, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 3361,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "وَرى (with fatḥa; also the dialectal wariya with kasra) = to produce/give out fire",
+     "note": "تُورُ / مُورِيَٰت"
+    },
+    {
+     "kind": "quran",
+     "text": "وارَيْتُ الشيءَ = I hid the thing; تَوارى = he hid himself",
+     "note": "وُرِىَ / تَوَارَتْ"
+    },
+    {
+     "kind": "quran",
+     "text": "وَراءَ (warāʾ) = \"behind,\" but can also mean \"in front / ahead,\"",
+     "note": "وَرَاء, 24 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Jawharī reads the Qurʾānic \"and behind them was a king\" (18:79) as meaning \"ahead of them.\"",
+     "note": "his explanation of Q 18:79"
+    }
+   ]
+  },
+  {
+   "entry_id": 8950,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single governing sense, which he takes from al-Khalīl: **concealing something**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "خَدَعْتُ الرجل — \"I deceived the man,\" glossed as ختلته (I tricked / caught him off guard)",
+     "note": "يَخْدَعُ / يُخَٰدِعُ"
+    },
+    {
+     "kind": "early",
+     "text": "Cited proverb: «الحرب خُدَعة» (\"war is trickery\")",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 2128,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"to increase, grow, add, exceed\"",
+     "note": "al-Zamakhsharī's literal core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Of a thing growing of itself: زاد (\"increased\") — of water or wealth",
+     "note": "زَادَ, 49 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Of causing growth: God \"increased him in wealth\"",
+     "note": "زَادَ"
+    },
+    {
+     "kind": "quran",
+     "text": "Of exceeding: \"he exceeded what he intended\"",
+     "note": "زَادَ / ٱزْدَادُ"
+    },
+    {
+     "kind": "early",
+     "text": "Cited from Dhū al-Iṣbaʿ al-ʿAdwānī: \"you are a company exceeding a hundred; so gather your whole affair and scheme against me\"",
+     "note": "Dhū al-Iṣbaʿ al-ʿAdwānī, pre-Islamic"
+    }
+   ]
+  }
+ ]
+}
