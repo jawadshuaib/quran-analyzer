@@ -746,6 +746,17 @@ export interface DictionaryItem {
   language: string;
   is_quran_specific: boolean;
   harmonized_en: string;
+  /** Reader highlights on harmonized_en, when the entry has them (see
+   *  DictionaryHighlight.tsx). Absent for entries without any. */
+  highlights?: DictionaryHighlight[];
+}
+
+/** One highlighted phrase of a dictionary entry's readable version: an exact,
+ *  unique span of one line of harmonized_en, and why it is marked. */
+export interface DictionaryHighlight {
+  kind: 'core' | 'quran' | 'early' | 'later';
+  text: string;
+  note?: string;
 }
 
 export interface RootDictionaries {

@@ -26,6 +26,12 @@
   --color-gold-dark: #633806;
   --color-gold-hover: #854F0B;
   --color-card-border: rgba(0, 0, 0, 0.1);
+
+  /* Reader highlights in dictionary entries (DictionaryHighlight.tsx) */
+  --color-hl-core: #FFEE8A;
+  --color-hl-quran: #FFCB94;
+  --color-hl-early: #CFE2FF;
+  --color-hl-later: #8C887F;
 }
 
 body {

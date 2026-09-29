@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import VerseRefText from './VerseRefText';
 import PoetryQuote from './PoetryQuote';
 import { GrammarChip } from './GrammarNotes';
+import { HighlightMark } from './DictionaryHighlight';
 import { setWordHover, clearWordHover } from '../utils/word-hover';
 import { viewportSize } from '../utils/viewport';
-import type { PoetryQuotedLine, GrammarTerm, WordAnchor } from '../types';
+import type { PoetryQuotedLine, GrammarTerm, WordAnchor, DictionaryHighlight } from '../types';
 
 /** Citations in this note that quote the verse itself, plus the verse they
  *  belong to. Passing it makes those citations hover-to-highlight. */
@@ -296,6 +297,42 @@ interface RenderInlineOpts {
    *  positional params) since this function already had four. */
   highlightRootBw?: string;
   highlightLemmaBw?: string;
+  /** Reader highlights: exact phrases of the raw text to mark (dictionary
+   *  entries). Matched per line before any inline parsing, so the marks and
+   *  the markup inside them render independently. */
+  marks?: DictionaryHighlight[];
+  /** Applied to each piece of a line before inline parsing (e.g.
+   *  linkifyGrammarTermRefs), after the marks have been found in the raw
+   *  text — so a marker it adds can't stop a mark from matching. */
+  segmentTransform?: (s: string) => string;
+}
+
+/** One line's inline content, with any reader highlights it contains. The
+ *  highlights job guarantees each phrase occurs once in the whole text and
+ *  never cuts through a bold or italic run, so the pieces between and inside the
+ *  marks parse cleanly on their own. */
+function renderLine(content: string, opts: RenderInlineOpts) {
+  const tf = opts.segmentTransform ?? ((x: string) => x);
+  if (!opts.marks?.length) return renderInline(tf(content), opts);
+  const hits = opts.marks
+    .map((m) => ({ m, at: content.indexOf(m.text) }))
+    .filter((h) => h.at >= 0)
+    .sort((a, b) => a.at - b.at);
+  if (!hits.length) return renderInline(tf(content), opts);
+  const out = [];
+  let cur = 0;
+  hits.forEach((h, i) => {
+    if (h.at < cur) return; // overlapping (the job forbids it); keep the first
+    if (h.at > cur) out.push(<Fragment key={`p${i}`}>{renderInline(tf(content.slice(cur, h.at)), opts)}</Fragment>);
+    out.push(
+      <HighlightMark key={`m${i}`} kind={h.m.kind} note={h.m.note}>
+        {renderInline(tf(h.m.text), opts)}
+      </HighlightMark>,
+    );
+    cur = h.at + h.m.text.length;
+  });
+  if (cur < content.length) out.push(<Fragment key="rest">{renderInline(tf(content.slice(cur)), opts)}</Fragment>);
+  return out;
 }
 
 export function renderInline(text: string, opts: RenderInlineOpts = {}) {
@@ -456,6 +493,10 @@ interface FormattedTextProps {
    *  any verse-ref tooltip its AI meaning cites. */
   highlightRootBw?: string;
   highlightLemmaBw?: string;
+  /** See RenderInlineOpts.marks. */
+  marks?: DictionaryHighlight[];
+  /** See RenderInlineOpts.segmentTransform. */
+  segmentTransform?: (s: string) => string;
 }
 
 /**
@@ -477,7 +518,7 @@ export function renderBlocks(text: string, opts: RenderInlineOpts = {}) {
       // and its markers would otherwise leak as text.
       return (
         <p key={li} className="font-semibold text-stone-900 mt-3 mb-1 text-sm">
-          {renderInline(content, opts)}
+          {renderLine(content, opts)}
         </p>
       );
     }
@@ -486,7 +527,7 @@ export function renderBlocks(text: string, opts: RenderInlineOpts = {}) {
       return (
         <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
           <span className="text-stone-400 shrink-0">•</span>
-          <span>{renderInline(content, opts)}</span>
+          <span>{renderLine(content, opts)}</span>
         </div>
       );
     }
@@ -496,14 +537,14 @@ export function renderBlocks(text: string, opts: RenderInlineOpts = {}) {
       return (
         <div key={li} className="flex gap-1.5 ml-1 mt-0.5">
           <span className="text-stone-400 shrink-0">{num}.</span>
-          <span>{renderInline(content, opts)}</span>
+          <span>{renderLine(content, opts)}</span>
         </div>
       );
     }
     if (!line.trim()) return <div key={li} className="h-2" />;
     return (
       <p key={li} className={li > 0 ? 'mt-0.5' : ''}>
-        {renderInline(line, opts)}
+        {renderLine(line, opts)}
       </p>
     );
   });
@@ -520,6 +561,8 @@ export function FormattedText({
   anchors,
   highlightRootBw,
   highlightLemmaBw,
+  marks,
+  segmentTransform,
 }: FormattedTextProps) {
   return (
     <div className={className}>
@@ -530,6 +573,8 @@ export function FormattedText({
         anchors,
         highlightRootBw,
         highlightLemmaBw,
+        marks,
+        segmentTransform,
       })}
     </div>
   );
