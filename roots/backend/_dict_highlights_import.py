@@ -36,7 +36,7 @@ def main():
     dry = "--dry-run" in sys.argv
     rows = {int(r["entry_id"]): r for r in csv.DictReader(open(os.path.join(job, "entries.csv"), encoding="utf-8", newline=""))}
     made = {}
-    for path in sorted(glob.glob(os.path.join(job, "out", "b*.json"))):
+    for path in sorted(glob.glob(os.path.join(job, "out", "*.json"))):
         for item in json.load(open(path, encoding="utf-8"))["entries"]:
             made[item["entry_id"]] = item["highlights"]
     c = sqlite3.connect(DB)
@@ -60,7 +60,7 @@ def main():
             c.execute("INSERT OR REPLACE INTO dictionary_highlights "
                       "(entry_id, root_buckwalter, dictionary_slug, text_hash, highlights, source) VALUES (?,?,?,?,?,?)",
                       (eid, root, slug, text_hash(text), json.dumps(keep, ensure_ascii=False),
-                       "cloud job claude/dict-highlights (Opus)"))
+                       "cloud job claude/dict-highlights (Claude Opus 5.5, then Sonnet 5.5)"))
         stored += 1
     if not dry:
         c.commit()
