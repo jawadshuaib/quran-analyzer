@@ -31,7 +31,8 @@ or highlight entries yourself: that keeps your context small for a long run.
       > `python3 cloud/dict-highlights/job.py show BATCH` and highlight every entry in that batch by
       > the rules, writing cloud/dict-highlights/out/BATCH.json. Run
       > `python3 cloud/dict-highlights/job.py check BATCH` and fix every error it reports until it
-      > prints OK. Reply with the checker's final line only.
+      > prints OK. Keep any helper script you write in a file named after your batch (for example
+      > /tmp/BATCH_work.py): other subagents share the scratch space. Reply with the checker's final line only.
 
    3. When all four have replied, run `python3 cloud/dict-highlights/job.py check all`. If a batch
       still fails, give it to one new subagent with the same prompt plus: "An out/BATCH.json already
