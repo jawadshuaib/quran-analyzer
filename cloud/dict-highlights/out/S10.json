@@ -1,0 +1,535 @@
+{
+ "batch": "S10",
+ "entries": [
+  {
+   "entry_id": 3742,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: the lightness of a thing in the air",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الطَّيْر (al-ṭayr, \"birds\") is the plural of طَائِر (ṭāʾir, \"flyer\")",
+     "note": "ṭayr 19 times; ṭāʾir 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'anic shāhid: al-Insān 76:7, a day whose evil is مُسْتَطِير (\"widespread\")",
+     "note": "mustaṭīr, once"
+    },
+    {
+     "kind": "early",
+     "text": "a verse \"so we flew/darted to them with horse-troops and spears.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 3081,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: a thing’s passing away and its failure to last",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Satan is called al-bāṭil (“the false one”) because his deeds have no reality",
+     "note": "bāṭil, 26 times"
+    },
+    {
+     "kind": "early",
+     "text": "The proverb “mukrahun akhūka lā baṭal” (“Your brother is coerced, not a hero”)",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 5544,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: the opening or commencement of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "بَدَأَ / ابْتَدَأَ = to begin, commence (from ibtidāʾ)",
+     "note": "badaʾa, 12 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'anic examples: 85:13 \"He originates and restores,\" and 29:20 \"how He began creation.\"",
+     "note": "yubdiʾ and badaʾa verses"
+    },
+    {
+     "kind": "early",
+     "text": "Cited from the poet ʿAbīd: \"neither a wonder nor a marvel.\"",
+     "note": "ʿAbīd, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 17644,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "its words don't reduce to one analogical core meaning",
+     "note": "no single shared sense"
+    },
+    {
+     "kind": "quran",
+     "text": "**فَنِيَ يَفْنَى فَنَاءً** — to perish, come to an end",
+     "note": "fān, once: (will) perish"
+    },
+    {
+     "kind": "early",
+     "text": "the speaker makes his companion stand and sit by turns, \"just as a leader humors a headstrong mount.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 9476,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "single idea is the opposite of catching up with something and reaching it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the thing got away from him, he failed to attain it",
+     "note": "fāta 3 times; fawt once"
+    },
+    {
+     "kind": "quran",
+     "text": "the two things grew far apart, i.e. neither one reached the other",
+     "note": "tafāwut, once"
+    },
+    {
+     "kind": "early",
+     "text": "هُوَ مِنِّي فَوْتَ الرُّمْحِ — \"he is a spear's remove from me.\"",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 17492,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound, single-sense root meaning \"darkness\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ghaṭasha al-layl simply means \"the night grew dark.\"",
+     "note": "aghṭasha, once: he darkened"
+    },
+    {
+     "kind": "early",
+     "text": "describing a night crossing of a landmark-less desert (yahmāʾ), \"dark-at-night\" (ghaṭshā)",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17442,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One sound root: a lowering/dipping in a thing, combined with a sense of overlapping/enclosure.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ghammaḍa/aghmaḍa ʿaynahu — to close one's eye (two equivalent verb forms)",
+     "note": "tughmiḍ, once: closed eyes"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry by Abū al-Najm",
+     "note": "Abū al-Najm, Umayyad (no earlier witness)"
+    }
+   ]
+  },
+  {
+   "entry_id": 20095,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning (aṣl wāḥid) with two sides: breaking, or cutting",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Q 21:58, \"so he made them judhādh, except a great one of theirs\"",
+     "note": "judhādh, once: pieces"
+    },
+    {
+     "kind": "quran",
+     "text": "From this he takes Q 11:108, ʿaṭāʾan ghayra majdhūdhin, \"a gift not cut off\"",
+     "note": "majdhūdh, once"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of al-Hudhalī speaks of \"the masāḥin grating over the judhādh\"",
+     "note": "al-Hudhalī, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 3690,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-Jidāl (disputation): an exchange or negotiation carried on through contention, each side trying to overcome the other.",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The verb (jādala / yujādilu) and noun (jidāl / jadal) recur throughout the Qurʾān in the sense of disputing or arguing",
+     "note": "jādala 25 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 9399,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "(1) cutting through or crossing something, and (2) the middle of something",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "جُزْتُ الْمَوْضِع = I travelled through a place.",
+     "note": "jāwaza, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays): \"when we had passed beyond the open ground of the encampment,\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Aws ibn Maghrāʾ): \"until it is said: let the family of Ṣafwān pass\"",
+     "note": "Aws ibn Maghrāʾ, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 16826,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives ل-ح-ن (l-ḥ-n) from two distinct bases",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "*Al-laḥn* also means the underlying drift or gist of speech (its implied sense rather than its plain wording)",
+     "note": "laḥn, once: the tone"
+    },
+    {
+     "kind": "later",
+     "text": "a ḥadīth: \"Perhaps some of you is more skillful (alḥan) in arguing his case than another\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 20126,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "treats l-d-d as two sound roots: one meaning disputation, the other a side or flank",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ladad is intense contentiousness.",
+     "note": "aladd and ludd in the Qur'an"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn Aḥmar: \"I drank the shukāʿā and took doses of ladūd, and brought the cautery-irons to the mouths of the veins.\"",
+     "note": "Ibn Aḥmar, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 13382,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "picking something up off the ground, typically encountered by chance rather than deliberately sought",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-iltiqāṭ — happening upon something by chance",
+     "note": "iltaqaṭa, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "The proverb \"for every stray word there's a picker-up\" means any notable remark finds someone to hear and spread it.",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 8429,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "*Mayl* is deviation from the middle toward one side or the other — going off-centre.",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "**مِلْتُ إلى (miltu ilā, \"I inclined toward\") = to side with, support, assist someone.**",
+     "note": "yamīl, mayl"
+    },
+    {
+     "kind": "quran",
+     "text": "**مِلْتُ عليه (miltu ʿalayhi, \"I inclined against\") = to bear down hard on someone, press against him.**",
+     "note": "maylah, once: an attack"
+    }
+   ]
+  },
+  {
+   "entry_id": 8001,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "*Nadm* and *nadāma* mean regret: the grieving distress a person feels when his view of something changes after the matter is already past and cannot be undone",
+     "note": "al-Rāghib's definition"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites two passages, both using the participle *nādimīn* with the verb *aṣbaḥa* (\"came to be\")",
+     "note": "nādimīn, 5 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 7219,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root meaning the undoing or unravelling of something (nakth)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "نَقَضْتُ الْحَبْلَ وَالْبِنَاءَ — \"I untwisted the rope and pulled down the building.\"",
+     "note": "naqaḍa, breaking"
+    },
+    {
+     "kind": "quran",
+     "text": "Breaking a compact: نَقْضُ الْعَهْدِ is from the same sense of undoing.",
+     "note": "naqḍ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 7206,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core idea is inertness and the stilling of movement",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "نَوْم (nawm) is the primary derivative: نَامَ / يَنَامُ (nāma / yanāmu, \"to sleep\")",
+     "note": "nawm 3 times; manām 4"
+    }
+   ]
+  },
+  {
+   "entry_id": 6167,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "النَّيْل (al-nayl): what a person attains or reaches with his hand.",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'anic citations: \"You will never attain piety\" (3:92); \"nor do they attain from an enemy any attainment\" (9:120)",
+     "note": "yanāl, 11 times"
+    },
+    {
+     "kind": "early",
+     "text": "A poet's line — \"I grew anxious, and that is not the nawāl\" — is glossed as \"not the right course.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 2079,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "settling a matter firmly, perfecting it, and carrying it through to its proper end",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "he glosses qaḍāhunna as \"He made firm / perfected their creation.\"",
+     "note": "qaḍā, 59 times"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of Abū Dhuʾayb uses qaḍāhumā of two coats of mail \"fashioned\"",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "al-Ḥārith ibn Ḥilliza, where spears whose points are \"al-qaḍāʾ\"",
+     "note": "al-Ḥārith ibn Ḥilliza, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 13129,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-qilā = intense hatred, aversion. The verb is qalāhu, \"he hated him.\"",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "93:3 — mā waddaʿaka rabbuka wa-mā qalā, \"your Lord has not forsaken you, nor is He displeased [with you].\"",
+     "note": "qalā, once"
+    },
+    {
+     "kind": "quran",
+     "text": "26:168 — innī liʿamalikum min al-qālīn, \"I am, toward your deeds, among those who hate [you].\"",
+     "note": "qālīn, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 16056,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a drinker raising his head at the moment of drinking water",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "**al-qāmiḥ (القَامِحُ)** — a camel that raises its head while drinking, refusing to drink",
+     "note": "muqmaḥūn, once: heads raised"
+    },
+    {
+     "kind": "early",
+     "text": "comparing lowered gazes to qimāḥ camels",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "early",
+     "text": "an Arabic expression for the harshest stretch of winter cold",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 16040,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "**\"A qamṭarīr day.\"** Describes a day on which evil is widespread/rife (fāshī l-sharr).",
+     "note": "qamṭarīr, once"
+    },
+    {
+     "kind": "early",
+     "text": "verse by Abū Ṭālib about returning a blow measure for measure",
+     "note": "Abū Ṭālib, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "A verse by al-Khansāʾ is cited describing stones piled up (muqmiṭirrāt)",
+     "note": "al-Khansāʾ, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 15875,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "finds two base meanings under ر-ه-و (rahawa)",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-rahw = the calm, still sea.",
+     "note": "rahw, once: at rest"
+    },
+    {
+     "kind": "early",
+     "text": "supported by two lines of poetry: one about nursing women retreating to a rahwa out of fear (i.e., to high ground), another describing a bird perched atop a rahwa",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "later",
+     "text": "A hadith about the tribe Ghaṭafān calls it \"a rahwa that gushes forth water\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 19906,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a way in or opening into a thing, such as a hole",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-samm or al-summ is a hole in something, as in the Qur'an's \"until the camel passes into the eye (samm) of the needle\"",
+     "note": "samm, once: the eye"
+    },
+    {
+     "kind": "quran",
+     "text": "al-samūm is the hot wind, because it too penetrates bodies with force.",
+     "note": "samūm, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "The Arabs ask, \"How are the sāmma and the ʿāmma?\"",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 14827,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one underlying idea combining beauty, radiance/light, and clarity/purity.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The phrase zahrat ad-dunya means \"the beauty/splendor of the world (worldly life).\"",
+     "note": "zahra, once: splendor"
+    },
+    {
+     "kind": "later",
+     "text": "a hadith in which the Prophet tells Abu Qatada, about a vessel he had given him: izdahir bihi fa-inna lahu sha'nan",
+     "note": "a hadith"
+    }
+   ]
+  }
+ ]
+}
