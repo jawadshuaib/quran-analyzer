@@ -1,0 +1,490 @@
+{
+ "batch": "S28",
+ "entries": [
+  {
+   "entry_id": 9607,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ṭumūs is effacement and obliteration",
+     "note": "Root sense per al-Jawharī"
+    },
+    {
+     "kind": "quran",
+     "text": "the same root sense of obliterating/transforming beyond recognition",
+     "note": "ṭumisat, 5 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 14093,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "as covering two distinct underlying senses",
+     "note": "Two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "The word بَعِير (baʿīr) means \"camel,\"",
+     "note": "بَعِير, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "He supports this with a verse attributed to \"one of the thieves,\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 2637,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "core sense is one thing standing in the place of another",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to change or alter something",
+     "note": "baddala, 23 times"
+    },
+    {
+     "kind": "quran",
+     "text": "to replace something",
+     "note": "yubdila, yastabdil"
+    },
+    {
+     "kind": "early",
+     "text": "the deposing of the commander in favour of the commander",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 8693,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "its core meaning being muteness (khoras)",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-abkam is the mute person, one who does not speak",
+     "note": "أَبْكَم, 6 times"
+    },
+    {
+     "kind": "later",
+     "text": "al-abkam denotes specifically one born mute",
+     "note": "exegetes (tafsīr) reading"
+    }
+   ]
+  },
+  {
+   "entry_id": 5433,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whose core idea is fever and intense heat",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the heart being named for its heat",
+     "note": "فُؤَاد, 16 times"
+    },
+    {
+     "kind": "early",
+     "text": "a verse of poetry picturing a forgotten roasting-spit",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17689,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "width or spaciousness in a thing",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the open, wide gap between two things",
+     "note": "فَجْوَة, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 11975,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense for the root f-q-d: the departure or loss",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "tafaqqada, \"to seek out / look for\"",
+     "note": "تَفَقَّدَ, once"
+    },
+    {
+     "kind": "quran",
+     "text": "to lose a thing",
+     "note": "تَفْقِدُ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19885,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound roots: one indicates holding back and diminution, the other freshness",
+     "note": "Two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "The first instance is ghaḍḍ al-baṣar, lowering the eyes",
+     "note": "يَغُضُّ, 4 times"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth says: \"He has passed from this world with his fill, not diminished (lam yughaḍghaḍ).\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 5422,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whose core notion is a time of day (the morning)",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "both meaning morning/forenoon",
+     "note": "غَدَوٰة, غُدُوّ"
+    },
+    {
+     "kind": "quran",
+     "text": "the daytime meal",
+     "note": "غَدَاء, once"
+    },
+    {
+     "kind": "early",
+     "text": "\"…where they had encamped — and by morning, empty wastes.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17313,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "dying down or going out — khumūd, \"extinguishing/subsiding.\"",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"a hāmid land\" = land bare of any vegetation",
+     "note": "هَامِدَة, once"
+    },
+    {
+     "kind": "early",
+     "text": "\"it was nothing but the swift pace (ṭalaq) of al-ihmād\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17273,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "express a single, unified meaning: haraba (هَرَبَ), \"he fled\"",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "early",
+     "text": "the fixed idiom mā lahu hāribun wa-lā qāribun (مَا لَهُ هَارِبٌ وَلَا قَارِبٌ)",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 1740,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives k-l-m from two separate roots",
+     "note": "Two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "The primary word is kalām (speech)",
+     "note": "كَلَٰم, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "a kalima (\"word\")",
+     "note": "كَلِمَة, 28 times"
+    },
+    {
+     "kind": "quran",
+     "text": "kallama / yukallimu / taklīm (\"to speak to someone,\"",
+     "note": "كَلَّمَ, 20 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 4627,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root whose core meaning is concealing and covering",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to conceal or keep hidden",
+     "note": "كَتَمَ, 21 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"she was the remnant of a herd of enduring camels,\" kutum",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 16839,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "enveloping/wrapping something around oneself, and by extension, sticking closely",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"pressed insistently, would not let up\" (alahha)",
+     "note": "إِلْحَاف, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 16747,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "this root expresses a single, unified meaning",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a nickname or epithet",
+     "note": "أَلْقَٰب, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 1028,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: frightening someone, or being afraid oneself",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a message meant to instill fear",
+     "note": "نَذِير, أَنذَرَ"
+    },
+    {
+     "kind": "quran",
+     "text": "naḏīr) = one who warns (munḏir)",
+     "note": "نَذِير, 58 times"
+    },
+    {
+     "kind": "later",
+     "text": "the fixed compensation set for the head-wound that exposes the bone",
+     "note": "legal phrase"
+    }
+   ]
+  },
+  {
+   "entry_id": 16530,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "reaching completion in the cooking of a thing",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "dates and meat became fully ripe/cooked (nuḍj)",
+     "note": "نَضِجَتْ, once"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry about camels historically overdue",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 6211,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two base meanings: (1) a kind of jewellery, and (2) moisture and wetness",
+     "note": "Two separate origins"
+    }
+   ]
+  },
+  {
+   "entry_id": 15640,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: softness or pliancy, the opposite of ruggedness",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "level, soft ground; the opposite of ḥazn (حَزْن), rugged/rough terrain",
+     "note": "سُهُول, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 10159,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "height that overlooks something, together with a bending or arching over it",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the roof of a house",
+     "note": "سَقْف, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "citing Q 21:32, \"And We made the sky a guarded roof.\"",
+     "note": "Q 21:32"
+    }
+   ]
+  },
+  {
+   "entry_id": 15419,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: al-kabb, \"throwing down\" or \"toppling\"",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"may God throw him down / topple him\"",
+     "note": "تَعْس, once"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry: the poet describes routing an enemy",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 12734,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "impeded or held back to the point that it perishes or is destroyed",
+     "note": "al-Rāghib root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "mawbiq names a barrier or scene of destruction",
+     "note": "مَّوْبِق, once"
+    },
+    {
+     "kind": "quran",
+     "text": "Form IV, \"X destroyed/ruined him/it\"",
+     "note": "يُوبِقْ, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 8997,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-wajal is the inward sensing or feeling of fear",
+     "note": "al-Rāghib root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "wajil (\"fearful, apprehensive\")",
+     "note": "وَجِلُون, وَجِلَة"
+    },
+    {
+     "kind": "quran",
+     "text": "\"whose hearts feel fear (wajilat qulūbuhum) when God is mentioned.\"",
+     "note": "وَجِلَتْ, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19916,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "meaning an opening or a breach",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-khaṣāṣa is destitution",
+     "note": "خَصَاصَة, once"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I singled someone out with something\"",
+     "note": "يَخْتَصُّ, خَاصَّة"
+    },
+    {
+     "kind": "early",
+     "text": "Dhū al-Rumma describes it finding its gap",
+     "note": "Dhū al-Rumma, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 14981,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: to beat or strike something with the hand",
+     "note": "Ibn Fāris root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the baker (khabbāz) \"bakes\" bread (khubz)",
+     "note": "خُبْز, once"
+    },
+    {
+     "kind": "early",
+     "text": "A cited (unattributed) rajaz verse instructing two travelers",
+     "note": "unattributed verse"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,465 @@
+{
+ "batch": "S27",
+ "entries": [
+  {
+   "entry_id": 6325,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the soul's inclining toward something out of appetite or craving for it",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "both eager hope and covetous desire",
+     "note": "ṭamaʿ, 12 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"craving soils the hide\" (al-ṭamaʿu yudannisu l-ihāb)",
+     "note": "proverbs"
+    }
+   ]
+  },
+  {
+   "entry_id": 4838,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "grasping or perceiving a thing and having knowledge of it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to understand or comprehend.",
+     "note": "faqiha, 20 times"
+    },
+    {
+     "kind": "early",
+     "text": "لَا يَفْقَهُ وَلَا يَنْقَهُ",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "later",
+     "text": "the word later became attached specifically to knowledge of the religious law (ʿilm al-sharīʿa)",
+     "note": "later legal narrowing"
+    }
+   ]
+  },
+  {
+   "entry_id": 4554,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives فرح (f-r-ḥ) from two distinct roots.",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "The opposite of grief — joy, gladness.",
+     "note": "fariḥa, rejoice"
+    },
+    {
+     "kind": "later",
+     "text": "the Prophetic saying, \"A mufraḥ is not to be left [unaided] in Islam,\" explained as the person whom debt has weighed down",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 10764,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"boiling\" (ghalayān) — a single root-idea, with everything else derived from it.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the pot boiled/boils",
+     "note": "fāra, boil/gush"
+    },
+    {
+     "kind": "early",
+     "text": "an enemy's \"pot boiling over\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17522,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: slackness/limpness and weakness.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry by Ṭarafah comparing a ship cleaving water to a player dividing sand by hand",
+     "note": "Ṭarafah, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 10680,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "It is used as a command meaning \"hand [something] over.\"",
+     "note": "hāt, 4 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 17323,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core meaning: speed combined with sharpness/intensity.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-halaʿ, glossed as \"something resembling greed/covetousness.\"",
+     "note": "halūʿ, anxious"
+    },
+    {
+     "kind": "quran",
+     "text": "one who becomes agitated and panics quickly",
+     "note": "Ibn al-Sikkīt's report"
+    }
+   ]
+  },
+  {
+   "entry_id": 16876,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: something inferior, undesirable — a thing no one wants.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "became stagnant or unsalable",
+     "note": "kasād, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "\"fa-mājidun wa-kasīd\" — \"one is noble, and one is base\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 16518,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-naḍkh is like al-laṭkh — a smearing or staining action by some substance that leaves a visible trace or mark behind.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿayn naḍḍākha — a spring abundant/plentiful in water.",
+     "note": "naḍḍākhatān, gushing"
+    }
+   ]
+  },
+  {
+   "entry_id": 877,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whose core meaning is bringing good and bestowing it.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "He gave them triumph (ẓafar) over their enemy",
+     "note": "naṣr, victory"
+    },
+    {
+     "kind": "quran",
+     "text": "Taking retribution / avenging oneself — the form intaṣara",
+     "note": "intaṣara, 7 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 13232,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"spreading out / dispersal\" (intishar).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "it fluffs out and spreads apart",
+     "note": "manfūsh, fluffed up"
+    },
+    {
+     "kind": "quran",
+     "text": "camels \"scattering,\" meaning they wander back and forth and disperse at night",
+     "note": "nafashat, pastured"
+    }
+   ]
+  },
+  {
+   "entry_id": 19241,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "stripping one thing away from another and putting it at a distance.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "nafaytu al-shayʾa anfīhi nafyan: I drove the thing away; intafā: it was driven away.",
+     "note": "yunfa, exiled"
+    }
+   ]
+  },
+  {
+   "entry_id": 5226,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whose core sense is disapproving of something and finding fault with it.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to condemn or reject someone's action, to hold it against him.",
+     "note": "naqama, resent"
+    },
+    {
+     "kind": "quran",
+     "text": "punishment and retribution (intiqām).",
+     "note": "intiqām, retribution"
+    }
+   ]
+  },
+  {
+   "entry_id": 9192,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whose core notion is uncovering a thing and stripping it away.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the wind carries something off",
+     "note": "nusifat, blown away"
+    },
+    {
+     "kind": "quran",
+     "text": "demolishing it to the foundations, cutting it out completely.",
+     "note": "nasf, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 16250,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "back-and-forth motion — wavering, coming and going.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "separately used to mean \"refuge\" or \"a place/moment of escape.\"",
+     "note": "manāṣ, escape"
+    }
+   ]
+  },
+  {
+   "entry_id": 12952,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "has a single core meaning — sleep — from which its derivatives branch.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الرُّقَاد (al-ruqād) = sleep. Verb: رَقَدَ رُقُودًا (raqada ruqūdan), \"he slept.\"",
+     "note": "ruqūd, asleep"
+    }
+   ]
+  },
+  {
+   "entry_id": 15793,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "as expressing a single unified idea: abundance or freedom in eating.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "means to eat as much as one wants, without restriction.",
+     "note": "yartaʿ, to enjoy"
+    }
+   ]
+  },
+  {
+   "entry_id": 15219,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "senses do not reduce to a single core meaning; he lists them as separate, unrelated words",
+     "note": "no common sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-wabar - the soft fur/down of camels and similar animals.",
+     "note": "awbār, fur"
+    }
+   ]
+  },
+  {
+   "entry_id": 3350,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the opposite of narrowness (ḍīq) and hardship/straitness (ʿusr)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"the thing became wide, roomy, spacious.\"",
+     "note": "wasiʿa, wāsiʿa"
+    },
+    {
+     "kind": "quran",
+     "text": "what one can manage (al-jida wa-l-ṭāqa)",
+     "note": "wusʿ, capacity"
+    },
+    {
+     "kind": "quran",
+     "text": "abundance/ampleness of means.",
+     "note": "saʿa, ample means"
+    }
+   ]
+  },
+  {
+   "entry_id": 19584,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "something contrary to heaviness and gravity.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the thing became light; it is khafīf or khufāf.",
+     "note": "khaffa, light"
+    },
+    {
+     "kind": "early",
+     "text": "The light youth slips from its saddle-places, and it whips away the garments",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 14942,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core idea: narrowness / constriction (ḍīq).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"to strangle/throttle\" someone: constricting the throat.",
+     "note": "munkhaniqa, strangled"
+    }
+   ]
+  },
+  {
+   "entry_id": 1144,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning fright and alarm.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "One says khiftu al-shayʾa (\"I feared the thing\")",
+     "note": "khāfa, khawf"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I diminished it / took part of it away.\"",
+     "note": "takhawwuf, wasting"
+    }
+   ]
+  },
+  {
+   "entry_id": 5742,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two distinct senses",
+     "note": "two separate senses"
+    },
+    {
+     "kind": "quran",
+     "text": "**Despair — the cutting off of hope** (al-yaʾs)",
+     "note": "yaʾisa, despaired"
+    },
+    {
+     "kind": "early",
+     "text": "Do you not know (tayʾasū) that I am the son of the horseman Zahdam?",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 20426,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a root that indicates lightness in anything",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the people went fast in their journeying.",
+     "note": "yaziffūna, hastening"
+    },
+    {
+     "kind": "quran",
+     "text": "\"so they came toward him, yaziffūna (hastening)\"",
+     "note": "Q 37:94"
+    }
+   ]
+  },
+  {
+   "entry_id": 8271,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: intihār — sharply rebuking or shouting something away.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I shouted at the camel until it moved off\"",
+     "note": "zajra, a shout"
+    },
+    {
+     "kind": "quran",
+     "text": "Restraining a person from something",
+     "note": "muzdajar, deterrence"
+    }
+   ]
+  }
+ ]
+}
