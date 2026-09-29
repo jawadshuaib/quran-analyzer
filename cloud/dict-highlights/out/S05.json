@@ -1,0 +1,650 @@
+{
+ "batch": "S05",
+ "entries": [
+  {
+   "entry_id": 4995,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a set of many words with unrelated origins",
+     "note": "Ibn Fāris: many unrelated origins"
+    },
+    {
+     "kind": "quran",
+     "text": "the form or shape of any created thing",
+     "note": "ṣūra, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-Bāriʾ al-Muṣawwir (the Fashioner, the Shaper)",
+     "note": "muṣawwir, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 14124,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root meaning \"to touch something\" (mass al-shayʾ)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ṭamatha al-rajulu al-marʾata = \"the man touched the woman,\" i.e. had intercourse with her",
+     "note": "yaṭmith, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"whom no man has touched before them, nor jinn\" (Q55:56)",
+     "note": "the entry's gloss of the verse"
+    },
+    {
+     "kind": "early",
+     "text": "In a line of poetry by ʿAdī, \"aw ṭamthi l-ʿaṭan\" (\"or the ṭamth of the pen/fold\")",
+     "note": "ʿAdī, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 891,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: the dividing or partitioning of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Every portion of a thing is a baʿḍ (\"part/some\")",
+     "note": "baʿḍ, 157 times"
+    },
+    {
+     "kind": "quran",
+     "text": "baʿūḍa (\"gnat/mosquito,\" plural baʿūḍ)",
+     "note": "baʿūḍa, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: kallaftanī mukhkha al-baʿūḍ (\"you charged me with the marrow of the gnat\")",
+     "note": "proverb; Ibn Aḥmar, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "raʾaytu ghirbānan yatabaʿḍaḍna (\"I saw crows...\")",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 17952,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: \"rising, height, elevation.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'an 50:10, \"wa-l-nakhla bāsiqāt\" (\"tall palm-trees\"), is glossed simply as ṭawīlāt, \"tall ones.\"",
+     "note": "bāsiqāt, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "\"basaqat al-nakhlah\" — the palm grew tall and reached full height (al-Khalīl)",
+     "note": "verb of the palm growing tall"
+    }
+   ]
+  },
+  {
+   "entry_id": 10777,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "splitting/cleaving something so it opens and separates",
+     "note": "first origin of the root"
+    },
+    {
+     "kind": "core",
+     "text": "something being impressive or momentous in scale",
+     "note": "second origin of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "falaqa = to split or cleave something",
+     "note": "fāliq, falaq: 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-falaq = daybreak/dawn, because the darkness is split apart by it",
+     "note": "falaq, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "infalaqa = it split open (said of a stone, etc.)",
+     "note": "infalaqa, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "The idiom \"so-and-so spoke to me min filqin fihi\" means he spoke to me plainly/openly",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 3492,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two base meanings: (1) severance and cutting-off, and (2) binding/tying a thing",
+     "note": "Ibn Fāris's two base senses"
+    },
+    {
+     "kind": "quran",
+     "text": "the opposite of union or connection",
+     "note": "hajr, the Qur'an's 'avoidance'"
+    },
+    {
+     "kind": "quran",
+     "text": "to leave one abode for another",
+     "note": "hājara, 16 times"
+    },
+    {
+     "kind": "later",
+     "text": "the ḥadīth \"Emigrate, and do not merely play at emigrating\" urges being truly one of them",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 13616,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the exposure or bareness of a thing's outer surface, with nothing covering it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "locusts (well known)",
+     "note": "jarād, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "A proverb for something that vanishes untraceably: \"I don't know which locust-swarm carried it off\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 19889,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a thing's going back and forth, part of it over part, and the repeating of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The verb is lajja, yalajju, with the first-person form lajijtu, \"I persisted\"",
+     "note": "lajja, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The lujj of the sea, or its lujja, is its deepest part (qāmūs)",
+     "note": "lujja, lujjī"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr: \"He turns over and over a morsel with half-cooked meat in it; it has gone rank",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 8481,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "sits close to the semantic field of gleaming and flashing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "also a single plank of a ship's boards (alwāḥ al-safīna)",
+     "note": "lawḥ, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the heat burned and blackened him, so that he stood out visibly from a distance",
+     "note": "lawwāḥa, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "A line of verse illustrates it: \"I watch for a gleam of Suhayl [Canopus]",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 9271,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose core idea is stripping a thing of its outer covering — its rind or the hair growing over it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "denote the defiant, overbearing one",
+     "note": "mārid, marīd: 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "is a tall structure",
+     "note": "mumarrad, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 19453,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the passing on of something",
+     "note": "first root meaning"
+    },
+    {
+     "kind": "core",
+     "text": "the opposite of sweetness and pleasantness",
+     "note": "second root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "marra, yamurru: a thing passed, went on its way",
+     "note": "marra, 10 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The word marra (\"a time\", as in \"I met him once, twice\") is, he explains, just a way of referring to a stretch of time that has gone by",
+     "note": "marra, 19 times"
+    },
+    {
+     "kind": "quran",
+     "text": "a thing became murr, bitter",
+     "note": "amarr, marr"
+    }
+   ]
+  },
+  {
+   "entry_id": 11670,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "firmness/hardness combined with extension and length - something solid that also runs on or reaches far",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "Imru' al-Qays is cited describing two matnas, firm and plump, as the leopard leans on its forearms",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 13307,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core meaning: splitting/rending open (shaqq, fatḥ)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "makharat al-safīnatu al-māʾa — \"the ship makhara'd [cleaved through] the water.\"",
+     "note": "mawākhir, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "(Mawākhir is the plural form later used in the Qur'an for ships that cut through the sea.)",
+     "note": "the entry's note on Qur'anic usage"
+    },
+    {
+     "kind": "early",
+     "text": "A cited rajaz verse applies the same image to women racing in a swim",
+     "note": "unattributed rajaz verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 4603,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the opening out of something and its spreading",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "نَشَرْتُ الْكِتَابَ — \"I spread open the book,\"",
+     "note": "manshūr, 'unrolled'"
+    },
+    {
+     "kind": "quran",
+     "text": "\"God brought the dead back to life and they revived\"",
+     "note": "nushūr, anshara"
+    },
+    {
+     "kind": "quran",
+     "text": "ثُمَّ إِذَا شَاءَ أَنْشَرَهُ (\"then, when He wills, He revives him,\" Q 80:22)",
+     "note": "the entry's gloss of Q 80:22"
+    },
+    {
+     "kind": "early",
+     "text": "a verse of al-Aʿshā marveling at \"the dead man come back to life (al-nāshir).\"",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 11606,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "this root is a sound one, and it points to beauty, comeliness, and purity/clarity",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-naḍra means \"beauty of color\" — a fresh, glowing complexion or hue",
+     "note": "naḍra, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris cites Q75:22: \"Faces, that day, radiant\" (wujūhun yawma'idhin nāḍira), as the model instance of this sense",
+     "note": "nāḍira, 1 time"
+    },
+    {
+     "kind": "later",
+     "text": "the well-known hadith: \"May God make radiant a man who heard my words and preserved them\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 8022,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the half of a thing",
+     "note": "first root"
+    },
+    {
+     "kind": "core",
+     "text": "a kind of service and being put to use",
+     "note": "second root"
+    },
+    {
+     "kind": "quran",
+     "text": "both mean the half of something",
+     "note": "niṣf, 7 times"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of poetry: \"No mudd fed her, nor half a mudd, nor little dates, nor going hungry.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 5058,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: shying away, recoiling, and moving apart",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "an animal (or anything else) shies and bolts",
+     "note": "nufūr, nafara"
+    },
+    {
+     "kind": "quran",
+     "text": "a band/company of men — also from the same core, because they \"rally forth\" (yanfirūn) to give aid",
+     "note": "nafar, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "لَقِيتُهُ قَبْلَ صَيْحٍ وَنَفْرٍ (\"I met him before any cry or bolting\") = very early, before anyone cries out or stirs",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 7971,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core idea is height and elevation",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the she-camel. He offers this as a possible member of the same pattern, the connection being the animal's tall build",
+     "note": "nāqa, 7 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"the male camel became like a she-camel.\" A comparison drawn from the she-camel, used as a proverb",
+     "note": "proverb"
+    },
+    {
+     "kind": "early",
+     "text": "\"خَرْقَاءُ ذَاتُ نِيقَةٍ\" — \"a clumsy woman with fastidious taste.\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 537,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root with a single core idea: the descending of a thing and its coming down or settling into place",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "نَزَلَ الْمَطَرُ مِنَ السَّمَاءِ نُزُولًا (\"the rain came down from the sky\")",
+     "note": "nazala, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "provisions prepared for a lodger/guest",
+     "note": "nuzul, 8 times"
+    },
+    {
+     "kind": "quran",
+     "text": "arranging a thing and setting it in its proper place/rank (manzila)",
+     "note": "tanzīl, 15 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19489,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core meaning: following something step by step, tracking it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "اقْتَصَصْتُ الْأَثَرَ, \"I followed the track,\"",
+     "note": "qaṣṣa, 20 times"
+    },
+    {
+     "kind": "quran",
+     "text": "A story or narration is something followed point by point and then told.",
+     "note": "qaṣaṣ, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the offender has done to him exactly what he did to the first person, so the retaliation \"follows his track.\"",
+     "note": "qiṣāṣ, 4 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 3578,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "swift walking — faster than an ordinary gait but short of an outright run (ʿadw)",
+     "note": "saʿā, 20 times"
+    },
+    {
+     "kind": "quran",
+     "text": "earnest exertion or striving in some matter",
+     "note": "saʿy, 10 times"
+    },
+    {
+     "kind": "quran",
+     "text": "it means the boy grew old enough to pursue and work alongside [his father]",
+     "note": "the entry's gloss of Q 37:102"
+    },
+    {
+     "kind": "early",
+     "text": "most often saʿy is applied to praiseworthy deeds, citing a verse of poetry",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "later",
+     "text": "the ritual walking between al-Ṣafā and al-Marwa",
+     "note": "ritual technical usage"
+    }
+   ]
+  },
+  {
+   "entry_id": 15708,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives three distinct core meanings for the root س-ح-ل (s-ḥ-l)",
+     "note": "Ibn Fāris: three separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "sāḥil (\"shore,\" literally an active-participle shape, \"one that strips\") actually means masḥūl, \"a thing stripped\" — because the water strips/scours it",
+     "note": "sāḥil, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "cited from a line of Zuhayr's poetry, \"of loosely-twisted and tightly-twisted [strands].\"",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 3808,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives this root from the number seven",
+     "note": "root sense: seven"
+    },
+    {
+     "kind": "quran",
+     "text": "\"seven heavens\" (2:29), \"seven mighty ones\" i.e. the seven heavens (78:16)",
+     "note": "sabʿ, 23 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Said to be named for the completeness of its strength, seven being one of the \"perfect numbers.\"",
+     "note": "sabuʿ, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "A verse by a Hudhalī poet (\"as though he were a slave of Abū Rabīʿa's family, musbiʿ\") is read two ways",
+     "note": "Hudhalī poet, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "One view: it means Sūrat al-Fātiḥa, since it has seven verses",
+     "note": "exegetical view on Q 15:87"
+    },
+    {
+     "kind": "later",
+     "text": "The Qurʾān's sūras are called al-mathānī (\"the repeated\") because the narratives are repeated within them",
+     "note": "exegetical explanation of al-mathānī"
+    }
+   ]
+  },
+  {
+   "entry_id": 1600,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: straightness/uprightness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "هذا لا يساوي كذا = \"this does not equal that\"",
+     "note": "sāwā, sawāʾ: equal"
+    },
+    {
+     "kind": "quran",
+     "text": "the middle (of a house, etc.)",
+     "note": "sawāʾ, 27 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Qurʾānic witness: \"then he saw him in the midst (sawāʾ) of the Hellfire\"",
+     "note": "the entry's gloss of Q 37:55"
+    },
+    {
+     "kind": "early",
+     "text": "al-Ḥuṭayʾa's line about a serpent that is \"no equal (bi-siyy) to you.\"",
+     "note": "al-Ḥuṭayʾa, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "\"nor did she turn... to any other than you\"",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 380,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "وقاه الله كلّ سوء = \"God guarded him from every evil\"",
+     "note": "waqā, 16 times"
+    },
+    {
+     "kind": "quran",
+     "text": "to guard oneself, take precaution",
+     "note": "ittaqā, reflexive sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A cited phrase: \"whoever disobeys God, no protectress will guard him from Him.\"",
+     "note": "wāq, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of al-Namir uses tuqā in this sense of self-guarding heedfulness",
+     "note": "al-Namir, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: \"the brave man is protected\" (الشجاع موقّى)",
+     "note": "proverb"
+    }
+   ]
+  }
+ ]
+}
