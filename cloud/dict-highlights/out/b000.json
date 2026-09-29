@@ -1,0 +1,130 @@
+{
+ "batch": "b000",
+ "entries": [
+  {
+   "entry_id": 529,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whatever lies low and faces the sky",
+     "note": "Ibn Fāris's principal origin of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "From the same origin comes al-arḍ, the earth we stand on",
+     "note": "أَرْض, 461 times"
+    },
+    {
+     "kind": "quran",
+     "text": "it never occurs in the plural in the Qurʾān",
+     "note": "the entry's own note on Qur'anic usage"
+    },
+    {
+     "kind": "early",
+     "text": "arḍ arīḍa = soft, good, fertile land (shāhid: Imruʾ al-Qays)",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 259,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "To put or place.",
+     "note": "جَعَلَ, 340 times"
+    },
+    {
+     "kind": "quran",
+     "text": "To make or fashion (ṣanaʿa).",
+     "note": "جَعَلَ, 340 times"
+    },
+    {
+     "kind": "quran",
+     "text": "To transform X into Y (ṣayyara)",
+     "note": "e.g. making the earth a bed"
+    },
+    {
+     "kind": "early",
+     "text": "Abū Zubayd, of a lion that has \"made itself a refuge among the soft papyrus in the thicket.\"",
+     "note": "Abū Zubayd, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "jaʿala means \"We made it plain (bayyannāhu)\"",
+     "note": "an exegete's reading (al-Zajjāj, d. 923)"
+    }
+   ]
+  },
+  {
+   "entry_id": 9722,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root sense of ḥasad is qashr — stripping or peeling off bark",
+     "note": "Ibn al-Aʿrābī, via al-Zabīdī"
+    },
+    {
+     "kind": "quran",
+     "text": "To wish that another's blessing and excellence be transferred to oneself",
+     "note": "حَسَد, حَاسِد"
+    },
+    {
+     "kind": "early",
+     "text": "Shamir b. al-Ḥārith al-Ḍabbī describing jinn who come to his fire; their spokesman says: \"We envy mankind the food\"",
+     "note": "Shamir al-Ḍabbī, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "citing the reply attributed to the Prophet when asked whether ghibṭ does harm",
+     "note": "a sense drawn from a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 2345,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "الضَّعْف (al-ḍaʿf) is the opposite of strength",
+     "note": "first sense: weakness"
+    },
+    {
+     "kind": "core",
+     "text": "ḍiʿf, \"the double / multiple.\"",
+     "note": "second sense: doubling"
+    },
+    {
+     "kind": "quran",
+     "text": "hence al-mustaḍʿafīn = those deemed weak or held down",
+     "note": "ٱسْتَضْعَفُ / مُّسْتَضْعَفُون, 13 times"
+    },
+    {
+     "kind": "quran",
+     "text": "This word is set as the opposite of istikbār (\"arrogant self-magnification\") in Q 34:33",
+     "note": "the Qur'an's own contrast"
+    },
+    {
+     "kind": "quran",
+     "text": "The verbs aḍʿafa, ḍaʿʿafa, ḍāʿafa all = \"to add to a thing its like or more.\"",
+     "note": "يُضَٰعِفُ, 9 times"
+    },
+    {
+     "kind": "early",
+     "text": "A cited verse of poetry (unattributed) uses ḍiʿf al-widd, \"double the affection.\"",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "later",
+     "text": "al-Rāghib argues each of the three ḍaʿf/quwwa refers to a distinct life-stage",
+     "note": "the author's own exegesis of Q 30:54"
+    },
+    {
+     "kind": "later",
+     "text": "On the same principle Ibn ʿAbbās read Q 94:5–6",
+     "note": "a Companion's reading"
+    }
+   ]
+  }
+ ]
+}
