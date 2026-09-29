@@ -5,7 +5,6 @@ import { FormattedText } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 import { wrapArabicRuns } from '../utils/arabic-runs';
-import { HighlightLegend, useHighlightsOn } from './DictionaryHighlight';
 import {
   DICTIONARY_LABELS,
   GUIDE_BASE_PATH,
@@ -99,15 +98,11 @@ function DictionaryCard({
   defaultOpen,
   rootBw,
   grammarTerms,
-  highlightsOn,
-  onToggleHighlights,
 }: {
   item: DictionaryItem;
   defaultOpen: boolean;
   rootBw: string;
   grammarTerms: Record<string, GrammarTerm> | null;
-  highlightsOn: boolean;
-  onToggleHighlights: () => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -199,17 +194,10 @@ function DictionaryCard({
               applied piece by piece, after the reader highlights have been
               found in the raw text, so a term inside a highlight still gets
               its tooltip. */}
-          {item.highlights?.length ? (
-            <HighlightLegend
-              kinds={[...new Set(item.highlights.map((h) => h.kind))]}
-              on={highlightsOn}
-              onToggle={onToggleHighlights}
-            />
-          ) : null}
           <FormattedText
             text={item.harmonized_en}
             segmentTransform={linkifyGrammarTermRefs}
-            marks={highlightsOn ? item.highlights : undefined}
+            marks={item.highlights}
             className="text-sm leading-relaxed text-stone-700"
             highlightRootBw={rootBw}
             grammarTerms={grammarTerms ?? undefined}
@@ -231,7 +219,6 @@ function DictionaryCard({
 export default function DictionaryPanel({ rootBw }: { rootBw: string }) {
   const [data, setData] = useState<RootDictionaries | null>(null);
   const [target, setTarget] = useState<string | null>(hashTarget);
-  const [highlightsOn, toggleHighlights] = useHighlightsOn();
 
   useEffect(() => {
     const onHash = () => setTarget(hashTarget());
@@ -303,8 +290,6 @@ export default function DictionaryPanel({ rootBw }: { rootBw: string }) {
             }
             rootBw={rootBw}
             grammarTerms={grammarTerms}
-            highlightsOn={highlightsOn}
-            onToggleHighlights={toggleHighlights}
           />
         ))}
       </div>
