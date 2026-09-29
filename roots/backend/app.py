@@ -7817,6 +7817,29 @@ _DICTIONARY_PRIORITY = {
 }
 _DICTIONARY_PRIORITY_FALLBACK = 999
 
+# Never opened first while the root has a fuller entry elsewhere: a one-line
+# Qur'an glossary, a modern learner's dictionary, and two abridgements whose
+# sources are on the same page.
+_NEVER_OPEN_FIRST = {
+    "abu-hayyan-al-gharnati-tuhfat-al-arib-bi-ma-fi-l-quran-min-al-gharib",
+    "habib-anthony-salmone-an-advanced-learners-arabic-english-dictionary",
+    "firuzabadi-al-qamus-al-muhit",
+    "zayn-al-din-al-razi-mukhtar-al-sihah",
+}
+# Nor is a stub: an entry a line long, or a short one that only points to
+# another root (Ibn Fāris on ʾ-ḥ-d: "…the origin is wāw: waḥada, and it has
+# been mentioned under wāw").
+_STUB_CHARS = 120
+_POINTER_CHARS = 250
+_POINTER_RE = re.compile(r"وقد (?:ذكر|ذكرت|ذكرناه)|قد مضى ذكره")
+_AR_MARKS_RE = re.compile(r"[ً-ْٰـ]")
+
+
+def _is_stub(ar_len, short_ar):
+    if (ar_len or 0) < _STUB_CHARS:
+        return True
+    return bool(short_ar) and bool(_POINTER_RE.search(_AR_MARKS_RE.sub("", short_ar)))
+
 
 @app.route("/api/root/<root_bw>/dictionaries")
 def get_root_dictionaries(root_bw: str):
@@ -7827,19 +7850,25 @@ def get_root_dictionaries(root_bw: str):
         _ensure_dict_tables(conn)
         rows = conn.execute(
             "SELECT e.id, e.root_arabic, e.dictionary_slug, e.harmonized_en, e.confidence, "
+            "LENGTH(e.original_text_ar) AS ar_len, "
+            "CASE WHEN LENGTH(e.original_text_ar) < ? THEN e.original_text_ar END AS short_ar, "
             "d.name_en, d.name_ar, d.author, d.author_death_year, d.date_approx, d.date_note, d.language, d.is_quran_specific "
             "FROM dictionary_entries e JOIN dictionaries d ON d.slug = e.dictionary_slug "
             "WHERE e.root_buckwalter = ? AND e.review_status = 'approved' "
             "AND COALESCE(e.hidden,0) = 0 AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
             "ORDER BY d.author_death_year ASC, d.sort_order ASC",
-            (root_bw,)).fetchall()
+            (_POINTER_CHARS, root_bw)).fetchall()
         items = [{**_dict_meta(r), "entry_id": r["id"], "harmonized_en": r["harmonized_en"]}
                  for r in rows]
         # The list stays chronological; this only picks which entry starts
         # expanded — the highest-priority work this root actually has, with
-        # ties falling to the oldest (rows are already in that order).
+        # ties falling to the oldest (rows are already in that order), passing
+        # over stubs and the works above while anything fuller exists.
+        openable = [it for it, r in zip(items, rows)
+                    if it["dictionary_slug"] not in _NEVER_OPEN_FIRST
+                    and not _is_stub(r["ar_len"], r["short_ar"])] or items
         default_entry_id = min(
-            items,
+            openable,
             key=lambda it: _DICTIONARY_PRIORITY.get(
                 it["dictionary_slug"], _DICTIONARY_PRIORITY_FALLBACK),
         )["entry_id"] if items else None
