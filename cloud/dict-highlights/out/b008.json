@@ -1,0 +1,765 @@
+{
+ "batch": "b008",
+ "entries": [
+  {
+   "entry_id": 18758,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "qisma ḍīzā (\"a ḍīzā division/share\"): a deficient apportionment, i.e. a share that shortchanges someone",
+     "note": "Ibn Fāris's core sense of the root"
+    },
+    {
+     "kind": "early",
+     "text": "\"so your right is denied [maḍʾūz], and your nose is humbled\"",
+     "note": "unattributed verse (the entry names no poet)"
+    }
+   ]
+  },
+  {
+   "entry_id": 3990,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound bases: (I) a specific number — \"ten\" — which is then extended to other things, and (II) mingling and entering-into",
+     "note": "Ibn Fāris's two origins for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "عَشَرَة \"ten\" (masc.), عَشْر (fem.).",
+     "note": "عَشَرَة / عَشْر, \"ten\", 7x+"
+    },
+    {
+     "kind": "quran",
+     "text": "عَشِير = one who associates with you",
+     "note": "عَشِير, \"friend\", 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "عَشِيرَة (kin-group) is so named from members' mutual association; even a husband is his wife's عَشِير",
+     "note": "عَشِيرَت, \"your kindred\", 3x"
+    },
+    {
+     "kind": "quran",
+     "text": "الْمَعْشَر = any group united in one affair",
+     "note": "مَعْشَر, \"o assembly\", 3x"
+    },
+    {
+     "kind": "early",
+     "text": "(Shāhid: Zuhayr, on long companionship breeding weariness.)",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays: \"the shattered pieces — أَعْشَار — of a slain heart\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "a hadith about women: \"you curse much and are ungrateful to the ʿashīr [companion/husband]\"",
+     "note": "a hadith, used for the sense of ʿashīr"
+    }
+   ]
+  },
+  {
+   "entry_id": 5733,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root meaning darkness and lack of clarity in a thing",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿishāʾ — the first darkness of nightfall",
+     "note": "عِشَاء, \"night\", 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿashiyy — the end of the day (late afternoon/evening)",
+     "note": "عَشِىّ, \"in the evening\", 10x"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr's famous line likens the fates (al-manāyā) to the random trampling of such a night-blind she-camel",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "(shāhid: al-Ḥuṭayʾa, on coming to a generous man's fire)",
+     "note": "al-Ḥuṭayʾa, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 245,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "its words do not follow analogy and cannot be reduced to one underlying meaning",
+     "note": "Ibn Fāris: the root has no one underlying meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "عَذُبَ الْمَاءُ (ʿaḏuba, verbal noun ʿuḏūba) = the water became sweet/pleasant; the adjective is عَذْب (ʿaḏb, \"sweet\")",
+     "note": "عَذْب, \"fresh\", 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "Torment / punishment (al-ʿaḏāb). The verb is عَذَّبَ (ʿaḏḏaba, \"to torment\")",
+     "note": "عَذَاب 322x, عَذَّبَ 41x"
+    },
+    {
+     "kind": "early",
+     "text": "citing Zuhayr (a beast that \"when she fears the ʿaḏāb [the beating] stretches out her back and neck\")",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "a ḥadīth, \"Refrain (aʿḏibū) from the mention of women,\"",
+     "note": "a hadith, for the sense \"desist\""
+    }
+   ]
+  },
+  {
+   "entry_id": 6390,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root ʿ-dh-r has many branches but no single unifying meaning — each cluster stands on its own",
+     "note": "Ibn Fāris: no single unifying meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "a person's attempt, by speech, to set right something for which he has been blamed",
+     "note": "عُذْر, \"justification\", 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "Verb of apologizing: iʿtadhara (\"he made excuse for his sin\"); noun al-maʿdhira.",
+     "note": "يَعْتَذِرُ 5x; مَعْذِرَة 3x"
+    },
+    {
+     "kind": "quran",
+     "text": "\"qālū maʿdhiratan ilā rabbikum\" — \"as an excuse before your Lord\" (7:164)",
+     "note": "the entry on Q 7:164, مَعْذِرَة"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿadhdhara (form II) = to make a show of exerting oneself while actually slacking",
+     "note": "مُعَذِّرُون, \"the ones who make excuses\", 1x"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid from Imruʾ al-Qays: she \"proved hard against me and swore an unbreakable oath.\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Ḥadīth: \"the Jews are the foulest of creatures in ʿadhira,\" i.e. in their courtyard",
+     "note": "a hadith, giving ʿadhira the sense \"forecourt\""
+    }
+   ]
+  },
+  {
+   "entry_id": 20018,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root: holding on to a thing with the teeth",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The primary use is biting with the teeth: ʿaḍiḍtu, aʿaḍḍu (\"I bit, I bite\")",
+     "note": "عَضُّ, \"will bite\", 2x"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aṣmaʿī's proverb, \"You are like one who turns back to the one who bites\"",
+     "note": "proverb, reported by al-Aṣmaʿī"
+    },
+    {
+     "kind": "early",
+     "text": "al-Aʿshā describes choice white camels \"hardened by ʿuḍḍ, by grazing the reserved pasture, and by long barrenness\"",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 14514,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root pointing to a bodily organ, and that this is then used metaphorically for strength and for a helper/supporter",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ʿaḍud is the upper arm (elbow to shoulder)",
+     "note": "عَضُد, \"your arm\", 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "By metaphor, al-ʿaḍd means help/support — \"ʿaḍadtu fulānan\" = \"I supported him.\"",
+     "note": "عَضُد in the sense of support (Q 28:35)"
+    },
+    {
+     "kind": "quran",
+     "text": "The entry cites Qur'an 18:51, \"Nor was I to take the misleaders as a supporter [ʿaḍudan],\"",
+     "note": "the entry on Q 18:51, عَضُد"
+    },
+    {
+     "kind": "early",
+     "text": "A weak or unhelpful person could be mocked as \"the chipped ʿaḍud\" (a Bedouin saying quoted here)",
+     "note": "saying of the Arabs (Bedouin)"
+    },
+    {
+     "kind": "early",
+     "text": "Al-ʿaḍad (different vowel) names a disease of the upper arm/foreleg, illustrated with a verse of al-Nābigha",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth about Medina is quoted: \"its trees are not to be cut [lā yuʿḍad].\"",
+     "note": "a hadith about Medina"
+    }
+   ]
+  },
+  {
+   "entry_id": 14499,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core idea: intensity/hardship combined with twistedness — something that resists being straightened out or resolved",
+     "note": "Ibn Fāris's single core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿAḍaltu l-marʾata / ʿaḍḍaltuhā — to unjustly bar a woman from marrying",
+     "note": "تَعْضُلُ, \"hinder them\", 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "glossing ʿaḍl here as taḥbis — \"restrain/confine,\"",
+     "note": "Ibn Fāris's gloss of ʿaḍl in Q 2:232"
+    },
+    {
+     "kind": "early",
+     "text": "Illustrated by a verse attributed to Dhū l-Iṣbaʿ, who couldn't get his people to pay one wife's dowry",
+     "note": "Dhū l-Iṣbaʿ, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry by Aws describing a plain \"sickened\" and \"constricted\" by a huge host.",
+     "note": "Aws, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "ʿUmar's remark that the people of Kufa had worn him out (aʿḍala bī)",
+     "note": "a Companion's saying (ʿUmar)"
+    }
+   ]
+  },
+  {
+   "entry_id": 18749,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single idea runs through this root — dividing a thing into parts",
+     "note": "the entry's single root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "\"those who made the Qur'an ʿiḍīn.\" Al-Khalīl explains ʿiḍīn as \"portion by portion\" — they split the Qur'an up",
+     "note": "عِضِين, \"(in) parts\", 1x"
+    },
+    {
+     "kind": "early",
+     "text": "\"the religion of God is not something fragmented\" (بِالْمُعَضَّى)",
+     "note": "Ruʾba, Umayyad; the entry names no earlier poet"
+    },
+    {
+     "kind": "later",
+     "text": "\"there is no taʿḍiya in an inheritance\" — meaning one must not divide up an inheritance item that cannot bear division without ruining its value, giving a sword or a pearl as examples.",
+     "note": "a hadith, on dividing an inheritance"
+    }
+   ]
+  },
+  {
+   "entry_id": 9819,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose single idea is BINDING one thing to another — either lengthwise or by wrapping round",
+     "note": "Ibn Fāris's single root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ʿuṣba per al-Khalīl is ten men, and nothing fewer is called that; it is so named because it is \"bound,\" as if tied one to another",
+     "note": "عُصْبَة, \"a group\", 4x"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿUṣba and ʿiṣāba are used of people, birds and horses",
+     "note": "عُصْبَة, \"a group\", 4x"
+    },
+    {
+     "kind": "early",
+     "text": "al-Nābigha: bands of birds circling over armies, guided by other bands",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "quran",
+     "text": "يوم عصيب / يوم عصبصب, a hard day",
+     "note": "عَصِيب, \"distressful\", 1x"
+    },
+    {
+     "kind": "early",
+     "text": "Ḥassān — men are \"people of ʿaṣb and manliness.\"",
+     "note": "Ḥassān, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "those who inherit by kalāla, without parent or child; in the fixed-share system, anyone whose share is not named is ʿaṣaba and takes what remains after the fixed shares",
+     "note": "legal definition (inheritance shares)"
+    }
+   ]
+  },
+  {
+   "entry_id": 8224,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core notion is lightness and speed",
+     "note": "Ibn Fāris's core notion"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿaṣf — chaff and dry plant matter. The husk of straw on the grain",
+     "note": "عَصْف, \"husk\", 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿāṣif — a violent, sweeping wind. Cited from Q 10:22, \"a ʿāṣif wind came upon them,\"",
+     "note": "عَاصِف, \"stormy\", 2x"
+    },
+    {
+     "kind": "early",
+     "text": "\"sweeps away\" a people, as in al-Aʿshā's line about a dense army that carries off armoured and unarmoured men alike",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "some commentators explain ʿaṣf as any crop whose grain has been eaten and whose straw is left",
+     "note": "commentators' reading of ʿaṣf in Q 105:5"
+    }
+   ]
+  },
+  {
+   "entry_id": 6015,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root with a single core idea in three shades: holding back, preventing/withholding, and clinging/adhering",
+     "note": "Ibn Fāris's single root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "iʿtaṣama bi-llāh = he shielded himself [by holding to God]; istaʿṣama = he sought refuge.",
+     "note": "ٱعْتَصَمُ 5x; ٱسْتَعْصَمَ 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "aʿṣamtu fulānan = I gave someone a handhold to cling to.",
+     "note": "the holding sense behind عَاصِم, \"protector\", 3x"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿiṣma also = anything you hold fast to",
+     "note": "ٱعْتَصَمُ, \"hold fast\", 5x"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid: al-Nābigha — the frightened sailor clings to the rudder-pole in dread and thunder.",
+     "note": "al-Nābigha, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 9805,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "three separate sound roots: (1) an age or stretch of time; (2) squeezing something until its liquid runs out; (3) clinging to something and taking hold of it for protection",
+     "note": "Ibn Fāris: three separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿaṣr = time, an age (dahr). Cited from the Qur'an: \"By al-ʿaṣr, man is indeed in loss\" (103:1)",
+     "note": "عَصْر, \"by the time\", 1x"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays: \"Good morning to you, O worn ruin — but can one greet with good morning a man of the ages gone by?\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿuṣāra = what runs out of a thing you press; the same as ʿaṣīr (pressed juice)",
+     "note": "يَعْصِرُ, \"pressing\", 2x"
+    },
+    {
+     "kind": "early",
+     "text": "Aws: \"There is no recovery from Ḍabbāʾ while oil is still pressed.\"",
+     "note": "Aws, pre-Islamic"
+    },
+    {
+     "kind": "quran",
+     "text": "al-muʿṣirāt = clouds that bring rain — \"And We sent down from the muʿṣirāt water pouring forth\" (78:14)",
+     "note": "مُعْصِرَٰت, \"the rain clouds\", 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "iʿṣār = dust rising in a circling column (whirlwind); plural aʿāṣīr",
+     "note": "إِعْصَار, \"whirlwind\", 1x"
+    },
+    {
+     "kind": "later",
+     "text": "He also cites a ḥadīth in which \"keep to the two ʿaṣrs\" is explained as a prayer before sunrise and one before sunset",
+     "note": "a hadith, on the two ʿaṣr prayers"
+    },
+    {
+     "kind": "later",
+     "text": "\"And in it they yaʿṣirūn\" (12:49) was explained as \"they draw produce from their lands\"",
+     "note": "an exegetical reading of Q 12:49"
+    }
+   ]
+  },
+  {
+   "entry_id": 19658,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "its origin is resisting or holding out with one's staff",
+     "note": "al-Rāghib's derivation of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ʿaṣā is a staff or stick",
+     "note": "عَصَا, \"your staff\", 10x"
+    },
+    {
+     "kind": "quran",
+     "text": "\"So-and-so cast down his staff\" means he halted and settled",
+     "note": "عَصَا in its ordinary idiom"
+    },
+    {
+     "kind": "early",
+     "text": "A poet says: \"so she cast down her staff, and her destination settled with her.\"",
+     "note": "unattributed verse (the entry names no poet)"
+    }
+   ]
+  },
+  {
+   "entry_id": 19466,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root sense of al-ʿaṣā is gathering and concord",
+     "note": "Abū ʿUbayd, quoted for the root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Defined as the opposite of obedience. ʿaṣā al-ʿabdu rabbahu: the servant disobeyed his Lord, going against His command.",
+     "note": "عَصَا, \"they disobeyed\", 27x"
+    },
+    {
+     "kind": "quran",
+     "text": "Verbal nouns ʿaṣy, ʿiṣyān, maʿṣiya; the doer is ʿāṣin or ʿaṣiyy; ʿāṣāhu means the same",
+     "note": "مَعْصِيَت 2x; عَصِيّ 2x; عِصْيَان 1x"
+    },
+    {
+     "kind": "early",
+     "text": "\"Soft of staff\" or \"weak of staff\" describes a gentle manager who rarely beats his animals, which is praise (Ibn al-Aʿrābī); verses of Maʿn ibn Aws and al-Rāʿī illustrate it",
+     "note": "Maʿn ibn Aws, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "\"The staff is from the little staff\" (al-Aṣmaʿī, on a son resembling his father)",
+     "note": "proverb, reported by al-Aṣmaʿī"
+    },
+    {
+     "kind": "later",
+     "text": "\"Do not lift your staff from your family\", al-Kisāʾī and others say no literal staff or beating is meant: it is a figure for not neglecting their discipline",
+     "note": "a hadith, read figuratively by al-Kisāʾī"
+    },
+    {
+     "kind": "later",
+     "text": "\"Were it not that we disobey God, He would not 'disobey' us\": that is, He would not withhold His answer",
+     "note": "a saying, glossing ʿiṣyān as withholding"
+    }
+   ]
+  },
+  {
+   "entry_id": 18740,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Ibn Fāris states this root has one single sound sense: bending and curving",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The two sides of a person are called al-ʿiṭfān because a person leans on them",
+     "note": "عِطْف, \"his neck/side\", 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "the idiom thanā ʿiṭfahu, \"he bent his side\" — said of someone who turned away from you and treated you with coldness/disdain",
+     "note": "عِطْف in Q 22:9, thāniya ʿiṭfihi"
+    },
+    {
+     "kind": "early",
+     "text": "a line of the poet Labīd using ʿāṭif in exactly this sense — \"one who folds the cushion\"",
+     "note": "Labīd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 14485,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "emptiness, vacancy — something left devoid or unattended",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"ʿuṭṭilat al-dāru\" — a house left empty, abandoned.",
+     "note": "عُطِّلَتْ / مُّعَطَّلَة, \"left untended\""
+    },
+    {
+     "kind": "quran",
+     "text": "\"an abandoned well\" (Q22:45), and \"when the ten-months-pregnant she-camels are left untended\" (Q81:4)",
+     "note": "مُّعَطَّلَة (Q 22:45); عُطِّلَتْ (Q 81:4)"
+    }
+   ]
+  },
+  {
+   "entry_id": 5724,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound meaning: taking, and handing or passing something over",
+     "note": "Ibn Fāris's single root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿaṭāʾ (العَطاء) — a noun for the thing given",
+     "note": "عَطَاء, \"the gift\", 5x"
+    },
+    {
+     "kind": "quran",
+     "text": "the sense of \"giving\" is derived from this root of reaching/handing",
+     "note": "أَعْطَىٰ, \"they are given\", 8x"
+    },
+    {
+     "kind": "quran",
+     "text": "taʿāṭī (التعاطي) — a narrowed, negative use: taking or reaching for what one has no right to",
+     "note": "تَعَاطَىٰ, \"and he took\", 1x"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays uses the verb taʿṭū of a woman reaching out with soft fingers",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 1092,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root meaning largeness and strength",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the verbal noun (maṣdar) of al-ʿaẓīm (\"the great/mighty thing\")",
+     "note": "عَظِيم, \"great\", 120x"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿaẓm — \"bone,\" which he says belongs to this root",
+     "note": "عَظْم, \"my bones\", 2x"
+    }
+   ]
+  },
+  {
+   "entry_id": 18727,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a coming-together under weight — things gathered up in a way that makes them heavy or bulky",
+     "note": "Ibn Fāris's one core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "the idiom mā ʿabaʾtu bihi shayʾan (\"I gave it no ʿabʾ at all\") means \"I didn't care about it\"",
+     "note": "يَعْبَؤُا, \"will care\", 1x"
+    },
+    {
+     "kind": "early",
+     "text": "Cited verse: a poet speaks of \"bearing the load off the necks of my people.\"",
+     "note": "unattributed verse (the entry names no poet)"
+    }
+   ]
+  },
+  {
+   "entry_id": 519,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound but seemingly opposite roots: one meaning softness and lowliness, the other strength and hardness",
+     "note": "Ibn Fāris: two opposite origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿabd = an owned person (al-mamlūk)",
+     "note": "عَبْد, \"his slaves\", 131x"
+    },
+    {
+     "kind": "quran",
+     "text": "common usage separates ʿibād Allāh (\"servants of God\") from al-ʿabīd (\"owned slaves\")",
+     "note": "عِبَاد / عَبِيد, the ordinary usage"
+    },
+    {
+     "kind": "quran",
+     "text": "taʿabbada X (\"he made X like a slave to himself, though X was free\")",
+     "note": "عَبَّد, \"you have enslaved\", 1x"
+    },
+    {
+     "kind": "early",
+     "text": "cited from Ṭarafa's line about being cast out like a tarred camel",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "an interpretation of Q 43:81, {…fa-anā awwalu l-ʿābidīn}, as \"I am the first to be angered by / to disdain such a claim\"",
+     "note": "a reported exegesis of Q 43:81"
+    },
+    {
+     "kind": "later",
+     "text": "a saying attributed to ʿAlī, ʿabidtu fa-ṣamattu (\"I was angered, so I kept silent\")",
+     "note": "a saying attributed to ʿAlī"
+    }
+   ]
+  },
+  {
+   "entry_id": 18705,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "anything unusually excellent or extraordinary — a person, an animal, or a piece of cloth — used to be attributed to it",
+     "note": "the sense the entry gives ʿabqarī"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿabqariyy denotes a kind of furnishing or carpet",
+     "note": "عَبْقَرِىّ, \"carpets\", 1x"
+    },
+    {
+     "kind": "later",
+     "text": "the saying arose about the caliph ʿUmar: I have not seen an ʿabqarī like him",
+     "note": "a report about the caliph ʿUmar"
+    }
+   ]
+  },
+  {
+   "entry_id": 7487,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core idea is passing through something and going on across it",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "عَابِر سَبِيل is one who is merely passing through",
+     "note": "عَابِرِى, \"passing\", 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "عَبَرَ الرُّؤْيَا (verbal nouns عَبْر, عِبَارَة) and عَبَّرَ (تَعْبِير) mean to explain it",
+     "note": "تَعْبُرُ, \"interpret\", 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "اعْتِبَار and عِبْرَة (taking heed). He proposes that both come from the two facing banks of a river",
+     "note": "عِبْرَة 6x; ٱعْتَبِرُ 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "al-Khalīl's definition of عِبْرَة as drawing a lesson from what has passed",
+     "note": "al-Khalīl's definition of عِبْرَة"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays: \"my cure is a flow of tears, if I pour it out — yet is there at an effaced camp-trace anything to lean on?\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "reads Q 59:2 \"So take heed, O you possessed of insight\" accordingly: look at those who acted and were punished",
+     "note": "the author's own exegesis of Q 59:2"
+    }
+   ]
+  },
+  {
+   "entry_id": 12256,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose core notion is aversion or repugnance toward something",
+     "note": "Ibn Fāris's core notion"
+    },
+    {
+     "kind": "quran",
+     "text": "al-yawm al-ʿabūs, \"the scowling day,\" meaning a day that is harsh and repellent",
+     "note": "عَبُوس, \"harsh\", 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "the verb ʿabasa / yaʿbisu / ʿubūs — to scowl",
+     "note": "عَبَسَ, \"he frowned\", 2x"
+    },
+    {
+     "kind": "later",
+     "text": "camels were passed by that had become \"ʿabasat\" — crusted over in their own urine.",
+     "note": "a hadith, for the concrete sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 14471,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root with a single core meaning: mixing (al-khalṭ)",
+     "note": "Ibn Fāris's single core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "the word \"al-ʿabath\" came to denote an action done without evenness or soundness",
+     "note": "عَبَث, \"uselessly\", 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "glosses ʿabathan here as laʿiban (\"in play/sport,\" i.e., without purpose).",
+     "note": "Ibn Fāris's gloss of ʿabathan in Q 23:115"
+    }
+   ]
+  }
+ ]
+}

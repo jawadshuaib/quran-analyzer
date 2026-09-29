@@ -1,0 +1,645 @@
+{
+ "batch": "b006",
+ "entries": [
+  {
+   "entry_id": 3117,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "four basic senses: (1) slowness and its kin (forbearance, deliberation); (2) an hour of time; (3) a thing's reaching or ripening; (4) a vessel",
+     "note": "Ibn Faris's four origins of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-inā / al-anā is an hour, especially of the night; plural ānāʾ",
+     "note": "ءَانَاء, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ināʾ (with long final alif) is a container, from al-āniyah (vessels)",
+     "note": "ءَانِيَة, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "lam yaʾni laka = \"the time has not come for you\"",
+     "note": "يَأْنِ, cited from al-Hadid 16"
+    },
+    {
+     "kind": "early",
+     "text": "al-Nābigha: \"deliberation is felicity — proceed deliberately and you will succeed\"",
+     "note": "al-Nabigha, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "the Prophet's words to a man who climbed over people on Friday — «you caused harm (ādhayta) and delayed (ānayta)» — glossed as \"you came late and were slow\"",
+     "note": "a hadith, glossed for the sense \"to be slow\""
+    }
+   ]
+  },
+  {
+   "entry_id": 14600,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "four core senses, from which all its derived words branch out",
+     "note": "Ibn Faris's statement of the root's origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-arab means \"need\" (al-Khalīl): \"mā arabuka ilā hādhā\" — \"what do you need this for?\"",
+     "note": "إِرْبَة / مَـَارِب, the sense of need"
+    },
+    {
+     "kind": "quran",
+     "text": "The nouns maʾraba, maʾruba, and irba likewise all mean \"need.\"",
+     "note": "مَـَارِب, 1 time; إِرْبَة, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "The entry cites Qur'an 24:31, {ghayri ulī l-irbati min al-rijāl} (\"...those among men who have no irba...\"), as an instance of this sense",
+     "note": "إِرْبَة, placed under \"need\""
+    },
+    {
+     "kind": "early",
+     "text": "the proverb \"arabun lā ḥafāwatun\" (\"need, not warm regard\"): said of someone whose visit is prompted by need rather than affection",
+     "note": "proverb, for the sense the Qur'an uses"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a verse of Qays on growing skilled at repelling war",
+     "note": "Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "cited in a ḥadīth: \"muʾārabatu l-arībi jahlun\" — \"to try to outwit the shrewd man is folly.\"",
+     "note": "a hadith, for al-muʾaraba"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth uses irb for \"limb\": \"kāna amlakakum li-irbihi\" — \"most in command of his own body/limbs.\"",
+     "note": "a hadith, for irb as \"limb\""
+    }
+   ]
+  },
+  {
+   "entry_id": 9844,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Ibn Fāris treats أ-ر-ك as two independent roots, from which everything else branches",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "the couch or bed set inside the curtained canopy (ḥajala) is called أَرِيكَة (arīka), plural أَرَائِك (arāʾik)",
+     "note": "أَرَائِك, 5 times"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid from Abū Dhuʾayb on choosing \"the milk of the ārikāt in summer.\"",
+     "note": "Abu Dhuʾayb, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth is cited in which the Prophet was brought, at ʿArafa, the milk of awārik camels.",
+     "note": "a hadith, cited for awarik camels"
+    }
+   ]
+  },
+  {
+   "entry_id": 9832,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core notion is something being missed or lost",
+     "note": "Ibn Faris's root sense (fawt)"
+    },
+    {
+     "kind": "quran",
+     "text": "to grieve or feel bitter regret over something",
+     "note": "أَسِف / أَسَف, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الأَسِف means \"the angry one.\"",
+     "note": "ءَاسَفُ, \"they angered us\""
+    },
+    {
+     "kind": "early",
+     "text": "al-Aʿshā describing \"a man of them asīf, as though pressing to his flanks a hand dyed [red]\"",
+     "note": "al-Aʿsha, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 18895,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Two distinct roots:",
+     "note": "the entry gives two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "asina al-māʾ — water changes/spoils (becomes stale)",
+     "note": "ءَاسِن, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "\"min māʾin ghayri āsin\" — \"from water unaltered [in taste or smell]\"",
+     "note": "ءَاسِن, Muhammad 47:15"
+    }
+   ]
+  },
+  {
+   "entry_id": 8852,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "confining, holding fast, restraining",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "anyone taken/seized was called أَسِير even if he was not actually tied up",
+     "note": "أَسِير, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "poetry \"has fettered me in its bayt (house/verse) as the binding cords fetter the wild ass.\"",
+     "note": "al-Aʿsha, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 12300,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "the foundation or base of a built thing",
+     "note": "أَسَّسَ, 3 times: the concrete sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"he built his house on its original foundation\" (أساس)",
+     "note": "أَسَّسَ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"Whoever does not found (yuʾassis) his dominion on justice has already demolished it\"",
+     "note": "the verb the Qur'an uses, yuʾassis"
+    }
+   ]
+  },
+  {
+   "entry_id": 8241,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning to treat/heal and to set right",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "لِي فِي فُلَانٍ أُسْوَةٌ = \"so-and-so is a قُدْوَة (qudwa) for me,\" i.e. \"I model myself on him.\"",
+     "note": "أُسْوَة, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"They are the ones who treat the umm al-raʾs [deep head wound] when the physicians and the healers passed it off on one another\"",
+     "note": "al-Hutayʾa, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 150,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"to come.\" أَتَانِي فُلَانٌ = \"so-and-so came to me.\"",
+     "note": "Ibn Faris's core sense of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "الإِيتَاء = \"giving\" (آتَى يُؤْتِي إِيتَاءً)",
+     "note": "اتَى \"were given\", 271 times; إِيتَاءٌ, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "A line of al-Nābigha is cited, with two interpretations of أَتِيّ (the watercourse of a tent-trench, or the debris damming it)",
+     "note": "al-Nabigha, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Cited verses (including Labīd) use تَأْتَى as a lightened form of تَأَتَّى.",
+     "note": "Labid, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "the ḥadīth of Thābit b. al-Daḥdāḥ, «إنما هو أتيٌّ فينا» (\"he is only a newcomer among us\")",
+     "note": "a hadith, for atiyy as \"newcomer\""
+    }
+   ]
+  },
+  {
+   "entry_id": 18883,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root/origin of a thing, and its accumulation.",
+     "note": "Ibn Faris's one core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "al-athl — a literal tree, described by al-Khalīl (resembling tamarisk, but larger, with better wood used for fine cups)",
+     "note": "أَثْل, 1 time, \"and tamarisks\""
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry by al-Aʿshā daring an opponent to keep trying and failing to harm him",
+     "note": "al-Aʿsha, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 2480,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "slowness and lagging behind",
+     "note": "Ibn Faris's single core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the person who bears sin is one who is \"slow toward the good and lags behind it.\"",
+     "note": "إِثْم, 35 times"
+    },
+    {
+     "kind": "quran",
+     "text": "أَثِيمٌ (athīm) and أَثُومٌ (athūm) describe a man deeply given to sin.",
+     "note": "أَثِيم, 7 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"when the lagging she-camels belie the midday heat\"",
+     "note": "al-Aʿsha, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Some transmit from al-Akhfash that al-ithm means wine (khamr), reading Qurʾān 7:33 (\"...and al-ithm\") accordingly",
+     "note": "al-Akhfash's reading of Q 7:33; Ibn Faris doubts it"
+    }
+   ]
+  },
+  {
+   "entry_id": 4724,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "(1) giving something precedence, (2) mentioning or reporting something, and (3) the lasting mark or trace a thing leaves behind",
+     "note": "Ibn Faris's three fundamental meanings"
+    },
+    {
+     "kind": "quran",
+     "text": "الأَثَر: the visible remnant of anything, or the lingering residue of what is not seen",
+     "note": "أَثَر, 14 times"
+    },
+    {
+     "kind": "quran",
+     "text": "آثَرْتُهُ إِيثَارًا, \"I preferred him,\"",
+     "note": "اثَرَ \"you prefer\", 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الأَثَارَة = a remnant of a thing (plural أَثَارَات), as in {أَوْ أَثَارَةٍ مِنْ عِلْمٍ} \"or a remnant/trace of knowledge\" (46:4)",
+     "note": "أَثَٰرَة, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "Cited in a line of ʿUrwa b. al-Ward.",
+     "note": "ʿUrwa b. al-Ward, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: «تدع العين وتطلب الأثر» — leaving the spring for the track, i.e. forsaking ease for hardship.",
+     "note": "proverb, for athar as \"track\""
+    },
+    {
+     "kind": "later",
+     "text": "Ḥadīth: «سَتَرَوْنَ بَعْدِي أَثَرَةً» — \"you will see people take the spoils (fayʾ) for themselves.\"",
+     "note": "a hadith, for athara as self-preference"
+    },
+    {
+     "kind": "later",
+     "text": "ʿUmar's ḥadīth «ما حلفت بعدها آثِرًا ولا ذاكِرًا»: آثِر = reporting another's oath",
+     "note": "a hadith of ʿUmar, for athir as \"reporting\""
+    }
+   ]
+  },
+  {
+   "entry_id": 14583,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "abundance, bulk. Al-athāth, al-athāthah, al-uthūth all denote abundance/largeness \"of anything.\"",
+     "note": "the entry's core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-athāth = wealth, goods, household furnishings.",
+     "note": "أَثَٰث, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the Qur'anic phrase \"athāthan wa ri'yā\" (19:74) is glossed by al-Farrāʾ and Abū Zayd simply as matāʿ, \"goods/furnishings\"",
+     "note": "أَثَٰث, Q 19:74"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays uses it of hair, comparing it to a date-palm cluster heavy with fruit.",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 5298,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: returning (rujūʿ)",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-maʾāb = the place of return.",
+     "note": "مَـَاب, 9 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-taʾwīb also = glorifying/praising (tasbīḥ), which Ibn Fāris links to the Qurʾanic \"O mountains, echo/return [praise] with him, and the birds\" (Saba 34:10)",
+     "note": "أَوِّبِ, 1 time, Q 34:10"
+    },
+    {
+     "kind": "quran",
+     "text": "iyāb just means returning at any time (قد آب المسافر = the traveller has returned)",
+     "note": "إِيَاب, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "citing ʿAbīd's line \"every absent one returns…\"",
+     "note": "ʿAbid, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 18869,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "bending and curving.",
+     "note": "Ibn Faris's one core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "ādanī al-shayʾu yaʾūdunī — an idiom for something weighing heavily on you",
+     "note": "يَـُودُ, 1 time, \"tires him\""
+    }
+   ]
+  },
+  {
+   "entry_id": 14579,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the letters hamza-waw-ha do not form a true triliteral root",
+     "note": "the entry denies the root a common sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ta'awwaha means \"he uttered a sigh,\" specifically by saying \"awwah\" or \"awhi\"",
+     "note": "أَوَّٰه, 2 times: the base sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Faris glosses awwah as ad-Da'daa' - one who supplicates/invokes (God) frequently",
+     "note": "أَوَّٰه, 2 times, Q 9:114"
+    }
+   ]
+  },
+  {
+   "entry_id": 751,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two base ideas: (1) the beginning of a matter, and (2) its end / return",
+     "note": "Ibn Faris's two origins of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "أَوَّل (awwal) is the outset of a thing.",
+     "note": "أَوَّل, 82 times"
+    },
+    {
+     "kind": "quran",
+     "text": "آل الرجل = a man's household/kin, because their destination is to him and his to them",
+     "note": "ءَال, 26 times"
+    },
+    {
+     "kind": "quran",
+     "text": "تَأْوِيل of speech = its outcome, what it \"comes back to.\"",
+     "note": "تَأْوِيل, 17 times"
+    },
+    {
+     "kind": "early",
+     "text": "the sense of the vocative يَالَ فُلَان (\"O people of…\", shāhid, Ṭarafa)",
+     "note": "Tarafa, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris reads Q 7:53 {هل ينظرون إلا تأويله} as \"what it comes to at the resurrection,\"",
+     "note": "the author's own exegesis of Q 7:53"
+    }
+   ]
+  },
+  {
+   "entry_id": 3106,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "(1) gathering / coming together, and (2) tenderness / compassion",
+     "note": "Ibn Faris's two base meanings"
+    },
+    {
+     "kind": "quran",
+     "text": "أَوَى (awā): a person betakes himself to his dwelling",
+     "note": "أَوَى, 5 times; ءَاوَىٰ, 9 times"
+    },
+    {
+     "kind": "quran",
+     "text": "المأوى (al-maʾwā): the place to which anything betakes itself or takes shelter",
+     "note": "مَأْوَىٰ, 22 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19221,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the core of akhadha is taking possession of a thing: gathering it in and collecting it",
+     "note": "Ibn Faris's one root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "al-Khalīl defines akhdh as the opposite of giving, that is, taking hold of something.",
+     "note": "أَخَذَ, 127 times"
+    },
+    {
+     "kind": "early",
+     "text": "a line by ʿAdī ibn Zayd describing rain, recited by Abū ʿUbayd and others, in which the pools are \"not sparing with the ikhādh\"",
+     "note": "ʿAdi ibn Zayd, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Masrūq ibn al-Ajdaʿ's comparison of the companions of Muḥammad to such pools",
+     "note": "a saying of Masruq b. al-Ajdaʿ"
+    }
+   ]
+  },
+  {
+   "entry_id": 391,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the opposite of precedence or coming-forward",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ākhir (\"the last, the latter\") is the contrary of \"the one going before,\"",
+     "note": "اخِر, 155 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ukhar is the plural of the feminine ukhrā (\"others\")",
+     "note": "اخَر \"another\", 70 times"
+    },
+    {
+     "kind": "early",
+     "text": "the cited line \"I am the one born in the rear of the camels\" (ukhrā al-ibil)",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 1453,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "\"brother.\" أَخ (akh, brother); dual أَخَوان (akhawān, two brothers); plurals إِخوة (ikhwa) and إِخوان (ikhwān)",
+     "note": "أَخ, 75 times; إِخْوَةٌ, 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The feminine of akh is أُخْت (ukht, sister)",
+     "note": "أُخْت, 14 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 6731,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two linked ideas: strength and protection",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The verb أَيَّدَهُ (ayyadahu) means \"he strengthened him\"",
+     "note": "أَيَّدَ, 9 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 18857,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "three unrelated meanings: smoke, the snake, and the spouseless person",
+     "note": "Ibn Faris gives the root three origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ayyim is a woman without a husband, or a man without a wife.",
+     "note": "أَيَٰمَىٰ, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris cites the Qur'an, \"And marry off the ayāmā among you\" (Q24:32), as the attestation.",
+     "note": "أَيَٰمَىٰ, Q 24:32"
+    },
+    {
+     "kind": "early",
+     "text": "The poet Abū Dhuʾayb pictures a beekeeper smoking out a hive",
+     "note": "Abu Dhuʾayb, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 531,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root ʾ-y-y (hamza–yāʾ–yāʾ) from two distinct origins",
+     "note": "Ibn Faris's two origins of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "From this second origin comes آية = a sign or mark (علامة).",
+     "note": "ءَايَة, 382 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris explains آية القرآن (a Qurʾānic āya) as \"a group of letters\"",
+     "note": "ءَايَة, the Qur'anic aya"
+    },
+    {
+     "kind": "early",
+     "text": "تَأَيَّيْتُ [الأمرَ] = \"you waited for the moment it became possible\" (with a verse of ʿAdī)",
+     "note": "ʿAdi, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 12295,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: **nearness, drawing close**",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "أَزِفَ الرَّحِيلُ — \"the departure has drawn near,\" i.e. it has come close.",
+     "note": "أَزِفَتِ, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Qur'an 53:57, {أَزِفَتِ الْآزِفَةُ} (\"the Impending has drawn near\")",
+     "note": "ءَازِفَة, 2 times, Q 53:57"
+    },
+    {
+     "kind": "early",
+     "text": "describing a youth \"cut to the cut of a sword — not *mutaʾāzif*, nor flabby in chest and shoulder-flesh,\"",
+     "note": "the mother of Yazid b. al-Tathriyya, Umayyad; no earlier witness"
+    },
+    {
+     "kind": "later",
+     "text": "glosses الآزفة as the Resurrection",
+     "note": "the author's own exegesis of Q 53:57"
+    }
+   ]
+  }
+ ]
+}

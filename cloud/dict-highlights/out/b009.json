@@ -1,0 +1,775 @@
+{
+ "batch": "b009",
+ "entries": [
+  {
+   "entry_id": 19391,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Units put together, or the putting together of units; al-Rāghib says the two definitions are the same.",
+     "note": "al-Raghib's definition of al-'adad, the root's base sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Joining numbers one to another.",
+     "note": "عَدَّ, 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "A thing that is \"counted and enumerated\" (maʿdūd) is few",
+     "note": "مَّعْدُودَة, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"We have not made their number\" (Q 74:31) means their count.",
+     "note": "عِدَّة, 11 times (Q 74:31)"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I made this ready for you\" means \"I placed it so that you can count on it and take it as you need it.\"",
+     "note": "أَعَدَّ, 20 times"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Rāghib defines it as the days after which it becomes lawful for her to marry.",
+     "note": "a legal definition of a woman's 'idda"
+    },
+    {
+     "kind": "later",
+     "text": "Some jurists instead count the day of sacrifice and the two days after it as the \"counted days\".",
+     "note": "a legal (fiqh) opinion"
+    }
+   ]
+  },
+  {
+   "entry_id": 3862,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "FIRST ROOT — evenness, equality, straightness",
+     "note": "the first of Ibn Faris's two roots"
+    },
+    {
+     "kind": "core",
+     "text": "SECOND ROOT — crookedness/deviation",
+     "note": "the second root"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿadl = one who is approved and straight in conduct; upright.",
+     "note": "عَدْل, 14 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿadl = judging by equity, deciding evenly.",
+     "note": "عَدَلَ, 14 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the mushrik who yaʿdilu bi-rabbihi — treating another as equal to his Lord.",
+     "note": "the entry's reading of the Qur'an's ya'dilun bi-rabbihim"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of Zuhayr uses ʿadl of trusted arbiters who are \"accepted, and just.\"",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 18701,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "has no single underlying sense that unifies its uses",
+     "note": "Ibn Faris: no one sense unites the root"
+    },
+    {
+     "kind": "quran",
+     "text": "the well-known legume — lentils — is called \"ʿadas.\"",
+     "note": "عَدَس, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "\"When I load my gear upon ʿadas,\" where \"ʿadas\" stands for the female mule herself",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 1318,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose whole family turns on a single idea: going beyond something, overstepping the limit at which one ought to stop",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Going past one's proper bounds.",
+     "note": "ٱعْتَدَىٰ 15x, عُدْوَٰن 8x"
+    },
+    {
+     "kind": "quran",
+     "text": "The ʿādī is one who assaults people wrongfully (ẓulman wa-ʿudwānan).",
+     "note": "عَاد, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Derived from the same root; the one form serves singular, dual, and plural.",
+     "note": "عَدُوّ, 50 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Cited with Qurʾān 26:77 (Abraham: \"they are an enemy to me, except the Lord of the Worlds\")",
+     "note": "the entry's citation of Q 26:77"
+    },
+    {
+     "kind": "early",
+     "text": "Cited with Zuhayr, where a distraction (ʿadāʾ) kept the poet from his beloved.",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "felling one after the other (cited with Imruʾ al-Qays)",
+     "note": "Imru' al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "cited with the ḥadīth \"No ʿadwā, and nothing transmits [disease] to anything.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 19871,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "refraining from what is foul, and the scantness of something",
+     "note": "Ibn Faris's two root senses"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿiffa is refraining from what is not fitting.",
+     "note": "يَسْتَعْفِفْ 3x, تَّعَفُّف 1x"
+    }
+   ]
+  },
+  {
+   "entry_id": 18691,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Al-ʿufra names a color: dust-gray shading into red. From this, plain earth/soil itself is called al-ʿafar.",
+     "note": "sense 1, the dust-red sense the entry traces others back to"
+    },
+    {
+     "kind": "quran",
+     "text": "A strong, bold, or cunningly wicked man is \"ʿifr\" — hence \"shayṭānun ʿifriyatun / ʿifrītun\" (a devilish, formidable one)",
+     "note": "عِفْرِيت, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "Cited in verse by al-Aʿshā, both for the tree/fire-sticks and possibly as the origin of the woman's name \"ʿAfāra\"",
+     "note": "al-A'sha, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by a verse of Labīd about an abandoned/intermittently-fed fawn",
+     "note": "Labid, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth about Hilāl b. Umayya using \"ʿaffarnā\" is connected to palm-pollination (al-ʿafār).",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "a ḥadīth condemning God's dislike of such a person",
+     "note": "a hadith, via Abu 'Ubayd"
+    }
+   ]
+  },
+  {
+   "entry_id": 3187,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "TWO base ideas: (1) leaving/abandoning a thing (tark), and (2) seeking a thing (ṭalab).",
+     "note": "Ibn Faris's two base ideas"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿafw — pardon. God's ʿafw toward His creation is His leaving them unpunished, as a bounty.",
+     "note": "عَفَا 27x, عَفْو 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Khalīl: whoever deserves punishment and you leave him, you have \"ʿafawta ʿanhu\" (pardoned him).",
+     "note": "عَفُوّ, عَافِين"
+    },
+    {
+     "kind": "quran",
+     "text": "Qurʾānic shāhid: {ḥattā ʿafaw} (al-Aʿrāf 95), glossed \"until they grew and multiplied,\"",
+     "note": "the entry's gloss of Q 7:95"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid: Labīd's \"The abodes are effaced… left desolate (taʾabbada).\"",
+     "note": "Labid, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "as in the Prophet's \"I have pardoned you as to the ṣadaqa of horses,\" meaning \"I have left off imposing it,\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "Hadith shāhid: reviving dead land, \"what the ʿāfiya eat of it is a ṣadaqa.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 2545,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea, which he credits to al-Khalīl: guarding or keeping something, and renewing one's contact with it.",
+     "note": "Ibn Faris, crediting al-Khalil"
+    },
+    {
+     "kind": "quran",
+     "text": "عَهِدَ (ʿahida) means to enjoin or charge, akin to a bequest (waṣiyya)",
+     "note": "عَهِدَ, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الْعَهْد is a binding pledge or solemn compact (mawthiq); plural ʿuhūd.",
+     "note": "عَهْد, 29 times"
+    },
+    {
+     "kind": "quran",
+     "text": "عَهِيدُك is one who mutually covenants with you",
+     "note": "عَٰهَدَ, 11 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"did I not set before you, and make binding on you to keep, the matter I enjoined.\"",
+     "note": "the entry's gloss of Q 36:60"
+    },
+    {
+     "kind": "early",
+     "text": "with a verse of al-Ṭirimmāḥ on a man who \"does not tend to\" what God made binding on him",
+     "note": "al-Tirimmah, Umayyad; the entry names no earlier poet"
+    },
+    {
+     "kind": "later",
+     "text": "أهل العهد / المُعَاهَدُون are those bound under covenant regarding the jizya due from them",
+     "note": "a legal definition (covenant and jizya)"
+    }
+   ]
+  },
+  {
+   "entry_id": 14457,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "softness, ease, and scantiness of sustenance/substance in a thing.",
+     "note": "the author's core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ihn - dyed wool: Ibn Faris judges it plausible that this word too belongs to the same root-family",
+     "note": "عِهْن, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "A saying distinguishes a cash sale from a credit sale: \"did you sell ahin [cash-in-hand] or on credit?\"",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "early",
+     "text": "a line of al-Nabigha where a camel is urged on because \"short of the watering-place there is no ahin to hold you back.\"",
+     "note": "al-Nabigha, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "a hadith in which the Prophet tells a companion to bring him palm-fronds but avoid the awahin, \"because they are moist,\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 3976,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one about deeming something great/being conceited, the other a part of an animal's body.",
+     "note": "Ibn Faris's two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿajiba yaʿjabu ʿajaban (\"to marvel\")",
+     "note": "عَجِبُ 8x, عَجَب 5x"
+    },
+    {
+     "kind": "quran",
+     "text": "aʿjabanī hādhā l-shayʾ (\"this thing pleased me\")",
+     "note": "أَعْجَبَ, 11 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"and one astonished at the composure he sees in us — yet had war shoved him, he would not have stirred.\"",
+     "note": "Aws ibn Hajar, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 14444,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Leanness / emaciation (al-ʿajaf)",
+     "note": "first root sense"
+    },
+    {
+     "kind": "core",
+     "text": "Restraint of the self, endurance toward or away from something",
+     "note": "second root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The word means the loss of fatness, thinness.",
+     "note": "عِجَاف, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Adjective forms: masculine aʿjaf, feminine ʿajfāʾ, plural (for both sexes) ʿijāf.",
+     "note": "عِجَاف is the plural form"
+    },
+    {
+     "kind": "early",
+     "text": "He quotes a verse by Ibn Abī ʿĀʾidh describing arrows as ʿijāf al-niṣāl, \"lean/slender of arrowhead.\"",
+     "note": "Ibn Abi 'A'idh (undated)"
+    }
+   ]
+  },
+  {
+   "entry_id": 2506,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two distinct sound roots: (1) haste/speed, and (2) a particular animal (the calf).",
+     "note": "Ibn Faris's two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "istaʿjala someone = urged him on; ʿajila someone = outstripped/got ahead of him.",
+     "note": "ٱسْتَعْجَلَ 19x, عَجِلَ 5x"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿājil = the opposite of ājil (the deferred). Hence this world = al-ʿājila (the hastening/present)",
+     "note": "عَاجِلَةٌ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿijl = the young of the cow",
+     "note": "عِجْل, 10 times"
+    },
+    {
+     "kind": "early",
+     "text": "proverb: \"the traveller's quick provision is dates and sawīq (parched-barley meal).\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 11000,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ʿujma is the opposite of clear expression (ibāna), and iʿjām is leaving something obscure or indistinct.",
+     "note": "the entry's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿAjam is the counterpart of ʿArab, and ʿajamī is the adjective of relation to them.",
+     "note": "أَعْجَمِىّ 3x, أَعْجَمِين 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "But aʿjam denotes anyone whose speech is indistinct, Arab or not",
+     "note": "أَعْجَمِىّ, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "an Arab saying, \"I went out from lands that speak,\" as a figure for lands that are inhabited and cultivated.",
+     "note": "a saying of the Arabs"
+    },
+    {
+     "kind": "later",
+     "text": "\"the daytime prayer is ʿajmāʾ,\" meaning the recitation in it is not said aloud; and \"the wound caused by a beast carries no compensation.\"",
+     "note": "two sayings: one on the prayer, one a legal maxim"
+    }
+   ]
+  },
+  {
+   "entry_id": 4076,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound roots: (1) weakness/inability, and (2) the hind-part or rear of a thing.",
+     "note": "Ibn Faris's two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "أَعْجَزَنِي فلان = \"he eluded me,\" i.e. I could not pursue and overtake him.",
+     "note": "مُعْجِز 12x, يُعْجِزَ 4x"
+    },
+    {
+     "kind": "quran",
+     "text": "عَجُوز (\"old woman\"), plural عَجَائِز",
+     "note": "عَجُوز, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "عَجُز = the back or rear of a thing, plural أَعْجَاز",
+     "note": "أَعْجَاز, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: \"a man inevitably grows incapable.\"",
+     "note": "proverb"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: \"do not busy yourselves with the tail-ends of matters whose fronts have already passed.\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 7473,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "facing or turning toward something (muqābala), and holding back or confining (ḥabs).",
+     "note": "Ibn Faris's one root, two linked ideas"
+    },
+    {
+     "kind": "quran",
+     "text": "the one who keeps himself to a place or thing.",
+     "note": "عَاكِف, 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-maʿkūf means al-maḥbūs, the one detained or prevented.",
+     "note": "مَعْكُوف, 1 time (Q 48:25)"
+    },
+    {
+     "kind": "early",
+     "text": "\"We left the horses staying over him, their reins hung on their necks, standing [motionless].\"",
+     "note": "'Amr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 516,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a mark or trace on a thing by which it is told apart from others",
+     "note": "Ibn Faris reduces every sense to this"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿilm — knowledge, the opposite of ignorance (jahl).",
+     "note": "عِلْم 105x, عَلِمَ 382x"
+    },
+    {
+     "kind": "quran",
+     "text": "taʿallama — to learn, i.e. to acquire knowledge (ʿilm) of a thing",
+     "note": "عَلَّمَ 41x, يَتَعَلَّمُ 2x"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿālamūn — the \"worlds,\" i.e. the kinds of creation",
+     "note": "عَٰلَمِين, 73 times"
+    },
+    {
+     "kind": "early",
+     "text": "the idiom taʿallam anna… used to mean \"know that…\" (equivalent to iʿlam), attested in a line of Qays ibn Zuhayr.",
+     "note": "Qays ibn Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "took it to refer to the descent of Jesus, by which the Hour's nearness is known.",
+     "note": "an exegetical reading of Q 43:61"
+    }
+   ]
+  },
+  {
+   "entry_id": 5471,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a thing's being made manifest, being pointed to, and becoming apparent",
+     "note": "Ibn Faris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "أَعْلَنْتُهُ (aʿlantuhu) — \"I made it public, disclosed it.\"",
+     "note": "أَعْلَن, 12 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 8210,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single underlying idea: **that a thing be hung on, or fastened to, something above it**",
+     "note": "Ibn Faris's single root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿaliqa bi- (\"to cling to, stick fast to\")",
+     "note": "عَلَقَة 5x, عَلَق 1x, \"a clinging substance\""
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿalaq is congealed blood; a single piece is ʿalaqa. Ibn Fāris says the analogy holds because such blood clings.",
+     "note": "عَلَق / عَلَقَة"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris glosses: the woman who is neither husbandless nor possessed of a husband, as though her affair were unsettled.",
+     "note": "مُعَلَّقَة, 1 time (Q 4:129)"
+    },
+    {
+     "kind": "early",
+     "text": "Muhalhil: \"…and a stubborn adversary, one of miʿlāq.\"",
+     "note": "Muhalhil, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā: \"I was made to love her by chance, and she was attached to another man, and he to yet another woman.\"",
+     "note": "al-A'sha, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "in the ḥadīth of the martyrs the birds \"browse (taʿluq) in the Garden.\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "He pairs it with the ḥadīth of Umm Zarʿ: \"If I speak I am divorced; if I keep silent I am left suspended.\"",
+     "note": "a hadith (Umm Zar')"
+    }
+   ]
+  },
+  {
+   "entry_id": 1893,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning loftiness and elevation, from which nothing departs.",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "تَعَالَى النَّهَارُ = \"the day climbed high.\"",
+     "note": "تَعَٰلَىٰ, 20 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿalāʾ specifically means elevation of rank, while al-ʿuluww can mean greatness and overbearing tyranny",
+     "note": "عُلُوّ 4x, عَالِي 4x"
+    },
+    {
+     "kind": "quran",
+     "text": "عَلَا الْمَلِكُ فِي الْأَرْضِ (\"the king exalted himself arrogantly in the land\"), as in Q 28:4 of Pharaoh",
+     "note": "the entry's reading of Q 28:4"
+    },
+    {
+     "kind": "quran",
+     "text": "تَعَالَ (\"come!\"). From ʿuluww — originally \"ascend to me\"",
+     "note": "تَعَالَ, 8 times"
+    },
+    {
+     "kind": "early",
+     "text": "Poetic evidence (Aws, Umayya b. Abī al-Ṣalt read by al-Aṣmaʿī): al-ʿālī = a grave, crushing affliction",
+     "note": "Aws and Umayya b. Abi al-Salt, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "al-ʿalyāʾ = a mountain-top or high ground (Zuhayr)",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Farrāʾ: \"elevation upon elevation without limit.\"",
+     "note": "grammarian al-Farra' (d. 822) on Q 83:18"
+    }
+   ]
+  },
+  {
+   "entry_id": 8197,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single idea: **straightness in a thing — either standing upright or extending lengthwise — and the same straightness in opinion and in intending something.**",
+     "note": "Ibn Faris's single root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "عَمَدْتُ فلاناً, \"I made for him,\" i.e. aimed at him on purpose.",
+     "note": "تَعَمَّدَتْ, مُّتَعَمِّد"
+    },
+    {
+     "kind": "quran",
+     "text": "Hence الْعَمْد, the opposite of خطأ (accident/error) in killing and in other matters",
+     "note": "مُّتَعَمِّد, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Khalīl: ʿamd is to hold a thing up with a عِمَاد that supports it and on which it rests.",
+     "note": "عِمَاد, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "On {فِي عَمَدٍ مُمَدَّدَةٍ} (104:9): \"in something like tents of stretched-out fire\"",
+     "note": "عَمَد, 3 times (Q 104:9)"
+    },
+    {
+     "kind": "early",
+     "text": "\"Suʿād has departed, and the eye's sleep is sleeplessness / and the heart is downcast, burning, propped up.\"",
+     "note": "al-Akhtal, Umayyad; the entry names no earlier poet"
+    },
+    {
+     "kind": "later",
+     "text": "al-Mubarrad's sense — رجلٌ مُعْمَدٌ means \"tall,\" and الْعِمَاد means tallness/height — so \"possessed of loftiness.\"",
+     "note": "grammarian al-Mubarrad (d. 898) on Q 89:7"
+    },
+    {
+     "kind": "later",
+     "text": "He supports this with the ḥadīth phrase \"he is lofty of column, long of sword-belt.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 8185,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "bewilderment and a poor ability to find one's way.",
+     "note": "Ibn Faris's one root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "a man is described this way when he casts about back and forth, not knowing which direction to take.",
+     "note": "يَعْمَهُ, 7 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 255,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one general sense: it covers every act or deed that is performed.",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "عَمِلَ means \"to work, to act\"; the agent is عامِل (\"worker, doer\")",
+     "note": "عَمِلَ 276x, عَٰمِل 12x"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by a line of verse: the noble man labours with his own hands when he has no one else to lean on.",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 19818,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root which, in his account, indicates tallness, abundance and height.",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "citing Labīd's tall, lush palms (ʿamm) with vines between them.",
+     "note": "Labid, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Labīd speaks of guests' bowls filled with pure milk that is muʿammam, \"turbaned\".",
+     "note": "Labid, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 18678,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core, physical sense — depth/farness downward",
+     "note": "Ibn Faris / Ibn al-A'rabi: the core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Said of a road: al-ʿumq means \"distance, farness\" (al-buʿd).",
+     "note": "عَمِيق, 1 time (a far road, Q 22:27)"
+    },
+    {
+     "kind": "early",
+     "text": "the saying mā abʿada ʿamāqata hādhihi r-rakiyyah, \"how deep this well is!\"",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "early",
+     "text": "an eloquent Arab quoted by Ibn al-Aʿrābī said, \"I saw a khalīqah [a freshly-dug well], and never saw one deeper.\"",
+     "note": "a speaker of the Arabs, via Ibn al-A'rabi"
+    }
+   ]
+  },
+  {
+   "entry_id": 19223,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "(1) remaining and the extension of time, and (2) something that rises high",
+     "note": "Ibn Faris's two root meanings"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿumr, also al-ʿamr: life. The oath laʿamruka (\"by your life\") swears by a person's life.",
+     "note": "عُمُر 7x, عَمْر 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿammarahum Allāh taʿmīran: God gave them long life.",
+     "note": "يُعَمَّرُ 5x, مُّعَمَّر 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿimārat al-arḍ, inhabiting and cultivating the land",
+     "note": "عَمَرُ 4x, عِمَارَة 1x, مَعْمُور 1x"
+    },
+    {
+     "kind": "early",
+     "text": "In Ibn Aḥmar's line \"its riders raise their voices at al-Farqad, as the riding muʿtamir raises his voice\"",
+     "note": "Ibn Ahmar, lived into Islam"
+    }
+   ]
+  }
+ ]
+}
