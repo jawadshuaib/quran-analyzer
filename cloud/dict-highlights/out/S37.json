@@ -1,0 +1,335 @@
+{
+ "batch": "S37",
+ "entries": [
+  {
+   "entry_id": 12091,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a \"sound\" root — a single, unified word rather than one built from overlapping senses",
+     "note": "Ibn Fāris's root classification"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ṣakhrah — a huge, massive rock",
+     "note": "ṣakhra, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 5951,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The shared sense is settling into stillness and calm.",
+     "note": "shared sense of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "of a place, to become settled, still, and at rest",
+     "note": "iṭmaʾanna, 9 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 6974,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "single root with one meaning: taking hold of something by force, domination, and strength",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"Indeed the grip (baṭsh) of your Lord is severe\" (al-Burūj 85:12)",
+     "note": "baṭsh, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 5939,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-baght: a thing happening suddenly, coming upon a person by surprise / unawares (yafjaʾ)",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "early",
+     "text": "the sudden onset takes you unawares",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 10837,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single underlying sense: driving away and pushing off to a distance",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"Go out from it, disgraced and driven away (مَدْحُورًا)\"",
+     "note": "madḥūr, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 17811,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "d-n-r as a single-sense root",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "its only meaning is the word دِينَار (dīnār), a gold coin",
+     "note": "dīnār, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 11963,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "only one sense for the root f-r-t: it denotes sweet, fresh water",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-māʾ al-furāt, glossed simply as al-ʿadhb",
+     "note": "furāt, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 20317,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single meaning: something that encloses something else from its sides",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "**al-jaww, the jaww of the sky**: what arches over the earth on its sides",
+     "note": "jaww, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 10578,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "كُوب (kūb) — a drinking cup or goblet with no handle. Plural: أَكْوَاب (akwāb).",
+     "note": "akwāb, 4 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 1612,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "kayfa (كَيْفَ, \"how\"): a coined interrogative word (kalima mawḍūʿa) used to ask about a person's state or condition",
+     "note": "kayfa, 83 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19967,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root that indicates pleasantness of taste in a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ladhdha (اللَّذَّة) and al-ladhādha (اللَّذَاذَة): the pleasant taste of a thing",
+     "note": "ladhdha, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 3478,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: to tarry, linger, or stay put in one place (تَمَكُّث)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "لَبِثَ بِالْمَكَانِ (labitha bi-l-makān) — \"he stayed / remained in the place,\"",
+     "note": "labitha, 30 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 5094,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "لَدُنْ (ladun) — used with the sense of لَدَى (ladā), i.e. عِنْد (ʿind): \"at,\" \"with,\" or \"in the presence of.\"",
+     "note": "ladun, 18 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 2673,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "as two unrelated words",
+     "note": "Ibn Fāris: two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "**al-makr** — contrivance and deception (al-iḥtiyāl wa-l-khidāʿ)",
+     "note": "makr, 19 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 20486,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "He cites Q 28:76: \"that of which the mafātiḥ would weigh heavily on the band (al-ʿuṣba)\"",
+     "note": "tanūʾu, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 411,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core sense is agitation and swinging back and forth",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 8411,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "causing spoilage or corruption between two parties",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "نَزَغَ بَيْنَ الْقَوْمِ, \"he nazagha among the people,\"",
+     "note": "nazagha, 4 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 15947,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-raḥīq (الرحيق): a name for wine (khamr)",
+     "note": "raḥīq, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 13008,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: crumbling/crushing (fatt) combined with twisting (layy)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "until it became rufāt, i.e. crumbled fragments or dust",
+     "note": "rufāt, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 1041,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "to ask, to question",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 19748,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "\"In six days\" (fī sittati ayyām), Q 7:54",
+     "note": "sitta, 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"Sixty poor persons\" (sittīna miskīnan), Q 58:4",
+     "note": "sittīn, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 4101,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "الوَعْظ (al-waʿẓ): instilling fear or cautioning.",
+     "note": "waʿẓ, admonition"
+    },
+    {
+     "kind": "quran",
+     "text": "reminding someone of the good, and of that which softens the heart",
+     "note": "al-Khalīl's definition of waʿẓ"
+    }
+   ]
+  },
+  {
+   "entry_id": 15059,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "firmness/stability and constant attachment",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-watīn — a vein constantly attached to the heart, nourishing it — i.e. the aorta",
+     "note": "watīn, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 20159,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a root (aṣl) that points to thinness in a thing",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 7876,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "الزَّيْت (al-zayt), olive oil",
+     "note": "zayt, 1 time"
+    }
+   ]
+  }
+ ]
+}

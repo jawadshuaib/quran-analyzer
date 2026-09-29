@@ -1,0 +1,25 @@
+{
+ "batch": "S38",
+ "entries": [
+  {
+   "entry_id": 12846,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root s-q-m has a single core meaning: illness/sickness (al-maraḍ)",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 12757,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "a need or want, and a strong craving or keen desire",
+     "note": "وَطَر, 2 times"
+    }
+   ]
+  }
+ ]
+}
