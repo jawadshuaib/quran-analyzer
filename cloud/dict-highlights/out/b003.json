@@ -1,0 +1,555 @@
+{
+ "batch": "b003",
+ "entries": [
+  {
+   "entry_id": 19809,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a root (aṣl) indicating dispersal and separation",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "jāʾa al-qawmu ashtātan: \"the people came in scattered groups.\"",
+     "note": "أَشْتَات, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites al-Ṭirimmāḥ: \"The clan's united body was scattered after it had been joined together",
+     "note": "al-Ṭirimmāḥ, Umayyad; the entry names no earlier poet"
+    }
+   ]
+  },
+  {
+   "entry_id": 19086,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a season of the year",
+     "note": "Ibn Fāris's core meaning of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shitā' (\"winter\"), the opposite of al-ṣayf (\"summer\")",
+     "note": "شِّتَاء, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn Fāris cites a line of Ṭarafah illustrating the word in use",
+     "note": "Ṭarafah, pre-Islamic; attests al-mashtāh"
+    }
+   ]
+  },
+  {
+   "entry_id": 19077,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-shuwāẓ (الشُّوَاظ) is the pure flame-tip of a fire",
+     "note": "Ibn Fāris's one core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "he cites {shuwāẓun min nār}, \"a shuwāẓ of fire\" (Q 55:35, Sūrat al-Raḥmān)",
+     "note": "شُوَاظ, 1 time: the entry's own Qur'anic attestation"
+    }
+   ]
+  },
+  {
+   "entry_id": 19065,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single underlying sense — \"mixing\" (al-khalṭ).",
+     "note": "Ibn Fāris's single underlying sense"
+    },
+    {
+     "kind": "quran",
+     "text": "shubtu ash-shayʾa ashūbuhu shawban — \"I mixed the thing / I mix it / a mixing.\"",
+     "note": "شَوْب, 1 time: the verbal noun shawb, a mixing"
+    }
+   ]
+  },
+  {
+   "entry_id": 19051,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "roughness combined with a sharp point or tip on something.",
+     "note": "Ibn Fāris's unifying idea for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "al-Shawkah — derived abstractly from the same root: intensity or strength of military might/fighting power",
+     "note": "شَّوْكَة, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 11059,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Ibn Fāris treats ش-و-ر as two steady root-senses",
+     "note": "Ibn Fāris gives the root two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Consultation belongs here: شَاوَرْتُ فلانًا في أمري (\"I consulted so-and-so about my affair\")",
+     "note": "شَاوِرْ, تَشَاوُر, شُورَىٰ: consultation"
+    },
+    {
+     "kind": "early",
+     "text": "Hence the proverb he quotes: \"Beware of public speeches — they are a show-ground with much stumbling.\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 14678,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-amr al-hayyin — something easy, minor, or trifling.",
+     "note": "Ibn Fāris's one core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shawā (a homonymous plural, of shawāh) — the scalp-skin",
+     "note": "شَّوَىٰ, 1 time: the scalp"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shawā also means the extremities/limbs",
+     "note": "شَّوَىٰ: the second reported sense"
+    },
+    {
+     "kind": "quran",
+     "text": "shawaytu al-laḥma / ishtawaytuhu — I roasted the meat",
+     "note": "يَشْوِى, 1 time: to roast or scald"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with two verses about roasting meat over a fire",
+     "note": "unattributed verses; the entry names no poet, and they attest the roasting sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 14671,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one single idea — \"elevation\" or \"rising up\" in something (irtifāʿ fī shayʾ)",
+     "note": "Ibn Fāris's single idea for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Shukhūṣ al-baṣar — the eyes becoming fixed and raised, staring without blinking",
+     "note": "تَشْخَصُ, شَٰخِصَة: the fixed stare"
+    }
+   ]
+  },
+  {
+   "entry_id": 174,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "تأخرت عنه شيئاً (\"I fell back from him a shayʾ\") means \"a little, slightly.\"",
+     "note": "شَىْء, 283 times: shayʾan as 'a little'"
+    },
+    {
+     "kind": "quran",
+     "text": "one says إذا شئت (\"whenever you wish\")",
+     "note": "شَاءَ, 236 times: to wish"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr b. Masʿūd uses يا شيء ما as an exclamation of admiration",
+     "note": "Zuhayr b. Masʿūd, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 6403,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two distinct roots: (I) support and aid, and (II) spreading and diffusion",
+     "note": "Ibn Fāris gives the root two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "الشِّيعَة (al-shīʿa) — helpers and supporters.",
+     "note": "شِيعَة, 11 times"
+    },
+    {
+     "kind": "quran",
+     "text": "شَاعَ الْحَدِيثُ (shāʿa al-ḥadīth) — a report spread, became widely known.",
+     "note": "تَشِيعَ, 1 time: to spread"
+    }
+   ]
+  },
+  {
+   "entry_id": 12417,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "both turning on the idea of one thing being mixed into another",
+     "note": "Ibn Fāris's root sense, shared with sh-w-b"
+    },
+    {
+     "kind": "quran",
+     "text": "The core use is shayb, the greying of the head; the verb is shāba / yashību (\"to go grey\")",
+     "note": "شَيْب, شَيْبَة: the greying of the head"
+    },
+    {
+     "kind": "quran",
+     "text": "mashīb is a man's crossing over into the class of the shīb — the aged, grey-haired men",
+     "note": "شِيب, 1 time: the grey-haired"
+    },
+    {
+     "kind": "early",
+     "text": "On ʿAdī's line \"and the head — greyness has shābahu it,\"",
+     "note": "ʿAdī, pre-Islamic; attests the greying sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 14657,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "shāda al-ḥāʾiṭa yashīduhu shayḍan: \"he plastered/coated a wall with al-shīd\"",
+     "note": "al-Zabīdī's core verb and the substance shīd"
+    },
+    {
+     "kind": "quran",
+     "text": "المشِيد (mashīd, pattern of amīr): \"that which is worked/finished with al-shīd,\" i.e. plastered/coated.",
+     "note": "مَّشِيد, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "Two Qur'anic citations anchor this sense: {وَقَصْرٍ مَّشِيدٍ} \"a mashīd palace\" (22:45) and {فِي بُرُوجٍ مُّشَيَّدَةٍ} \"in mushayyada towers\" (4:78)",
+     "note": "the entry's own Qur'anic attestations"
+    },
+    {
+     "kind": "quran",
+     "text": "المُشَيَّد (mushayyad, pattern of muʾayyad): according to Abū ʿUbayd, this means \"the elongated/heightened building\"",
+     "note": "مُّشَيَّدَة, 1 time: a second reported sense"
+    },
+    {
+     "kind": "early",
+     "text": "A line of poetry is quoted describing a structure plastered with marble and coated with lime",
+     "note": "unattributed verse; the entry names no poet"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth is cited: whoever exposes (\"ashāda\") a Muslim's faults without right will be disgraced by God",
+     "note": "a hadith, used for the sense 'to expose publicly'"
+    }
+   ]
+  },
+  {
+   "entry_id": 11044,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "A *shaykh* is one in whom age has become visible and on whom grey hair has appeared",
+     "note": "Ibn Manẓūr's core sense of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Manẓūr records disagreement on the threshold: from fifty onward; or from fifty-one to the end of life; or the span from fifty to eighty",
+     "note": "شَيْخ, 4 times: the age meant"
+    },
+    {
+     "kind": "early",
+     "text": "attested in a verse of the pre-Islamic poet ʿAbīd ibn al-Abraṣ",
+     "note": "ʿAbīd ibn al-Abraṣ, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Sībawayh treats one of its forms as poetic licence, comparing a line of Jadhīma al-Abraṣ",
+     "note": "Jadhīma al-Abraṣ, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 12405,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core idea is **instability of movement** — a thing that does not travel in one fixed direction",
+     "note": "Ibn Fāris's core idea for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "the wolf is so called because of its تَذَؤُّب — its roving, coming at things from no single quarter",
+     "note": "ذِّئْب, 3 times: why the wolf is so named"
+    },
+    {
+     "kind": "early",
+     "text": "cites a line of verse (poet unnamed) as evidence: \"Truly I, when a people's lion has taken flight",
+     "note": "unattributed verse; the entry names no poet"
+    }
+   ]
+  },
+  {
+   "entry_id": 19038,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "dislike/aversion combined with fault",
+     "note": "Ibn Fāris's one core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "al-dhaʾm — fault, blemish; one so described is madhʾūm.",
+     "note": "مَذْءُوم, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 19026,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "following along / compliance and submission",
+     "note": "Ibn Fāris's single core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "aḏʿana (Form IV) — \"he complied/submitted\" (yuḏʿinu, iḏʿānan = compliance)",
+     "note": "مُذْعِنِين, 1 time: the Form IV verb"
+    }
+   ]
+  },
+  {
+   "entry_id": 20494,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "covering many distinct senses that share the consonant root but diverge widely in meaning",
+     "note": "Ibn Manẓūr's senses diverge; no one shared meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "الذَّبّ (al-dhabb) = to repel, ward off, or drive away.",
+     "note": "the sense the entry traces مُّذَبْذَبِين back to"
+    },
+    {
+     "kind": "quran",
+     "text": "مُذَبْذِب/مُتَذَبْذِب = a man torn between two people or courses, settled with neither.",
+     "note": "مُّذَبْذَبِين, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "This is the sense used in the Qurʾān's description of the hypocrites",
+     "note": "the entry on the Qur'an's own usage"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of Abū Dhuʾayb uses ذَبْذَبَا for \"they kept [rivals] dangling/trailing behind.\"",
+     "note": "Abū Dhuʾayb, lived into Islam; attests the dangling sense"
+    },
+    {
+     "kind": "later",
+     "text": "which Ibn Manẓūr glosses as \"driven off and repelled from both sides,\" tracing it to sense (1)",
+     "note": "Ibn Manẓūr's own exegesis of Q 4:143"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth about an unmarried man being \"of the مُذَبذَبين\" (driven off from both believers and monks) is read the same way",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 7500,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one underlying idea is splitting or cleaving open",
+     "note": "Ibn Fāris's one underlying idea"
+    },
+    {
+     "kind": "quran",
+     "text": "الذَّبْح (dhabḥ) — the verbal noun of ذَبَحْتُ الشَّاةَ, \"I slaughtered the sheep\"",
+     "note": "ذُبِحَ, يُذَبِّحُ: the act of slaughtering"
+    },
+    {
+     "kind": "quran",
+     "text": "الذِّبْح (dhibḥ, with kasra) — the passive sense: the thing slaughtered",
+     "note": "ذِبْح, 1 time: the animal slaughtered"
+    }
+   ]
+  },
+  {
+   "entry_id": 20007,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "having three separate root meanings: a small flying creature (the fly), to which other things are then compared; edge and sharpness; and agitation and movement",
+     "note": "Ibn Fāris gives the doubled root three separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-dhubāb is the fly; one fly is dhubāba",
+     "note": "ذُبَاب, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "the form in al-Nābigha's words \"much given to striking at the flies with her lip\"",
+     "note": "al-Nābigha, pre-Islamic; attests the fly sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 2292,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "beauty and freshness/bloom (ḥusn wa-naḍāra)",
+     "note": "Ibn Fāris's core sense; he adds a separate root meaning 'to go away'"
+    },
+    {
+     "kind": "quran",
+     "text": "الذهب (al-ḏahab), the familiar metal",
+     "note": "ذَهَب, 8 times: gold"
+    },
+    {
+     "kind": "quran",
+     "text": "ذهاب الشيء (ḏahāb al-shayʾ), a thing's going or passing away",
+     "note": "ذَهَبَ 35 times, ذَهَاب 1 time: to go, to pass away"
+    },
+    {
+     "kind": "early",
+     "text": "verse of Qays comparing a faded encampment-trace",
+     "note": "Qays, pre-Islamic; attests the gilded sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 19012,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "being distracted or occupied away from something, whether by fright/terror (dhu'r)",
+     "note": "Ibn Fāris's single core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "dhahiltu 'ani sh-shay' (\"I dhahal-ed from the thing\") means you forgot it",
+     "note": "تَذْهَلُ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 518,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives ذ-ك-ر from two distinct roots.",
+     "note": "Ibn Fāris gives the root two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "dhakartu al-shayʾ: \"I remembered it,\" the opposite of \"I forgot it.\"",
+     "note": "ذَكَرَ, 84 times: to remember"
+    },
+    {
+     "kind": "quran",
+     "text": "al-dhikr as verbal mention (remembrance \"with the tongue\")",
+     "note": "ذِكْر, 76 times: mention with the tongue"
+    },
+    {
+     "kind": "early",
+     "text": "a line of ʿAdī [b. Zayd] describing a powerful she-camel",
+     "note": "ʿAdī b. Zayd, pre-Islamic; attests the maleness sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 20168,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "whose meaning is sharpness and penetration in a thing",
+     "note": "Ibn Fāris's single root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "dhakkaytu l-dhabīḥa, \"I slaughtered the animal\", belongs to the same set of words",
+     "note": "ذَكَّيْ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 19533,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning submission, humble yielding and softness",
+     "note": "Ibn Fāris's single root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-dhull is the opposite of al-ʿizz.",
+     "note": "ذُّلّ 3 times, ذِلَّة 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "dābba dhalūl, a tractable, docile animal",
+     "note": "ذَلُول 2 times, ذُلِّلَتْ 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"a little dhill (with i) better preserves family and wealth.\"",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 19814,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root (aṣl wāḥid) whose every use, he says, points to the opposite of praise",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The person is then dhamīm or madhmūm, \"blamed\", meaning he is not praiseworthy.",
+     "note": "مَذْمُوم, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "A covenant (ʿahd) is called dhimām because a person is blamed for letting it be lost.",
+     "note": "ذِمَّة, 2 times: the covenant"
+    },
+    {
+     "kind": "early",
+     "text": "Dhū al-Rumma likens eyes to \"the dhimām of wells that the water-drawers have drained\"",
+     "note": "Dhū al-Rumma, Umayyad; the entry names no earlier poet"
+    },
+    {
+     "kind": "later",
+     "text": "Abū ʿUbayd glosses dhimma as a guarantee of safety (amān) in the Prophet's words wa-yasʿā bi-dhimmatihim",
+     "note": "Abū ʿUbayd's gloss on a prophetic report"
+    },
+    {
+     "kind": "later",
+     "text": "they are called ahl al-dhimma because they paid the jizya and so were made secure in their lives and property",
+     "note": "legal definition of ahl al-dhimma"
+    },
+    {
+     "kind": "later",
+     "text": "In a ḥadīth a man asks the Prophet what will remove from him \"the madhamma of suckling\"",
+     "note": "a hadith, for madhamma as a claim"
+    }
+   ]
+  }
+ ]
+}

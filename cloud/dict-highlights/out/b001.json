@@ -1,0 +1,545 @@
+{
+ "batch": "b001",
+ "entries": [
+  {
+   "entry_id": 12471,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root whose core notion is **the left-hand side**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الْمَشْأَمَة (al-mashʾama) is the left side",
+     "note": "مَشْـَمَة, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 11070,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root whose core idea is seeking and aiming at something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "One's concern or pursuit.",
+     "note": "شَأْن, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "not miserliness from you, nor is generosity part of your شَأْن\"",
+     "note": "unattributed verse, for شَأْن as one's aim"
+    }
+   ]
+  },
+  {
+   "entry_id": 14756,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "this root has two distinct original meanings: (1) separation/division, and (2) gathering/union",
+     "note": "Ibn Fāris: two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "From this comes shaʿb = a \"people\" — literally a branch that has split off from the Arab and non-Arab tribes",
+     "note": "شُعُوب, 1x \"nations\""
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Qur'an 49:13, \"We made you into peoples (shuʿūb) and tribes (qabāʾil).\"",
+     "note": "the entry's citation of Q 49:13"
+    },
+    {
+     "kind": "quran",
+     "text": "Roads that diverge, or a tree's branches that split off",
+     "note": "شُعَب, 1x \"columns\" (branches)"
+    },
+    {
+     "kind": "early",
+     "text": "A gazelle whose two horns splay far apart is ashʿab — with a terse citation from Abū Duʾād",
+     "note": "Abū Duʾād, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "A hadith is cited using the same root: \"What is this ruling that has scattered (shaʿʿabat) the people?\"",
+     "note": "a hadith, cited for the scattering sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 19220,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "spreading and dispersing outward from a single thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ishtaʿalat al-nār means \"the fire blazed/flared up.\"",
+     "note": "ٱشْتَعَلَ, 1x \"and flared\""
+    },
+    {
+     "kind": "quran",
+     "text": "ishtaʿala al-shayb describes gray hair \"spreading\" through the head",
+     "note": "the sense behind Q 19:4, the entry's own citation"
+    },
+    {
+     "kind": "early",
+     "text": "a line of the poet Dhū al-Rumma describing women who deliberately let prayer times pass",
+     "note": "Dhū al-Rumma, Umayyad; the entry's only poet"
+    }
+   ]
+  },
+  {
+   "entry_id": 2889,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two distinct roots: one meaning firmness/growth, the other meaning knowledge and marking",
+     "note": "Ibn Fāris: two separate roots"
+    },
+    {
+     "kind": "quran",
+     "text": "شَعَرْتُ بِالشَّيْء — I perceived/became aware of a thing",
+     "note": "يَشْعُرُ, 25 times"
+    },
+    {
+     "kind": "quran",
+     "text": "شَاعِر (poet) — so called because he perceives (yafṭin) what others miss.",
+     "note": "شَاعِر, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the sites of the rites, called this because they are the landmarks (maʿālim) of the Ḥajj.",
+     "note": "شَعَٰئِر 4x, مَشْعَر 1x: landmarks"
+    },
+    {
+     "kind": "early",
+     "text": "ʿAntara's line \"Have the poets left any patch to re-mend?\" — i.e. poets have overlooked nothing.",
+     "note": "ʿAntara, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 19804,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "withholding (al-manʿ) as the root meaning of sh-ḥ-ḥ",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "**al-shuḥḥ**: avarice combined with greed",
+     "note": "شُحّ, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"whoever is guarded against the shuḥḥ of his own self, those are the ones who thrive.\"",
+     "note": "the entry's citation of Q 59:9"
+    },
+    {
+     "kind": "early",
+     "text": "a line by Ibn Harma about leaving the bounty of the most generous",
+     "note": "Ibn Harma, Umayyad; the entry's only poet"
+    }
+   ]
+  },
+  {
+   "entry_id": 19208,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "this root denotes a category of flesh — namely fatty tissue.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الشَّحْم (ash-shaḥm) — \"fat,\" a well-known, ordinary word needing no further gloss.",
+     "note": "شُحُوم, 1x \"their fat\""
+    }
+   ]
+  },
+  {
+   "entry_id": 12460,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two unrelated roots, one meaning \"filling,\" the other \"distancing/driving off.\"",
+     "note": "Ibn Fāris: two separate roots"
+    },
+    {
+     "kind": "quran",
+     "text": "شَحَنْتُ السَّفِينَةَ — \"I loaded the ship,\" i.e. filled it.",
+     "note": "مَشْحُون, 3x \"laden\""
+    }
+   ]
+  },
+  {
+   "entry_id": 14743,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives the root sh-ṭ-ʾ (شطأ) from two unrelated senses.",
+     "note": "Ibn Fāris: two distinct senses"
+    },
+    {
+     "kind": "quran",
+     "text": "Shaṭʾ (شَطْء) — a plant's \"shoot\"",
+     "note": "شَطْـ, 1x \"its shoot\""
+    },
+    {
+     "kind": "quran",
+     "text": "Shāṭiʾ (شَاطِئ) — the \"bank\" or \"side\"",
+     "note": "شَٰطِئ, 1x \"(the) side\""
+    }
+   ]
+  },
+  {
+   "entry_id": 19927,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound root meanings (aṣlān ṣaḥīḥān): distance (al-buʿd) and inclining (al-mayl).",
+     "note": "Ibn Fāris: two sound origins"
+    },
+    {
+     "kind": "quran",
+     "text": "committing shaṭaṭ, which is exceeding the measure",
+     "note": "شَطَط, 2x \"an enormity\""
+    },
+    {
+     "kind": "quran",
+     "text": "Shaṭṭa and ashaṭṭa denote injustice (jawr) and leaning in judgement",
+     "note": "تُشْطِطْ, 1x; the entry cites Q 38:22"
+    },
+    {
+     "kind": "later",
+     "text": "In the report of Tamīm al-Dārī, \"surely you are unjust to me, so that I carry your strength on my weakness\", the word is explained as \"unjust in judging against me\".",
+     "note": "a report of the Companion Tamīm al-Dārī"
+    }
+   ]
+  },
+  {
+   "entry_id": 1534,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core meaning is remoteness / distance (al-buʿd).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "so named for its \"remoteness from the truth\" and its rebellion (tamarrud)",
+     "note": "شَيْطَٰن, 88 times"
+    },
+    {
+     "kind": "quran",
+     "text": "any insolent rebel, whether jinn, human, or beast, is called a shayṭān",
+     "note": "شَيْطَٰن: the ordinary sense of the word"
+    },
+    {
+     "kind": "early",
+     "text": "a line of Umayya using the form شَاطِن (shāṭin, pattern fāʿil)",
+     "note": "Umayya, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 9927,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one meaning the half of a thing, the other meaning distance and facing/being opposite.",
+     "note": "Ibn Fāris: two independent roots"
+    },
+    {
+     "kind": "quran",
+     "text": "شَطْر in the sense of the aim and direction of a thing",
+     "note": "شَطْر, 5x \"(in the) direction\""
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Q 2:144 on the qibla — \"wherever you are, turn your faces شَطْرَهُ\"",
+     "note": "the entry's gloss of Q 2:144"
+    },
+    {
+     "kind": "early",
+     "text": "Two poetic witnesses support this: \"set straight the breasts of the pale camels shaṭra (toward) Banū Tamīm,\"",
+     "note": "unattributed verse, for the directional sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 6434,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "core meaning is that one thing resembles or matches another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The forms shibh, shabah, and shabīh all mean \"a like / the like of something.\"",
+     "note": "مُتَشَٰبِه, 6 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19321,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning strength in a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"and truly in his love of wealth he is shadīd,\"",
+     "note": "شَدِيد, 56 times; the entry cites Q 100:8"
+    },
+    {
+     "kind": "early",
+     "text": "a verse of Ṭarafa: \"I see death choosing the noble and selecting the choicest part of the wealth of the tight-fisted miser (al-mutashaddid).\"",
+     "note": "Ṭarafa, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 3571,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core idea is pairing or joining one thing to another.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الشَّفْع (al-shafʿ) means \"even,\" the opposite of الوتر (al-watr, \"odd\")",
+     "note": "شَّفْع, 1x \"and the even\""
+    },
+    {
+     "kind": "quran",
+     "text": "شَفَعَ لفلان is to come as someone's \"second,\" seeking his request and helping him.",
+     "note": "يَشْفَعُ 5x, شَفِيع 10x: the ordinary sense"
+    },
+    {
+     "kind": "later",
+     "text": "reports the exegetes' reading that al-watr is God and al-shafʿ is creation.",
+     "note": "the exegetes' reading of Q 89:3"
+    },
+    {
+     "kind": "later",
+     "text": "الشُّفْعَة (al-shufʿa), a claimant's right of pre-emption over a house",
+     "note": "legal (fiqh) term, per Ibn Durayd"
+    }
+   ]
+  },
+  {
+   "entry_id": 19190,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-shafah — the lip",
+     "note": "شَفَتَيْن, 1x \"and two lips\""
+    }
+   ]
+  },
+  {
+   "entry_id": 6743,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "thinness or fineness in something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "أَشْفَقْتُ مِنَ الْأَمْرِ means to be wary and cautious of a matter",
+     "note": "أَشْفَقْ 2x, مُشْفِقُون 8x"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shafaq: the glow seen in the sky as the sun sets, i.e. the redness.",
+     "note": "شَّفَق, 1x \"by the twilight glow\""
+    },
+    {
+     "kind": "early",
+     "text": "an Arab saying \"a dyed garment as though it were the shafaq\"",
+     "note": "saying of the Arabs, recited by al-Farrāʾ"
+    },
+    {
+     "kind": "later",
+     "text": "Mujāhid (one report via Ibn Najīḥ): \"daytime\" (al-nahār), on Q 84:16",
+     "note": "exegete Mujāhid, on Q 84:16"
+    }
+   ]
+  },
+  {
+   "entry_id": 20000,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "treats sh-f-w through shafā, the edge of a thing",
+     "note": "al-Rāghib's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The shafā of a well or of anything else is its edge.",
+     "note": "شَفَا, 2x \"edge\""
+    },
+    {
+     "kind": "quran",
+     "text": "as in the Qur'an's ʿalā shafā jurufin, \"on the brink of a bank\" (Q 9:109)",
+     "note": "the entry's gloss of Q 9:109"
+    }
+   ]
+  },
+  {
+   "entry_id": 8882,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single semantic node meaning \"to be on the brink of, to overlook, to come to the edge of\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "healing is so called because it overcomes the illness and comes to stand over it.",
+     "note": "شِفَاء 4x, يَشْفِ 2x"
+    },
+    {
+     "kind": "early",
+     "text": "al-ʿAjjāj: \"I fulfilled it before a shafan, or at a shafan.\"",
+     "note": "al-ʿAjjāj, Umayyad; the entry's only poet"
+    }
+   ]
+  },
+  {
+   "entry_id": 19187,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-shaghāf, \"the covering of the heart\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "he glosses as meaning that love reached, or penetrated as far as, the shaghāf",
+     "note": "شَغَفَ, 1x; the entry's gloss of Q 12:30"
+    }
+   ]
+  },
+  {
+   "entry_id": 14723,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"the opposite of being empty/free\" (khilāf al-farāgh)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "shaghaltu fulānan — \"I occupied/busied so-and-so\"",
+     "note": "شَغَلَتْ 1x, شُغُل 1x"
+    },
+    {
+     "kind": "early",
+     "text": "a verse is quoted where a woman greets someone and says that their group's departure \"today\" leaves them all mushtaghal",
+     "note": "unattributed verse; the entry names no poet"
+    }
+   ]
+  },
+  {
+   "entry_id": 9913,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning: whiteness set within something dark",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Belonging to the same chapter is الشِّهَاب (shihāb): a blazing, shooting flame of fire.",
+     "note": "شِهَاب 4x, شُهُب 1x: a flame"
+    }
+   ]
+  },
+  {
+   "entry_id": 865,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root with one core meaning: presence, knowledge, and making-known",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the word that pulls together all three strands: being present, knowing, and declaring",
+     "note": "شَهَٰدَة 23x, شَهِدَ 44x, شَهِيد 56x"
+    },
+    {
+     "kind": "quran",
+     "text": "the place where people gather (a \"presence\" of people)",
+     "note": "مَّشْهَد, 1x \"(the) witnessing\""
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā uses both senses in a single line: \"my shāhid\" = his tongue, and \"shāhid Allāh\" = the angel.",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "because the angels of mercy attend (are present with) him",
+     "note": "others' explanation of shahīd, one slain in God's path"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris reports the scholars' reading that shahida here means God \"made known\" / \"made clear\"",
+     "note": "the scholars' reading of Q 3:18"
+    }
+   ]
+  },
+  {
+   "entry_id": 14710,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "this root has one core meaning: height / elevation (ʿuluww).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الشَّهِيق (al-shahīq), meaning \"inhalation\" (drawing the breath back/up)",
+     "note": "شَهِيق, 2x \"an inhaling\""
+    }
+   ]
+  },
+  {
+   "entry_id": 4736,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root meaning clarity/manifestness in a matter",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "named after the crescent and called a \"month.\"",
+     "note": "شَهْر, 21 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites Dhū al-Rumma as evidence — a verse describing someone keen-eyed who sees the crescent-month",
+     "note": "Dhū al-Rumma, Umayyad; the entry's only poet"
+    }
+   ]
+  }
+ ]
+}

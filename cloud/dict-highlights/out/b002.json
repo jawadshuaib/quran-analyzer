@@ -1,0 +1,620 @@
+{
+ "batch": "b002",
+ "entries": [
+  {
+   "entry_id": 6048,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "yielding a single core notion: al-shahwa, meaning appetite, craving, or desire.",
+     "note": "Ibn Fāris's single core notion for the root"
+    }
+   ]
+  },
+  {
+   "entry_id": 4005,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The shared idea has two strands: (a) one thing interpenetrating another, part entering part; and (b) height and elevation.",
+     "note": "Ibn Fāris: two strands, one shared idea"
+    },
+    {
+     "kind": "quran",
+     "text": "شَجَر — trees / woody plants. Singular شَجَرَة (a tree), which always involves height and interlacing branches.",
+     "note": "شَجَرَة 19x, شَجَر 7x, 'tree(s)'"
+    },
+    {
+     "kind": "quran",
+     "text": "شَجَرَ بَيْنَ الْقَوْمِ — a matter arises in dispute among people",
+     "note": "شَجَرَ 1x, 'arises' (Q 4:65)"
+    }
+   ]
+  },
+  {
+   "entry_id": 19605,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "its one meaning is interpenetration: one thing entering into another",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shakk, the opposite of certainty (yaqīn), belongs here",
+     "note": "شَكّ 15x, 'doubt'"
+    },
+    {
+     "kind": "quran",
+     "text": "the doubter is as if two matters had been skewered together for him",
+     "note": "why doubt belongs to this root"
+    },
+    {
+     "kind": "early",
+     "text": "In a verse of Dhū al-Rumma describing a scarred wild ass leaping \"as though he had a manifest shakk or were afflicted in the side\"",
+     "note": "Dhū al-Rumma, Umayyad; the entry has no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 14686,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "matching, resembling, binding/hobbling",
+     "note": "the entry's core idea for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Cited for Q38:58, \"others of its kind, in pairs\" — meaning resembling something else in form and in the act performed.",
+     "note": "شَكْل 1x, 'its type' (Q 38:58)"
+    },
+    {
+     "kind": "quran",
+     "text": "Shākila (Q17:84, \"each works according to his shākila\"): means one's innate disposition (sajiyya)",
+     "note": "شَاكِلَت 1x, 'his manner' (Q 17:84)"
+    },
+    {
+     "kind": "early",
+     "text": "\"people are kinds, and they pair up with their own kind\" (al-nāsu ashkālun wa-allāf)",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "He likens this to a saying attributed to the Prophet: \"Everyone is made easy toward that for which he was created.\"",
+     "note": "a hadith, used to explain shākila in Q 17:84"
+    }
+   ]
+  },
+  {
+   "entry_id": 1756,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "four separate roots that, in his view, share no common underlying sense.",
+     "note": "Ibn Fāris: the four roots share no common sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Shukr — praise or thanks given to a person for a kindness done to you.",
+     "note": "شَكَرَ 46x, شَاكِر 14x, شَكُور 10x"
+    },
+    {
+     "kind": "early",
+     "text": "a line of al-Aʿshā describing a summer raid so harsh it exhausts even a hardy, easily-kept mare",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 19166,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-shikis/al-shakas — bad-tempered, difficult in dealing (mubāyaʿah) and otherwise",
+     "note": "al-Khalīl's sense for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "al-Zumar 39:29: \"shurakāʾu mutashākisūn\" — quarrelling partners",
+     "note": "مُتَشَٰكِسُون 1x, Q 39:29"
+    }
+   ]
+  },
+  {
+   "entry_id": 12437,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "شِكاية is the making-visible of inward distress (بَثّ). Its origin is \"opening the شَكْوة\" — a small skin water-bag — and showing what is inside",
+     "note": "al-Rāghib on the word's origin, via al-Zabīdī"
+    },
+    {
+     "kind": "quran",
+     "text": "شَكَا (imperfect يَشْكو) — \"he laid his case before God,\" i.e. he informed Him of the weakness of his condition",
+     "note": "أَشْكُوا 1x, 'I complain' (Q 12:86)"
+    },
+    {
+     "kind": "quran",
+     "text": "شَكَى فلاناً — to report the wrong someone has done to you.",
+     "note": "تَشْتَكِى 1x, 'she complains' (Q 58:1)"
+    },
+    {
+     "kind": "quran",
+     "text": "Qurʾānic citations given: \"I only complain of my anguish and grief to God\" and \"and she complains to God.\"",
+     "note": "the entry's own Qur'anic citations"
+    },
+    {
+     "kind": "quran",
+     "text": "A recess or window in a wall that does not pass through",
+     "note": "مِشْكَوٰة 1x, 'like a niche' (Q 24:35)"
+    },
+    {
+     "kind": "early",
+     "text": "al-Ṭirimmāḥ: \"My mark is complained of and my tongue is fierce.\"",
+     "note": "al-Ṭirimmāḥ, Umayyad; the entry's only named poet"
+    },
+    {
+     "kind": "later",
+     "text": "\"We complained to the Messenger of God of the burning ground against our foreheads, and he did not relieve us,\" i.e. did not remove the grievance",
+     "note": "a hadith, cited for the privative sense of أَشْكى"
+    },
+    {
+     "kind": "later",
+     "text": "the majority (Ibn Jubayr, Saʿīd b. ʿIyāḍ) take it as the blind wall-recess, which concentrates light so a lamp shines brighter there",
+     "note": "exegetes Ibn Jubayr and Saʿīd b. ʿIyāḍ on Q 24:35"
+    },
+    {
+     "kind": "later",
+     "text": "Kaʿb's reading takes the niche as Muḥammad's breast, the lamp his tongue, the glass his mouth",
+     "note": "Kaʿb's exegesis of Q 24:35, via al-Suhaylī"
+    }
+   ]
+  },
+  {
+   "entry_id": 6421,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "encircling something and taking hold of it from every side",
+     "note": "first root"
+    },
+    {
+     "kind": "core",
+     "text": "the side opposite the right",
+     "note": "second root"
+    },
+    {
+     "kind": "quran",
+     "text": "اليد الشِّمال — the left hand.",
+     "note": "شِّمَال 8x, 'the left'"
+    },
+    {
+     "kind": "quran",
+     "text": "شَمَلَهُمُ الأمر — a matter \"encompassed\" them",
+     "note": "ٱشْتَمَلَتْ 2x, 'contains' (Q 6:143)"
+    },
+    {
+     "kind": "early",
+     "text": "Plural of شِمال is أشْمُل (shāhid: Abū al-Najm, \"it comes to it from rights and lefts\")",
+     "note": "Abū al-Najm, Umayyad; the entry has no earlier witness"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of Dhū al-Rumma on \"the shamāʾil of Jillān\" is read two ways",
+     "note": "Dhū al-Rumma, Umayyad; attests شَمَائِل"
+    }
+   ]
+  },
+  {
+   "entry_id": 3337,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "changeableness and restlessness — something that shifts and will not stay put",
+     "note": "Ibn Fāris's single core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shams (the sun): named from this idea because it never stays fixed but is always in motion",
+     "note": "شَمْس 33x, 'the sun'"
+    },
+    {
+     "kind": "quran",
+     "text": "He supports this with the Qur'anic reading \"and the sun runs — no fixed resting-place of its own.\"",
+     "note": "the entry's own reading of the Qur'anic verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 19160,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "شَمِتَ بِهِ (shamita bihi) = \"he gloated over him,\" rejoicing at a calamity that has struck someone hostile to him.",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Qur'an 7:150, {فَلَا تُشْمِتْ بِيَ الْأَعْدَاءَ}, \"so let not the enemies gloat over me,\" as an instance of this root.",
+     "note": "تُشْمِتْ 1x, Q 7:150"
+    },
+    {
+     "kind": "early",
+     "text": "A poetic line is quoted: a man startled by hunting hounds spends the night \"at the mercy of the gloaters, from fear and from cold.\"",
+     "note": "unattributed verse; the entry names no poet here"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris quotes a ḥadīth: two men sneezed before the Prophet; he gave the blessing (tashmīt) to one but not the other, explaining that the first had said \"al-ḥamdu lillāh\" (praised God) and the second had not.",
+     "note": "a hadith, the source of the tashmīt al-ʿāṭis sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 19145,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: self-magnification paired with physical height",
+     "note": "Ibn Fāris's single core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "jabalun shāmikh, \"a lofty/towering mountain,\" meaning ʿālin, \"high.\"",
+     "note": "شَٰمِخَٰت 1x, 'lofty' (Q 77:27)"
+    }
+   ]
+  },
+  {
+   "entry_id": 19128,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "The verb ishmaʾazza — used, the text says, \"when it contracts\" (idhā taqabbaḍa), i.e., to describe something drawing itself together or shrinking/recoiling.",
+     "note": "ٱشْمَأَزَّتْ 1x, 'shrink with aversion'"
+    }
+   ]
+  },
+  {
+   "entry_id": 12430,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The root points to *bighḍa* (hatred) and to turning away from a thing.",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "شَنَآن (*shanaʾān*), sometimes lightened (hamza dropped) to شَنَان (*shanān*).",
+     "note": "شَنَـَان 2x, 'hatred' — the lightened form"
+    },
+    {
+     "kind": "early",
+     "text": "\"Life is only what you enjoy and desire, even if the man of hatred blames you for it and calls you a fool.\"",
+     "note": "unattributed verse, using the lightened شَنَان"
+    }
+   ]
+  },
+  {
+   "entry_id": 19500,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root meaning a splitting open in a thing, with further words derived from it by metaphor.",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "shaqaqtu al-shayʾ, ashuqquhu, shaqqan: \"I split the thing\", when you cleave it.",
+     "note": "شَقَقْ 2x, ٱنشَقَّ 5x, شَقّ 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shiqāq is disagreement: the community cracks and divides.",
+     "note": "شِقَاق 7x, 'schism'"
+    },
+    {
+     "kind": "quran",
+     "text": "shiqq and mashaqqa are severe difficulty, as if its severity splits a person.",
+     "note": "شِقّ 1x, 'with great trouble' (Q 16:7)"
+    },
+    {
+     "kind": "quran",
+     "text": "al-shuqqa is a long journey to a distant land, \"an arduous shuqqa\"",
+     "note": "شُّقَّة 1x, 'the distance' (Q 9:42)"
+    },
+    {
+     "kind": "early",
+     "text": "Labīd uses the word of a wild cow that lost her calf and kept roaming and lowing \"across the breadth of the shaqāʾiq\"",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā: \"I cut off the shiqshiqa of the roarer.\"",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "the side of a mountain, as in the ḥadīth \"he found me among owners of a few sheep at a shiqq\"",
+     "note": "a hadith, cited for shiqq = mountainside"
+    }
+   ]
+  },
+  {
+   "entry_id": 6409,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "sh-q-w point to hardship and suffering — the opposite of ease",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَجُلٌ شَقِيٌّ (shaqiyy) is a wretched, hard-pressed man",
+     "note": "شَقِيّ 4x, أَشْقَى 3x"
+    },
+    {
+     "kind": "quran",
+     "text": "So الشِّقْوَة (shiqwah) means the opposite of felicity.",
+     "note": "شِقْوَت 1x, 'our wretchedness'"
+    }
+   ]
+  },
+  {
+   "entry_id": 19117,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a piece torn/separated off from a whole",
+     "note": "al-Rāghib's root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "a group that is broken off or detached — a small, cut-off band.",
+     "note": "شِرْذِمَة 1x, 'a band' (Q 26:54)"
+    },
+    {
+     "kind": "early",
+     "text": "ثوبٌ شَرَاذِمُ (a garment [that is] shirdhim/sharādhim)",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 9900,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a core idea he states plainly: something that is opened up, with an extension or stretch to it",
+     "note": "Ibn Fāris states the core image plainly"
+    },
+    {
+     "kind": "quran",
+     "text": "الشَّرِيعَة (sharīʿa) is the place of access to water where the drinker comes down to drink.",
+     "note": "شَرِيعَة 1x: the entry's concrete sense"
+    },
+    {
+     "kind": "quran",
+     "text": "From that watering-place sense, Ibn Fāris says, شِرْعَة (shirʿa) and شَرِيعَة were derived for what pertains to الدِّين (dīn).",
+     "note": "شِرْعَة 1x, شَرِيعَة 1x: derived from the water sense"
+    },
+    {
+     "kind": "quran",
+     "text": "حِيتَانٌ شُرَّعٌ — fish lowering their heads to drink.",
+     "note": "شُرَّع 1x, Q 7:163"
+    },
+    {
+     "kind": "early",
+     "text": "رُمْحٌ شِرَاعِيٌّ, \"a long spear,\" in a line attributed to al-Hudhalī",
+     "note": "al-Hudhalī, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Q 7:163 (fish coming \"shurraʿan\" on the Sabbath day) is glossed by some exegetes as \"raising their heads.\"",
+     "note": "a gloss by unnamed exegetes on Q 7:163"
+    }
+   ]
+  },
+  {
+   "entry_id": 9886,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a minor root (uṣayl) pointing to \"opening\" (fatḥ) and \"making evident\" (bayān).",
+     "note": "Ibn Fāris's minor root: opening, making evident"
+    },
+    {
+     "kind": "quran",
+     "text": "sharaḥtu al-kalāma wa-ghayrahu sharḥan, \"I explained speech, or something else\"",
+     "note": "شَرَحَ 5x: the root's ordinary sense of laying open"
+    }
+   ]
+  },
+  {
+   "entry_id": 19112,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sign or mark (ʿalāma/ʿalam), and anything that approximates a sign.",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-sharaṭ = \"sign, mark.\" Ashrāṭ al-sāʿa, \"the signs of the Hour,\" takes its name from this",
+     "note": "أَشْرَاط 1x, 'its indications' (Q 47:18)"
+    },
+    {
+     "kind": "quran",
+     "text": "(Also: ashrāṭ al-sāʿa is said to mean its earliest portents.)",
+     "note": "a second gloss of the Qur'anic ashrāṭ"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of Ḥassān [ibn Thābit] uses ashrāṭ for companions \"roused after the slumber-time of al-ashrāṭ\"",
+     "note": "Ḥassān ibn Thābit, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 2930,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The base sense is consuming any liquid, water or otherwise.",
+     "note": "al-Rāghib's base sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the Garden's people are given \"a pure drink\" (Q76:21), the Fire's people \"a drink of scalding water\" (Q10:4)",
+     "note": "شَرَاب 11x, 'a drink'"
+    },
+    {
+     "kind": "quran",
+     "text": "A distinct vocalization meaning one's turn or portion of water",
+     "note": "شِرْب 3x, 'a share of drink'"
+    },
+    {
+     "kind": "quran",
+     "text": "the noun of the place of drinking (a drinking-place)",
+     "note": "مَّشْرَب 3x, 'their drinking place' (Q 2:60)"
+    },
+    {
+     "kind": "early",
+     "text": "ashrabtanī mā lam ashrab, \"you made me drink what I did not drink\" — i.e., you alleged against me what I never did.",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "(b) The love of the calf was \"made to be drunk into\" their hearts.",
+     "note": "al-Rāghib's own exegesis of Q 2:93"
+    }
+   ]
+  },
+  {
+   "entry_id": 19099,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "scaring or driving something away to a distance",
+     "note": "Ibn Fāris's single core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "sharradtu al-ibila tashridan — \"I scattered/drove off the camels.\"",
+     "note": "شَرِّدْ 1x, 'disperse' (Q 8:57)"
+    },
+    {
+     "kind": "quran",
+     "text": "{fa-sharrid bihim man khalfahum}, \"so by them, scatter/disperse those behind them.\"",
+     "note": "the Qur'anic form in its ordinary sense"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Faris glosses this as nakkil bihim wa-sammi' — \"make an exemplary, deterrent punishment of them, and publicize it\"",
+     "note": "the author's own exegesis of Q 8:57"
+    }
+   ]
+  },
+  {
+   "entry_id": 790,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "shirka (partnership): a thing held between two people, with neither possessing it by himself.",
+     "note": "first root: association"
+    },
+    {
+     "kind": "quran",
+     "text": "ashraktu fulānan = \"I made him my partner (sharīk).\"",
+     "note": "أَشْرَكَ 71x, شَرِيك 40x: the entry's literal sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"and make him a sharer in my affair\" (Ṭā-Hā 32)",
+     "note": "شَارِكْ 1x, Q 20:32"
+    }
+   ]
+  },
+  {
+   "entry_id": 5311,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning illumination and opening",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "شَرَقَتِ الشَّمْسُ (sharaqat al-shams) = the sun rose; أَشْرَقَتْ (ashraqat) = it gave light",
+     "note": "أَشْرَقَتِ 1x 'will shine'; مُّشْرِقِين 2x 'at sunrise'"
+    },
+    {
+     "kind": "quran",
+     "text": "الْمَشْرِقَانِ (the two easts) = the sun's rising-points in summer and winter",
+     "note": "مَشْرِق 11x, 'the east'"
+    }
+   ]
+  },
+  {
+   "entry_id": 19477,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "spreading out and flying about",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-sharr is the opposite of khayr (good); a wicked man is shirrīr.",
+     "note": "شَرّ 30x, 'the evil'"
+    },
+    {
+     "kind": "quran",
+     "text": "sharāra (plural sharār) and sharar (singular sharara) are what flies up from fire, as in Q 77:32",
+     "note": "شَرَر 1x, 'sparks' (Q 77:32)"
+    },
+    {
+     "kind": "early",
+     "text": "Ṭarafa: \"my drinking of wine went on until my friend imputed evil to me\"",
+     "note": "Ṭarafa, pre-Islamic; attests sharr = evil"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays, passing guards and men eager against him, \"if only they could bring my death out into the open\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 4234,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "analyzes the root sh-r-ā (shīn + rāʾ + a weak final letter) as three distinct roots.",
+     "note": "Ibn Fāris: three separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "شَرَى / اشْتَرَى (sharā / ishtarā): to take a thing from its owner for a price, i.e. to buy.",
+     "note": "ٱشْتَرَىٰ 21x, 'exchange'"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'an 12:20, {وَشَرَوْهُ بِثَمَنٍ بَخْسٍ}, \"they sold him for a paltry price.\"",
+     "note": "شَرَ 4x, 'and they sold him' (Q 12:20)"
+    },
+    {
+     "kind": "early",
+     "text": "\"كل مُجْرٍ في الخلاء يشرى\" — \"anyone racing in open, empty ground grows spirited/reckless.\"",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "Illustrated by a saying of the judge Shurayḥ about a man who broke another's bow — he ruled \"شَرْوَاهَا,\" its equivalent (in compensation).",
+     "note": "a judge's ruling, giving sharwā a legal use"
+    }
+   ]
+  }
+ ]
+}
