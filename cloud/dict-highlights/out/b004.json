@@ -1,0 +1,555 @@
+{
+ "batch": "b004",
+ "entries": [
+  {
+   "entry_id": 2919,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the core idea of a \"tail\" / rear / hind part.",
+     "note": "Zamakhshari's core idea for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "adhnaba = committed a dhanb (fault/sin)",
+     "note": "ذَنب, 37 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"they have a dhanūb of it\" = a share",
+     "note": "ذَنُوب, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "verse of ʿAmr b. Shaʾs, where a king answers \"yes, and buckets more\"",
+     "note": "ʿAmr b. Shaʾs, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 12393,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single notion from which every derivative in the section descends",
+     "note": "Ibn Faris: one notion behind the whole section"
+    },
+    {
+     "kind": "quran",
+     "text": "the chin: the point where the two jawbones meet",
+     "note": "أَذْقَان, 3 times"
+    },
+    {
+     "kind": "later",
+     "text": "the report from ʿĀʾisha that the Prophet died \"between my chest and my throat, my ḥāqina and my dhāqina,\"",
+     "note": "a hadith reported from ʿĀʾisha"
+    }
+   ]
+  },
+  {
+   "entry_id": 8872,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two separate root-meanings, plus one irregular usage",
+     "note": "Ibn Faris: two origins for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris places the divine usage under this second (sowing/propagating) sense",
+     "note": "ذَرَأَ, 6 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"You split the heart, then sowed your love in it; so it was stitched up and the fissures closed.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 9856,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning extension and forward movement",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الذِّرَاع (dhirāʿ) is the human forearm — the well-known word, and the anchor of the whole family.",
+     "note": "ذِرَاع, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "From this comes ضاق بهذا الأمر ذرعاً — literally \"his reach became narrow at this matter\"",
+     "note": "ذَرْع, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19431,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root that indicates fineness and spreading out",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-dharr are tiny ants; one ant is a dharra.",
+     "note": "ذَرَّة, 6 times"
+    },
+    {
+     "kind": "early",
+     "text": "al-Ḥuṭayʾa used dhārat bi-anfihā (\"she turned up her nose\") with a single r",
+     "note": "al-Ḥuṭayʾa, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 12380,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one thing rising above another and overshadowing it",
+     "note": "first of two origins"
+    },
+    {
+     "kind": "core",
+     "text": "something falling away in scattered pieces",
+     "note": "second of two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "the wind scattered or winnowed something",
+     "note": "ذَّٰرِيَٰت / تَذْرُو, the scattering wind"
+    },
+    {
+     "kind": "early",
+     "text": "\"When a breeding-stallion of ours has the edge of his tusk broken away, another stallion's tusk rages among us.\"",
+     "note": "Aws, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 18994,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two possible original meanings, which he suggests may in fact go back to one",
+     "note": "Ibn Faris: two origins, perhaps one"
+    },
+    {
+     "kind": "quran",
+     "text": "To drive/repel something away — the verb ḏāda-yaḏūdu-ḏawdan",
+     "note": "تَذُودَ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 2123,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root sense — testing or examining a thing by tasting it",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ذُقْتُ الْمَأْكُولَ (\"I tasted the food\")",
+     "note": "ذَاقُ, 36 times"
+    },
+    {
+     "kind": "quran",
+     "text": "anything unpleasant that befalls a person is said to be something he has \"tasted.\"",
+     "note": "أَذَاقَ, 22 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 18980,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "securing and keeping something safe.",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The Form VIII reflexive is ادَّخَرَ (iddakhara), \"he laid something up for himself\"",
+     "note": "تَدَّخِرُ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 18968,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "something becoming manifest, appearing, and spreading abroad",
+     "note": "Ibn Faris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "One says dhāʿa al-khabar ('the news dhāʿa'), meaning it spread and became widely known",
+     "note": "أَذَاعُ, 1 time"
+    },
+    {
+     "kind": "later",
+     "text": "nor the madhāyīʿ al-budhur (the blabbermouths who scatter secrets)",
+     "note": "a hadith attributed to ʿAlī"
+    }
+   ]
+  },
+  {
+   "entry_id": 14637,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core meaning is hiddah - sharpness, keenness, intensity",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A person described as ashir is batir (exultant, insolent from excess/high spirits)",
+     "note": "أَشِر, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "cites a line of the poet Aws ibn Hajar describing such a she-camel",
+     "note": "Aws ibn Hajar, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 1365,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "الأذن (al-udhun) — the ear as a bodily organ.",
+     "note": "أُذُنٌ, 18 times"
+    },
+    {
+     "kind": "quran",
+     "text": "أَذِنَ (adhina) — to listen, to give ear",
+     "note": "أَذِنَ, 23 times"
+    },
+    {
+     "kind": "quran",
+     "text": "المُؤَذِّن (muʾadhdhin) — anyone who announces something by a call or proclamation",
+     "note": "مُؤَذِّن / أَذَّنَ, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الإِذن (idhn) — to make known that a thing is permitted, to grant license for it.",
+     "note": "إِذْن, 39 times"
+    },
+    {
+     "kind": "later",
+     "text": "God created in the human the capacity to be affected by a wrongdoer's blow — not making him a stone that feels no pain",
+     "note": "the author's own exegesis of Q 2:102"
+    }
+   ]
+  },
+  {
+   "entry_id": 4366,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "something you find loathsome and cannot settle at ease with",
+     "note": "Ibn Faris's single root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "آذَيْتُ فُلَانًا أُوذِيهِ — \"I harmed/annoyed So-and-so, I harm him.\"",
+     "note": "أُوذِىَ, 15 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 1577,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-Rāghib holds that aḥad originates from وحد (waḥd)",
+     "note": "al-Raghib on the word's origin"
+    },
+    {
+     "kind": "quran",
+     "text": "Here aḥad sweeps up the entire class of rational beings — few or many, taken together or apart",
+     "note": "أَحَد, 74 times"
+    },
+    {
+     "kind": "quran",
+     "text": "In a genitive construct, meaning \"the first (one)\"",
+     "note": "إِحْدَى / أَحَدُكُما"
+    },
+    {
+     "kind": "early",
+     "text": "citing a line of al-Nābigha in which waḥd describes a solitary wild oryx at day's end",
+     "note": "al-Nābigha, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 7050,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "In \"in the mornings and the آصāl\" (al-Aʿrāf 7:205), آصāl means the evenings.",
+     "note": "أَصِيل, 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "أَصْل is a thing's base or footing",
+     "note": "أَصْل, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 12371,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "holding or confining something (ḥabs), and inclining or bending toward something (ʿaṭf)",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a covenant and a kinship tie carry an iṣr — a binding weight that has to be borne",
+     "note": "إِصْر, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites al-Ḥuṭayʾa: they showed him favour \"without any āṣira — for the awāṣir [ties] have grown great,\"",
+     "note": "al-Ḥuṭayʾa, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 18948,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-abb is fodder-plant growth — \"the pasture\" (Ibn Durayd)",
+     "note": "أَبّ, 1 time (Q 80:31)"
+    },
+    {
+     "kind": "quran",
+     "text": "This is the word in the Qur'an, \"wa fākihatan wa abban\" — \"and fruit and abb\" (Q 80:31).",
+     "note": "the entry's note on the Qur'anic word"
+    },
+    {
+     "kind": "early",
+     "text": "a saying attributed to Quss b. Sāʿida, who \"grazed on abb and hunted a lizard.\"",
+     "note": "saying attributed to Quss b. Sāʿida, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Illustrated with a verse by al-Aʿshā comparing a man resolved to leave to one who has already cut ties.",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Mujāhid draws the contrast explicitly: fruit is what people eat, abb is what cattle eat",
+     "note": "exegete Mujāhid (d. 722)"
+    }
+   ]
+  },
+  {
+   "entry_id": 3874,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two core ideas: (1) length of duration, and (2) wildness or becoming feral",
+     "note": "Ibn Faris: two origins for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "الأَبَد (al-abad) means time / an unbounded stretch of time (glossed as al-dahr)",
+     "note": "أَبَدًا, 28 times"
+    },
+    {
+     "kind": "early",
+     "text": "Labīd's line on the effaced abodes at Minā",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris cites a ḥadīth that these domestic beasts have \"awābid\" (ones that bolt) like wild animals.",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 12357,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "resting on a small set of basic ideas: camels; doing without water (self-sufficiency); heaviness; and overcoming",
+     "note": "Ibn Faris's basic ideas for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Abū Zayd: إبل covers both the mature animals and the young",
+     "note": "إِبِل, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-Khalīl explains أبابيل as \"some of them following others\" (i.e. in successive flocks)",
+     "note": "أَبَابِيل, 1 time (Q 105:3)"
+    },
+    {
+     "kind": "early",
+     "text": "the proverb \"more expert with camels than Ḥunayf al-Ḥanātim.\"",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris cites the Prophet's saying, \"People are like a hundred camels among which there is not one riding-beast.\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris cites the report, \"Every property whose zakāt has been rendered — its burden (أَبَلَة) is gone.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 18947,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "A slave fleeing/absconding (ibāq).",
+     "note": "first of two origins"
+    },
+    {
+     "kind": "core",
+     "text": "Hardness or toughness in a matter (al-tashaddud fī al-amr).",
+     "note": "second of two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "أَبَقَ (abaqa), \"he [a slave] fled/absconded,\"",
+     "note": "أَبَقَ, 1 time (Q 37:140)"
+    },
+    {
+     "kind": "early",
+     "text": "al-Aʿshā says death came upon a man \"not hiding,\"",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr describes rope-nooses of rawhide and hemp being pulled taut/firmly secured",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 19222,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one idea: rearing and nourishing.",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris says it is for this reason that the father is called al-ab.",
+     "note": "أَبٌ, 46 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Khalīl calls al-ab a familiar word and gives two plurals, ābāʾ and ubuwwa",
+     "note": "ابَاء, 64 times"
+    },
+    {
+     "kind": "early",
+     "text": "citing a verse in which the poet calls a tribe \"the forefathers (ubuwwa) of my fathers.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 6033,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "refusal, holding back, declining (al-imtināʿ).",
+     "note": "Ibn Faris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "أَبَيْتُ الشَّيْءَ آبَاهُ = \"I refused / I refuse the thing.\"",
+     "note": "أَبَى, 13 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الإِبَاء (al-ibāʾ): refusal to accept — when something is offered to a man and he declines it.",
+     "note": "the noun of refusal"
+    },
+    {
+     "kind": "early",
+     "text": "\"one who refuses injustice, from a band of men who refuse to be wronged\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 18931,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-idd/al-iddah — a wonder, a monstrous/terrible matter, a calamity (also al-add, same sense)",
+     "note": "إِدّ, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'an Maryam 19:89, \"laqad jiʾtum shayʾan iddā\" — \"you have certainly come up with a monstrous thing\"",
+     "note": "the entry's central citation"
+    },
+    {
+     "kind": "later",
+     "text": "a hadith of ʿAlī describes a dream of the Prophet, asking what \"great calamities and crookedness\" (al-idād wa-l-awad)",
+     "note": "a hadith of ʿAlī"
+    }
+   ]
+  },
+  {
+   "entry_id": 8857,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "**getting something to reach something else** — either delivering a thing to its destination",
+     "note": "Ibn Faris's single root idea"
+    },
+    {
+     "kind": "quran",
+     "text": "أَدَّى (form II) — \"so-and-so renders what is due from him,\"",
+     "note": "يُؤَدِّ, 5 times"
+    },
+    {
+     "kind": "early",
+     "text": "A line of verse quoted from an unnamed reciter uses the form II verb of conveying a message",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 12341,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "*Uff* and *afaf* both belong to *taʾfīf* — the act of saying \"*uff*\" [an exclamation of annoyance or disgust].",
+     "note": "أُفّ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The ʿAyn gives the verb: *affaftu fulānan*, \"I said *uff* to so-and-so,\"",
+     "note": "the verb of saying uff"
+    }
+   ]
+  }
+ ]
+}
