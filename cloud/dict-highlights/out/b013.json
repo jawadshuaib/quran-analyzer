@@ -1,0 +1,645 @@
+{
+ "batch": "b013",
+ "entries": [
+  {
+   "entry_id": 18554,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the rising or curving upward of something",
+     "note": "Ibn Fāris's core idea for the root"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ḥadab means high ground — a hillock or elevation.",
+     "note": "حَدَب, 1x"
+    }
+   ]
+  },
+  {
+   "entry_id": 19525,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two roots: first, prevention (al-manʿ); second, the edge of a thing.",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "The ḥadd is the barrier between two things.",
+     "note": "حُدُود, 14 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Iron (ḥadīd) is named for its resistance, hardness and toughness.",
+     "note": "حَدِيد, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Muḥādda means opposing someone, as if it were mutual withholding.",
+     "note": "حَادَّ / يُحَادُّ, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Nābigha has the King (al-malīk) tell Sulaymān to \"restrain (uḥdud) creation from folly\".",
+     "note": "Al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā speaks of a dark wine-jar \"kept by its ḥaddād\".",
+     "note": "Al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "The ḥadd for a disobedient person is called ḥadd because it prevents him from repeating the act.",
+     "note": "legal definition (ḥadd penalty)"
+    }
+   ]
+  },
+  {
+   "entry_id": 12194,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core sense: something encircling or surrounding something else.",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Land covered with trees.",
+     "note": "حَدَائِق, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "Illustrated with a line of verse: death \"encircled\" the poet while his supporters were slow to arrive.",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 3095,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a thing's coming into being after it was not — newness, coming-to-pass.",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "\"speech / report\": tied to the same root",
+     "note": "حَدِيث, 28 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 2648,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "tending to or watching over something.",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "guarding, keeping, preserving. حَفِظَ الشَّيْءَ = to guard or keep a thing (verbal noun ḥifẓ).",
+     "note": "حَفِظَ / حَٰفِظ, most of 44 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 18539,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "lightness/swiftness in work, and gathering/coming-together.",
+     "note": "the root's two combined senses"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris surveys three readings of ḥafadah: helpers/attendants",
+     "note": "حَفَدَة, 1x, Q16:72"
+    },
+    {
+     "kind": "early",
+     "text": "the qunūt supplication phrase \"ilayka nasʿā wa naḥfidu\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 20038,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a kind of sound, one thing going round another, and hardship in living.",
+     "note": "Ibn Fāris's three roots"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris cites Q 39:75, \"and you will see the angels surrounding (ḥāffīn)",
+     "note": "حَافِّين, Q39:75"
+    },
+    {
+     "kind": "early",
+     "text": "with a line of Ṭarafa: \"As though the two wings of a maḍraḥī (a large bird of prey) flanked its two sides",
+     "note": "Ṭarafa, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 14289,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ḥafr — digging something, i.e. removing or pulling it out from underneath.",
+     "note": "first root-meaning"
+    },
+    {
+     "kind": "core",
+     "text": "\"the beginning of a matter.\"",
+     "note": "second root-meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ḥafar is the earth dug out of a pit",
+     "note": "حُفْرَة, 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "used in Qur'an 79:10 — \"Are we indeed to be returned to al-ḥāfira?\" Ibn Fāris reports this is explained as \"the first/original state,\"",
+     "note": "حَافِرَة, Q79:10"
+    },
+    {
+     "kind": "early",
+     "text": "\"Payment at the hoof\" (al-naqdu ʿinda al-ḥāfir): the horse doesn't leave until you've paid its price.",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 12178,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "\"Aḥfānī\" = he wore me down by relentless pressing or repeated asking.",
+     "note": "يُحْفِ, 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "describes someone gentle and solicitous toward you, who treats you kindly and takes warm interest in you (yaḥtafī bika).",
+     "note": "general sense behind حَفِيّ"
+    },
+    {
+     "kind": "quran",
+     "text": "Q19:47, \"innahu kāna bī ḥafiyyan\" — glossed there as \"dutiful, gentle.\"",
+     "note": "حَفِيّ, Q19:47"
+    },
+    {
+     "kind": "early",
+     "text": "al-Aʿshā (swearing not to pity a mount's \"footsoreness\")",
+     "note": "Al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 7824,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single primitive meaning (barring) generates the anatomical and celestial vocabulary through visual resemblance",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I barred him from such-and-such,\" which he glosses simply as \"I prevented him.\"",
+     "note": "general sense behind حِجَاب / مَحْجُوبُون"
+    },
+    {
+     "kind": "quran",
+     "text": "the internal partition that screens off the heart from the rest of the body cavity",
+     "note": "حِجَاب, 7 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19460,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ḥ-j-j has four distinct root meanings",
+     "note": "Ibn Fāris's four origins"
+    },
+    {
+     "kind": "quran",
+     "text": "In his words, \"every qaṣd is ḥajj\".",
+     "note": "حَجّ, ordinary sense (setting out)"
+    },
+    {
+     "kind": "quran",
+     "text": "Ḥājajtuhu fa-ḥajajtuhu means \"I argued with him and beat him with proof\"; this is winning in a dispute.",
+     "note": "حَاجَّ / حُجَّة, 19 times combined"
+    },
+    {
+     "kind": "early",
+     "text": "Abū Dhuʾayb uses ḥajīj for a wound so treated.",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 4698,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "prevention/withholding (manʿ) together with encompassing or surrounding a thing (iḥāṭa).",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ḥajar — \"stone\"; smaller-number plural aḥjār, also the rare pattern ḥijāra",
+     "note": "حِجَارَة / حَجَر, 12 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥijr = the intellect/reason, so called because it holds one back from improper action",
+     "note": "حِجْر, Q89:5"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris connects this to the Qur'anic ḥijran maḥjūran (al-Furqān 25:22)",
+     "note": "مَّحْجُور, Q25:22"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid: Labīd, \"a huge, powerful she-camel waters the gardens.\"",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "ḥajara l-ḥākimu ʿalā s-safīh — \"the judge placed a ban on the incompetent man,\" i.e. barred him from disposing of his own property.",
+     "note": "legal definition (ḥajr interdiction)"
+    }
+   ]
+  },
+  {
+   "entry_id": 14267,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-ḥajz: to prevent or separate two things by placing a barrier between them.",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Cited: Qur'an 27:61, \"And He placed between the two seas a barrier (ḥājizan).\"",
+     "note": "حَاجِز, Q27:61"
+    },
+    {
+     "kind": "quran",
+     "text": "69:47: \"there is not one among you who could hold it back (ḥājizīn).\"",
+     "note": "حَٰجِزِين, Q69:47"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: \"If you want mutual restraint (al-muḥājaza)",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 460,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "prevention or restraint (al-manʿ).",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "Judgement/authority (al-ḥukm) is the primary derivative",
+     "note": "حُكْم / حَكَمَ, 75 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Wisdom (al-ḥikma) belongs to the same pattern, because it restrains a person from ignorance (jahl).",
+     "note": "حِكْمَة, ordinary sense"
+    },
+    {
+     "kind": "early",
+     "text": "a line of Ṭarafa, where muḥakkam denotes the wise elder.",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Also noted from a ḥadīth: \"Paradise belongs to the muḥakkamūn\" — people who, when given the choice between being killed while holding firm to Islam and abandoning it, chose to stand firm and be killed",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 6001,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "المُلازَمة — clinging to, keeping close to, adhering.",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "الحَلِف (verb حَلَفَ / yaḥlifu) — to swear.",
+     "note": "حَلَفْ, 12 times"
+    },
+    {
+     "kind": "early",
+     "text": "a bay mare \"not muḥlifa\" (not of a doubtful colour, so no one would swear over it)",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 19406,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning, \"opening a thing\", and nothing departs from it.",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "Ḥalāl is the opposite of ḥarām. Ibn Fāris links it to the root as making a thing permissible and leaving it open.",
+     "note": "حَلَٰل / حَلَلْ / أَحَلَّ, 40 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Ḥalla means \"he alighted\". Ibn Fāris explains that a traveller ties up his baggage and unties it when he halts.",
+     "note": "مَحِلّ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Ḥallaltu al-yamīn means \"I released my oath\".",
+     "note": "تَحِلَّة, 1x"
+    },
+    {
+     "kind": "early",
+     "text": "Kaʿb ibn Zuhayr: \"their striking of the ground is taḥlīl\").",
+     "note": "Kaʿb ibn Zuhayr, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays's phrase \"wholesome water, not muḥallal\" has two explanations.",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth says the Prophet married Maymūna \"while they were both ḥalāl\".",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "The ḥadīth \"No believer loses three children and is then touched by the Fire, except taḥillat al-qasam\" is explained through Q 19:71",
+     "note": "hadith interpreting Q19:71"
+    }
+   ]
+  },
+  {
+   "entry_id": 4684,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Al-ḥilm is the opposite of rashness or levity (ṭaysh) — forbearance, self-possession.",
+     "note": "first of three separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥalumtu ʿanhu, aḥlumu (\"I was forbearing toward him\")",
+     "note": "حَلِيم, 15 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Qad ḥalama fī nawmihi (\"he dreamed\"), verbal noun ḥulm / ḥulum.",
+     "note": "حُلُم, 6 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 12173,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Shaving/removing hair from the head, and things derived from that idea.",
+     "note": "first of three underlying ideas"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥalaqa (yaḥliqu, ḥalqan) — the ordinary verb \"to shave [the head].\"",
+     "note": "تَحْلِقُ / مُحَلِّقِين"
+    },
+    {
+     "kind": "early",
+     "text": "Citation from al-Nābigha: when a commander goes raiding with his army, flocks of carrion-birds (vultures, eagles, crows) are said to circle (ḥallaqa) above it, trailing the army in expectation of the slain who will fall to them",
+     "note": "al-Nābigha, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 7390,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Whatever a person adorns themselves with, made of worked metal or of stones.",
+     "note": "حِلْيَة, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "On \"you eat fresh flesh and extract ornament (ḥilyah) that you wear,\" Ibn Sīda explains that the statement can be predicated of both bodies of water together because they intermingle",
+     "note": "حِلْيَة, Q16:14/Q35:12"
+    },
+    {
+     "kind": "quran",
+     "text": "\"yuḥallawna fīhā min asāwira min dhahabin wa-luʾluʾan\" (they are adorned therein with bracelets of gold, and pearl)",
+     "note": "حُلُّ, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aghlab al-ʿIjlī's verse describes a girl of Qays b. Thaʿlaba \"as though she were the ornament of a gilded sword.\"",
+     "note": "Al-Aghlab al-ʿIjlī, Umayyad"
+    },
+    {
+     "kind": "later",
+     "text": "A prophetic report is cited in which the Prophet \"used to adorn us with pendant ear-ornaments of gold and pearl.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 10952,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-ḥamʾa and al-ḥamaʾ mean black, foul-smelling mud. The Qur'anic phrase min ḥamaʾin masnūn (\"from ḥamaʾ masnūn\") is cited for the word.",
+     "note": "حَمَإ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The Qur'an has \"he found it setting in a spring that was ḥamiʾa\" (Q 18:86).",
+     "note": "حَمِئَة, Q18:86"
+    },
+    {
+     "kind": "early",
+     "text": "as in the verse \"I said to a doorkeeper beside whom her house stood: 'Give leave, for I am her ḥamʾ and her neighbour'\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 63,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the opposite of ذمّ (blame/dispraise), i.e. to praise.",
+     "note": "Ibn Fāris's core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥamidtu fulānan / aḥmaduhu — \"I praised him / I praise him.\"",
+     "note": "حَمْد / حَمِيد, 60 times combined"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā praised al-Nuʿmān b. al-Mundhir with a verse calling him \"al-muḥammad\" (the much-praised)",
+     "note": "Al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 2046,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning the lifting or bearing of a thing. Base verb: ḥamala / yaḥmilu / ḥaml (\"to carry\").",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥaml — what is borne inside a belly or at the top of a tree: a fetus, or fruit.",
+     "note": "حَمْل, 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥiml — a load carried on the back or head.",
+     "note": "حِمْل, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥumūl — camel-litters/howdahs, whether or not women are in them.",
+     "note": "general sense behind حَٰمِلِين / حَٰمِلَٰت"
+    },
+    {
+     "kind": "early",
+     "text": "cited from Imruʾ al-Qays (\"until my tears soaked my sword-strap\").",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "On al-Aʿshā's verse, Ibn al-Sikkīt reports that uḥtumila means \"he grew angry.\"",
+     "note": "Al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "quoted in a ḥadīth about people leaving the Fire sprouting like seed in a torrent's debris.",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 19546,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "he sorts it under five roots: blackening, heat, nearness and presence, a kind of sound, and intent.",
+     "note": "Ibn Fāris's five origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ḥamīm is hot water, and al-istiḥmām is washing with it.",
+     "note": "حَمِيم, 20 times"
+    },
+    {
+     "kind": "quran",
+     "text": "From this comes al-yaḥmūm, smoke.",
+     "note": "يَحْمُوم, 1x"
+    },
+    {
+     "kind": "early",
+     "text": "as in Ṭarafa's line about \"ashes whose charcoal is effaced\".",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "cited from Abū Dhuʾayb: an angered she-camel withholds her milk \"except the sweat, for that oozes\".",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 8761,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single origin — redness (ḥumra) — while allowing that it may be split into two: (1) redness, and (2) a kind of animal (the donkey).",
+     "note": "Ibn Fāris's origin(s)"
+    },
+    {
+     "kind": "quran",
+     "text": "The plain, well-known sense. He cites the Arab saying \"beauty is red\" (al-ḥusn aḥmar)",
+     "note": "حُمْر, 1x"
+    },
+    {
+     "kind": "quran",
+     "text": "Plural forms: ḥamīr, ḥumur, ḥumurāt — patterned, he notes, like ṣaʿīd / ṣuʿud / ṣuʿudāt.",
+     "note": "حِمَار, 5 times"
+    },
+    {
+     "kind": "early",
+     "text": "His evidence for the plural al-aḥāmira is al-Aʿshā's line: \"the three red things consumed my wealth, and I had long been enamoured of them.\"",
+     "note": "Al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "He quotes ʿAlī: \"when the fighting turned red [grew fierce] we would shelter behind the Messenger of God, and none of us was closer to the enemy than he.\"",
+     "note": "a Companion's saying (ʿAlī)"
+    }
+   ]
+  },
+  {
+   "entry_id": 8745,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a core notion of heat, then traces two extensions from it — anger and protection",
+     "note": "al-Rāghib's core notion"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites \"a ḥāmiya spring,\" which he glosses simply as \"hot,\"",
+     "note": "حَامِية, Q9:35"
+    },
+    {
+     "kind": "quran",
+     "text": "Hence ḥamītu ʿalā fulān, \"I burned against him,\" i.e. I was angry with him. He cites Q 48:26, \"the ḥamiyya of the Jāhiliyya.\"",
+     "note": "حَمِيَّة, Q48:26"
+    },
+    {
+     "kind": "quran",
+     "text": "Q 5:103, \"nor a ḥāmī.\"",
+     "note": "حَام, Q5:103"
+    },
+    {
+     "kind": "later",
+     "text": "he quotes the report \"no ḥimā except for God and His Messenger.\"",
+     "note": "a hadith (prophetic report)"
+    }
+   ]
+  }
+ ]
+}

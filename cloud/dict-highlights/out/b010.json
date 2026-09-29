@@ -1,0 +1,775 @@
+{
+ "batch": "b010",
+ "entries": [
+  {
+   "entry_id": 3319,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single idea: covering and concealment",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "loss of sight in both eyes together",
+     "note": "أَعْمَىٰ, 21 times"
+    },
+    {
+     "kind": "quran",
+     "text": "a man is ʿamin, a people ʿamūna, when blind in understanding",
+     "note": "عَمُون / عَمِىَ, figurative blindness"
+    },
+    {
+     "kind": "early",
+     "text": "a line of al-Murrār on a dust-laden west wind",
+     "note": "al-Murrār, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "the transmitters glossed as pride/arrogance (al-kibr)",
+     "note": "a hadith's transmitters' gloss"
+    }
+   ]
+  },
+  {
+   "entry_id": 6719,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two unrelated meanings: a well-known fruit, plus one other word",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "The fruit — grapes (ʿinab).",
+     "note": "عِنَب, 11 times"
+    },
+    {
+     "kind": "early",
+     "text": "the choice grapes and figs.",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 487,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "passing beyond a limit and leaving the straight path — i.e. deviation",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the arrogant tyrant; this word is from tajabbur (haughty domineering)",
+     "note": "عَنِيد, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "as if the person had inclined away from everyone else toward this one until he came close and cleaved to him",
+     "note": "عِند, 197 times"
+    },
+    {
+     "kind": "early",
+     "text": "used memorably of death (Jundal's couplet)",
+     "note": "Jundal, undated"
+    }
+   ]
+  },
+  {
+   "entry_id": 14427,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "a small creature that spins a thin, loosely-woven (flimsy) web",
+     "note": "عَنكَبُوت, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "a line by the pre-Islamic/Umayyad-era poet Dhū al-Rummah describing spiders weaving",
+     "note": "Dhū al-Rummah, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 7459,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root meaning extension in something — either extension upward (height) or extension outward (spreading, stretching along)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿunuq — the neck, the link between head and body",
+     "note": "عُنُق, 9 times"
+    },
+    {
+     "kind": "quran",
+     "text": "He applies it to Q 26:4, \"so their aʿnāq became khāḍiʿīn [submissive]\", reading aʿnāq as \"their company\"",
+     "note": "the entry's own reading of Q 26:4"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr's line describing a fighter who spears, then strikes, then finally grapples",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn al-Aʿrābī on Ibn Aḥmar's line about \"the daughters of Aʿnaq\"",
+     "note": "Ibn Aḥmar, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 9784,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root meaning hardship and things like it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿanat is hardship that falls upon the tongue",
+     "note": "عَنَت, root's core Qur'anic sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to bring hardship upon someone",
+     "note": "أَعْنَتَ, 1 time"
+    },
+    {
+     "kind": "later",
+     "text": "the dispensation to marry bondwomen applies when a man fears he will fall into illicit sexual conduct",
+     "note": "exegete al-Farrāʾ on Q 4:25"
+    },
+    {
+     "kind": "later",
+     "text": "linguistically al-ʿanat is severe hardship — hence أَكَمَةٌ عَنُوتٌ, \"a toilsome hillock\" (a hill hard to climb)",
+     "note": "exegete al-Zajjāj on Q 4:25"
+    },
+    {
+     "kind": "later",
+     "text": "here it means destruction (halāk)",
+     "note": "exegete al-Mubarrad on Q 4:25"
+    }
+   ]
+  },
+  {
+   "entry_id": 18664,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-ʿānī also means anyone submissive or self-abasing",
+     "note": "عَنَتِ, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "The dictionary cites Qurʾān 20:111, \"and faces are humbled before the Living, the Self-Subsisting\" (wa-ʿanati l-wujūhu…), as an instance of this sense",
+     "note": "the entry's own citation of Q 20:111"
+    },
+    {
+     "kind": "early",
+     "text": "an Aws b. Ḥajar verse (on al-ʿaniyya, a tar or thickened-urine compound used on camels)",
+     "note": "Aws b. Ḥajar, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 1654,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a thing's delay and its coming after another",
+     "note": "Ibn Fāris's first origin"
+    },
+    {
+     "kind": "core",
+     "text": "elevation, intensity, and difficulty",
+     "note": "Ibn Fāris's second origin"
+    },
+    {
+     "kind": "quran",
+     "text": "the ʿāqiba of anything is its end",
+     "note": "عَٰقِبَة, 32 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿāqabtu al-rajula (I requited/punished him) → ʿuqūba, ʿiqāb, punishment",
+     "note": "عِقَاب, 20 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿaqib al-qadam = the heel",
+     "note": "عَقِب, 8 times"
+    },
+    {
+     "kind": "quran",
+     "text": "In Q 27:10 {wa lam yuʿaqqib} = \"he did not turn round\" (yaʿṭif)",
+     "note": "يُعَقِّبْ, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by verses on avenging a slain kinsman \"in the span between a sneeze and its blessing.\"",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "later",
+     "text": "Some exegetes read the muʿaqqibāt of Q 13:11 as the angels of night and day, because they relieve one another in turn",
+     "note": "exegetes' reading of Q 13:11"
+    },
+    {
+     "kind": "later",
+     "text": "as in ʿAmmār's ḥadīth praying that a liar become a much-followed ruler",
+     "note": "a hadith (ʿAmmār)"
+    }
+   ]
+  },
+  {
+   "entry_id": 8174,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning \"to tie, bind\" and, by extension, \"firmness of hold.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the knot itself is عُقْدَة",
+     "note": "عُقْدَة, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the noun is عَقْد, plural عُقُود, cited with Q 5:1 \"fulfil the ʿuqūd.\"",
+     "note": "عُقُود, cited with Q 5:1"
+    },
+    {
+     "kind": "quran",
+     "text": "عَقْد also covers the binding of an oath, cited with Q 5:89 \"the oaths you have bound fast.\"",
+     "note": "عَقَدَتْ, cited with Q 5:89"
+    },
+    {
+     "kind": "early",
+     "text": "al-Nābigha's line on a firmly twisted bond \"that the treacherous cannot undo.\"",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Nābigha's verse on \"the neck-twisting gazelles\" is cited.",
+     "note": "al-Nābigha, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 2430,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a holding-back or restraint (ḥubsa) in a thing, or something close to it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "that which restrains a person from blameworthy speech and action",
+     "note": "عَقَلُ, 49 times"
+    },
+    {
+     "kind": "quran",
+     "text": "one \"ʿaqala\" when he grasps what he did not know before, or holds himself back from what he had been doing",
+     "note": "al-Khalīl's definition of ʿaqala"
+    },
+    {
+     "kind": "early",
+     "text": "A verse by Uḥayḥa uses \"al-ʿuqūl\" to mean fortresses.",
+     "note": "Uḥayḥa, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "The ʿāqila are the killer's near paternal kin and brothers, over whose property the blood-money is apportioned in an accidental killing.",
+     "note": "legal definition (diya)"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris records the debate over Abū Bakr's vow to fight those who withheld \"even an ʿiqāl\" of what they paid the Prophet",
+     "note": "a report about Abū Bakr's vow"
+    }
+   ]
+  },
+  {
+   "entry_id": 10987,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core idea is obscurity, narrowness, and severity",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a depression or hollow occurring in the womb, so that it does not receive the child",
+     "note": "عَقِيم, barren womb"
+    },
+    {
+     "kind": "quran",
+     "text": "the wind that fertilises neither tree nor cloud",
+     "note": "عَقِيم, cited with Q 51:41"
+    },
+    {
+     "kind": "early",
+     "text": "a verse of Rabīʿa ibn Maqrūm describes beasts digging/working at the sides of a stagnant desert pool",
+     "note": "Rabīʿa ibn Maqrūm, disputed date"
+    },
+    {
+     "kind": "later",
+     "text": "He cites a report that the backbones of the hypocrites are \"made ʿaqīm\" so they cannot prostrate",
+     "note": "a hadith report"
+    }
+   ]
+  },
+  {
+   "entry_id": 7849,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "wounding — or a dent/breach that resembles a wound",
+     "note": "Ibn Fāris's first root"
+    },
+    {
+     "kind": "core",
+     "text": "fixity and permanence",
+     "note": "Ibn Fāris's second root"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿaqr is a kind of wounding: ʿaqartu al-faras = \"I struck the horse's legs with the sword.\"",
+     "note": "عَقَرَ, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿāqir = a woman who does not conceive — placed here because \"she is like one who has been hamstrung.\"",
+     "note": "عَاقِر, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays: \"the day I hamstrung my mount for the maidens.\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Labīd compares a vulture raising its wing-feathers to \"the hamstrung one, weaponless.\"",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth phrase ʿujuz ʿuqqar (barren old women) is cited",
+     "note": "a hadith phrase"
+    },
+    {
+     "kind": "later",
+     "text": "The compensation paid for a woman's private part when she has been taken by force is called ʿuqr",
+     "note": "legal definition (compensation)"
+    }
+   ]
+  },
+  {
+   "entry_id": 3310,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core sense is elevation/height in a built thing, then extended metaphorically",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿarsh — a raised seat. Per al-Khalīl, \"the king's seat/throne\" (سرير الملك); cited from Q 12:100, \"and he raised his parents upon the throne.\"",
+     "note": "عَرْش, 29 times"
+    },
+    {
+     "kind": "quran",
+     "text": "taʿrīsh al-karm = trellising a vine (raising and securing it)",
+     "note": "مَّعْرُوشَٰت, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "when it collapses one says \"his ʿarsh was toppled\" (ثُلَّ عرشه) — shāhid from Zuhayr.",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "al-Khansāʾ (a collapsed ʿarsh once shade-giving)",
+     "note": "al-Khansāʾ, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 20438,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning: al-ʿarḍ, breadth, the opposite of length",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Aʿraḍa ʿan, to turn away from a person or a matter, and aʿraḍa bi-wajhihi, to turn one's face away, keep the same meaning: whoever turns away turns his breadth toward the other.",
+     "note": "أَعْرَضَ / مُّعْرِضُون, 51 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿAraḍa al-matāʿ (yaʿriḍu, verbal noun ʿarḍ) is to display goods, as though showing their breadth.",
+     "note": "عَرَضَ, 11 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿAraḍ, with a vowelled r, is what a person obtains of his share of this world (Q 7:169: \"if a like ʿaraḍ comes to them, they take it\").",
+     "note": "عَرَض, cited with Q 7:169"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ʿāriḍ is cloud (Q 46:24: \"They said: this is an ʿāriḍ that will bring us rain\"), and the ʿāriḍ of anything is what faces you.",
+     "note": "عَارِض, cited with Q 46:24"
+    },
+    {
+     "kind": "early",
+     "text": "al-Nābigha: \"when they lay the Khaṭṭī spears across the withers\"",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "ʿAmr ibn Kulthūm: \"al-Yamāma came into view and towered high, like swords in the hands of men drawing them\"",
+     "note": "ʿAmr ibn Kulthūm, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth, \"eat cheese ʿurḍan\", means take it as it comes and do not ask about it.",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "In the Prophet's saying \"richness does not come from abundance of ʿarḍ\", Ibn Fāris reports the word as heard only with an unvowelled r",
+     "note": "a hadith (the Prophet's saying)"
+    }
+   ]
+  },
+  {
+   "entry_id": 4569,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Clarifying and making plain (al-ināba wa-l-ifṣāḥ).",
+     "note": "Ibn Fāris's first origin"
+    },
+    {
+     "kind": "core",
+     "text": "Liveliness and cheerfulness of soul (al-nashāṭ wa-ṭīb al-nafs).",
+     "note": "Ibn Fāris's second origin"
+    },
+    {
+     "kind": "quran",
+     "text": "the people called al-ʿArab may be named from this sense, \"because their tongue is the most clarifying of tongues.\"",
+     "note": "عَرَبِيّ, 11 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿarūb (pl. al-ʿurub) = a woman who laughs readily and is cheerful.",
+     "note": "عُرُب, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "a saying that \"Arabic is not a single category but a speaking tongue,\"",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "early",
+     "text": "supported by a line of Ibn al-Aʿrābī (via Thaʿlab).",
+     "note": "unattributed verse, via Thaʿlab"
+    },
+    {
+     "kind": "later",
+     "text": "he reports that the exegetes glossed it as women \"lovingly devoted to their husbands.\"",
+     "note": "exegetes' gloss on Q 56:36"
+    }
+   ]
+  },
+  {
+   "entry_id": 1883,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the successive following of a thing, one part joined to the next",
+     "note": "Ibn Fāris's first origin"
+    },
+    {
+     "kind": "core",
+     "text": "stillness and tranquility",
+     "note": "Ibn Fāris's second origin"
+    },
+    {
+     "kind": "quran",
+     "text": "al-maʿrifa / al-ʿirfān: knowing, recognizing (ʿarafa X ʿirfānan wa-maʿrifatan; \"a known matter,\" maʿrūf).",
+     "note": "عَرَفَ, 20 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ʿurf = al-maʿrūf: kindness / good conduct — so named because souls settle toward it.",
+     "note": "مَّعْرُوف, 38 times"
+    },
+    {
+     "kind": "early",
+     "text": "al-Nābigha: \"no wrong is counted good, nor is kindness lost.\"",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "al-Nābigha uses ʿārifāt of war-mares \"steady for the thrust,\" bearing wounds.",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Adam and Eve came to know one another (taʿārafā) there",
+     "note": "traditional etymology (exegesis)"
+    }
+   ]
+  },
+  {
+   "entry_id": 7446,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "inclining and limping",
+     "note": "Ibn Fāris's first root"
+    },
+    {
+     "kind": "core",
+     "text": "height and ascent",
+     "note": "Ibn Fāris's third root"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿaraj is the verbal noun behind aʿraj, \"lame.\"",
+     "note": "أَعْرَج, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ʿurūj = ascent. Verb: ʿaraja yaʿruju, verbal nouns ʿurūj and maʿraj; maʿraj is the place of ascent.",
+     "note": "يَعْرُجُ / مَعَارِج"
+    },
+    {
+     "kind": "quran",
+     "text": "Qurʾānic shāhid: Q 70:4, \"The angels and the Spirit ascend (taʿruju) to Him.\"",
+     "note": "يَعْرُجُ, cited with Q 70:4"
+    },
+    {
+     "kind": "early",
+     "text": "Ṭarafa: \"On the day the fair women uncover their shins and the horses sweep up the herds of camels.\"",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Dhū al-Rumma: \"O you two neighbours of the daughter of Faḍḍāḍ, have you no mind to halt awhile until we may speak with her?\"",
+     "note": "Dhū al-Rumma, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 18657,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "'urjun (the entry's central noun) — a date-palm's raceme, especially once dried and curved.",
+     "note": "عُرْجُون, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "via a verse of Ru'bah) that the word's final nun is an original root-letter",
+     "note": "Ru'bah, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 18651,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root meaning intensity and sharpness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "it is a dam/dike — fitting, he says, because dammed-up water builds up ʿurām, i.e. destructive force, from its accumulated volume",
+     "note": "عَرِم, cited with Q 34:16"
+    },
+    {
+     "kind": "early",
+     "text": "cited in a verse about \"a host possessing ʿurām.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 20023,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "smearing something with what is unclean, and things like it",
+     "note": "Ibn Fāris's first root"
+    },
+    {
+     "kind": "core",
+     "text": "loftiness and elevation",
+     "note": "Ibn Fāris's third root"
+    },
+    {
+     "kind": "quran",
+     "text": "The muʿtarr, the poor man who comes to you and puts himself in your way",
+     "note": "مُعْتَرّ, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Khalīl defines al-maʿarra as whatever wrongdoing (ithm) befalls a person, and cites Q 48:25: \"and a maʿarra would befall you on their account without [your] knowing\".",
+     "note": "مَّعَرَّة, cited with Q 48:25"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by a verse of Mālik al-Dubayrī, in which ṣawm means filth",
+     "note": "Mālik al-Dubayrī, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "al-Nābigha's verse on a deep, dark pot that swallows the joints of a fat slaughter-camel",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "a ḥadīth curses \"the seller of al-ʿurra and its buyer\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 12243,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "العُرْوة — a handle: of a bucket, a leather water-carrier, a drinking-cup; plural عُرَى.",
+     "note": "عُرْوَة, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The eighth form اعتراه الهمّ (\"worry came over him\") is general to anything",
+     "note": "ٱعْتَرَىٰ, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of Abū Kabīr al-Hudhalī describes men struck down and heaped \"upon their bared limbs.\"",
+     "note": "Abū Kabīr al-Hudhalī, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "The book cites the report that the Prophet allowed a dispensation concerning the ʿarāyā.",
+     "note": "a hadith report (dispensation)"
+    }
+   ]
+  },
+  {
+   "entry_id": 12234,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "being bare, uncovered",
+     "note": "al-Rāghib's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Q 20:118, \"you shall not hunger therein nor be bare.\"",
+     "note": "تَعْرَىٰ, cited with Q 20:118"
+    },
+    {
+     "kind": "quran",
+     "text": "open ground with nothing to screen it. Shāhid: Q 37:145, \"We cast him onto the bare open ground while he was ill.\"",
+     "note": "عَرَاء, cited with Q 37:145"
+    },
+    {
+     "kind": "later",
+     "text": "He closes with the report that \"the Messenger of God gave licence in the sale of the ʿarāyā.\"",
+     "note": "a hadith report"
+    }
+   ]
+  },
+  {
+   "entry_id": 18637,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Rāghib glosses ʿasʿasa as \"it advanced and withdrew\" (aqbala wa-adbara): the verb describes the night's coming-on and its going-away",
+     "note": "عَسْعَسَ, cited with Q 81:17"
+    },
+    {
+     "kind": "early",
+     "text": "Rāghib supports the sense with a proverb: \"A dog that hunts by night (ʿassa) is better than a lion that crouches [idle]\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 18634,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the first [meaning] denotes agitation, and the second is a sweet food",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "الطَّعَام الْعَسَل — \"the food called ʿasal\": honey, well known.",
+     "note": "عَسَل, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "A verse (attributed to a poet of Hudhayl) describes the chief bee (al-yaʿsūb) leading a swarm to settle in a spacious, honey-rich dwelling.",
+     "note": "poet of Hudhayl, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "appears in the well-known ḥadīth \"until he tastes her ʿusaylah and she tastes his ʿusaylah\"",
+     "note": "a hadith (marriage ruling)"
+    },
+    {
+     "kind": "later",
+     "text": "Ḥadīth: \"When God intends good for a servant, He ʿasala-hu [honeys him].\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 6370,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ʿusr (عُسْر) is the opposite of ease (yusr)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Q 2:280: \"And if the debtor is in hardship (ʿusra), then respite until ease.\"",
+     "note": "عُسْرَة, cited with Q 2:280"
+    },
+    {
+     "kind": "quran",
+     "text": "A hard affair is ʿasir or ʿasīr; a hard day is yawm ʿasīr; a difficult man is rajul ʿasir.",
+     "note": "عَسِير / عَسِر"
+    },
+    {
+     "kind": "early",
+     "text": "ʿasīr: a she-camel gone intractable that failed to conceive that year (cited from al-Aʿshā).",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Jarīr's verse plays hardness (ʿasir) against ease (yasār/maysūr).",
+     "note": "Jarīr, Umayyad"
+    }
+   ]
+  }
+ ]
+}
