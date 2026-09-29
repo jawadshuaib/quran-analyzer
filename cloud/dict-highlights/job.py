@@ -39,6 +39,8 @@ def load():
 def by_batch(rows):
     out = {}
     for r in rows:
+        if r["batch"] == "skip":      # short entries, left unhighlighted by the owner's choice
+            continue
         out.setdefault(r["batch"], []).append(r)
     return dict(sorted(out.items()))
 
