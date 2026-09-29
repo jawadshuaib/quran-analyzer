@@ -1,0 +1,620 @@
+{
+ "batch": "b014",
+ "entries": [
+  {
+   "entry_id": 18525,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "cooking or ripening something thoroughly",
+     "note": "Ibn Fāris's one core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "meat thoroughly roasted, done by heating stones and placing them over it until fully cooked",
+     "note": "حَنِيذ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 6356,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "core meaning is \"inclining\" or \"leaning\" (al-mayl)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ḥanīf is one who inclines toward \"the upright religion\" (al-dīn al-mustaqīm)",
+     "note": "حَنِيف, 12 times; cites Q 3:67"
+    },
+    {
+     "kind": "later",
+     "text": "glossed variously as the devotee/worshipper (nāsik), the circumcised one (makhtūn), and the one upright in his way (mustaqīm al-ṭarīqa)",
+     "note": "Ibn Fāris's own note: later extended readings"
+    }
+   ]
+  },
+  {
+   "entry_id": 14261,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "حناجر (ḥanājir) is the plural of حَنْجَرَة (ḥanjarah), \"the throat.\"",
+     "note": "حَناجِر, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the throat as the seat where suppressed emotion is held in",
+     "note": "entry's own gloss of Q 40:18"
+    }
+   ]
+  },
+  {
+   "entry_id": 18512,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root built around one bodily organ, with every other sense derived from it by analogy",
+     "note": "Ibn Fāris's organizing idea"
+    },
+    {
+     "kind": "quran",
+     "text": "istiʾṣāl, the utter uprooting or wiping-out of something",
+     "note": "Qur'anic sense of أَحْتَنِكَ"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I will lead all of them astray, the way something is completely uprooted, except a few.\"",
+     "note": "entry's own gloss of Q 17:62"
+    }
+   ]
+  },
+  {
+   "entry_id": 20201,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "tender concern and softness, which may be accompanied by a sound of pain",
+     "note": "Ibn Fāris's one root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ḥanān is mercy, as in \"and tenderness from Us\" (Q 19:13)",
+     "note": "حَنَان, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "as in Ṭarafa's plea: \"Abū Mundhir, you have destroyed; spare some of us. ḥanānayka!",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "he cites the report of the palm-trunk that the Messenger of God used to lean on, which \"yearned\" when a pulpit was made for him and he stopped leaning on it",
+     "note": "a hadith (the crying palm-trunk report)"
+    }
+   ]
+  },
+  {
+   "entry_id": 14257,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "sin (al-ithm) and culpable strain/constraint (al-ḥaraj)",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥanitha fulānun fī kadhā means he committed a sin in such-and-such a matter",
+     "note": "حِنث, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ḥinth fī l-yamīn is going back on / violating a sworn oath",
+     "note": "تَحْنَثْ, 1 time"
+    },
+    {
+     "kind": "later",
+     "text": "the ḥadīth that the Prophet used to go to the cave of Ḥirāʾ and \"yataḥannathu\" (devote himself in worship) there for a number of nights",
+     "note": "a hadith (Ḥirāʾ retreat)"
+    }
+   ]
+  },
+  {
+   "entry_id": 14244,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "withholding or holding something back",
+     "note": "Ibn Fāris's core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "A ḥuqb specifically is eighty years, plural aḥqāb",
+     "note": "حُقُب / أَحْقَاب"
+    },
+    {
+     "kind": "early",
+     "text": "A cited verse describes a creature as \"ḥaqbāʾ, piebald, [standing] on slippery ground.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 18492,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the leaning or curving/crookedness of a thing",
+     "note": "Ibn Fāris's core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "a curved sand dune is called ḥiqf (plural: aḥqāf)",
+     "note": "أَحْقَاف, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "a verse describing crossing an encampment and coming upon \"the hollow of a low sandy tract possessing curving dunes (dhī ḥiqāfin), piled up.\"",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "later",
+     "text": "a report describes passing \"a gazelle ḥāqif in the shade of a tree\" — i.e. a gazelle curled up, bent over, asleep",
+     "note": "a hadith report"
+    }
+   ]
+  },
+  {
+   "entry_id": 19274,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Al-ḥaqq, the opposite of falsehood, is its core, and he says every derived branch can be traced back to it by careful derivation",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ḥaqqa al-shayʾ: the thing became binding, necessary",
+     "note": "حَقَّ, 20 times"
+    },
+    {
+     "kind": "quran",
+     "text": "On ḥaqīqun ʿalā in the story of Moses (Q 7:105), one scholar explains it as \"binding upon me.\"",
+     "note": "حَقِيق, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "with Q 39:71 (al-Zumar 71) cited for the verb: \"the word of punishment has come true (ḥaqqat) against the disbelievers.\"",
+     "note": "حَاقَّة / حَقَّ"
+    },
+    {
+     "kind": "early",
+     "text": "al-Aʿshā: \"you are surely bound (la-maḥqūqatun) to answer his call.\"",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "In a ḥadīth of ʿAlī, \"when women reach naṣṣ al-ḥiqāq, the paternal kin are more entitled\"",
+     "note": "a hadith of ʿAlī"
+    }
+   ]
+  },
+  {
+   "entry_id": 12161,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Ibn Fāris identifies two distinct original senses",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "someone on the brink of ruin, at death's door",
+     "note": "حَرَض, 1 time; cites Q 12:85"
+    },
+    {
+     "kind": "quran",
+     "text": "The causative verb ḥarraḍa, \"to urge/incite someone to do something\"",
+     "note": "حَرِّضِ, 2 times; cites Q 8:65"
+    },
+    {
+     "kind": "early",
+     "text": "Cited half-line from al-Ṭirimmāḥ: \"protectors of the unarmed, worthless ones (al-aḥrāḍ).\"",
+     "note": "al-Ṭirimmāḥ, Umayyad"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Zajjāj's explanation of the logic: if the one urged disobeys, ruin results",
+     "note": "exegete al-Zajjāj"
+    }
+   ]
+  },
+  {
+   "entry_id": 9733,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two families of meaning — physical tearing/abrasion, and intense desire",
+     "note": "Lane's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥaraṣa ʿalayhi (also the weaker variant ḥariṣa) — he desired it intensely, greedily, hankered after it, coveted it, desired it excessively",
+     "note": "حَرَصْ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥarīṣun ʿalaykum: Lane reports it as either \"vehemently desirous of benefiting you\" or \"excessively solicitous and compassionate toward you.\"",
+     "note": "حَرِيص, 1 time; Q 9:128"
+    },
+    {
+     "kind": "quran",
+     "text": "aḥraṣa l-nāsi ʿalā ḥayāh: \"the most vehement of men in desire for life.\"",
+     "note": "أَحْرَص, 1 time; Q 2:90"
+    },
+    {
+     "kind": "early",
+     "text": "Abū Dhuʾayb, using ḥaraṣtu with bi-: \"Verily I had purposed to defend them by repelling aggression from them; but when death came, it was not to be repelled\"",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "The Miṣbāḥ narrows this to blameworthy desire for worldly good",
+     "note": "the Miṣbāḥ, a later moralizing gloss"
+    }
+   ]
+  },
+  {
+   "entry_id": 6687,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "three unrelated roots, plus one anomalous word",
+     "note": "Ibn Fāris's separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "he derives from al-ḥarab, meaning plunder or stripping (al-salb)",
+     "note": "حَرْب, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-miḥrāb = the foremost/head place of a sitting-assembly (ṣadr al-majlis)",
+     "note": "مِحْرَاب, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "Mistress of a miḥrāb — when I came to her, I could not reach her unless I climbed a ladder",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 18478,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Ibn Fāris derives three distinct senses from ḥ-r-d",
+     "note": "separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites the Qur'an: \"and they went out early, over a ḥard, able/determined\" (Q68:25)",
+     "note": "حَرْد, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "Cited in poetry by al-Ṭirimmāḥ (\"Ibn Salmā was in anger\")",
+     "note": "al-Ṭirimmāḥ, Umayyad"
+    },
+    {
+     "kind": "early",
+     "text": "Jarīr's line — \"we build our tents facing the enemy, we seek no one's protection, nor do we dwell apart\"",
+     "note": "Jarīr, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 8737,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "three basic ideas: (1) the edge or limit of a thing, (2) turning aside, and (3) gauging or measuring a thing",
+     "note": "Ibn Fāris's organizing ideas"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'anic citation: \"and among people is one who serves God upon a ḥarf\" (22:11) — Ibn Fāris glosses this as \"upon a single side.\"",
+     "note": "حَرْف, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "taḥrīf of speech: deflecting words from their proper direction. Qur'anic citation: \"they shift the words from their places\" (4:46)",
+     "note": "يُحَرِّفُ, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "inḥarafa ʿanhu (VII) = to turn away from something",
+     "note": "root sense behind مُتَحَرِّف"
+    }
+   ]
+  },
+  {
+   "entry_id": 5573,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "**a thing gathering densely together, and thence narrowness/tightness.**",
+     "note": "Ibn Fāris's master-sense"
+    },
+    {
+     "kind": "quran",
+     "text": "**ḥaraj = constriction / tightness** — the abstract of the same image — and, relatedly, **sin (ithm)**.",
+     "note": "حَرَج, 15 times"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Qurʾān al-Anʿām 125: God makes the misguided one's \"breast tight and constricted (ḍayyiqan ḥarajan).\"",
+     "note": "cites Q 6:125"
+    },
+    {
+     "kind": "early",
+     "text": "shāhid from Jaḥdar, contending \"over the shares\"",
+     "note": "Jaḥdar, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Hence aḥrajahā bi-taṭlīqah = he made a wife unlawful to himself by a divorce pronouncement",
+     "note": "legal (fiqh) usage — divorce"
+    }
+   ]
+  },
+  {
+   "entry_id": 18465,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-ḥarakah (\"motion, movement\") — defined as the direct opposite of al-sukūn (\"stillness, being at rest\")",
+     "note": "Ibn Fāris's core sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 1626,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Ibn Fāris holds that the three letters trace to a single origin — prevention/prohibition (manʿ)",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ḥarām is the opposite of al-ḥalāl (the permitted)",
+     "note": "حَرَام / حَرَّمَ"
+    },
+    {
+     "kind": "quran",
+     "text": "conversely ḥarima (yaḥramu ḥaraman) is to fail to win — the same logic of being denied what one coveted",
+     "note": "مَحْرُوم, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The two Sanctuaries (al-Ḥaramān), Mecca and Medina, are so called for their inviolability (ḥurma)",
+     "note": "حُرُمَٰت, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "supported by a line of al-Aʿshā, where muḥarram means \"not yet worked or suppled.\"",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "ḥaramiyy, \"belonging to the Ḥaram\" (with a line of al-Nābigha)",
+     "note": "al-Nābigha, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 7388,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ROOT ONE — rubbing one thing against another, accompanied by heat and flaring up",
+     "note": "Ibn Fāris's first origin"
+    },
+    {
+     "kind": "core",
+     "text": "ROOT TWO — a part of the body",
+     "note": "Ibn Fāris's second origin"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ḥaraq — fire; also a burn (hole) in a garment",
+     "note": "حَرِيق, 5 times"
+    },
+    {
+     "kind": "early",
+     "text": "Cited verse: \"Sulaymā's in-laws passed the night in anger, grinding their teeth.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 19610,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "what is contrary to slavery and free of fault or deficiency",
+     "note": "Ibn Fāris's first root meaning"
+    },
+    {
+     "kind": "core",
+     "text": "the opposite of cold",
+     "note": "Ibn Fāris's second root meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "Ḥurr means free, as opposed to a slave",
+     "note": "حُرّ, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "A day \"of heat\" is a hot day (yawm ḥārr)",
+     "note": "حَرّ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-ḥarūr is the hot wind that blows by day and by night",
+     "note": "حَرُور, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "Ṭarafa says \"this, Māwiyy, is no ḥurr thing of yours,\"",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Ḥumayd has a dove calling sāq ḥurr \"in grief and in song.\"",
+     "note": "Ḥumayd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 18445,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"He guarded him from calamity\"; \"may God keep up your protection\" (ḥirāsa = guarding/protection)",
+     "note": "Zamakhsharī's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A guard is a ḥāris (plurals: ḥurrās, aḥrās)",
+     "note": "حَرَس, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "Zamakhsharī quotes Imruʾ al-Qays describing how he got past the guards (aḥrās) and a group eager to kill him",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 5715,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Root 1 — gathering and acquiring",
+     "note": "Ibn Fāris's first root"
+    },
+    {
+     "kind": "core",
+     "text": "Root 2 — making a thing lean or emaciated",
+     "note": "Ibn Fāris's second root"
+    },
+    {
+     "kind": "quran",
+     "text": "the tillage/cultivation of crops (ḥarth al-zarʿ)",
+     "note": "حَرْث, 13 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Shāhid: Qurʾān, {نِسَاؤُكُمْ حَرْثٌ لَكُمْ} \"Your women are a tilth for you\" (al-Baqara 223)",
+     "note": "cites Q 2:223"
+    }
+   ]
+  },
+  {
+   "entry_id": 18436,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "staying fixed at (or confined to) a given point",
+     "note": "Al-Rāghib's common core idea"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Rāghib cites Qur'an 72:14, fa-ulāʾika taḥarraw rashadan",
+     "note": "تَحَرَّ, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry: \"man, after reaching his fullness, wanes (yaḥrī)",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 1257,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ḥasaba = \"to count, reckon\" (verbal nouns ḥasb, ḥusbān)",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Cited: Qur'an 55:5, \"the sun and moon are by ḥusbān\"",
+     "note": "حِسَاب family"
+    },
+    {
+     "kind": "quran",
+     "text": "ḥisāb = \"sufficient.\" aḥsaba / ḥassaba someone = to give him what satisfies him",
+     "note": "حَسْب, 11 times"
+    },
+    {
+     "kind": "quran",
+     "text": "aṣāba al-arḍa ḥusbān = \"locusts struck the land.\" Qur'an 18:40, \"He sends upon it a ḥusbān from the sky,\"",
+     "note": "حُسْبَان, 3 times; Q 18:40"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid: a woman's verse — \"we feed the tribe's child when hungry, and give him his fill (nuḥsibu-hu)",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 18430,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "cutting something off completely, severing it at its end",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the days were \"consecutive, unbroken\" (mutatābiʿah)",
+     "note": "first explanation, matches the site's translation"
+    },
+    {
+     "kind": "quran",
+     "text": "the days were named ḥusūm because they \"cut off\" good/prosperity from the people they struck",
+     "note": "third explanation, judged soundest by Ibn Fāris"
+    }
+   ]
+  },
+  {
+   "entry_id": 522,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Al-ḥusn is the opposite of al-qubḥ (ugliness, foulness)",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-maḥāsin — a person's (or anything's) good qualities, the opposite of al-masāwī (faults, bad qualities)",
+     "note": "root sense behind ḥasana / iḥsān"
+    },
+    {
+     "kind": "early",
+     "text": "He cites a verse addressing a woman as \"O gazelle unadorned, beautiful of neck (ḥussānat al-jīd),\"",
+     "note": "unattributed verse"
+    }
+   ]
+  }
+ ]
+}
