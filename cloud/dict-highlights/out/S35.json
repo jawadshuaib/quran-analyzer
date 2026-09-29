@@ -1,0 +1,395 @@
+{
+ "batch": "S35",
+ "entries": [
+  {
+   "entry_id": 18125,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-ṭawd — the great mountain",
+     "note": "Qur'anic ṭawd, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 18041,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "physical strength/robustness in the body",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "البغل (al-baghl, \"the mule\") is derived from this root",
+     "note": "بِغَال, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 17965,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "parting/baring the front of the mouth out of pleasure or delight — that is, smiling",
+     "note": "Ibn Fāris's single core meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "the root denotes the smile, not the laugh",
+     "note": "تَبَسَّمَ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 17824,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "The verb damaghtuhu (دمغته) — \"I struck him on his head until I reached the brain,\"",
+     "note": "يَدْمَغُ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 20271,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "treats f-n-n as two separate sound roots",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "From this root comes الفَنَن (al-fanan), a branch, plural أَفْنَان (afnān)",
+     "note": "أَفْنَان, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 17585,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: to make something clear, to explain or elucidate it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "are said for \"I explained/clarified [something].\"",
+     "note": "تَفْسِير, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 13748,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "dustiness, and a fineness/thinness associated with it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-habāʾ — fine, powdery dust",
+     "note": "هَبَاء, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "a verse about a fatal blow that sent someone down to the dusty earth",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 4062,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one field: stillness, calm/tranquillity, or lowliness and abasement",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "calm, composure, dignified gravity",
+     "note": "هَوْن, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "al-hūn — abasement, humiliation (hawān)",
+     "note": "هُون, 4 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 13591,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the jīm-sīn-mīm root signals the gathering or coming-together of a thing into one mass",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-jism (الجِسْم) — \"body, physical form.\"",
+     "note": "جِسْم, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 13480,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "heaviness or reluctance toward doing a thing, and stopping short of finishing it — or of doing it at all",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-kasal, \"laziness/sluggishness.\"",
+     "note": "كُسَالَىٰ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 16782,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the casting-off of a thing, most often from the mouth",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "lafaẓa bi-l-kalām — to utter speech, i.e. to \"cast it out\" [of the mouth]",
+     "note": "يَلْفِظُ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 16677,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single, sound root meaning \"mixing.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "nuṭfatun amshāj (\"a mixed drop\")",
+     "note": "أَمْشَاج, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "a verse describing an arrow",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 13357,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "he does not derive them from one shared core meaning",
+     "note": "no shared root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Both maḥanahu and imtaḥanahu are used for \"he put him to the test.\"",
+     "note": "ٱمْتَحَنَ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 13257,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The idea behind this root is falling silent.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Anṣata (Form IV) means to fall silent specifically in order to listen to speech.",
+     "note": "أَنصِتُ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 16032,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a core sense of meanness and vileness (ḥaqāra, qamāʾa)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-qummal (القمّل) is defined here as the small, young locusts (ṣighār al-dabā)",
+     "note": "قُمَّل, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 15866,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: stillness.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "rakada al-māʾ — water grew still",
+     "note": "رَوَاكِد, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 11282,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "sirbal is defined simply as qamis, a shirt or garment/tunic",
+     "note": "سَرَٰبِيل, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "garments that protect you from heat",
+     "note": "al-Rāghib on Q 16:81"
+    }
+   ]
+  },
+  {
+   "entry_id": 12830,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "\"the continuous/unceasing\" (al-dāʾim)",
+     "note": "سَرْمَد, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 2357,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "This is the core spatial sense.",
+     "note": "root sense: below"
+    },
+    {
+     "kind": "quran",
+     "text": "\"beneath / underneath,\" as in taḥta al-shayʾ, \"under the thing.\"",
+     "note": "تَحْت, 51 times"
+    },
+    {
+     "kind": "later",
+     "text": "\"The wuʿūl perish and the tuḥūt come to prominence,\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 15314,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two entirely separate, underived words",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-tathrīb (التثريب) — blame; reproaching or taking someone to task over a wrongdoing",
+     "note": "تَثْرِيب, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 12770,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the continuance/persistence of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "glossed as: an unceasing, perpetual punishment",
+     "note": "وَاصِب, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 19496,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a word indicating affection (maḥabba, love)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "wadidtuhu means \"I loved him\"",
+     "note": "وُدّ, مَّوَدَّة"
+    },
+    {
+     "kind": "quran",
+     "text": "wadidtu anna dhāka kāna means \"I wished that that had been\"",
+     "note": "وَدَّ, 17 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 1308,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single origin: coming upon or finding a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "waǧadtu al-ḍāllata (\"I found the stray animal\")",
+     "note": "وَجَدَ, 106 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 12709,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two entirely unrelated meanings",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-wasīlah, \"the means\" (of approach/access)",
+     "note": "وَسِيلَة, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "every possessor of a religion is one who yearns toward God (wāsil)",
+     "note": "Labīd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 14924,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "slackness/languor and torpor",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-khattār — the treacherous one",
+     "note": "خَتَّار, 1 time"
+    }
+   ]
+  }
+ ]
+}
