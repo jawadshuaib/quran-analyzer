@@ -1,0 +1,540 @@
+{
+ "batch": "S13",
+ "entries": [
+  {
+   "entry_id": 12044,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one single idea — scattering and dispersing a thing (نَثْرُ الشَّيْءِ وَتَفْرِيقُهُ).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "بَذَّرْتُ الْمَالَ أُبَذِّرُهُ تَبْذِيرًا — \"I squandered/scattered the wealth,\"",
+     "note": "tabdhīr, squandering, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry naming several watering-places, one of which is \"Baddhar\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 14059,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the bulk/mass of a thing, as distinct from its extremities (shawā).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-badan — a person's body/torso (plural abdān).",
+     "note": "badan, body, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a verse about a belted, laboring animal",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 2713,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core meaning is distinguishing one thing from another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"to separate/divide\" a thing (verbal noun faṣl)",
+     "note": "faṣl and faṣṣala"
+    },
+    {
+     "kind": "quran",
+     "text": "the arbiter or judge — the one who decides a matter.",
+     "note": "al-fayṣal, the one who decides"
+    },
+    {
+     "kind": "early",
+     "text": "Abū Dhuʾayb, comparing a liquid to \"the water of the mountain-clefts.\"",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "From a hadith: نَفَقَة فَاصِلَة (a \"separating\" expenditure)",
+     "note": "a hadith, glossed within the hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 5920,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The core idea is putting one thing in the place of another to protect it.",
+     "note": "first of two origins"
+    },
+    {
+     "kind": "core",
+     "text": "A heap of food (a homonym, unrelated to sense 1).",
+     "note": "second origin, unrelated"
+    },
+    {
+     "kind": "quran",
+     "text": "فَدَيْتُهُ (\"I ransomed him\") means you shield someone with yourself",
+     "note": "fadā, ransom"
+    },
+    {
+     "kind": "early",
+     "text": "\"May all peoples be a ransom for you…\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 4051,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: heat and its intensity.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "From this sense الْجَحِيم (al-jaḥīm, the blazing fire) takes its name.",
+     "note": "jaḥīm, 26 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites al-Aʿshā's line describing a battle-morning in which \"death blazes (jāḥim).\"",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 5401,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "denoting a thing's appearing to a conspicuous, excessive degree",
+     "note": "al-Rāghib's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Of SIGHT — being openly/plainly visible.",
+     "note": "jahra, openly"
+    },
+    {
+     "kind": "quran",
+     "text": "Of HEARING — uttering aloud (as opposed to keeping secret).",
+     "note": "jahr, aloud"
+    },
+    {
+     "kind": "quran",
+     "text": "In these the contrast is consistently loud/audible vs. secret/hushed.",
+     "note": "the Qur'an's own contrast"
+    }
+   ]
+  },
+  {
+   "entry_id": 13644,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single underlying meaning: al-mayl, \"leaning/inclining/deviating.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "janaf here names an unjust bias or deviation in how a bequest is made.",
+     "note": "janaf, Q 2:182"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry in which a she-camel \"turns away\" (tajānafat) from the bulk of al-Yamāma",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 10616,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "gathering/coalescing together, and to its hardening or becoming compact.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the human body: given as the primary instance of that notion of a mass gathered and firm.",
+     "note": "jasad, body, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "Citation: the poet al-Ṭirimmāḥ — \"of it [there is] congealed [blood] and fresh gore\"",
+     "note": "al-Ṭirimmāḥ, Umayyad (only witness)"
+    }
+   ]
+  },
+  {
+   "entry_id": 16635,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "as a sound root carrying two distinct meanings, plus one usage that fits neither.",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "later",
+     "text": "Cited in a supplication: \"Do not make the Qur'an a māḥil against us\" — i.e., do not let the Qur'an testify against us [before God] for having abandoned following it",
+     "note": "a supplication, glossed by Ibn Fāris"
+    }
+   ]
+  },
+  {
+   "entry_id": 10477,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core idea is a colour.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "النَّعْجَة (naʿja), the ewe of the domestic flock",
+     "note": "naʿja, ewe, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "as though the people had been fed mutton at supper, \"so they are naʿijūn, their necks already drooping.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 16454,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one basic idea: to butt (nataha)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Core meaning: butting/goring. Said of a ram: yantihu, \"it butts.\"",
+     "note": "naṭīḥa, gored"
+    },
+    {
+     "kind": "early",
+     "text": "Proverbial idiom: \"the night is dark and the rams are butting each other\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 1228,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core idea is the opening-up or splitting-open of something.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a watercourse \"cleaves\" the earth",
+     "note": "nahr, river"
+    },
+    {
+     "kind": "early",
+     "text": "a verse by Abū Dhuʾayb describing a tent pitched by reeds and a sweet, water-rich stream",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 16343,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the opposite of ṭahāra (purity/cleanness) — i.e. impurity, filth.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "something najis or najas [two forms of the same adjective] is qadhir — filthy, dirty.",
+     "note": "najas, unclean"
+    },
+    {
+     "kind": "early",
+     "text": "he cites the poet Sāʿida al-Hudhalī, who calls grey hair/old age an \"incurable disease\"",
+     "note": "Sāʿida al-Hudhalī, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 6540,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root with a single core meaning: drinking milk from an udder or a breast.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَضِعَ / يَرْضَعُ — \"(an infant) suckled / suckles.\"",
+     "note": "raḍiʿa, suckle"
+    },
+    {
+     "kind": "quran",
+     "text": "مُرْضِعَةٌ describes her in the very act of nursing",
+     "note": "murḍiʿa, nursing mother"
+    },
+    {
+     "kind": "early",
+     "text": "a stingy man so mean that he suckles his own she-camels himself",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 19,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: tenderness, affectionate inclination, and compassion.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَحِمَهُ يَرْحَمُهُ means to have mercy on someone",
+     "note": "raḥima, have mercy"
+    },
+    {
+     "kind": "early",
+     "text": "a line of the poet Zuhayr in which \"God and al-ruḥum\" protect a pious man from stumbling",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 15838,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-rumḥ (الرمح) = \"the spear/lance\" — the ordinary, well-known weapon.",
+     "note": "rimāḥ, spears"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry describing a time when the poet's she-camels — young and old alike — had not yet had \"weapons\" (silāḥ) turned against them by the pasture",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 15746,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: good fortune/condition, and what a person acquires of good.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-rīsh — good; al-riyāsh — wealth",
+     "note": "rīsh, adornment"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry contrasting a patron who \"rishes\" (builds up) a client with one who wears him down (barā)",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris discusses the hadith term al-rāʾish (\"the intermediary,\" in \"the bribe-giver, bribe-taker, and intermediary\")",
+     "note": "a hadith term"
+    }
+   ]
+  },
+  {
+   "entry_id": 15628,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives the root س-ه-م (s-h-m) from two distinct origins.",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "To \"asham\" (asḥama) means to draw lots with someone, so each party wins whatever falls to him.",
+     "note": "sāhama, draw lots"
+    },
+    {
+     "kind": "quran",
+     "text": "\"he cast lots (sāhama), and was among those who lost the draw (al-mudḥaḍīn).\"",
+     "note": "Q 37:141 explained"
+    }
+   ]
+  },
+  {
+   "entry_id": 1475,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single, consistent root meaning to lower oneself down (taṭāmun)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "سَجَدَ (sajada) is to lower or humble oneself.",
+     "note": "sajada, lower oneself"
+    },
+    {
+     "kind": "early",
+     "text": "Ḥumayd's line comparing camels bowing under slack reins to \"the prostration of the Christians to their lords,\"",
+     "note": "Ḥumayd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 4420,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: exceeding the limit",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "فِي الْأَمْرِ سَرَفٌ = \"there is excess in the matter,\" i.e. going past the proper amount.",
+     "note": "israf, excess"
+    },
+    {
+     "kind": "early",
+     "text": "Ṭarafa's line about \"a man ignorant of heart (sarif al-fuʾād)\" who mistakes insults for sweetness",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "a ḥadīth that the third washing in ablution is \"honor\" (sharaf) but the fourth is \"excess\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 15420,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core idea: something continuing on while also passing away/flowing off",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"sayyabtu d-dābbata\" — to turn an animal loose, letting it go wherever it wants, unrestrained.",
+     "note": "sāʾiba, set loose"
+    }
+   ]
+  },
+  {
+   "entry_id": 19994,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two distinct root meanings (aṣlān mutabāyinān)",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-thullah is a group of people,",
+     "note": "thulla, company"
+    },
+    {
+     "kind": "early",
+     "text": "Labīd tells of an onslaught that \"brought them to al-thalal\".",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr addresses two people who came to the rescue of the confederates (al-aḥlāf)",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 12658,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: the gathering of one thing to another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-khaṣf — patching a sandal",
+     "note": "khaṣafa, fasten"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ikhtiṣāf — a naked person covering himself with broad leaves, taken over his private parts.",
+     "note": "ikhtiṣāf, covering with leaves"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry by a Hudhalī poet comparing an eagle's nose-tip",
+     "note": "a Hudhalī poet, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 1547,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: permanence and constant attachment",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "خَلَدَ (and أَخْلَدَ) = he stayed, remained, endured.",
+     "note": "khalada, remain"
+    },
+    {
+     "kind": "quran",
+     "text": "أَخْلَدَ إِلَى الْأَرْضِ = he stuck fast / cleaved to the ground.",
+     "note": "akhlada, Q 7:176"
+    },
+    {
+     "kind": "early",
+     "text": "a line of Ibn Aḥmar contrasting the beloved's endurance",
+     "note": "Ibn Aḥmar, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 12495,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two distinct underlying senses",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "From this sound-sense comes زُمْرَة (zumrah), \"a group/company\"",
+     "note": "zumar, groups"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth forbids \"the earnings of al-zammārah.\" Transmitters gloss zammārah as al-zāniyah (the adulteress/fornicatress).",
+     "note": "a hadith and its transmitters' gloss"
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,505 @@
+{
+ "batch": "S16",
+ "entries": [
+  {
+   "entry_id": 10900,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: seeking after / going in quest of something (ibtighāʾ)",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ṭalaba / yaṭlubu / ṭalab — to seek a thing",
+     "note": "yaṭlubu, ṭalab: seeking"
+    },
+    {
+     "kind": "early",
+     "text": "Dhū al-Rummah: two Kalbī shepherds lost their charge after turning back from a muṭlib",
+     "note": "Dhū al-Rummah, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 18054,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Two roots:",
+     "note": "Two separate origins: fullness; hastening"
+    },
+    {
+     "kind": "quran",
+     "text": "badartu ilā al-shayʾi / bādartu — to hasten toward something",
+     "note": "بِدَار, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry by Kuthayyir about passion and rushing tears",
+     "note": "Kuthayyir, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 17916,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "something perishing or coming to ruin",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "bāda al-shayʾu baydan wa-buyūdan",
+     "note": "تَبِيدَ, 1 time"
+    },
+    {
+     "kind": "later",
+     "text": "We are the last [nation], [yet] the foremost on the Day of Resurrection — bayda (however) that they [earlier nations] were given the Book before us",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 2876,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound origins: (1) splitting/cleaving, and (2) winning and endurance",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "Winning and endurance (fawz wa baqāʾ), yielding الفَلَاح (falāḥ)",
+     "note": "أَفْلَحَ, 27 times"
+    },
+    {
+     "kind": "early",
+     "text": "الْحَدِيدُ بِالْحَدِيدِ يُفْلَحُ (\"iron is cleaved by iron\")",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth uses it in this sense: they prayed with the Prophet until they feared missing al-falāḥ (the pre-dawn meal).",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 17419,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: stealthy seizure or destruction",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "ghālahu yaghūluhu — \"it took/destroyed him from where he did not perceive [it].\"",
+     "note": "غَوْل, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "an unattributed line of verse picturing a riding-mount stretching out over such remote distance",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17122,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "jumud, the solidifying or congealing of something that was liquid",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "jamada al-ma'u yajmudu, \"the water froze/solidified.\"",
+     "note": "جَامِدَة, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "al-Mutalammis uses the contrast directly",
+     "note": "al-Mutalammis, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 17091,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "taking or carrying off a thing wholesale — sweeping the whole of it away at once",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a bank or stretch of ground that a flash-flood (sayl) eats away/erodes",
+     "note": "جُرُف, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 16665,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "ease in flowing, or in running, or otherwise",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "A line of poetry by al-Namir is cited using \"ghayr maʿn\"",
+     "note": "al-Namir, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 10536,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose core idea is contempt and lowness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "مَهِين (mahīn) means حَقِير — contemptible, paltry.",
+     "note": "مَّهِين, 4 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 20332,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root with three meanings: a kind of sound, roughness in a thing",
+     "note": "Ibn Fāris's separate meanings"
+    },
+    {
+     "kind": "quran",
+     "text": "makā yamkū, verbal noun mukāʾ, is to whistle into one's hand held gathered together",
+     "note": "مُكَاء, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "ʿAntara uses it of a spear-wound",
+     "note": "ʿAntara, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 16482,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives the root ن-ح-ب (n-ḥ-b) from two basic senses",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-naḥb (النَّحْب) = \"the vow\" (al-nadhr)",
+     "note": "نَحْب, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 16216,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: a kind of sound, from which further senses branch.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "shajarah nakhirah (a decayed tree) and ʿaẓm nakhir (a decayed bone) belong to the same root",
+     "note": "نَّخِرَة, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 11372,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a line/mark, writing, and anything resembling these",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-raqīm = \"the writing\" / an inscription.",
+     "note": "رَّقِيم, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "\"he inscribes upon water\" (yarqumu fī l-māʾ), said of someone extremely skilled at his craft",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 19635,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the idea of becoming firm and fixed (thabata)",
+     "note": "al-Rāghib's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"lofty rawāsī\" (Q 77:27): firmly fixed mountains.",
+     "note": "رَوَٰسِى, 10 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"and the mountains, He set them firm (arsāhā)\" (Q 79:32).",
+     "note": "أَرْسَىٰ, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "A poet: \"and there are no mountains when the pegs do not hold firm.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 12907,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "good and joy, the opposite of ill-omen (naḥs)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-saʿd — good fortune in a matter",
+     "note": "سَعِيد / سُعِدُ: glad"
+    },
+    {
+     "kind": "early",
+     "text": "source of the proverb \"no pasture like al-saʿdān.\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 713,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea with two branches: (a) letting something down from a high place to a low one, and (b) something extending or stretching out",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "السَّبِيل (al-sabīl) = the road or way, so named because it stretches out",
+     "note": "سَبِيل, 176 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 2057,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: following / succession (al-ittibāʿ)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "تِلَاوَة for reciting the Qurʼān, because the reciter takes one verse after another in sequence",
+     "note": "تِلَاوَت, تَلَىٰ: follow, recite"
+    },
+    {
+     "kind": "early",
+     "text": "a line of Ibn Muqbil on \"the remnants of youth\" now gone without sight or trace",
+     "note": "Ibn Muqbil, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 2660,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single organizing sense: al-tark, \"leaving off / relinquishing a thing.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a deceased person's estate: what he leaves behind of his inheritance (turāth)",
+     "note": "تَرَكَ: to leave"
+    },
+    {
+     "kind": "early",
+     "text": "He cites al-Aʿshā: in a trackless desert one finds ostrich eggs left abandoned",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 11194,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "does not reduce to one governing idea (qiyās); its senses are separate",
+     "note": "Ibn Fāris: no single origin"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-witr / al-watar — the single, odd, unpaired one (opposite of paired/even).",
+     "note": "وَتْر, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "\"wataartuhu\" means \"I wronged/deprived him [of a kinsman]",
+     "note": "يَتِرَ: will deprive"
+    }
+   ]
+  },
+  {
+   "entry_id": 3207,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a core sense of trusting/relying and, correspondingly, of binding firmly",
+     "note": "al-Rāghib's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-mīthāq — a compact confirmed by an oath and covenant",
+     "note": "مِّيثَٰق, 25 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-Fajr 89:26 (\"none binds as He binds\")",
+     "note": "وَثَاق, يُوثِقُ: binding"
+    },
+    {
+     "kind": "quran",
+     "text": "feminine of al-awthaq, \"the firmest / most reliable.\"",
+     "note": "وُثْقَىٰ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 5175,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning to lower or abase oneself (taṭāmun)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to lower oneself and bow the head",
+     "note": "خَاشِع, خُشُوع: humbled"
+    },
+    {
+     "kind": "early",
+     "text": "Poetic shāhid (Jarīr): at the news of al-Zubayr's death, \"the walls of the city and the humbled mountains sank low.\"",
+     "note": "Jarīr, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 15048,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "roughness and coarseness/thickness — one single underlying sense according to Ibn Fāris",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "he takes all of the above to be derived from al-khashab, \"wood/timber.\"",
+     "note": "خُشُب, 1 time"
+    },
+    {
+     "kind": "later",
+     "text": "a hadith about Mecca: \"It will not perish until its two akhshabs perish,\" meaning the two mountains [flanking the city]",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 14884,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"wakefulness, alertness.\"",
+     "note": "al-Zamakhsharī's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "النوم \"sleep\" vs. اليقظة \"wakefulness.\"",
+     "note": "أَيْقَاظ, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "plural ayqāẓ = \"a wakeful group.\"",
+     "note": "أَيْقَاظ: awake"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid from al-Farazdaq (satirical verse): \"They wake at their donkeys' braying ...",
+     "note": "al-Farazdaq, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 14808,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives the root ز-م-ل (z-m-l) from two distinct original senses",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "\"wraps himself up\" (تَزَمَّلَ, tazammala) — piling on garments until he resembles a bundled load",
+     "note": "مُزَّمِّل: who wraps himself"
+    },
+    {
+     "kind": "early",
+     "text": "a line by the poet Uḥayḥah mocking a \"lazy zummayl\"",
+     "note": "Uḥayḥah, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 1640,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: the pairing or bringing-together of one thing alongside another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the woman in turn is the zawj (spouse) of her mate",
+     "note": "زَوْج: spouse"
+    },
+    {
+     "kind": "quran",
+     "text": "each member of a matched pair is a zawj",
+     "note": "زَوْج, 76 times"
+    },
+    {
+     "kind": "early",
+     "text": "a man \"has two zawj-s of pigeons,\" meaning one male and one female",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "later",
+     "text": "he reports the view that zawj here means color (\"of every splendid color\")",
+     "note": "an unnamed reading of Q 22:5"
+    }
+   ]
+  }
+ ]
+}
