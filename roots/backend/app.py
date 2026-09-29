@@ -7855,7 +7855,7 @@ def _evidence_default(conn, root_bw):
     return row[0] if row else None
 
 
-def _attach_highlights(conn, items):
+def _attach_highlights(conn, root_bw, items):
     """Give each entry its reader highlights (dictionary_highlights, built by the
     highlights job and synced from local): phrases of the readable version marked
     as core meaning, the Qur'an's words, early usage or later interpretation.
@@ -7863,16 +7863,17 @@ def _attach_highlights(conn, items):
     then gets none rather than marks on the wrong words."""
     if not items:
         return
-    ids = [it["entry_id"] for it in items]
+    # Matched by root and dictionary, not entry_id: entry ids differ between
+    # hosts for some entries (the gap-fill imports), the text hash does not.
     try:
         rows = conn.execute(
-            "SELECT entry_id, text_hash, highlights FROM dictionary_highlights "
-            f"WHERE entry_id IN ({','.join('?' * len(ids))})", ids).fetchall()
+            "SELECT dictionary_slug, text_hash, highlights FROM dictionary_highlights "
+            "WHERE root_buckwalter = ?", (root_bw,)).fetchall()
     except sqlite3.OperationalError:
         return  # table not synced yet
-    stored = {r["entry_id"]: r for r in rows}
+    stored = {r["dictionary_slug"]: r for r in rows}
     for it in items:
-        r = stored.get(it["entry_id"])
+        r = stored.get(it["dictionary_slug"])
         if r and r["text_hash"] == hashlib.sha1(it["harmonized_en"].encode()).hexdigest()[:16]:
             try:
                 it["highlights"] = json.loads(r["highlights"])
@@ -7917,7 +7918,7 @@ def get_root_dictionaries(root_bw: str):
         chosen = _evidence_default(conn, root_bw)
         default_entry_id = next(
             (it["entry_id"] for it in items if it["dictionary_slug"] == chosen), default_entry_id)
-        _attach_highlights(conn, items)
+        _attach_highlights(conn, root_bw, items)
         return jsonify({
             "root_buckwalter": root_bw,
             "root_arabic": rows[0]["root_arabic"] if rows else None,
