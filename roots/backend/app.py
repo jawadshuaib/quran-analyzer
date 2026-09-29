@@ -7841,6 +7841,20 @@ def _is_stub(ar_len, short_ar):
     return bool(short_ar) and bool(_POINTER_RE.search(_AR_MARKS_RE.sub("", short_ar)))
 
 
+def _evidence_default(conn, root_bw):
+    """The dictionary the evidence review chose to open first for this root, if
+    it chose one (root_default_dictionary, built by _default_dict_pick.py and
+    synced from local). Rows name the dictionary, not an entry id, so they hold
+    on every host; absent table or row -> the ranking decides."""
+    try:
+        row = conn.execute(
+            "SELECT dictionary_slug FROM root_default_dictionary WHERE root_buckwalter = ?",
+            (root_bw,)).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    return row[0] if row else None
+
+
 @app.route("/api/root/<root_bw>/dictionaries")
 def get_root_dictionaries(root_bw: str):
     """Public View 1: the approved, harmonized dictionary definitions for a root,
@@ -7872,6 +7886,12 @@ def get_root_dictionaries(root_bw: str):
             key=lambda it: _DICTIONARY_PRIORITY.get(
                 it["dictionary_slug"], _DICTIONARY_PRIORITY_FALLBACK),
         )["entry_id"] if items else None
+        # Where the evidence review found another work clearly better for this
+        # root (the root's sense, early usage, the Qur'an's own words), that
+        # entry opens instead.
+        chosen = _evidence_default(conn, root_bw)
+        default_entry_id = next(
+            (it["entry_id"] for it in items if it["dictionary_slug"] == chosen), default_entry_id)
         return jsonify({
             "root_buckwalter": root_bw,
             "root_arabic": rows[0]["root_arabic"] if rows else None,
