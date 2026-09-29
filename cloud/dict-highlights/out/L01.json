@@ -1,0 +1,725 @@
+{
+ "batch": "L01",
+ "entries": [
+  {
+   "entry_id": 9590,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "**To fold, fold up, or roll up** — a garment, a piece of cloth, or a written sheet",
+     "note": "Qur'anic sense of ṭawā/ṭayy, folding"
+    },
+    {
+     "kind": "quran",
+     "text": "Lane judges \"the day we fold up / roll up the heaven\" the better rendering",
+     "note": "Lane on Q 21:104 (nَطْوِى)"
+    },
+    {
+     "kind": "early",
+     "text": "Dhu-r-Rummah: \"as letters are unfolded after being folded.\"",
+     "note": "Dhu-r-Rummah, Umayyad (fallback witness): folded letters"
+    },
+    {
+     "kind": "later",
+     "text": "the Kashshāf and al-Bayḍāwī compare ثِنًى and gloss \"twice sanctified\" (of the valley)",
+     "note": "exegetes al-Zamakhsharī (Kashshāf) and al-Bayḍāwī on ṭuwā"
+    },
+    {
+     "kind": "later",
+     "text": "Lane reports ar-Rāghib's explanation that it signifies their destruction",
+     "note": "exegete al-Rāghib on Q 39:67"
+    }
+   ]
+  },
+  {
+   "entry_id": 8681,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Root A: a thing's flashing or gleaming.",
+     "note": "Ibn Fāris's first root"
+    },
+    {
+     "kind": "core",
+     "text": "Root B: black and white combined in a thing.",
+     "note": "Ibn Fāris's second root"
+    },
+    {
+     "kind": "quran",
+     "text": "Lightning. الْبَرْق (al-barq) is the flash of a cloud (al-Khalīl)",
+     "note": "al-barq, the lightning, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "بَرِقَ بَصَرُهُ (with kasra) = his sight was struck with bewilderment",
+     "note": "baraqa, 'is dazzled', Q 75:7"
+    },
+    {
+     "kind": "early",
+     "text": "Proverbial: \"I will not do it so long as a star flashes in the sky\" — i.e. so long as one rises.",
+     "note": "proverb"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: \"sweeter than the water of the lightning-cloud.\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 19707,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Al-dam is blood, one of the bodily humours",
+     "note": "al-dam, blood, 10 times"
+    },
+    {
+     "kind": "early",
+     "text": "al-Ḥuṣayn b. al-Ḥumām al-Murrī's \"…on our heels the blood (al-damā) drips\"",
+     "note": "al-Ḥuṣayn b. al-Ḥumām, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn al-Aʿrābī cites the Arab saying \"my blood is your blood, my hadm is your hadm\", meaning \"if you are wronged, I am wronged\"",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "later",
+     "text": "The Prophet answered: \"Nay: the blood is the blood and the hadm is the hadm; I make war on whom you make war on and peace with whom you make peace with.\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "Zayd b. Thābit's ruling: \"for a dāmiya, a camel\"",
+     "note": "Companion's legal ruling"
+    },
+    {
+     "kind": "later",
+     "text": "Qatāda described smearing the child's crown with the sacrificed animal's blood",
+     "note": "a report of Qatāda on the ʿaqīqa"
+    }
+   ]
+  },
+  {
+   "entry_id": 13910,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Al-dawlah is time turning from hardship and misery to a state of enviable joy",
+     "note": "Zabīdī's core sense: a turn"
+    },
+    {
+     "kind": "quran",
+     "text": "It is also \"the turn\" in wealth — one party's share or rotation in property, explained via nawbah (\"turn\") and badal (\"exchange\")",
+     "note": "dūla, circulation of wealth (Q 59:7)"
+    },
+    {
+     "kind": "quran",
+     "text": "This is the sense of Q3:140, \"those days We rotate (nudāwiluhā) among people\" — i.e., turn them around, from dāla, \"to revolve.\"",
+     "note": "nudāwilu, 'we alternate' (Q 3:140)"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by a verse of al-Rāʿī about camels reduced to eating it",
+     "note": "al-Rāʿī, Umayyad (fallback witness)"
+    },
+    {
+     "kind": "later",
+     "text": "dawlah is what happens between two armies — one defeats the other, then the victor is later defeated in turn",
+     "note": "grammarian al-Farrāʾ on Q 59:7"
+    }
+   ]
+  },
+  {
+   "entry_id": 7741,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "فارِط (fāriṭ) is the one who precedes",
+     "note": "Ibn Sīda's core sense: going in front"
+    },
+    {
+     "kind": "quran",
+     "text": "فَرَّطَ في الشيء / فَرَّطَه — he let it go to waste and put shortcoming forward in it",
+     "note": "farraṭa, 'we neglected'"
+    },
+    {
+     "kind": "quran",
+     "text": "الفُرُط is wrongdoing and overstepping, cited for Q 18:28, \"his affair was furuṭ.\"",
+     "note": "furuṭ, Q 18:28"
+    },
+    {
+     "kind": "quran",
+     "text": "فَرَطَ عليه في القول — he overstepped and pressed forward against him in speech; cited for Q 20:45, \"we fear that he will press excessively upon us or transgress.\"",
+     "note": "yafruṭa, Q 20:45"
+    },
+    {
+     "kind": "quran",
+     "text": "أفْرَطَ الشيءَ — he forgot it; cited for Q 16:62, \"and that they are left behind / forgotten.\"",
+     "note": "mufraṭūn, Q 16:62"
+    },
+    {
+     "kind": "early",
+     "text": "Ṣakhr al-Ghayy's \"that is my war-gear, and I shall not ufarriṭhu\" he glosses as \"I shall not squander it,\"",
+     "note": "Ṣakhr al-Ghayy, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "A فَرَس فُرُط is a mare that outstrips (Labīd).",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "hence the Prophet's reported words, \"I am your faraṭ (forerunner) at the basin.\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "In the prayer over a dead child, \"O God, make him a faraṭ for us\"",
+     "note": "a prayer formula (hadith-derived)"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Sīda's own gloss on that verse is that the neglect is of God's affair and of the road God called to, which he identifies as affirming God's oneness and acknowledging His messenger's prophethood",
+     "note": "author's own exegesis of Q 39:56"
+    }
+   ]
+  },
+  {
+   "entry_id": 20076,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the basic sense (aṣl) of ghalāʾ is rising and going beyond the measure, in everything",
+     "note": "the entry's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ghalat al-qidr (taghlī, ghaly, ghalayān): the pot, or a jar, boiled; aghlāhā or ghallāhā: to make it boil",
+     "note": "boiling, as in yaghlī / ghalī"
+    },
+    {
+     "kind": "early",
+     "text": "a saying of the ancients, \"… water, and bring it to the boil\", also transmitted as \"make water seethe, and bring it to the boil\"",
+     "note": "saying of the ancients"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth, \"beware of ghuluww in religion\", is explained as severity in religion and overstepping its bound",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "ʿUmar's saying \"do not raise women's bridal gifts high\"",
+     "note": "a saying of ʿUmar"
+    }
+   ]
+  },
+  {
+   "entry_id": 17403,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a woman \"spun\" (غَزَلَتْ) cotton, flax, etc. — maṣdar غَزْل",
+     "note": "the entry's core verb"
+    },
+    {
+     "kind": "quran",
+     "text": "The spun material/thread is called غَزِل or مَغْزُول, plural غُزُول",
+     "note": "ghazl, spun yarn"
+    },
+    {
+     "kind": "quran",
+     "text": "The dictionary cites Qur'an 16:92 — \"like her who unravelled her spun thread\" — as an example of the noun",
+     "note": "Q 16:92"
+    },
+    {
+     "kind": "early",
+     "text": "نِسْوَةٌ غُزَّلٌ or غَوَازِل, illustrated with a line of pre-Islamic verse",
+     "note": "unattributed verse (pre-Islamic)"
+    }
+   ]
+  },
+  {
+   "entry_id": 9424,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "to cleave to the ground; or to stay put, not leaving one's place; or to fall upon the breast",
+     "note": "Lane's core verb sense"
+    },
+    {
+     "kind": "quran",
+     "text": "جَاثِم: a bird, hare, gazelle, camel, jerboa, or man clinging to the ground, staying put, or fallen on its breast",
+     "note": "jāthim, 'fallen prone'"
+    },
+    {
+     "kind": "quran",
+     "text": "Qurʾānic evidence: فَأَصْبَحُوا فِى دَارِهِمْ جَاثِمِينَ (7:78 and parallels) — Lane's gloss: \"bodies cast upon the ground\"",
+     "note": "jāthimīn, Q 7:78"
+    },
+    {
+     "kind": "early",
+     "text": "al-Jawharī cites Bishr — \"a hump, long-necked, like the جُثْمَان of the بَنِيَّة,\"",
+     "note": "Bishr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Also the proverb-like phrase \"he brought us broth-soaked bread heaped up like the body of a sand-grouse.\"",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "later",
+     "text": "al-Bayḍāwī: extinct or motionless, and dead",
+     "note": "exegete al-Bayḍāwī (d. c. 1290) on jāthimīn"
+    }
+   ]
+  },
+  {
+   "entry_id": 19381,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Niswa / nuswa, nisāʾ, niswān / nuswān (and nisūn) serve as the plural of imraʾa (woman), though they are formed from a different word than the singular",
+     "note": "nisāʾ, 'the women', 59 times"
+    },
+    {
+     "kind": "early",
+     "text": "Poetic witnesses are cited from Dukayn al-Fuqaymī and al-Shanfarā.",
+     "note": "Dukayn (Umayyad), al-Shanfarā (pre-Islamic), for nisy"
+    },
+    {
+     "kind": "early",
+     "text": "When moving off, the Arabs say \"look to your ansāʾ\", meaning check small things such as a staff, a cup or a tent-peg so they are not forgotten",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "later",
+     "text": "Thaʿlab says God does not forget; it means they left Him and He left them, because forgetting is a kind of leaving",
+     "note": "exegete Thaʿlab (d. 904) on Q 9:67"
+    },
+    {
+     "kind": "later",
+     "text": "The Prophet disliked someone saying \"I forgot (nasītu) such-and-such a verse\"; he should say \"I was made to forget (nussiya)\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "His own reading is \"or We have it left\", i.e. We command you to leave it.",
+     "note": "exegete al-Zajjāj (d. 923) on Q 2:106"
+    }
+   ]
+  },
+  {
+   "entry_id": 8393,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the underlying sense of q-ṣ-d in Arabic is resolve, turning toward, setting out and rising toward something",
+     "note": "Ibn Jinnī's root sense"
+    },
+    {
+     "kind": "core",
+     "text": "A separate sense: qaṣd is breaking, in any manner; some say breaking in half",
+     "note": "a separate origin: breaking"
+    },
+    {
+     "kind": "quran",
+     "text": "al-qaṣd is \"the straightness of the road.\"",
+     "note": "qaṣd, 'the direction'"
+    },
+    {
+     "kind": "quran",
+     "text": "qaṣd in a matter is \"the opposite of excess.\"",
+     "note": "muqtaṣid, 'moderate'"
+    },
+    {
+     "kind": "quran",
+     "text": "A ṭarīq qāṣid is an easy, straight road; a safar qāṣid is an easy, short journey",
+     "note": "qāṣid, 'easy'"
+    },
+    {
+     "kind": "early",
+     "text": "cited with al-Aʿshā's line about a man whose guide in the land is the butt of a spear-shaft",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "He reads the Qur'anic phrase \"and upon God is the qaṣd of the road\" as meaning that it is upon God to make the straight road to Him plain by proofs and demonstrations",
+     "note": "the author's own exegesis of Q 16:9"
+    },
+    {
+     "kind": "later",
+     "text": "He cites the ḥadīth \"no moderate man (muqtaṣid) has become poor, nor will he.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 15970,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Al-qāb is the section of a bow between the hand-grip and the curved tip; every bow has two qābs",
+     "note": "qāb, Q 53:9"
+    },
+    {
+     "kind": "quran",
+     "text": "qāb/qīb also just means \"a measure\" or \"amount\" — as in phrases like \"the measure of a bow\" — and \"qāba qawsayn\" is glossed elsewhere as simply \"the length of two bows.\"",
+     "note": "qāb, 'a distance', Q 53:9"
+    },
+    {
+     "kind": "early",
+     "text": "A well-known proverb runs \"qā'iba (freed) from qūb\" or \"qāba from quwab.\"",
+     "note": "proverb"
+    },
+    {
+     "kind": "early",
+     "text": "A Bedouin of Banū Asad tells a merchant hiring his escort: once I get you to such-and-such a place, \"an egg is freed from its chick\"",
+     "note": "report of Bedouin speech"
+    },
+    {
+     "kind": "later",
+     "text": "some scholars read it as short for \"qābay qaws\" — two qābs of a single bow, with the wording inverted",
+     "note": "exegetes on Q 53:9, via al-Jawharī"
+    }
+   ]
+  },
+  {
+   "entry_id": 19354,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "raḍiya, yarḍā (to be pleased)",
+     "note": "raḍiya, 'they are pleased'"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Ṣiḥāḥ treats riḍwān, ruḍwān and marḍāh as equal to riḍā",
+     "note": "riḍwān, marḍāt: pleasure"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'anic fī ʿīshatin rāḍiya is explained as marḍiyya, \"pleasing\", that is, possessed of satisfaction",
+     "note": "rāḍiya, 'pleasant'"
+    },
+    {
+     "kind": "quran",
+     "text": "raḍītu l-shayʾa and irtaḍaytuhu: I approved the thing, so it is marḍiyy",
+     "note": "irtaḍā, marḍiyy: approve"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr: \"They are between us, and they are acceptable (riḍan), and they are just (ʿadl).\"",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "\"God is pleased with them and they are pleased with Him\" (raḍiya llāhu ʿanhum wa-raḍū ʿanhu) is interpreted as: God was pleased with their deeds, and they were pleased with what He recompensed them with",
+     "note": "unnamed exegetical reading of the Qur'anic phrase"
+    }
+   ]
+  },
+  {
+   "entry_id": 8352,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "means he sat or lay in wait for someone in the road, or he watched and waited for him",
+     "note": "Lane's base sense of raṣada"
+    },
+    {
+     "kind": "quran",
+     "text": "رَصَد, and the nouns of place مَرْصَد, مِرْصَاد and مُرْتَصَد, denote a road or way, and specifically a place where one lies in wait for an enemy",
+     "note": "maraṣ, mirṣād: place of ambush"
+    },
+    {
+     "kind": "quran",
+     "text": "Q 9:5 وَاقْعُدُوا لَهُمْ كُلَّ مَرْصَدٍ — \"lie in wait for them on every road\"",
+     "note": "maraṣd, Q 9:5"
+    },
+    {
+     "kind": "quran",
+     "text": "Q 89:14 إِنَّ رَبَّكَ لَبِالْمِرْصَادِ — \"your Lord is in the way,\" i.e. on the road you travel, so that no act of yours escapes Him (Msb)",
+     "note": "mirṣād, Q 89:14"
+    },
+    {
+     "kind": "quran",
+     "text": "ارصد لَهُ (marked by Lane as figurative) — he prepared or made ready something for someone: an army for battle, a horse for a charge, money for a debt",
+     "note": "irṣād, 'a station' (prepare)"
+    },
+    {
+     "kind": "early",
+     "text": "ʿAdī's verse: وَإِنَّ المَنَايَا لِلرِّجَالِ بِمِرْصَدِ — \"deaths lie in ambush for men,\" so that men cannot slip past them.",
+     "note": "ʿAdī, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "al-Aʿmash reported as taking المرصاد here as a name of three bridges behind the ṣirāṭ — on one security, on another mercy, on the third the Lord",
+     "note": "exegete al-Aʿmash on Q 89:14"
+    },
+    {
+     "kind": "later",
+     "text": "explained as watchers set over an angel bearing a revelation, so that no jinnī could overhear it and pass it to diviners, who would then relay it to men and so rival the prophets",
+     "note": "exegetical explanation of Q 72:27"
+    }
+   ]
+  },
+  {
+   "entry_id": 20503,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Rafraf is thin brocade, and green cloths made into furnishings for sitting-places (al-Muḥkam: spread out), unit noun rafrafa",
+     "note": "rafraf, Q 55:76"
+    },
+    {
+     "kind": "early",
+     "text": "al-Muʿaṭṭal al-Hudhalī, of a lion: \"he has a thicket whose hidden depths people do not feel safe from; he has made a preserve of its trailing growth, long and lank, and of castor plants\"",
+     "note": "al-Muʿaṭṭal al-Hudhalī, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn al-Athīr reports Ibn Masʿūd on Q 53:18 (\"he truly saw, of the signs of his Lord, the greatest\"): \"he saw a green rafraf that blocked the horizon\", glossed as a spread, or a bed-covering",
+     "note": "Companion Ibn Masʿūd on Q 53:18"
+    },
+    {
+     "kind": "later",
+     "text": "al-Farrāʾ reports that some took these to be the meadows of the Garden and others beds and spreads",
+     "note": "exegete al-Farrāʾ on Q 55:76"
+    }
+   ]
+  },
+  {
+   "entry_id": 9057,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Sibṭ: the child of one's child; in al-Muḥkam, the child of either son or daughter",
+     "note": "sibṭ, descendant; asbāṭ"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Azharī: the asbāṭ among Banū Isḥāq correspond to the qabāʾil among Banū Ismāʿīl",
+     "note": "asbāṭ, the tribes of Israel"
+    },
+    {
+     "kind": "quran",
+     "text": "Quṭrub: the singular of asbāṭ is sibṭ, used invariably for one, one female, and a plural group, and it means \"group\" (firqa)",
+     "note": "asbāṭ, 'group'"
+    },
+    {
+     "kind": "early",
+     "text": "Ḥassān's line: \"Many a maternal uncle of mine — open-handed on the bitterly cold day.\"",
+     "note": "Ḥassān, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "The ḥadīth: \"al-Ḥasan and al-Ḥusayn are the two sibṭs of the Messenger of God.\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Zajjāj: the sense is \"we divided them into twelve groups (firqa), asbāṭ,\"",
+     "note": "exegete al-Zajjāj on Q 7:160"
+    }
+   ]
+  },
+  {
+   "entry_id": 11319,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "السَّلّ is defined as extracting something and bringing it out with gentleness (رِفْق)",
+     "note": "Zabīdī's core sense: to draw out gently"
+    },
+    {
+     "kind": "quran",
+     "text": "Defined as whatever is extracted from something; a drop of seed is called man's sulāla",
+     "note": "sulāla, 'an essence'"
+    },
+    {
+     "kind": "quran",
+     "text": "انْسَلَّ / تَسَلَّلَ = to slip out of a crowd, to leave stealthily and unnoticed",
+     "note": "yatasallalu, 'slip away'"
+    },
+    {
+     "kind": "quran",
+     "text": "The author connects the Qur'anic يَتَسَلَّلُونَ مِنكُمْ لِوَاذًا [24:63] to this sense, citing al-Layth that يتسللون and ينسلّون mean the same thing",
+     "note": "Q 24:63"
+    },
+    {
+     "kind": "early",
+     "text": "Kaʿb ibn Zuhayr's famous line calls the Prophet \"a sword of God, drawn\" (سُيُوفِ اللهِ مَسْلُولُ)",
+     "note": "Kaʿb ibn Zuhayr, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "The proverb \"she pinned her own fault on me and slipped away\" (رمتني بدائها وانسلت) is traced to a specific pre-Islamic anecdote about co-wives",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "a report from ʿIkrima glosses it as the fluid drawn from the back, supported by Qur'an 32:7–8, where God moves from \"clay\" to \"a sulāla of despised water\" — taken as God's own gloss of the term",
+     "note": "a report of ʿIkrima on Q 23:12"
+    },
+    {
+     "kind": "later",
+     "text": "Qatāda and al-Farrāʾ instead take it as \"Adam was drawn out of clay, hence named sulāla.\"",
+     "note": "exegetes Qatāda and al-Farrāʾ on Q 23:12"
+    }
+   ]
+  },
+  {
+   "entry_id": 7606,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "السُّرَى (al-surā), formed like الهُدَى, is night-travel",
+     "note": "Zabīdī's core sense: night-travel"
+    },
+    {
+     "kind": "quran",
+     "text": "أَسْرَى (verbal noun إسْراء) means the same as سَرَى; the alif-form is Ḥijāzī, and the Qurʾān uses both",
+     "note": "asrā, 'travel by night'"
+    },
+    {
+     "kind": "quran",
+     "text": "a rivulet — a small stream running to palm trees (Labīd's verse describing palms on a stream). By this Q 19:24 is explained, \"your Lord has placed beneath you a sariyy.\"",
+     "note": "sariyy, 'a stream', Q 19:24"
+    },
+    {
+     "kind": "early",
+     "text": "Labīd's line \"the night-journey has grown long\" uses a masculine verb, evidence for masculine treatment",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Ḥassān b. Thābit's verse pairs both forms of the verb",
+     "note": "Ḥassān b. Thābit, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "ʿAlam al-Dīn al-Sakhāwī, in his tafsīr — the distance would ordinarily take at least forty days, so \"in a night\" is the point of wonder",
+     "note": "exegete al-Sakhāwī on Q 17:1"
+    },
+    {
+     "kind": "later",
+     "text": "Jurists say سَرَى الجُرْحُ إلى النَّفْسِ — the wound's effect continued until death resulted",
+     "note": "legal usage of the jurists"
+    }
+   ]
+  },
+  {
+   "entry_id": 10093,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "sāla / yasīlu, verbal nouns sayl and sayalān, said of water or of a thing: it flowed",
+     "note": "Zabīdī's core sense: to flow"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Zabīdī concludes that sayl is originally a verbal noun that became a name for water that reaches you although its rain did not fall where you are",
+     "note": "sayl, 'the torrent'"
+    },
+    {
+     "kind": "quran",
+     "text": "Qur'anic evidence: \"the torrent bore a swelling foam,\" and \"We sent upon them the sayl of the ʿarim.\"",
+     "note": "sayl in the Qur'an"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Zabīdī cites the Qur'anic \"and We made a spring of molten copper flow for him,\" glossing asalnā as \"We made it run,\"",
+     "note": "asalnā, 'we caused to flow'"
+    },
+    {
+     "kind": "early",
+     "text": "as in al-Aʿshā's line about a castaway with the floods running over him",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "\"The torrent swept them away, and the sea surged with us\" — a proverb meaning they met a hard trial and the speakers a harder one",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 20492,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "زَلَّ is used of an arrow sliding off a coat of mail and of a person slipping off a rock; equivalent to زَلِقَ",
+     "note": "Ibn Manẓūr's core sense: to slip"
+    },
+    {
+     "kind": "quran",
+     "text": "The base sense is to shake a thing violently; زَلْزَلَ اللهُ الأَرْضَ … فَتَزَلْزَلَتْ",
+     "note": "zalzala, zilzāl: violent shaking"
+    },
+    {
+     "kind": "quran",
+     "text": "Some derive زَلْزلة from زَلَل in opinion: زُلْزِل القومُ = they were turned from steadiness and fear was cast into their hearts",
+     "note": "zulzilū, 'they were shaken'"
+    },
+    {
+     "kind": "early",
+     "text": "تَزَلْزَلت نفسُه = his soul quaked/recoiled in his breast at death (verse of Abū Dhuʾayb",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Abū Isḥāq: the meaning is \"shaken with a violent shaking\"",
+     "note": "exegete al-Zajjāj on Q 99:1"
+    },
+    {
+     "kind": "later",
+     "text": "Thaʿlab's, that he made them slip in judgement/opinion",
+     "note": "exegete Thaʿlab on Q 2:36"
+    },
+    {
+     "kind": "later",
+     "text": "The prayer \"O God, rout the Confederates and shake them\" is read as making their affair unsettled and unstable",
+     "note": "a hadith prayer"
+    }
+   ]
+  },
+  {
+   "entry_id": 6753,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "means \"I set it apart, I sorted it out from something else.\"",
+     "note": "Ibn Manẓūr's core sense: to separate"
+    },
+    {
+     "kind": "quran",
+     "text": "The Qur'anic لو تَزَيَّلوا (\"had they been separated\") is glossed لو تَمَيَّزوا — \"had they been set apart from one another.\"",
+     "note": "tazayyalū, Q 48:25"
+    },
+    {
+     "kind": "quran",
+     "text": "زَيَّلَه فَتَزَيَّل — all meaning \"he divided it, and it became divided.\"",
+     "note": "zayyala, 'we will separate'"
+    },
+    {
+     "kind": "early",
+     "text": "al-Mutalammis, \"O Ḥārith, even were our bloods stirred together, they would separate until no blood touched blood\"",
+     "note": "al-Mutalammis, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Abū Dhuʾayb, \"towards litters like dawm-palms, in which there is a drawing apart, and a swaying of interlaced loads.\"",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth is cited, خالِطوا الناسَ وزايِلُوهم (\"mix with people and part from them\"), explained as parting from them in acts that do not please God and His Messenger.",
+     "note": "a hadith"
+    }
+   ]
+  }
+ ]
+}

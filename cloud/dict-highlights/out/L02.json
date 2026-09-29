@@ -1,0 +1,630 @@
+{
+ "batch": "L02",
+ "entries": [
+  {
+   "entry_id": 1810,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "core sense of force and severity",
+     "note": "Ibn Manẓūr's root sense: force and severity"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Layth glosses it as (a) torment/punishment and (b) intensity in war",
+     "note": "بَأْس, 25 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"lā tabtaʾis\" = do not grieve or complain",
+     "note": "تَبْتَئِسْ, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the blame-verb (opposite of niʿma, the praise-verb)",
+     "note": "بِئْسَ, 40 times"
+    },
+    {
+     "kind": "early",
+     "text": "al-baʾsāʾ and al-mabʾasa carry the same sense (shāhid from Bishr b. Abī Khāzim)",
+     "note": "Bishr b. Abī Khāzim, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "the proverb \"ʿasā l-ghuwayru abʾusan\" (\"perhaps the little cave holds disasters\")",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Zajjāj glosses Qurʾanic \"baʾsāʾ wa-ḍarrāʾ\" as hunger, versus affliction in wealth and lives",
+     "note": "exegete al-Zajjāj (d. 923)"
+    },
+    {
+     "kind": "later",
+     "text": "glossed by various reports as Banū Ḥanīfa, or Hawāzin, or Persia and Rome",
+     "note": "exegetical reports on a verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17563,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "\"mā fatiʾtu\" / \"mā fataʾtu adhkuruhu\" = \"I did not cease to remember [it/him]\"",
+     "note": "تَفْتَؤُا, once: you will not cease"
+    },
+    {
+     "kind": "quran",
+     "text": "The Qurʾānic line \"By God, you will not cease (tafta'u) remembering Joseph\" (12:85) is cited as exactly this omitted-negation case.",
+     "note": "Q 12:85"
+    },
+    {
+     "kind": "early",
+     "text": "A poetic citation (Sāʿida ibn Juʾayya) uses the verb the same way, describing a beast that \"never ceases\" night-travel.",
+     "note": "Sāʿida ibn Juʾayya, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 9460,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "originally means to shout «وَاغَوْثاهُ» — \"O for help!\"",
+     "note": "the word's origin: a cry for help"
+    },
+    {
+     "kind": "quran",
+     "text": "istighātha is the seeking of ghawth, defined here as deliverance from hardship and calamity, and aid in getting free of distress",
+     "note": "اسْتَغَاثَ, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "اسْتَغَاثَنِي فُلانٌ فَأَغَثْتُهُ — \"he sought my help and I helped him,\"",
+     "note": "the Qur'an's verb of calling for help"
+    },
+    {
+     "kind": "early",
+     "text": "al-Tahdhīb makes it a clan of al-Azd, citing Zuhayr: \"you fear the archers of Ghawth from every lookout.\"",
+     "note": "Zuhayr, pre-Islamic; on the clan name Ghawth"
+    }
+   ]
+  },
+  {
+   "entry_id": 13758,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the underlying idea is \"breaking\" (أصل الهضم الكسر)",
+     "note": "the lexicographer's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "haḍamahu / ihtaḍamahu / tahaḍḍamahu = he wronged, usurped from, or oppressed him",
+     "note": "هَضْم, once: wronging"
+    },
+    {
+     "kind": "quran",
+     "text": "haḍīm = soft/tender",
+     "note": "هَضِيم, once"
+    },
+    {
+     "kind": "quran",
+     "text": "folded/compressed within its calyx-covering (the standard gloss)",
+     "note": "the standard gloss of Q 26:148"
+    },
+    {
+     "kind": "early",
+     "text": "Ṭarafah is cited praising a man's slender waist this way",
+     "note": "Ṭarafah, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Imruʾ al-Qays's famous line (\"she leaned toward me, slender of flank\") is cited",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "haḍīm = whose parts fold into one another",
+     "note": "exegete al-Zajjāj on Q 26:148"
+    }
+   ]
+  },
+  {
+   "entry_id": 20496,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-hudhud proper is the well-known bird (the hoopoe); its call is hadhada or hadīl",
+     "note": "هُدْهُد, once: the hoopoe"
+    },
+    {
+     "kind": "early",
+     "text": "One poetic image compares a broken-winged hudhud to a man whose baggage-camels were seized by a tax-collector.",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17157,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Al-Muḥkam calls it the largest size of bowl; al-Rāghib specifies it as a food-vessel",
+     "note": "جِفَان, once: bowls"
+    },
+    {
+     "kind": "quran",
+     "text": "Plural jifān is attested in the Qur'an (34:13, \"basins like reservoirs\")",
+     "note": "Q 34:13"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of Ḥassān is cited for \"the gleaming bowls.\"",
+     "note": "Ḥassān b. Thābit, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 20304,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "j-r-r as one root meaning (aṣl wāḥid): drawing a thing out and dragging it",
+     "note": "Ibn Fāris's single root sense"
+    },
+    {
+     "kind": "early",
+     "text": "Laqīṭ's line: \"she has trailed the rope of a skittish mount over what is between us, so that we see from her neither plain despair nor hope\"",
+     "note": "Laqīṭ, pre-Islamic; dragging"
+    },
+    {
+     "kind": "early",
+     "text": "Hence the proverb for someone who opposes the group's opinion and then comes round to it: \"he struggled with the jurra, then made peace with it\"",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "The ḥadīth \"no ṣadaqa on al-ibil al-jārra\" refers to camels drawn by their reins and led",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 20497,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "kabba (Form I) means to tip something over or throw it down on its face",
+     "note": "the root's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"fa-kubkibū fīhā hum wa-l-ghāwūn\" — \"and they were hurled/tumbled into it, they and those who went astray\" (Q 26:94–95)",
+     "note": "كُبْكِبُ, once: overturned"
+    },
+    {
+     "kind": "quran",
+     "text": "its literal sense, they note, is repeated inkibāb: falling face-first over and over until coming to rest at the bottom",
+     "note": "the lexicographers' literal sense"
+    },
+    {
+     "kind": "early",
+     "text": "A proverb — \"like the one who sells the kubba for the hubba [wind]\"",
+     "note": "proverb"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Masʿūd warns against \"the kubba of the market, [which] is the kubba of Satan\" — its crush/crowd.",
+     "note": "a Companion's saying"
+    }
+   ]
+  },
+  {
+   "entry_id": 13488,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The root's core image is things piling up, clumping, or bonding into a fixed mass",
+     "note": "the entry's summary of the root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the ordinary word for a seat, plural karāsī (also pronounced kirsī)",
+     "note": "كُرْسِيّ, 2 times: a seat"
+    },
+    {
+     "kind": "quran",
+     "text": "kursī is simply what the Arabs know as the \"chairs/thrones of kings.\"",
+     "note": "Thaʿlab, via Abū ʿAmr"
+    },
+    {
+     "kind": "early",
+     "text": "al-akārīs are bands or groups of people (singular kirs, plural akrās, then akārīs as a further plural), used by Abū ʿAmr and illustrated in verse by Rabīʿa ibn al-Jaḥdar",
+     "note": "Rabīʿa ibn al-Jaḥdar, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "Some tafsīrs equate kursī with God's \"knowledge\"",
+     "note": "exegetes; attributed to Ibn ʿAbbās"
+    },
+    {
+     "kind": "later",
+     "text": "another view that kursī is God's \"power by which He sustains the heavens and earth\"",
+     "note": "exegete al-Zajjāj (d. 923)"
+    },
+    {
+     "kind": "later",
+     "text": "the soundly transmitted report from Ibn ʿAbbās is instead that \"the kursī is the place of the [two] feet,\"",
+     "note": "a report from Ibn ʿAbbās, per al-Azharī"
+    }
+   ]
+  },
+  {
+   "entry_id": 5078,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "makkana / amkana someone min al-shayʾ = to give him power over it",
+     "note": "مَكَّ 13 times; أَمْكَنَ once"
+    },
+    {
+     "kind": "quran",
+     "text": "al-mukna (ḍamma) = power, capability",
+     "note": "the noun of power"
+    },
+    {
+     "kind": "later",
+     "text": "some theologians define it instead as an \"accident\" — the containing relation between an enclosing body and what it encloses",
+     "note": "theologians' definition"
+    },
+    {
+     "kind": "later",
+     "text": "Among the Sufis, al-tamkīn is the station of being firmly rooted and settled in uprightness",
+     "note": "Sufi technical usage"
+    }
+   ]
+  },
+  {
+   "entry_id": 20336,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-masāʾ is the opposite of morning (al-ṣabāḥ), and al-imsāʾ, entering the evening, the opposite of al-iṣbāḥ",
+     "note": "تُمْسُ, once: reach the evening"
+    },
+    {
+     "kind": "early",
+     "text": "Umayya ibn Abī al-Ṣalt praises God \"at our evening and at our morning\"",
+     "note": "Umayya ibn Abī al-Ṣalt, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "In a line of Imruʾ al-Qays a young woman lights the dark like the lamp at a secluded monk's mumsā, meaning the cell where he spends the evening",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 13055,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "Al-Azharī stresses that qaylūlah/maqīl really means resting at midday, not necessarily sleeping",
+     "note": "مَقِيل, once: resting-place"
+    },
+    {
+     "kind": "quran",
+     "text": "Taqayyala = he slept at midday",
+     "note": "the verb behind قَائِلُون"
+    },
+    {
+     "kind": "quran",
+     "text": "al-maqīl (also al-maqāl) = the resting-place itself",
+     "note": "مَقِيل"
+    },
+    {
+     "kind": "early",
+     "text": "a line from Umm Taʾabbaṭa Sharran contrasting qayl with secret nursing",
+     "note": "Umm Taʾabbaṭa Sharran, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "'Take your midday rest, for devils do not' (i.e. rest)",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 5028,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"head / topmost part.\"",
+     "note": "core meaning of the root"
+    },
+    {
+     "kind": "quran",
+     "text": "رَأْس is the head of anything, hence its highest point",
+     "note": "رَأْس, 18 times: head"
+    },
+    {
+     "kind": "early",
+     "text": "Poetic witness (Imruʾ al-Qays): driving horses \"down from the tops of the mountains.\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth about \"taking from the head while fasting\" is explained as referring to kissing.",
+     "note": "a hadith, as explained by the entry"
+    },
+    {
+     "kind": "later",
+     "text": "\"the raʾs (head) of unbelief is from the east\" (taken as a pointer to the Dajjāl or eastern leaders of misguidance)",
+     "note": "a hadith and its interpretation"
+    }
+   ]
+  },
+  {
+   "entry_id": 5650,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root's original meaning is **pelting with stones**, later extended to all the above",
+     "note": "al-Zabīdī's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The epithet rajīm for Satan is explained by any of three: cursed, reviled, or driven off.",
+     "note": "رَجِيم, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "This underlies {وجعلناها رجوماً للشياطين}: the *shuhub* (meteors) are missiles against the demons",
+     "note": "رُجُوم, once: missiles"
+    },
+    {
+     "kind": "quran",
+     "text": "The Ṣiḥāḥ ties this to {رجماً بالغيب} (guessing at the unseen)",
+     "note": "رَجْم, once: guessing"
+    },
+    {
+     "kind": "early",
+     "text": "a conjectured report whose truth cannot be pinned down (verse of Zuhayr)",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "specifically stoning the married adulterer to death",
+     "note": "legal definition"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Zabīdī reads the Qurʾanic {لتكونن من المرجومين} as \"those killed in the ugliest way.\"",
+     "note": "the author's own exegesis of a verse"
+    },
+    {
+     "kind": "later",
+     "text": "An alternative reading: rujūm = the guesses of astrologers, and \"demons\" = the demons among humankind.",
+     "note": "an exegetical reading"
+    }
+   ]
+  },
+  {
+   "entry_id": 11408,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Ibn al-Athīr says the root sense is hitting with the foot, as a mount is struck",
+     "note": "Ibn al-Athīr's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "glosses rakḍ as \"moving the leg,\" citing Q38:42, where Job is told, \"Strike (urkuḍ) with your foot — here is a cool bathing place and drink.\"",
+     "note": "يَرْكُضُ, 3 times: strike"
+    },
+    {
+     "kind": "quran",
+     "text": "\"he rakaḍa\" = he fled",
+     "note": "sense given for Q 21:12–13"
+    },
+    {
+     "kind": "early",
+     "text": "A separate verse (attributed to Aws b. Ghalfāʾ) uses the same word-shape to describe a thoroughbred mare that kicks the ground galloping (rakkāḍa)",
+     "note": "Aws b. Ghalfāʾ, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "of a woman, the swish of her skirts and anklet against her legs as she walks (illustrated by al-Nābigha)",
+     "note": "al-Nābigha, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "a ḥadīth of Ibn ʿAbbās describing the blood of istiḥāḍa as either \"a persistent vein\" or \"a rakḍa from Satan.\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Zajjāj and al-Farrāʾ both read it as fleeing/being routed from the punishment.",
+     "note": "exegetes al-Zajjāj and al-Farrāʾ on Q 21:12"
+    }
+   ]
+  },
+  {
+   "entry_id": 12877,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a garment, head of hair, or coat of mail \"grew long, reaching the ground\" (al-Layth)",
+     "note": "al-Layth's literal root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "He defines dirʿ sābigha as a coat of mail long and wide enough to drag on the ground, or reaching to the ankles",
+     "note": "سَٰبِغَٰت, once: full coats of mail"
+    },
+    {
+     "kind": "quran",
+     "text": "asbagha Allāhu ʿalayhi al-niʿma — \"God made the favor complete/full for him.\"",
+     "note": "أَسْبَغَ, once: amply bestowed"
+    },
+    {
+     "kind": "early",
+     "text": "ʿAmr ibn Maʿdī Karib addressing his father's widow in a pre-Islamic Jāhiliyya poem (his \"adornment\" is his sword, hers is a sābigha)",
+     "note": "ʿAmr ibn Maʿdī Karib, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Abū Dhuʾayb al-Hudhalī (armor made by Dāwūd or by the legendary king Tubbaʿ)",
+     "note": "Abū Dhuʾayb al-Hudhalī, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "asbagha al-wuḍūʾ — \"he performed the ablution thoroughly,\" reaching every required spot and giving each limb its due",
+     "note": "a hadith; ritual sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 7619,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "The verb is سَقَطَ / يَسْقُطُ / سُقُوطاً; the participle is سَاقِط",
+     "note": "سُقِطَ, سَاقِط: to fall"
+    },
+    {
+     "kind": "quran",
+     "text": "أَسْقَطَ = to make something fall. تَسَاقَطَ = to fall in continuous succession.",
+     "note": "تُسْقِطَ, تُسَٰقِطْ"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Sīda first gives the general sense \"he slipped and erred,\"",
+     "note": "on Q 7:149"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by a verse of al-Nābigha al-Jaʿdī about wild animals huddling in the shade",
+     "note": "al-Nābigha al-Jaʿdī, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "al-Fārisī takes it as striking one's palms on one's hands out of regret",
+     "note": "al-Fārisī's reading of Q 7:149"
+    }
+   ]
+  },
+  {
+   "entry_id": 19415,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "gathering its branches under the concealing of a thing, and under a thing's pure part and settled place",
+     "note": "Ibn Fāris's root senses"
+    },
+    {
+     "kind": "quran",
+     "text": "Asrartu al-shayʾ means \"I kept the thing secret,\" the opposite of aʿlantuhu, \"I declared it.\"",
+     "note": "أَسَرَّ, 18 times"
+    },
+    {
+     "kind": "quran",
+     "text": "From it comes **al-surūr, gladness**, \"because it is a state free of sorrow.\"",
+     "note": "سُرُور, once"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-sarīr is a couch, plural surur and asirra",
+     "note": "سُرُر, 6 times: thrones"
+    },
+    {
+     "kind": "early",
+     "text": "Dhū l-Iṣbaʿ speaks of noble offspring \"through the unmixed sirr of lineage.\"",
+     "note": "Dhū l-Iṣbaʿ, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Aʿshā has \"look at a hand and its lines.\"",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 15288,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "decorative patterning/embroidery",
+     "note": "the entry's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a horse's or other animal's color — specifically a patch that differs from its main coat (al-Ṣiḥāḥ)",
+     "note": "شِيَة, once: blemish"
+    },
+    {
+     "kind": "quran",
+     "text": "The phrase \"lā shiyata fīhā\" (no shiyah in her) is explained here as: no color in her differs from the rest of her coat.",
+     "note": "the Qur'an's phrase"
+    },
+    {
+     "kind": "early",
+     "text": "Proverb: \"he keeps on walking and informing\" — a pun on mashy (walking) and washy.",
+     "note": "proverb"
+    },
+    {
+     "kind": "early",
+     "text": "tawashshā fīhi l-shayb = grey hair appeared in his hair (= al-shiyah), with a supporting verse",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 9983,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "خَسَا (khasā) means \"odd, unpaired.\"",
+     "note": "first origin: odd, unpaired"
+    },
+    {
+     "kind": "core",
+     "text": "خَسَأَ الكلبَ (verbal nouns خَسْأ, خُسوء) — he drove the dog off, chased it away",
+     "note": "second origin: to drive away"
+    },
+    {
+     "kind": "quran",
+     "text": "It means the driven-away (مطرود) and the distanced (مبعد); it can also carry the sense of the abased and contemptible (صاغِر قَمِئ)",
+     "note": "خَاسِئ, 3 times: despised"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-Layth gives the imperative اخْسَأْ as the rebuke shouted at a dog",
+     "note": "ٱخْسَـُ: remain despised"
+    },
+    {
+     "kind": "quran",
+     "text": "خَسَأَ بصرُه — the sight became dazzled, dull and worn out",
+     "note": "the sense behind Q 67:4"
+    },
+    {
+     "kind": "early",
+     "text": "Al-Mumazzaq al-ʿAbdī describes a mare's forelegs tossing and crushing pebbles with \"a dusky creaker,\"",
+     "note": "al-Mumazzaq al-ʿAbdī, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "al-Zajjāj glosses this as \"a distancing of wrath,\"",
+     "note": "exegete al-Zajjāj (d. 923)"
+    },
+    {
+     "kind": "later",
+     "text": "here خاسئاً is read by al-Zajjāj as \"abased,\"",
+     "note": "exegete al-Zajjāj (d. 923)"
+    }
+   ]
+  }
+ ]
+}
