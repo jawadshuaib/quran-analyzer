@@ -1,0 +1,660 @@
+{
+ "batch": "S02",
+ "entries": [
+  {
+   "entry_id": 10912,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The root's base meaning is \"the small newborn.\"",
+     "note": "Ibn Fāris's base meaning"
+    },
+    {
+     "kind": "quran",
+     "text": "A male child is طِفْل (ṭifl), a female طِفْلَة (ṭiflah).",
+     "note": "طِفْل, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "while over the earth lay the shadows of the ṭafal.",
+     "note": "Labīd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 14105,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two genuine underlying senses that he thinks may ultimately converge",
+     "note": "Two root senses: triumph; nail-strength"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Q48:24 (al-Fatḥ), \"after He had given you victory over them\" (aẓfarakum ʿalayhim), as a Qur'anic instance of this usage.",
+     "note": "أَظْفَرَ, once"
+    },
+    {
+     "kind": "quran",
+     "text": "ẓufr = the human fingernail.",
+     "note": "ظُفُر, once"
+    },
+    {
+     "kind": "early",
+     "text": "kalīl al-ẓufur, \"blunt of nail\" — Ibn Fāris cites a line of Ṭarafa's poetry using this image",
+     "note": "Ṭarafa, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 19570,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound, regular root whose meaning is movement over the ground that is lighter than walking",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Everything that walks on the earth is a dābba.",
+     "note": "دَابَّة, 18 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites Imruʾ al-Qays: \"When she comes forward, you would say: a green gourd dipped in the pools.\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "A line by al-Hudhalī is cited: \"on his side a creeping wound that spills over.\"",
+     "note": "al-Hudhalī, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "\"Neither a daybūb nor a qallāʿ will enter the Garden.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 9525,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root whose core idea is softness, ease, and a small quantity",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الدُّهْن (duhn) is oil or grease",
+     "note": "دُّهْن, once"
+    },
+    {
+     "kind": "quran",
+     "text": "الْمُدَاهَنَة (mudāhana) is مُصَانَعَة, humouring or accommodating someone",
+     "note": "مُّدْهِنُون / يُدْهِنُ"
+    },
+    {
+     "kind": "quran",
+     "text": "cites Q 68:9, \"they wished that you would be pliant, so they too would be pliant.\"",
+     "note": "يُدْهِنُ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 1131,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single, regularly patterned root whose core sense is entering, going in, penetration (wulūj)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "دَخَلَ = \"he entered.\"",
+     "note": "دَخَلَ, 76 times"
+    },
+    {
+     "kind": "early",
+     "text": "cited with a line of al-Hudhalī on \"an interleaved drinking (shurb dikhāl).\"",
+     "note": "al-Hudhalī, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 8627,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose single idea is emptiness together with breadth of scope",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الفَرَاغ (farāgh) is the opposite of being busy.",
+     "note": "فَٰرِغ / فَرَغْ"
+    },
+    {
+     "kind": "quran",
+     "text": "أَفْرَغَ (afragha) = to pour water out",
+     "note": "أَفْرِغْ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris states the usage is figurative, on the ground that God is not occupied by one matter to the exclusion of another.",
+     "note": "His own note on Q 55:31"
+    },
+    {
+     "kind": "later",
+     "text": "He reports that the exegetes glossed sa-nafrughu as نَعْمِدُ (\"We shall set about / turn deliberately to\")",
+     "note": "exegetes' gloss of Q 55:31"
+    }
+   ]
+  },
+  {
+   "entry_id": 17532,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "al-fūm — crop/grain or wheat generally",
+     "note": "فُوم, once; meaning debated"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry by Abū Miḥjan al-Thaqafī about not needing to cultivate fūm",
+     "note": "Abū Miḥjan, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "a line by Umayyah listing fūmān among garden produce",
+     "note": "Umayyah, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "some exegetes read fūm as \"garlic,\" treating the fāʾ as a substitution for thāʾ",
+     "note": "exegetes on Q 2:61"
+    },
+    {
+     "kind": "later",
+     "text": "insist al-fūm means wheat/grain, arguing it would be absurd for the Israelites to request food with no wheat",
+     "note": "exegete al-Zajjāj (d. 923)"
+    }
+   ]
+  },
+  {
+   "entry_id": 6914,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root meaning one thing containing or enveloping another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a guarantor or surety (ḍāmin); verb كَفَلَ بِهِ (to stand surety), verbal noun كَفَالَة",
+     "note": "كَفِيل, once"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites the Qur'anic وَكَفَّلَهَا زَكَرِيَّا (Āl ʿImrān 37), \"He put her in Zakariyyā's charge.\"",
+     "note": "كَفَّلَ, once"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn Fāris cites a verse (\"He grew exhausted, so we slung him… and bound him fast above\")",
+     "note": "unattributed verse"
+    },
+    {
+     "kind": "later",
+     "text": "A ḥadīth applies the word to the broken notch of a vessel, calling it \"Satan's kifl.\"",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 9171,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "is not built on one underlying analogy, and its words come from separate origins",
+     "note": "Ibn Fāris: separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "quṭr is a side or quarter; the plural aqṭār means the flanks or sides of a thing.",
+     "note": "أَقْطَار, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "qaṭirān (tar), which he suggests may be named from dripping",
+     "note": "قَطِرَان, once"
+    },
+    {
+     "kind": "early",
+     "text": "Cited from Ṭarafa: the people in their assembly call out asking whether what they smell is the smoke of roasting meat (qutār)",
+     "note": "Ṭarafa, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 7181,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root with a single core idea: something taken/seized, and a drawing-together or gathering-in within a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "قَبَضْتُ الشَّيْءَ (qabaḍtu al-shayʾ) — \"I took/received the thing,\"",
+     "note": "قَبَضْ, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "His Qurʾānic shāhid is Q 67:19, on the birds overhead \"spreading [their wings] and drawing them in\"",
+     "note": "Q 67:19"
+    },
+    {
+     "kind": "early",
+     "text": "Poetic witness from Ruʾbah: \"a brisk driver, between the rough-handed and the deft.\"",
+     "note": "Ruʾbah, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 7679,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose core idea is **something obscured or hidden, together with lowness / sinking down**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "القَبْر (al-qabr) is the grave of a dead person",
+     "note": "قَبْر, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the verb shifts to the fourth form أَقْبَرَ (aqbara).",
+     "note": "أَقْبَرَ, Q 80:21"
+    },
+    {
+     "kind": "quran",
+     "text": "The place of graves is مَقْبَرَة or مَقْبُرَة (maqbara / maqbura)",
+     "note": "مَقَابِر, once"
+    },
+    {
+     "kind": "early",
+     "text": "He cites al-Aʿshā as the poetic witness: had she leaned a dead man against her breast, he would have revived",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "He reports that some exegetes read فَأَقْبَرَهُ in that verse as meaning that man was *inspired/taught how burial is done*",
+     "note": "exegetes' reading of Q 80:21"
+    }
+   ]
+  },
+  {
+   "entry_id": 2454,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core sense is precedence and forward motion",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الْقِدَم is the opposite of coming-newly-into-being (حُدوث). A قَدِيم thing is one whose time is past.",
+     "note": "قَدِيم, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "قَدَمُ صِدْقٍ (\"a foot of truth\") means a prior record of good repute.",
+     "note": "قَدَم, 8 times"
+    },
+    {
+     "kind": "quran",
+     "text": "قَدَم (the human foot) is well known",
+     "note": "قَدَم, 8 times"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by a line of al-Quṭāmī.",
+     "note": "al-Quṭāmī, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 1014,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root meaning the extent, essence, and limit of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-qadr = the extent or amount of anything (qadruhu kadhā = \"its measure is such\")",
+     "note": "قَدَر / قَدْر, measure"
+    },
+    {
+     "kind": "quran",
+     "text": "In Q 65:7 (man qudira ʿalayhi rizquhu) qudira means qutira, \"was straitened\" — given provision in scant measure.",
+     "note": "قَدَرَ, 25 times"
+    },
+    {
+     "kind": "later",
+     "text": "In Q 6:91 (mā qadarū llāha ḥaqqa qadrihi) the exegetes gloss \"they did not magnify God with His true greatness\"",
+     "note": "exegetes' gloss of Q 6:91"
+    }
+   ]
+  },
+  {
+   "entry_id": 3055,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound roots: (1) joining one thing to another, and (2) something protruding with strength",
+     "note": "Ibn Fāris: two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "a generation/nation of people; plural قُرُون. Cites Q 25:38 (\"many generations between that\").",
+     "note": "قَرْن, 23 times"
+    },
+    {
+     "kind": "quran",
+     "text": "مُقْرِن لكذا = equal to / able for something.",
+     "note": "مُقْرِنِين, Q 43:13"
+    },
+    {
+     "kind": "early",
+     "text": "which al-Aṣmaʿī explained as their long hair (with a verse of Muraqqish)",
+     "note": "Muraqqish, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "a burst of sweat; plural قُرُون (with a verse of Zuhayr)",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 9110,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a genuine root whose core idea is gathering together and narrowing/restricting",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to be tight-fisted with one's household.",
+     "note": "يَقْتُرُ / مُقْتِر"
+    },
+    {
+     "kind": "quran",
+     "text": "he cites Yūnus 10:26, \"no qatar nor abasement shall overcast their faces.\"",
+     "note": "قَتَر, once"
+    },
+    {
+     "kind": "early",
+     "text": "Ṭarafa's line in which people in their assembly ask whether what they smell is roasting meat (qutār)",
+     "note": "Ṭarafa, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 9084,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root with a single core idea: **binding/fastening, and the firmness that results from it**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَبَطَ / يَرْبِطُ / رَبْط — to tie a thing.",
+     "note": "رَّبَطْ, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "رَابِطُ الْجَأْشِ = a man firm of heart and self-command.",
+     "note": "رَابِطُ, once"
+    },
+    {
+     "kind": "early",
+     "text": "Labīd: \"steadfast of heart at the gap in their line",
+     "note": "Labīd, lived into Islam"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn Aḥmar: \"firmer of heart in defence of his people's notables",
+     "note": "Ibn Aḥmar, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 11434,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: **a coming-together**, of people or of other things",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-rahṭ names a group of men numbering from three up to ten.",
+     "note": "رَهْط, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "A verse of poetry laments a war that \"laid low bands of men (arāhiṭ), and so they found rest\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 939,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a coming and going — setting out in a single direction, moving back and forth",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَاوَدْتُهُ (rāwadtuhu) — to press or coax someone toward doing something; to urge him to it.",
+     "note": "رَٰوَدُ, 8 times"
+    },
+    {
+     "kind": "quran",
+     "text": "إِرَادَة (irādah, \"wanting/will\") derives from the wāw of this root",
+     "note": "أَرَادَ, 139 times"
+    },
+    {
+     "kind": "quran",
+     "text": "ruwaydan) — doing an action gently, slowly.",
+     "note": "رُوَيْد, once"
+    },
+    {
+     "kind": "early",
+     "text": "جَارِيَةٌ رُودٌ (jāriyatun rūd) — a young woman; illustrated by a verse",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 15670,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "jamal siddiyy / ibil sadā — a stray/untended camel or camels left to roam; qawm sadā — an unsupervised, aimless people",
+     "note": "سُدًى, once"
+    },
+    {
+     "kind": "early",
+     "text": "\"qad asdaytu fa-alḥim, wa asrajtu fa-aljim\" — a proverb urging one to finish what's begun",
+     "note": "proverb"
+    },
+    {
+     "kind": "early",
+     "text": "\"mā anta bi-laḥmatin wa lā sadāh\" — \"you are neither weft nor warp,\" an idiom for someone who neither helps nor harms.",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 10049,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root meaning to stay put, to remain in place with respect to something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "وَقَفَ / يَقِفُ / وُقُوف (waqafa, yaqifu, wuqūf) — to stand, to halt.",
+     "note": "وُقِفُ / مَوْقُوفُون"
+    },
+    {
+     "kind": "early",
+     "text": "His evidence is a line of al-Ṭirimmāḥ: \"headlong in my error, then I desisted, content with mindful restraint — and the man of piety is content.\"",
+     "note": "al-Ṭirimmāḥ, Umayyad"
+    }
+   ]
+  },
+  {
+   "entry_id": 10038,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two separate roots: one about good things and wealth, whose origin is the leafage of a tree, and one about a colour",
+     "note": "Ibn Fāris: two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "waraq — the leaves of a tree.",
+     "note": "وَرَق, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "riqa — silver coin (dirhams).",
+     "note": "وَرِق, once"
+    }
+   ]
+  },
+  {
+   "entry_id": 12669,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Two distinct roots gathered under this spelling",
+     "note": "Ibn Fāris: two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "al-khuḍūʿ — humility, self-abasement; ikhtaḍaʿa — he humbled himself",
+     "note": "خَٰضِعِين, once"
+    },
+    {
+     "kind": "quran",
+     "text": "khaḍaʿa/akhḍaʿa — of a man's speech, to soften it",
+     "note": "تَخْضَعْ, once"
+    },
+    {
+     "kind": "early",
+     "text": "al-khaḍaʿ (per al-Shaybānī) — bending the neck toward the chest, applied to a camel (Zuhayr's poetry)",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "one whose head droops toward its snout, illustrated with a line of poetry by al-Nābighah",
+     "note": "al-Nābighah, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "a hadith citation applies this to forbidding a man from speaking softly/suggestively to a woman not his own",
+     "note": "a hadith"
+    }
+   ]
+  },
+  {
+   "entry_id": 19651,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root (aṣl wāḥid) with closely related branches, all of which, he says, go back either to **thinness** (diqqa) or to a **gap** (furja)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris places al-khalīl, the one who is your close friend (yukhālluka), under this sense",
+     "note": "خَلِيل, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-khalal is the space between two things.",
+     "note": "خِلَٰل, 8 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 7557,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root whose single origin lies in the domain of number",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "خَمْسَة (five) is well known; الخُمْس is one part out of five, a fifth.",
+     "note": "خَمْسَة / خُمُس"
+    },
+    {
+     "kind": "quran",
+     "text": "خَمَسْتُهم also means \"I was the fifth of them.\"",
+     "note": "خَٰمِسَة, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "supported by a line of al-Aʿshā contrasting a thing that looks \"like the cloaks of al-Khims\" one day and spoiled hide the next.",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris also quotes Muʿādh telling the people of Yemen to bring \"a khamīs or a labīs\" garment to be taken from them as ṣadaqah.",
+     "note": "Companion Muʿādh's saying"
+    },
+    {
+     "kind": "later",
+     "text": "He cites the report that when the Prophet came in sight of Khaybar the people called out \"Muḥammad — and the khamīs!\", meaning the army.",
+     "note": "a report about Khaybar"
+    }
+   ]
+  },
+  {
+   "entry_id": 5324,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core meaning is diminution / detraction (al-tanaqquṣ) — taking something away, falling short",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "is to act treacherously or faithlessly toward someone — which he defines as a deficiency of fidelity (a falling-short of loyalty)",
+     "note": "خَانُ, 5 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites Dhū al-Rumma on an abode \"worn down / eroded\" at times by cloud and at times by a hot, dusty west wind (bāriḥ)",
+     "note": "Dhū al-Rumma, Umayyad"
+    }
+   ]
+  }
+ ]
+}

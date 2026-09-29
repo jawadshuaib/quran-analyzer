@@ -1,0 +1,630 @@
+{
+ "batch": "S01",
+ "entries": [
+  {
+   "entry_id": 4982,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core meaning is appearing, emerging, coming into view",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Rising (of the sun): طَلَعَتِ الشَّمْسُ, \"the sun rose\"",
+     "note": "طلع, rising"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ṭalʿ is the date-palm's flowering sheath, enclosing the white blossom (kāfūr)",
+     "note": "طَلْع, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "أَطْلَعْتُكَ عَلَى الْأَمْرِ, \"I informed you of the matter\" (iṭlāʿ)",
+     "note": "يُطْلِعَ, to inform"
+    },
+    {
+     "kind": "early",
+     "text": "with a verse of Aws [ibn Ḥajar] describing such a bow",
+     "note": "Aws ibn Ḥajar, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 14079,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "centers on the sense of overturning, scattering, and turning something inside-out or upside-down",
+     "note": "Lisān's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "baʿthara al-shayʾ = he scattered/dispersed a thing",
+     "note": "بُعْثِرَ, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"they baʿtharū / baḥtharū their belongings\" means they overturned them",
+     "note": "بُعْثِرَ, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "the everyday expression \"I baʿthara-ed my trough,\" meaning I demolished it",
+     "note": "saying of the Arabs"
+    },
+    {
+     "kind": "later",
+     "text": "al-Farrāʾ explains this as the graves' interior contents (gold, silver) being brought out, followed by the dead themselves coming out",
+     "note": "exegete al-Farrāʾ on Q 82:4"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Zajjāj glosses the same verse as: its soil was overturned and the dead within it were raised up",
+     "note": "exegete al-Zajjāj on Q 82:4"
+    },
+    {
+     "kind": "later",
+     "text": "Abū ʿUbayda glosses this as \"stirred up and brought out\" (uthīra wa-ukhrija)",
+     "note": "Abū ʿUbayda on Q 100:9"
+    }
+   ]
+  },
+  {
+   "entry_id": 4969,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root whose senses all trace back to a single core: **the chest / breast** (al-ṣadr)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الْبَلَد is \"the chest [central part] of the villages\" — i.e. an inhabited place",
+     "note": "بَلَد, 14 times"
+    },
+    {
+     "kind": "early",
+     "text": "Ibn Fāris cites Dhū al-Rumma's line of a camel casting her chest down in a silent place",
+     "note": "Dhū al-Rumma, Umayyad; no earlier witness"
+    },
+    {
+     "kind": "early",
+     "text": "He supports the extension with Ibn al-Riqāʿ's verse on decay enveloping \"its abilād\" (its tracts)",
+     "note": "Ibn al-Riqāʿ, Umayyad; no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 8100,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "burūj (sing. burj): palaces, lofty towers",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "From this the \"towers\" of the sky are named, because of the stations assigned particularly to them",
+     "note": "بُرُوج, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Hence tabarrajat al-marʾa: the woman made herself like such a garment by putting her beauties on show",
+     "note": "تَبَرُّج, display"
+    },
+    {
+     "kind": "early",
+     "text": "For the celestial reading, Zuhayr: whoever dreads the causes of death is overtaken by them even if he reaches the means of heaven by a ladder",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 7335,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one single meaning, from which he says every use follows without exception: a thing's becoming visible, coming out into the open",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to emerge, come into view. بَرَزَ الشَّيْءُ = the thing came out",
+     "note": "بَرَزَ, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "open, wide ground. Named so, he says, because such ground lies exposed to view",
+     "note": "بَارِزَة, a leveled plain"
+    },
+    {
+     "kind": "early",
+     "text": "cited from a line of Labīd contrasting \"the speaking mubarwaz\" with \"the sealed.\"",
+     "note": "Labīd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 13935,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root-idea — \"overcoming, subduing\" (al-ghalabah wal-qahr)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "dahr is named from this sense because it comes upon everything and overcomes it",
+     "note": "دَّهْر, the time"
+    },
+    {
+     "kind": "early",
+     "text": "as shown in verses he quotes (by ʿAmr al-Ḍubaʿī and an unnamed poet), which personify time as an archer that strikes without being struck back and that robs without restoring",
+     "note": "ʿAmr al-Ḍubaʿī, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "The Prophet's statement corrects this: the true agent behind these events is God, not dahr",
+     "note": "a hadith on al-dahr"
+    }
+   ]
+  },
+  {
+   "entry_id": 9505,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "الدَّرْء (al-darʾ) is a leaning or inclining toward one of the two sides",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "دَرَأْتُ عنه means \"I repelled from his side.\"",
+     "note": "يَدْرَؤُا, repel"
+    },
+    {
+     "kind": "quran",
+     "text": "\"they repel the evil deed with the good one\" (13:22)",
+     "note": "يَدْرَؤُا, 4 times"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Rāghib also cites a ḥadīth, \"repel the ḥudūd by means of doubts,\" which he reads as pointing to seeking some means by which the penalty can be pushed away.",
+     "note": "a hadith (legal maxim)"
+    }
+   ]
+  },
+  {
+   "entry_id": 7292,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one sound root whose single idea is **an opening-up in something**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الفُرْجَة (furja) is the gap in a wall or in anything else — a cleft or split. Verb: فَرَجْتُهُ / فَرَّجْتُهُ, \"I opened it.\"",
+     "note": "فُرِجَتْ, cleft asunder"
+    },
+    {
+     "kind": "early",
+     "text": "Cited from Imruʾ al-Qays: the mare \"has a tail like a bride's train, with which she closes her farj from behind.\"",
+     "note": "Imruʾ al-Qays, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 19681,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "three separate root meanings: (1) laying bare or uncovering something, (2) a kind of animal, and (3) lightness and flightiness",
+     "note": "Ibn Fāris's three origins"
+    },
+    {
+     "kind": "quran",
+     "text": "The verb is فرّ يفرّ, \"to flee\". Al-mafarr is both the verbal noun and the place one flees to.",
+     "note": "فَرَّتْ, فِرَار, مَفَرّ"
+    },
+    {
+     "kind": "early",
+     "text": "A proverb says of a good horse, \"the sight of him is his teeth-examination\" (عينه فِراره)",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 7731,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound, independent roots: (1) remaining or lasting, and (2) a colour — that of dust",
+     "note": "Ibn Fāris's two roots"
+    },
+    {
+     "kind": "quran",
+     "text": "غَبَرَ (ghabara) = \"he/it remained.\"",
+     "note": "غَٰبِرِين, 7 times"
+    },
+    {
+     "kind": "quran",
+     "text": "غُبَار (ghubār, dust) is named from its غُبْرَة (ghubra), i.e. its colour",
+     "note": "غَبَرَة, dust"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid from Ṭarafa: \"I saw that the Banū Ghabrāʾ do not disown me",
+     "note": "Ṭarafa, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "attributed to Ibn Muqbil (or another): \"If Sulaymā asks after me, tell her — a remnant of his malady is in him",
+     "note": "Ibn Muqbil, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 2965,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root carrying two joined ideas: emptiness (khuluww) and falling/dropping (suqūṭ)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-hawā (desire, the inclination of the soul)",
+     "note": "هَوَىٰ, desire"
+    },
+    {
+     "kind": "quran",
+     "text": "He cites Q 14:43, \"their hearts are hawāʾ\" (void, comprehending nothing)",
+     "note": "هَوَاء, void"
+    },
+    {
+     "kind": "quran",
+     "text": "al-hāwiya = any abyss; al-huwwa = a deep pit",
+     "note": "هَاوِيَة, pit"
+    },
+    {
+     "kind": "early",
+     "text": "a line of Zuhayr describing an ostrich whose breast is hollow (hawāʾ)",
+     "note": "Zuhayr, pre-Islamic"
+    },
+    {
+     "kind": "early",
+     "text": "Zuhayr for descent (like a well-bucket dropping)",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 19286,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root (aṣl wāḥid) whose meaning is covering and concealment",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-janna is also an orchard, because trees conceal with their leaves",
+     "note": "جَنَّة, 147 times"
+    },
+    {
+     "kind": "quran",
+     "text": "al-jinna is madness, because it covers the mind; al-majanna also means madness",
+     "note": "مَجْنُون, a madman"
+    },
+    {
+     "kind": "quran",
+     "text": "al-mijann is a shield, and any weapon one is concealed behind is a junna",
+     "note": "جُنَّة, a cover"
+    },
+    {
+     "kind": "early",
+     "text": "citing Zuhayr's verse comparing his weeping eyes to the buckets of a water-drawing camel",
+     "note": "Zuhayr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 16925,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Three distinct roots share these letters: (1) watching-over/safekeeping, (2) vegetation/pasture, (3) a bodily organ (the kidney), later borrowed metaphorically",
+     "note": "Ibn Fāris's three origins"
+    },
+    {
+     "kind": "quran",
+     "text": "kalaʾahu Allāh — God preserved/protected him",
+     "note": "يَكْلَؤُ, protects"
+    },
+    {
+     "kind": "quran",
+     "text": "glossed as: no one shields you from Him; connected to \"watching\"",
+     "note": "Ibn Fāris on Q 21:42"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry about keeping watch with a couched camel's eye",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 31,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core sense is joining one thing to another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الكِتاب (a written document) and الكِتابة (writing) — since writing joins letters and words together",
+     "note": "كِتَٰب, 260 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Here الكِتاب means an imposed obligation, as in {kutiba ʿalaykum al-ṣiyām} — \"fasting is prescribed for you\" (Q 2:183)",
+     "note": "كَتَبَ, prescribed"
+    },
+    {
+     "kind": "early",
+     "text": "al-Jaʿdī's line: \"the kitāb of God has driven me out from you — can I ward off from God what He has done?\"",
+     "note": "al-Jaʿdī (date disputed)"
+    },
+    {
+     "kind": "later",
+     "text": "كِتاب can mean a verdict, as in the Prophet's saying that he would judge \"by the kitāb of God,\" glossed as \"by His ruling.\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "المُكاتَب is a slave with whom his master makes a kātaba agreement to buy his own freedom",
+     "note": "legal usage (mukātab)"
+    }
+   ]
+  },
+  {
+   "entry_id": 4805,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "this root's two clusters of meaning: \"play\" and \"saliva/drool.\"",
+     "note": "al-Jawharī's two clusters"
+    },
+    {
+     "kind": "quran",
+     "text": "اللَعِب / اللَّعْب (al-laʿib / al-laʿb): \"play, playing\" — the two forms are equivalent",
+     "note": "لَعِب, 8 times"
+    },
+    {
+     "kind": "early",
+     "text": "Abū Barāʾ was titled ملاعب الأسِنّة (Mulāʿib al-Asinna, \"player with the spear-heads\"), which Labīd altered to ملاعب الرماح (Mulāʿib al-Rimāḥ, \"player with the lances\") to fit his rhyme",
+     "note": "Labīd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 19598,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root with two meanings: keeping close and staying fixed, and purity and excellence",
+     "note": "Ibn Fāris's two senses"
+    },
+    {
+     "kind": "quran",
+     "text": "Lubb of anything is its pure part, what is picked out of it. For this reason, he says, the intellect is called lubb.",
+     "note": "أَلْبَٰب, 16 times"
+    },
+    {
+     "kind": "early",
+     "text": "A verse likens a woman \"gleaming of neck and upper breast\" to a gazelle that such sand has brought into view.",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 1496,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-layl is what follows the day, beginning at sunset",
+     "note": "Ibn Sīda's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the unit-noun is laylah (\"a night\")",
+     "note": "لَيْلَة, 8 times"
+    },
+    {
+     "kind": "early",
+     "text": "Parallel adjectives for a dark/deep night: alyal, lāʾil, mulayyal (this last possibly meaning \"abundant [in nights],\" as if intensified), with a shāhid from ʿAmr b. Shaʾs",
+     "note": "ʿAmr b. Shaʾs, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 765,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core sense is the correspondence or matching of one thing to another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "هَذَا مِثْلُ هَذَا means \"this is the counterpart (naẓīr) of this.\"",
+     "note": "مِثْل, 75 times"
+    },
+    {
+     "kind": "quran",
+     "text": "because a proverb is cited allusively to stand in place of something it resembles in meaning",
+     "note": "مَثَل, 88 times"
+    },
+    {
+     "kind": "quran",
+     "text": "glossing al-mathulāt as \"the punishments that deter from the like of what caused them.\"",
+     "note": "مَثُلَٰت, punishments"
+    }
+   ]
+  },
+  {
+   "entry_id": 517,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: the going-out of breath or breeze (however it occurs, from wind or anything else)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "تَنَفُّس (tanaffus) is breathing — breath leaving the body's inner cavity",
+     "note": "تَنَفَّسَ, it breathes"
+    },
+    {
+     "kind": "quran",
+     "text": "A prized thing is نَفِيس (nafīs): it has نَفْس (worth/consequence) and is competed for; hence تَنَافُس (rivalry)",
+     "note": "يَتَنَافَسِ, aspire"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris cites two ḥadīths for this sense: \"Do not curse the wind, for it is from the nafas of the Merciful\"",
+     "note": "a hadith on nafas as relief"
+    }
+   ]
+  },
+  {
+   "entry_id": 778,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound origins: (a) the pure, noble core of a thing, and (b) turning something from one side to another",
+     "note": "Ibn Fāris's two origins"
+    },
+    {
+     "kind": "quran",
+     "text": "al-qalb = the heart (of a human or animal), named because it is the purest and highest thing in the body",
+     "note": "قَلْب, 132 times"
+    },
+    {
+     "kind": "quran",
+     "text": "qalabtu al-shayʾ = I overturned it; qallabtu (with intensive form) = I turned it over repeatedly by hand",
+     "note": "قَلَّبُ, تَقَلُّب"
+    }
+   ]
+  },
+  {
+   "entry_id": 20365,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "most words of q-s-s concern following something up, tracking it (tatabbuʿ al-shayʾ)",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 9071,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root meaning accord, coming alongside, and closeness without harshness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the elbow, so called because one rests by leaning on it",
+     "note": "مَرَافِق, elbows"
+    },
+    {
+     "kind": "quran",
+     "text": "The verb ارْتَفَقَ (irtafaqa) = to prop oneself on the elbow while seated",
+     "note": "مُرْتَفَق, resting place"
+    },
+    {
+     "kind": "quran",
+     "text": "رَفِيق (rafīq), the individual companion — one who shares a rufqa with you",
+     "note": "رَفِيق, companion"
+    }
+   ]
+  },
+  {
+   "entry_id": 7639,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "precedence, priority in time or place",
+     "note": "Ibn Fāris's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "السَّلَف (salaf) — those who have gone before, predecessors",
+     "note": "سَلَفَ, passed before"
+    }
+   ]
+  },
+  {
+   "entry_id": 15327,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one underlying idea for this root — \"persisting/continuing upon a thing\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A band/troop of horsemen; plurals ثُبَات (thubāt) and ثُبُون (thubūn)",
+     "note": "ثُبَات, groups"
+    },
+    {
+     "kind": "early",
+     "text": "a verse of ʿAmr, \"our horses become bands, troops,\" describing a day they feared for their people",
+     "note": "ʿAmr, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 3655,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: doubling a thing twice, or making it into two parts",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الاثْنَان (\"the two\") is the well-known numeral from this root",
+     "note": "ٱثْنَيْن, 13 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris ties grammatical \"exception\" (استثناء) to the root's core sense of doubling",
+     "note": "يَسْتَثْنُ, exception"
+    },
+    {
+     "kind": "quran",
+     "text": "explaining the name as meaning that its recitation is doubled and repeated",
+     "note": "مَّثَانِى, oft-repeated"
+    },
+    {
+     "kind": "early",
+     "text": "lines by Maʿn and al-Namir b. Tawlab using ثِنَى / ثُنْيَان for blame that is repeated",
+     "note": "Maʿn, al-Namir b. Tawlab, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Ibn Fāris quotes the prophetic saying «لَا ثِنَى فِي الصَّدَقَةِ» — glossed as: ṣadaqa is not taken twice in a single year",
+     "note": "a hadith"
+    }
+   ]
+  }
+ ]
+}
