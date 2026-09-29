@@ -1,0 +1,480 @@
+{
+ "batch": "S19",
+ "entries": [
+  {
+   "entry_id": 18002,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives everything under ب-ل-ع from one core idea: swallowing something down (izdirād)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "The base verbal sense of gulping something down.",
+     "note": "ٱبْلَعِ, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 9566,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "The root's basic meaning is يأس (yaʾs), losing hope.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "أَبْلَسَ (ablasa) = \"he despaired.\"",
+     "note": "مُبْلِسُون, 4 times"
+    },
+    {
+     "kind": "early",
+     "text": "On the line of Ibn Aḥmar, \"Turn aside, O daughter of the balas, the mistrusted one — for the small thing grows and the break is mended,\"",
+     "note": "Ibn Aḥmar, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 8091,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "go back to one root meaning: نَقْص, deficiency or being made less",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "glosses bakhs simply as \"deficient\" — a price short of what was due",
+     "note": "بَخْس, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"They do not complain of the labour so long as they keep their marrow",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17753,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Exposure / uncovering (always of something shameful)",
+     "note": "first of two core senses"
+    },
+    {
+     "kind": "core",
+     "text": "An unattractive color",
+     "note": "second core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the tearing-away of cover, i.e. disgrace, public exposure",
+     "note": "tafḍaḥu, shame"
+    }
+   ]
+  },
+  {
+   "entry_id": 11925,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "weakness or slackness in a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "glossing it simply as \"it is not weakened\" (lā yuḍʿafu)",
+     "note": "يُفَتَّرُ / يَفْتُرُ"
+    }
+   ]
+  },
+  {
+   "entry_id": 13855,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: a covering, or one thing enveloping/overspreading another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Standard reading ghulf (غُلْف): \"covered over\"",
+     "note": "غُلْف, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 17040,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single underlying idea: the interior, hollow, or cavity of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "jawf (جَوْف): the inside/cavity of something",
+     "note": "جَوْف, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "\"أَخْلَى مِنْ جَوْفِ عَيْرٍ\" — \"Emptier than the jawf of ʿAyr.\"",
+     "note": "proverb"
+    }
+   ]
+  },
+  {
+   "entry_id": 17029,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: to interpenetrate or move back and forth through something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "{fa-jāsū khilāla l-diyār}, 'so they ranged through the houses' (al-Isrāʾ 17:5)",
+     "note": "جَاسُ, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "The Arabs say jāsū khilāla l-diyāri yajūsūna",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 16810,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "covering two separate, internally coherent senses",
+     "note": "Ibn Fāris: two separate senses"
+    },
+    {
+     "kind": "quran",
+     "text": "Al-liḥya is the beard-hair itself, plural liḥan",
+     "note": "لِحْيَت, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "We stripped them as one strips a stick, and drove them out... into a year whose ticks had not [yet] grown fat",
+     "note": "Aws, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 13419,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "weakness and fatigue",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-lughūb is fatigue, exhaustion",
+     "note": "لُّغُوب, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "a Bedouin was heard calling someone laghūb",
+     "note": "report of Bedouin speech (via al-Aṣmaʿī)"
+    },
+    {
+     "kind": "early",
+     "text": "a verse of Taʾabbaṭa Sharran boasts that his own \"feather\" was not made from inferior tail-feathers",
+     "note": "Taʾabbaṭa Sharran, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 16599,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "denotes plaiting/twisting something and twining it together",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-masad names the fibre stripped from palm-tree fronds (līf min jarīd al-nakhl)",
+     "note": "مَّسَد, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "\"a masad-rope twisted from young she-camels\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 16508,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "indicating settledness in a thing, and lowness/being-underneath",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-naʿl — the well-known sandal, named for being beneath the foot",
+     "note": "نَعْلَي, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 11525,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "from one core meaning: the connection or joining of one thing to another (ittiṣāl shayʾin bi-shayʾin)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "lineage/kinship. Named this because it is itself a connection",
+     "note": "نَسَب, 3 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 16185,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "cutting/removing a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-qaḍb — green fodder (lucerne), named because it is regularly cut (quḍiba)",
+     "note": "قَضْب, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry by Dhū al-Rummah about a streaking star",
+     "note": "Dhū al-Rummah, Umayyad; no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 16171,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core meaning is a hollow going downward — depth, a bottom, a low-lying cavity in something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A tree that \"inqaʿarat min arūmatihā\" was torn out from its root-stock",
+     "note": "مُّنقَعِر, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 10334,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one consistent root meaning breadth or spaciousness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "which he explains as \"you have come to ample space\"",
+     "note": "مَرْحَب, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "did entering into obedience to al-Kirmānī give you room enough?",
+     "note": "Naṣr b. Sayyār, Umayyad; no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 15816,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core meaning: motion and agitation/commotion",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "al-ramuz is said by the Arabs to mean the sea",
+     "note": "saying of the Arabs"
+    }
+   ]
+  },
+  {
+   "entry_id": 15464,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "a covering/awning stretched over a house's courtyard, or more broadly (per Ibn al-Athir) anything -- wall, enclosure, or tent -- that surrounds something",
+     "note": "سُرَادِق, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated by a verse of Labid describing wild asses kicking up dust",
+     "note": "Labid, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "Al-Zajjaj glosses this as a punishment that will come to enclose them on every side.",
+     "note": "exegete al-Zajjāj (d. 923)"
+    }
+   ]
+  },
+  {
+   "entry_id": 12784,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "states the core sense is steadiness/solidity combined with heaviness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris explains this as describing the slain man weighed down (by wounds/death) to the point that no movement is left in him",
+     "note": "أَثْخَن, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 1925,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "singleness / being alone (al-infirād)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the one who stands alone, the solitary (al-munfarid)",
+     "note": "وَٰحِد, 30 times"
+    },
+    {
+     "kind": "early",
+     "text": "nothing else is woven like it; it functions as a proverb",
+     "note": "proverb"
+    },
+    {
+     "kind": "early",
+     "text": "By God, had I died it would not have harmed me",
+     "note": "ʿUbayd b. al-Abraṣ, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 12546,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives two unrelated base senses",
+     "note": "Ibn Fāris: two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "described as \"a body having a khuwār\" (a lowing sound)",
+     "note": "خُوَار, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "He quotes a line of the poet al-Ṭirimmāḥ boasting of his lineage of glory-defenders",
+     "note": "al-Ṭirimmāḥ, Umayyad; no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 14876,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "forward propulsion — moving ahead, often with effort",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A body of troops advancing toward the enemy is called al-zaḥf — a mass moving forward together",
+     "note": "زَحْف, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "upon worn-out, dragging camels we drive them along",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 14840,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the scantiness of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "early",
+     "text": "illustrated with a line of poetry by al-Aʿshā about a woman whose modest means keep her protected rather than exploited",
+     "note": "al-Aʿshā, lived into Islam"
+    },
+    {
+     "kind": "later",
+     "text": "A hadith is cited: \"the best of people is a believing muzhid [a man of scant means]\"",
+     "note": "a hadith"
+    },
+    {
+     "kind": "later",
+     "text": "al-zahādah applies to worldly matters, while al-zuhd is reserved specifically for religious asceticism",
+     "note": "al-Khalīl's technical distinction"
+    }
+   ]
+  },
+  {
+   "entry_id": 12522,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "leanness/slenderness combined with smoothness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "the divining arrow used in pre-Islamic lot-casting",
+     "note": "أَزْلَٰم, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "A citation of Labīd's poetry, \"her azlām slip on the moist ground,\" is explained as a comparison",
+     "note": "Labīd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 7072,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core idea is a thing inclining or swerving off straight",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to incline, lean, swerve aside",
+     "note": "زَاغَ, 6 times"
+    },
+    {
+     "kind": "quran",
+     "text": "he adduces 61:5, {فَلَمَّا زَاغُوا أَزَاغَ اللَّهُ قُلُوبَهُمْ} — \"when they swerved, God made their hearts swerve\"",
+     "note": "Q 61:5, hearts swerving"
+    }
+   ]
+  }
+ ]
+}

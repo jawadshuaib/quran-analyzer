@@ -1,0 +1,495 @@
+{
+ "batch": "S18",
+ "entries": [
+  {
+   "entry_id": 20237,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one thing covering another until it makes it level with it, be it the ground or something else",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris says this is why al-qiyāma, the Rising, is called al-ṭāmma.",
+     "note": "ṭāmma, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 977,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: nearness and proximity",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 19729,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root pointing to separating and dividing into parts",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Infaḍḍa al-qawm means the people dispersed.",
+     "note": "infaḍḍa, 3 times"
+    },
+    {
+     "kind": "quran",
+     "text": "as though silver is broken up for the ornaments made from it",
+     "note": "fiḍḍa (silver), 6 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 2387,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a thing's departure from its balanced or proper state (al-iʿtidāl)",
+     "note": "al-Rāghib's sense of fasād"
+    },
+    {
+     "kind": "quran",
+     "text": "the label al-mufsidūn, \"the corrupters\" (al-Baqara 2:11–12)",
+     "note": "mufsid, 21 times"
+    },
+    {
+     "kind": "quran",
+     "text": "between al-mufsid (the corrupter) and al-muṣliḥ (the reformer)",
+     "note": "mufsid vs muṣliḥ"
+    }
+   ]
+  },
+  {
+   "entry_id": 17468,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core sense: copiousness, abundance, and plenty/ease",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris cites the Qur'anic verse {la-asqaynāhum māʾan ghadaqan}, \"We would have given them abundant water to drink\" (al-Jinn 72:16)",
+     "note": "ghadaq, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 5895,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "al-ghilẓa means \"thickness\" or \"coarseness,\"",
+     "note": "al-Rāghib's core sense"
+    },
+    {
+     "kind": "quran",
+     "text": "glossed here as khushūna, \"harshness, roughness.\"",
+     "note": "ghilẓa, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "ghalīẓ carries the sense of a harsh, severe punishment.",
+     "note": "ghalīẓ, 9 times"
+    },
+    {
+     "kind": "quran",
+     "text": "the imperative sense of acting harshly.",
+     "note": "ughluẓ, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 17392,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "\"To seek/pursue a thing\" — the base for al-ghazw.",
+     "note": "first of two separate origins"
+    },
+    {
+     "kind": "core",
+     "text": "A term of animal husbandry, about conception:",
+     "note": "second of two separate origins"
+    },
+    {
+     "kind": "early",
+     "text": "Poetic citation (al-Hudhalī): a wild ass brays over the late-bearing females",
+     "note": "al-Hudhalī, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 10665,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "the condition or form in which a thing exists",
+     "note": "hayʾa, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Under this heading he places the causative verb هَيَّأَ / يُهَيِّئ (to make ready, put in order)",
+     "note": "yuhayyiʾ, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"hayyāka hayyāka wa-ḥanwāʾa l-ʿunuq\" — \"Beware, beware, of the curve-necked one.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 127,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "core function is to report that something has come to be or occurred",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "is used when something happens and becomes present",
+     "note": "kāna, 1358 times"
+    },
+    {
+     "kind": "quran",
+     "text": "meaning this was so in a bygone time",
+     "note": "past sense of kāna"
+    }
+   ]
+  },
+  {
+   "entry_id": 8468,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two sound (unrelated) roots",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "God gave him respite, i.e. did not move against him hastily",
+     "note": "amhil, respite"
+    },
+    {
+     "kind": "quran",
+     "text": "reported either as the sediment/dregs of oil, or as molten copper",
+     "note": "muhl, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "\"and 'go easy' is no admonisher of the ignorant.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 4798,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "maraytu al-nāqata, \"I stroked the she-camel's udder to draw out her milk.\"",
+     "note": "al-Rāghib's root origin"
+    },
+    {
+     "kind": "quran",
+     "text": "al-miryah — wavering or hesitation about a matter.",
+     "note": "miryah, 5 times"
+    },
+    {
+     "kind": "quran",
+     "text": "to dispute or wrangle over something",
+     "note": "yamtarūna/tumārī"
+    }
+   ]
+  },
+  {
+   "entry_id": 16415,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core sense: something surging or bursting forth, or being raised/lifted",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "A nafḥah is a single waft or whiff of that scent.",
+     "note": "nafḥa, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 10447,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "core notion is a gift and the act of giving",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a gift made voluntarily",
+     "note": "nāfila, 2 times"
+    },
+    {
+     "kind": "quran",
+     "text": "what is gained or taken as spoil",
+     "note": "anfāl, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "His witness is al-Mutalammis: \"Did you suppose me one who disavows the support of Buhtha?",
+     "note": "al-Mutalammis, pre-Islamic"
+    },
+    {
+     "kind": "later",
+     "text": "نَافِلَةُ الصَّلَاة — the voluntary (non-obligatory) portion of ṣalāt",
+     "note": "later religious usage"
+    }
+   ]
+  },
+  {
+   "entry_id": 16380,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the core sense of n-gh-ḍ as \"shaking, setting in motion.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a person shaking his head at someone, as a gesture of astonishment",
+     "note": "yunghiḍu, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "\"then they will shake their heads at you,\"",
+     "note": "Q 17:51"
+    }
+   ]
+  },
+  {
+   "entry_id": 16296,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a furtive snatching or seizing (ikhtilas / istilab) - taking something quickly and making off with it",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 15755,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: softness/looseness, and feebleness of mind.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-rukhāʾ — a gentle wind.",
+     "note": "rukhāʾ, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "faras rikhw — an easy-gaited, free-flowing horse, illustrated with a line of poetry by Abū Dhuʾayb",
+     "note": "Abū Dhuʾayb, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 15578,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root s-k-t (سكت) marks \"the opposite of speech\" — that is, silence",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "An extended, non-literal use: \"sakata al-ghaḍab\" (سَكَتَ الْغَضَبُ), \"the anger fell silent,\" used to mean it subsided or calmed down (= sakana).",
+     "note": "sakata, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 7140,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core sense is: taking something in concealment and under cover",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to take a thing secretly",
+     "note": "saraqa, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "The idiom \"to steal hearing\" is used of someone who listens in while keeping himself out of sight.",
+     "note": "istaraqa, 1 time"
+    }
+   ]
+  },
+  {
+   "entry_id": 5187,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: **height and elevation**",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "every level or story of a structure",
+     "note": "sūra, 10 times"
+    },
+    {
+     "kind": "early",
+     "text": "A cited verse uses السُّور (al-sūr) for the top of a wall/rampart",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 4517,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two base meanings: (1) dust/earth and its derivatives, and (2) the equality or matching",
+     "note": "two base meanings"
+    },
+    {
+     "kind": "quran",
+     "text": "التراب (turāb) means dust or earth",
+     "note": "turāb, 17 times"
+    },
+    {
+     "kind": "quran",
+     "text": "a companion or age-mate (someone of equal age)",
+     "note": "atrāb, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "a cited verse: \"her two breasts rose above the chest.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 9030,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "three separate roots rather than one",
+     "note": "three separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "a مَثْبُور (mathbūr) man is one destroyed.",
+     "note": "thubūr, 4 times"
+    },
+    {
+     "kind": "quran",
+     "text": "Ibn Fāris cites Qur'an 25:13, \"there they call out for thubūr.\"",
+     "note": "Q 25:13"
+    },
+    {
+     "kind": "early",
+     "text": "\"I saved myself and left Ḥazra behind",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 15169,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the root signals abundance and completeness/fullness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "mawfūr = \"made abundant\" (an ample or full thing)",
+     "note": "mawfūr, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "I wished, out of my love for Buthayna, that we were on a raft [ramath] in a sea-inlet [al-sharm]",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 1680,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core sense is facing or confronting something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "is what fronts or stands opposite anything",
+     "note": "wajh, 72 times"
+    },
+    {
+     "kind": "quran",
+     "text": "\"and each has a direction he faces.\"",
+     "note": "wijha, 1 time"
+    },
+    {
+     "kind": "quran",
+     "text": "وَجِيه, \"eminent, of manifest standing,\"",
+     "note": "wajīh, 2 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 8284,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "Core sense — mixing, intermingling.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"I mixed one thing with another, and it became mixed.\"",
+     "note": "ikhtalaṭa, 3 times"
+    },
+    {
+     "kind": "early",
+     "text": "Aws: asked for advice by his cousin, the speaker is found to be \"mikhlaṭ of the affair and mizyal\"",
+     "note": "Aws, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 7515,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one root whose sense is tending, looking after, seeing to something",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "خَوَّلَكَ اللَّهُ مَالًا, \"God khawwala you property,\" means He gave it to you.",
+     "note": "khawwala, 3 times"
+    }
+   ]
+  }
+ ]
+}

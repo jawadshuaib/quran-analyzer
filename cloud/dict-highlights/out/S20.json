@@ -1,0 +1,485 @@
+{
+ "batch": "S20",
+ "entries": [
+  {
+   "entry_id": 12046,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single underlying sense — withering and scarcity of water/moisture — runs through both the non-hamzated and hamzated forms of this root",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Hamzated form, al-ẓamaʾ: thirst.",
+     "note": "ẓamaʾ, thirst"
+    }
+   ]
+  },
+  {
+   "entry_id": 4166,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single root whose core sense is the extension or spreading-out of a thing",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-basṭa in anything means amplitude or ample scope",
+     "note": "basṭa, 2 times"
+    },
+    {
+     "kind": "early",
+     "text": "He cites a verse describing \"a wide expanse [basāṭ] for the feet of swift she-camels\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 6961,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one well-known root whose core meaning is pushing a thing aside or removing it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "Basic sense — to push, repel, drive away",
+     "note": "dafaʿa, repel"
+    },
+    {
+     "kind": "early",
+     "text": "Shāhid from Ḥumayd: \"And they brought forward for departure every prized camel.\"",
+     "note": "Ḥumayd, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 10817,
+   "highlights": [
+    {
+     "kind": "quran",
+     "text": "دَلَوْتُ الدَّلْوَ means to send the bucket down into the well",
+     "note": "dalw, bucket"
+    },
+    {
+     "kind": "quran",
+     "text": "Form V, التَّدَلِّي: drawing near, and letting oneself down or hanging low",
+     "note": "tadallā, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "cast your bucket in among the buckets",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 17792,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "One core meaning: pushing/thrusting.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-disār — the palm-fiber cord binding a ship's planks together (plural dusur)",
+     "note": "dusur, nails/cords"
+    },
+    {
+     "kind": "early",
+     "text": "a line of poetry about a warrior formidable enough to uproot a mountain with a single thrust",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 8588,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single sound root whose core idea is clinging to and staying fastened",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "غَرَام (gharām) — punishment that clings",
+     "note": "gharām, 1 time"
+    },
+    {
+     "kind": "early",
+     "text": "the pre-Islamic poet al-Aʿshā: if such a one punishes, the punishment is inescapable",
+     "note": "al-Aʿshā, lived into Islam"
+    }
+   ]
+  },
+  {
+   "entry_id": 13704,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "derives two distinct senses from the root h-y-j",
+     "note": "two senses"
+    },
+    {
+     "kind": "quran",
+     "text": "hāja al-baql — said of herbage turning yellow just before it dries out.",
+     "note": "yahīju, it dries"
+    },
+    {
+     "kind": "early",
+     "text": "by the poet Ru'ba: he describes finding the place called al-Khalṣā' (near Dhāt al-Buraq) dried up",
+     "note": "Ruʾba, Umayyad; no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 11881,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "has one sound core meaning: \"pressing/pinching\" and \"breaking.\"",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "**al-hazīma** (\"rout, defeat\") in war",
+     "note": "hazama, defeat"
+    },
+    {
+     "kind": "early",
+     "text": "line of poetry attributed to Jarīr",
+     "note": "Jarīr, Umayyad; no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 6255,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core notion: scarcity of good, a shortfall of benefit",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "It is the opposite of acknowledgment (iqrār)",
+     "note": "juḥūd, rejection"
+    },
+    {
+     "kind": "early",
+     "text": "quoting al-Farazdaq's verse mentioning \"the pack-beasts of a destitute man (mujḥid).\"",
+     "note": "al-Farazdaq, Umayyad; no earlier witness"
+    }
+   ]
+  },
+  {
+   "entry_id": 2838,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single regular, analogizable root whose core sense is the massing of a thing in height",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "الْجَبَل (al-jabal) — \"the mountain,\"",
+     "note": "jabal, 39 times"
+    },
+    {
+     "kind": "quran",
+     "text": "الْجِبِلّ (al-jibill) — a numerous multitude",
+     "note": "jibill, multitude"
+    },
+    {
+     "kind": "early",
+     "text": "a verse praising Quraysh as \"the jabal of God\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 13578,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "identifies two unrelated base meanings for the root ج-ز-ع (j-z-ʿ)",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "الْجَزَعُ (al-jazaʿ, \"impatience/distress\") is the opposite of ṣabr (endurance)",
+     "note": "jazaʿ, distress"
+    }
+   ]
+  },
+  {
+   "entry_id": 16582,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "says the root m-s-kh (مسخ) covers two separate, unrelated words",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "\"God masakha him\" = God changed his form from good/beautiful into ugly.",
+     "note": "masakha, transform"
+    },
+    {
+     "kind": "early",
+     "text": "\"You are masikh like the meat of a young weaned camel... neither sweet nor bitter.\"",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 19898,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "as a sound root whose meaning he gives as selection, eminence in a thing, and elevation",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-nāṣiya, the forelock, belongs here, according to Ibn Fāris, because the hair grows from a high place",
+     "note": "nāṣiya, forelock"
+    },
+    {
+     "kind": "later",
+     "text": "\"Why do you tanṣūn your dead?\" Ibn Fāris explains that she meant stretching out the dead person's forelock",
+     "note": "saying of the Companion ʿĀʾisha"
+    }
+   ]
+  },
+  {
+   "entry_id": 10394,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "the principle is removing one thing and putting another in its place",
+     "note": "first view on the root's principle"
+    },
+    {
+     "kind": "core",
+     "text": "the principle is transferring or converting one thing into another",
+     "note": "second view on the root's principle"
+    },
+    {
+     "kind": "quran",
+     "text": "Copying a text — نَسْخُ الكِتَاب, transcribing a book.",
+     "note": "nastansikh, transcribe"
+    },
+    {
+     "kind": "later",
+     "text": "a command that was formerly acted upon and is then cancelled by a new one; his example is a verse containing a command that is then abrogated by another verse",
+     "note": "abrogation of one verse by another"
+    }
+   ]
+  },
+  {
+   "entry_id": 13180,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "something running out or being used up entirely, and thereby being cut off.",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "a drunk man is called nazif, because his reason (aql) has been \"drained.\"",
+     "note": "yunzafūn, intoxicated"
+    },
+    {
+     "kind": "early",
+     "text": "comparing a woman's gait to that of the nazif",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 6857,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a sound root with one core idea: overcoming/domination and superiority (being above)",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to overcome, subdue, dominate: qahara-hu yaqharu-hu qahran",
+     "note": "qāhir/qahhār"
+    },
+    {
+     "kind": "early",
+     "text": "he aspired to lord it over his kinsfolk",
+     "note": "Ḥuṣayn, pre-Islamic"
+    }
+   ]
+  },
+  {
+   "entry_id": 9096,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "as three separate root-meanings: (1) fear, (2) filling, (3) cutting",
+     "note": "three separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "الرَّعْب (raʿb) is fear; the verb رَعَبْتُهُ (\"I frightened him\") takes the verbal noun رَعْبًا, while the noun proper is الرُّعْب (ruʿb)",
+     "note": "ruʿb, terror, 5 times"
+    }
+   ]
+  },
+  {
+   "entry_id": 13032,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core meaning: the opposite of dryness — that is, moistness or freshness",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "al-raṭb and al-raṭīb — both simply mean \"moist, fresh.\"",
+     "note": "raṭb, moist"
+    },
+    {
+     "kind": "quran",
+     "text": "al-ruṭab — the well-known word for fresh, ripe dates (as opposed to dried dates)",
+     "note": "ruṭab, fresh dates"
+    }
+   ]
+  },
+  {
+   "entry_id": 6832,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "(1) one thing overtaking or enveloping another, and (2) haste and delay",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "رَهِقَهُ الأمرُ = the affair overtook and covered him (equated with غَشِيَهُ)",
+     "note": "yarhaqu, cover"
+    },
+    {
+     "kind": "early",
+     "text": "سَلِيمُ جَنَبِ الرَّهَقَا",
+     "note": "unattributed verse"
+    }
+   ]
+  },
+  {
+   "entry_id": 15502,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "these three letters form one root meaning \"time\" (zamān).",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "glossing yatasannah as \"it did not become like something over which the years pass and so change/spoil it\"",
+     "note": "yatasannah, Q 2:259"
+    }
+   ]
+  },
+  {
+   "entry_id": 15491,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "this root has a single core meaning: **height, being raised up / elevation** (al-ʿuluww wa-l-irtifāʿ)",
+     "note": "Ibn Fāris's root sense"
+    }
+   ]
+  },
+  {
+   "entry_id": 11230,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "one core idea: joining or bringing one thing close up against another",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "awṣadtu al-bāb, \"I awṣad-ed the door,\" means simply \"I closed/shut it.\"",
+     "note": "muʾṣada, closed over"
+    },
+    {
+     "kind": "quran",
+     "text": "the finā' (courtyard or forecourt) of a dwelling",
+     "note": "waṣīd, entrance"
+    }
+   ]
+  },
+  {
+   "entry_id": 7118,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "two separate words: one meaning weakness, the other denoting a time of night",
+     "note": "two separate origins"
+    },
+    {
+     "kind": "quran",
+     "text": "وَهَنَ (wahana), imperfect yahinu, verbal noun wahn: \"a thing grew weak.\"",
+     "note": "wahana, weaken"
+    },
+    {
+     "kind": "quran",
+     "text": "The causative أَوْهَنْتُهُ (awhantuhu) means \"I weakened it.\"",
+     "note": "muhin, one who weakens"
+    }
+   ]
+  },
+  {
+   "entry_id": 11217,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "a single core idea: perceiving something together with listening/hearkening for it",
+     "note": "Ibn Fāris's root sense"
+    },
+    {
+     "kind": "quran",
+     "text": "to sense/perceive it and thereby listen out for it",
+     "note": "awjasa, sense"
+    },
+    {
+     "kind": "quran",
+     "text": "\"Mūsā sensed/conceived a fear within himself\" (Ṭāhā 20:67)",
+     "note": "Q 20:67"
+    }
+   ]
+  },
+  {
+   "entry_id": 19996,
+   "highlights": [
+    {
+     "kind": "core",
+     "text": "he defines as pushing a thing so that it moves along, driven",
+     "note": "al-Rāghib's basic sense"
+    },
+    {
+     "kind": "quran",
+     "text": "yuzjī saḥāban, \"He drives clouds along\" (Q 24:43)",
+     "note": "yuzjī, drives"
+    },
+    {
+     "kind": "early",
+     "text": "wa-ḥājatin ghayri muzjātin mina l-ḥāji, \"and a need, among needs, that is not muzjāt\"",
+     "note": "unattributed verse"
+    }
+   ]
+  }
+ ]
+}
