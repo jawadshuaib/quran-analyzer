@@ -158,6 +158,35 @@ def spelled_roots(q: str, root_map: dict) -> tuple[str | None, list[str]]:
     return shape, [r for r in roots if r in root_map]
 
 
+def spelled_query_roots(q: str, root_map: dict, conn) -> list[str] | None:
+    """The roots `q` spells: letter by letter ("S-W-M", "ṣ w m", "ص و م",
+    "ktb") or as a root's Buckwalter key ("Elm", "Swm"). None when it doesn't
+    spell one; [] when it has the shape but no root fits ("x-q-z"). A run of
+    letters that is also an English word ("why", "dew") doesn't count."""
+    shape, roots = spelled_roots(q, root_map)
+    if shape == 'separated':
+        return roots
+    english = is_english_word(q, conn)
+    if shape == 'compact' and roots and not english:
+        return roots
+    key = (q or '').strip()
+    exact = [r for r in root_map if r.lower() == key.lower()]
+    if exact and not english:
+        # Buckwalter's case is a letter: "Swm" is ص, so it names ṣ-w-m alone.
+        return [r for r in exact if r == key] or exact
+    return None
+
+
+def named_roots(q: str, root_map: dict, conn) -> list[str]:
+    """The roots a query names outright: spelled (spelled_query_roots) or as
+    one of their words in Latin letters ("sawm", "taqwa"). Empty for anything
+    else, English words included. A verse result highlights their words."""
+    spelled = spelled_query_roots(q, root_map, conn)
+    if spelled is not None:
+        return spelled
+    return [r for r, _n in word_roots(q, conn)]
+
+
 def spelled_forms(q: str) -> set[str]:
     """The usual ways of writing a Latin letter-by-letter query ("s w m" ->
     {"s-w-m", "swm"}), for looking it up among the root aliases."""
@@ -176,17 +205,19 @@ _english: set[str] | None = None
 
 # Everyday English words the site's own English never uses, whose spelling is
 # nonetheless the key of a Qur'anic word ("ram" is ramā, "main" is ʿayn,
-# "altar" is tarā). Found by running a 175k-word English dictionary through
-# word_roots(); of its 582 hits these are the ones a reader would type as
-# English. Arabic terms in that dictionary (kitab, imam, sura, shirk, halal,
-# and tin for al-Tīn) are left out on purpose: they should reach their roots.
+# "altar" is tarā) or a root's Buckwalter key ("dew" is d-ʿ-w). Found by
+# running a 175k-word English dictionary through word_roots() and the root
+# keys; of their hits these are the ones a reader would type as English.
+# Arabic terms in that dictionary (kitab, imam, sura, shirk, halal, and tin for
+# al-Tīn) are left out on purpose, as is "elm": the site writes ʿ-l-m "Elm".
 _ENGLISH_EXTRA = frozenset("""
-    ail alkali altar anti aqua arid ash ashy assay awl ball ballad ban bar bard
-    bass bay bid bin bud dab dank dim fad fan fiat fuzz habit habitat hall harass
-    hash haw hay hub hut jail jam jar jaw jazz kilt labia lad lamina lard layman
-    libra limn lint llama lurid main mall mamma mania mat mill mitt mutt nab nut
-    qua radii raffia ram raw ray rib rid rub safari sir stall tab tad tariff thaw
-    tub tuba turf tusk tutu ward wasabi watt yak yam yard
+    ail alkali alt altar anti aqua arid ash ashy ass assay awl ball ballad ban
+    bar bard bass bay bid bin bra bud bye dab dank dew dim dye fad fan fiat fry
+    fuzz habit habitat hall harass hash hat haw hay hub hut jail jam jar jaw jazz
+    kilt labia lad lamina lard layman libra limn lint llama lurid main mall mamma
+    mania mat mill mitt mutt nab nut qua radii raffia ram raw ray rib rid rub rye
+    safari sir sly stall tab tad tariff thaw tub tuba turf tusk tutu ward wasabi
+    watt wry yak yam yard
 """.split())
 
 

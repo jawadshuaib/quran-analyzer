@@ -386,24 +386,21 @@ _STOPWORDS = {
 
 
 def spelled_root_query(q):
-    """The roots `q` spells letter by letter ("S-W-M", "ṣ w m", "ص و م",
-    "ktb"), or None when it isn't such a query. Letters have no meaning to
-    embed (the dense model pairs "S-W-M" with "Alif. Lam. Meem."), so these are
-    answered from the roots alone. A short run of letters that is also an
-    English word ("why") is left to the normal path."""
+    """The roots `q` spells ("S-W-M", "ṣ w m", "ص و م", "ktb", "Elm"), or None
+    when it isn't such a query (root_query.spelled_query_roots). Letters have
+    no meaning to embed (the dense model pairs "S-W-M" with "Alif. Lam. Meem."
+    and "Elm" with trees), so these are answered from the roots alone. An
+    Arabic word is the exception even when it is a root's letters ("صبر"): it
+    means something, so it keeps the normal path."""
     import app
-    shape, roots = root_query.spelled_roots(q, getattr(app, "_root_arabic_map", {}))
-    if shape == "separated":
-        return roots
-    if shape == "compact" and roots and not _ARABIC_RE.search(q):
-        conn = app.get_db()
-        try:
-            if root_query.is_english_word(q, conn):
-                return None
-        finally:
-            conn.close()
-        return roots
-    return None
+    root_map = getattr(app, "_root_arabic_map", {})
+    if _ARABIC_RE.search(q) and root_query.spelled_roots(q, root_map)[0] != "separated":
+        return None
+    conn = app.get_db()
+    try:
+        return root_query.spelled_query_roots(q, root_map, conn)
+    finally:
+        conn.close()
 
 
 def root_verses(roots, limit):

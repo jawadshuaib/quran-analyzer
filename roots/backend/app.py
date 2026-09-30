@@ -4822,9 +4822,11 @@ def search_v2_api():
         results = _semantic_search(query, limit=limit)
         conn = get_db()
         try:
+            root_words = _named_root_words(conn, query)
             out = []
             for ch, v, score, snippet in results:
-                out.append(_shape_v2_result(conn, ch, v, round(score, 6), {}))
+                out.append(_shape_v2_result(conn, ch, v, round(score, 6), {},
+                                            root_words.get((ch, v))))
             return jsonify({"query": query, "results": out, "total": len(out),
                             "degraded": True, "engine": "v1-only"})
         finally:
@@ -4833,10 +4835,12 @@ def search_v2_api():
     res = search_v2.hybrid_search(query, limit=limit)
     conn = get_db()
     try:
+        root_words = _named_root_words(conn, query)
         out = []
         for r in res["results"]:
             out.append(_shape_v2_result(conn, r["surah"], r["ayah"], r["score"],
-                                        r.get("matched_because", {})))
+                                        r.get("matched_because", {}),
+                                        root_words.get((r["surah"], r["ayah"]))))
         return jsonify({
             "query": query,
             "results": out,
@@ -4848,16 +4852,40 @@ def search_v2_api():
         conn.close()
 
 
-def _shape_v2_result(conn, ch, v, score, matched_because):
+def _named_root_words(conn, query):
+    """{(chapter, verse): {word_pos}} for the words of the roots the query names
+    outright ("S-W-M", "sawm": root_query.named_roots), so a result can mark
+    them. Empty for any other query. Leaves out the few verses whose display
+    text and word numbering disagree, where a position could mark the wrong
+    word (the same four the note-citation aligner skips)."""
+    roots = root_query.named_roots(query, _root_arabic_map, conn)
+    if not roots:
+        return {}
+    misaligned = _align_module().MISALIGNED
+    out = {}
+    for r in conn.execute(
+        "SELECT DISTINCT chapter, verse, word_pos FROM morphology "
+        f"WHERE root_buckwalter IN ({','.join('?' * len(roots))})",
+        roots,
+    ):
+        key = (r["chapter"], r["verse"])
+        if key not in misaligned:
+            out.setdefault(key, set()).add(r["word_pos"])
+    return out
+
+
+def _shape_v2_result(conn, ch, v, score, matched_because, root_words=None):
     """Enrich a (chapter, verse) retrieval hit with display text, reusing the
-    same helpers as /api/semantic-search so the two endpoints agree."""
+    same helpers as /api/semantic-search so the two endpoints agree.
+    `root_words` are the 1-based positions, in the returned text, of the words
+    built on the roots the query names; sent only when there are some."""
     row = conn.execute(
         "SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?", (ch, v),
     ).fetchone()
     text = row["text_uthmani"] if row else ""
     if text:
         text = _strip_bismillah(text, ch, v)
-    return {
+    result = {
         "surah": ch,
         "ayah": v,
         "surah_name": _surah_name(ch),
@@ -4866,6 +4894,9 @@ def _shape_v2_result(conn, ch, v, score, matched_because):
         "score": score,
         "matched_because": matched_because,
     }
+    if root_words:
+        result["root_words"] = sorted(root_words)
+    return result
 
 
 def _detail_excerpt(detailed: str | None, max_chars: int = 240) -> str | None:

@@ -473,6 +473,9 @@ export interface MatchedBecause {
 
 export interface SearchV2Result extends SemanticSearchResult {
   matched_because?: MatchedBecause;
+  /** 1-based positions, in text_uthmani, of the words built on the roots the
+   *  query names outright ("s-w-m", "sawm"); absent for any other query. */
+  root_words?: number[];
 }
 
 export interface SearchV2Response {

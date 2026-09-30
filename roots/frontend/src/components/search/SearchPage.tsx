@@ -69,6 +69,10 @@ function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
     }
   }
 
+  // The words of the root the query names ("s-w-m", "sawm"), marked in the
+  // same green as the root card above, so the reader sees where it is used.
+  const rootWords = r.root_words?.length ? new Set(r.root_words) : null;
+
   return (
     <div className="group rounded-lg border border-stone-200 bg-white p-4 transition-colors hover:border-violet-300 hover:bg-violet-50/20">
       <div className="flex items-start gap-3">
@@ -77,7 +81,18 @@ function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
             {r.surah_name} {verseKey}
           </span>
           <p dir="rtl" lang="ar" className="mt-1.5 text-right font-arabic text-lg leading-loose text-stone-800">
-            {r.text_uthmani}
+            {rootWords
+              ? r.text_uthmani.split(/\s+/).filter(Boolean).map((w, i) => (
+                  <Fragment key={i}>
+                    {i > 0 && ' '}
+                    {rootWords.has(i + 1) ? (
+                      <mark className="rounded bg-emerald-100 px-0.5 text-emerald-900">{w}</mark>
+                    ) : (
+                      w
+                    )}
+                  </Fragment>
+                ))
+              : r.text_uthmani}
           </p>
           {r.translation && (
             <p className="mt-1 text-sm leading-relaxed text-stone-600">

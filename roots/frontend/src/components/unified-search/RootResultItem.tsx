@@ -32,11 +32,6 @@ export default memo(function RootResultItem({ root, active, onSelect, onHover, i
           <span className="text-xs text-stone-400 tabular-nums">
             {root.frequency.toLocaleString()}v
           </span>
-          {root.in_curriculum && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold uppercase">
-              Learn
-            </span>
-          )}
         </div>
         {root.meaning && (
           <p className="text-xs text-stone-500 truncate mt-0.5">{root.meaning}</p>
