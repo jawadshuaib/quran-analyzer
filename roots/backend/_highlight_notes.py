@@ -327,9 +327,20 @@ def cmd_status(args):
           f"{sum(1 for n in notes if not n['draft'])} no draft")
 
 
+# A note is also dropped when the verse translation it quotes carries a bracketed
+# religious gloss ("the Hajj [pilgrimage]", "[Muslims]"): the site reads the
+# Qur'an's words without such later meanings.
+BRACKET_GLOSS = re.compile(r"\[[^\]]*\b(Muslims?|pilgrimage|prayer|zakah|funeral|Islam|worship)\b[^\]]*\]", re.I)
+
+
 def cmd_merge(args):
     c = db()
     recs = load_cache()
+    vetoes = {}
+    vpath = os.path.join(OUT, "vetoes.json")
+    if os.path.exists(vpath):
+        vetoes = {k: set(v) for k, v in json.load(open(vpath, encoding="utf-8")).items() if not k.startswith("_")}
+    dropped = 0
     n_entries = n_notes = 0
     for row in c.execute("SELECT h.entry_id, h.root_buckwalter r, h.highlights, e.harmonized_en t "
                          "FROM dictionary_highlights h JOIN dictionary_entries e ON e.id = h.entry_id").fetchall():
@@ -339,6 +350,9 @@ def cmd_merge(args):
         hls = json.loads(row["highlights"])
         by_i = {x["i"]: x["detail"] for x in rec["notes"]}
         for n, h in enumerate(hls, 1):
+            if by_i.get(n) and (n in vetoes.get(row["r"], ()) or BRACKET_GLOSS.search(by_i[n])):
+                by_i[n] = None
+                dropped += 1
             if by_i.get(n):
                 h["detail"] = by_i[n]; n_notes += 1
             else:
@@ -347,7 +361,7 @@ def cmd_merge(args):
                   (json.dumps(hls, ensure_ascii=False), row["entry_id"]))
         n_entries += 1
     c.commit()
-    print(f"{n_notes} richer notes written across {n_entries} entries")
+    print(f"{n_notes} richer notes written across {n_entries} entries; {dropped} vetoed (kept the basic note)")
 
 
 if __name__ == "__main__":
