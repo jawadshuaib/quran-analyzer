@@ -54,12 +54,16 @@ export function HighlightMark({
   kind,
   note,
   detail,
+  highlightRootBw,
   children,
 }: {
   kind: DictionaryHighlight['kind'];
   note?: string;
   /** The fuller note, written from the site's own data (_highlight_notes.py). */
   detail?: string;
+  /** The entry's root: a verse the note cites opens with this root's word
+   *  marked, so the usage the note points to is easy to find. */
+  highlightRootBw?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
@@ -160,7 +164,7 @@ export function HighlightMark({
             </span>
             {body && (
               <span className="block">
-                <VerseRefText text={body} />
+                <VerseRefText text={body} highlightRootBw={highlightRootBw} />
               </span>
             )}
           </span>,

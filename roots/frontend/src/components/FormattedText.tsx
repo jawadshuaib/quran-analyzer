@@ -325,7 +325,13 @@ function renderLine(content: string, opts: RenderInlineOpts) {
     if (h.at < cur) return; // overlapping (the job forbids it); keep the first
     if (h.at > cur) out.push(<Fragment key={`p${i}`}>{renderInline(tf(content.slice(cur, h.at)), opts)}</Fragment>);
     out.push(
-      <HighlightMark key={`m${i}`} kind={h.m.kind} note={h.m.note} detail={h.m.detail}>
+      <HighlightMark
+        key={`m${i}`}
+        kind={h.m.kind}
+        note={h.m.note}
+        detail={h.m.detail}
+        highlightRootBw={opts.highlightRootBw}
+      >
         {renderInline(tf(h.m.text), opts)}
       </HighlightMark>,
     );
