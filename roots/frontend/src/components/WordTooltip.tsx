@@ -262,21 +262,6 @@ export default function WordTooltip({ word, coreMeaning, coreEvidence, aiMeaning
                   <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z" />
                 </svg>
               </a>
-              <a
-                href={`https://corpus.quran.com/qurandictionary.jsp?q=${encodeURIComponent(mainRootBw)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-1.5 w-full px-2 py-1.5 rounded-md
-                           bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:text-indigo-700
-                           text-xs font-medium transition-colors"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Quranic Corpus
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
-                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
-                </svg>
-              </a>
             </>
           )}
         </div>
