@@ -1,17 +1,21 @@
-import { useState, useEffect, type RefObject } from 'react';
-import UnifiedSearch from '../UnifiedSearch';
+import { useState, useEffect, useRef, type RefObject } from 'react';
+import { flushSync } from 'react-dom';
+import UnifiedSearch, { type UnifiedSearchHandle } from '../UnifiedSearch';
 import { getSavedCount, subscribeToSavedItems } from '../../utils/saved-items';
 
 /**
- * Sticky top nav. On scroll past a threshold (or past an explicitly-
- * passed search anchor), the right-side links fade out and a compact
- * search bar fades in. The two share the same absolute container so
- * the nav doesn't jump in height during the swap.
+ * Sticky top nav with the site search.
  *
- * Pages with their own prominent search at the top (homepage hero,
- * active-state search on the verse page) pass a `searchAnchorRef` so
- * the swap only fires once that search has scrolled out of view. Pages
- * without their own search use the default 80px scroll threshold.
+ * Pages with their own prominent search at the top (homepage hero, the verse
+ * page, /search) pass a `searchAnchorRef`: the right-side links show until that
+ * search scrolls out of view, then fade out and a compact search fades in, in
+ * the same absolute container so the nav doesn't jump in height.
+ *
+ * Every other page (a word, a root, the reader…) has no search of its own, so
+ * the nav carries one from the start instead of waiting for a scroll:
+ *   - sm and up: the compact search sits beside the links, always.
+ *   - phones: there's no room for both, so a search button leads the links and
+ *     swaps the search in (the page still swaps it in on scroll, as before).
  *
  * Right-side links:
  *   - Saved (always; badge shows the count)
@@ -32,6 +36,19 @@ const STATIC_LINKS = [
 ];
 
 const SCROLL_THRESHOLD = 80;
+// Tailwind's `sm` breakpoint, where the search fits beside the links.
+const WIDE_QUERY = '(min-width: 640px)';
+
+function useIsWide(): boolean {
+  const [wide, setWide] = useState(() => window.matchMedia(WIDE_QUERY).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(WIDE_QUERY);
+    const onChange = () => setWide(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return wide;
+}
 
 export default function NavBar({
   currentPath,
@@ -39,17 +56,27 @@ export default function NavBar({
   onNavigateVerse,
   onFullSemanticSearch,
 }: Props) {
-  const [compact, setCompact] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(() => getSavedCount());
+  const wide = useIsWide();
+  const searchHandle = useRef<UnifiedSearchHandle | null>(null);
+  const searchBoxRef = useRef<HTMLDivElement>(null);
+
+  // No search of the page's own: the nav always offers one.
+  const persistent = !searchAnchorRef;
+  // Beside the links (wide screens) rather than swapped in over them.
+  const inline = persistent && wide;
+  const swapped = !inline && (scrolled || searchOpen);
 
   useEffect(() => {
     function check() {
       const anchor = searchAnchorRef?.current;
       if (anchor) {
         const rect = anchor.getBoundingClientRect();
-        setCompact(rect.bottom < 8);
+        setScrolled(rect.bottom < 8);
       } else {
-        setCompact(window.scrollY > SCROLL_THRESHOLD);
+        setScrolled(window.scrollY > SCROLL_THRESHOLD);
       }
     }
     check();
@@ -61,10 +88,27 @@ export default function NavBar({
     };
   }, [searchAnchorRef]);
 
+  // A search opened from the phone button closes on a tap anywhere else.
+  useEffect(() => {
+    if (!searchOpen) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!searchBoxRef.current?.contains(e.target as Node)) setSearchOpen(false);
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [searchOpen]);
+
   // Refresh the Saved badge when saved items change in this tab or another.
   useEffect(() => {
     return subscribeToSavedItems(() => setSavedCount(getSavedCount()));
   }, []);
+
+  function openSearch() {
+    // Commit the swap before focusing: the hidden search is inert, and iOS only
+    // raises the keyboard for a focus made inside the tap itself.
+    flushSync(() => setSearchOpen(true));
+    searchHandle.current?.focus();
+  }
 
   const handleNavigateVerse =
     onNavigateVerse ??
@@ -95,14 +139,57 @@ export default function NavBar({
           al-nuqta
         </a>
 
-        <div className="relative flex-1 min-h-[44px] sm:min-h-[36px] flex items-center justify-end">
-          {/* Nav links (default) */}
+        <div className="relative flex-1 min-w-0 min-h-[44px] sm:min-h-[36px] flex items-center justify-end gap-5">
+          {/* Search: beside the links, or swapped in over them */}
           <div
-            className={`absolute inset-0 flex items-center justify-end gap-1 sm:gap-5 -mr-2.5 sm:mr-0 text-[14px] sm:text-[13px] text-ink-secondary transition-opacity duration-200 ${
-              compact ? 'opacity-0 pointer-events-none' : 'opacity-100'
-            }`}
-            aria-hidden={compact}
+            ref={searchBoxRef}
+            className={
+              inline
+                ? 'flex-1 min-w-0 flex items-center justify-end'
+                : `absolute inset-0 flex items-center justify-end transition-opacity duration-200 ${
+                    swapped ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`
+            }
+            aria-hidden={!inline && !swapped}
+            inert={!inline && !swapped}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && searchOpen) setSearchOpen(false);
+            }}
           >
+            <div className="w-full max-w-[360px]">
+              <UnifiedSearch
+                onNavigateVerse={handleNavigateVerse}
+                onFullSemanticSearch={handleFullSemanticSearch}
+                handleRef={searchHandle}
+                compact
+              />
+            </div>
+          </div>
+
+          {/* Nav links */}
+          <div
+            className={
+              inline
+                ? 'flex flex-shrink-0 items-center gap-5 text-[13px] text-ink-secondary'
+                : `absolute inset-0 flex items-center justify-end gap-1 sm:gap-5 -mr-2.5 sm:mr-0 text-[14px] sm:text-[13px] text-ink-secondary transition-opacity duration-200 ${
+                    swapped ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                  }`
+            }
+            aria-hidden={swapped}
+            inert={swapped}
+          >
+            {persistent && !wide && (
+              <button
+                type="button"
+                onClick={openSearch}
+                aria-label="Search"
+                className="min-h-[44px] px-2.5 rounded-md active:bg-ink/5 inline-flex items-center hover:text-ink transition-colors cursor-pointer"
+              >
+                <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+            )}
             {navLinks.map((b) => (
               <a
                 key={b.label}
@@ -136,22 +223,6 @@ export default function NavBar({
                 </a>
               );
             })}
-          </div>
-
-          {/* Compact search (appears on scroll) */}
-          <div
-            className={`absolute inset-0 flex items-center justify-end transition-opacity duration-200 ${
-              compact ? 'opacity-100' : 'opacity-0 pointer-events-none'
-            }`}
-            aria-hidden={!compact}
-          >
-            <div className="w-full max-w-[360px]">
-              <UnifiedSearch
-                onNavigateVerse={handleNavigateVerse}
-                onFullSemanticSearch={handleFullSemanticSearch}
-                compact
-              />
-            </div>
           </div>
         </div>
       </div>

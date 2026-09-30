@@ -389,6 +389,9 @@ export default function App() {
     id: CHROME_EXTENSION_ID_FALLBACK,
     storeUrl: CHROME_EXTENSION_URL_FALLBACK,
   });
+  // The /search page's own search bar: the nav holds its compact search back
+  // until this one scrolls away, as on the homepage and the verse page.
+  const searchPageAnchorRef = useRef<HTMLDivElement>(null);
   const currentPath = window.location.pathname;
   const isHomepage = currentPath === '/' || currentPath === '';
   const showTopBar =
@@ -496,8 +499,8 @@ export default function App() {
       <div className="min-h-screen flex flex-col">
         <PageBackground />
         {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
-        <NavBar currentPath={currentPath} />
-        <div className="flex-1"><SearchPage /></div>
+        <NavBar currentPath={currentPath} searchAnchorRef={searchPageAnchorRef} />
+        <div className="flex-1"><SearchPage searchAnchorRef={searchPageAnchorRef} /></div>
         <SiteFooter />
         <SavedItemsPanel />
         <HighlightController />
