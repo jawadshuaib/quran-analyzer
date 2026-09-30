@@ -125,9 +125,13 @@ export default function NavBar({
   // feature is discoverable (the page has a proper empty state), with the
   // count badge preserving the "you have n things" signal. Notes live inside
   // the Saved page (under their verses), so there's no separate Notes link.
-  const navLinks: Array<{ label: string; href: string; count: number }> = [
-    { label: 'Saved', href: '/saved', count: savedCount },
-  ];
+  // With nothing saved yet the Saved link is hidden, and the Dictionary link
+  // uses the room to spell out its full name.
+  const navLinks: Array<{ label: string; href: string; count: number }> =
+    savedCount > 0 ? [{ label: 'Saved', href: '/saved', count: savedCount }] : [];
+  const staticLinks = STATIC_LINKS.map((l) =>
+    l.href === '/dictionary' && savedCount === 0 ? { ...l, label: 'Quranic Dictionary' } : l,
+  );
 
   return (
     <nav className="w-full bg-cream/90 backdrop-blur-sm border-b border-card-border sticky top-0 z-30">
@@ -206,7 +210,7 @@ export default function NavBar({
                 )}
               </a>
             ))}
-            {STATIC_LINKS.map((link) => {
+            {staticLinks.map((link) => {
               const isActive =
                 link.href === '/'
                   ? currentPath === '/'
