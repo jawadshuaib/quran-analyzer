@@ -23,6 +23,10 @@
 #      so we go through python).
 #   4. Prints a row-count diff (BEFORE / AFTER) for each table so
 #      the operator can sanity-check the result.
+#   5. Deletes this script's own older backups on prod, keeping the
+#      newest KEEP_BACKUPS. Each is a full copy of the DB (1.3 GB in
+#      Sept 2026) on the same volume as the live file, and they had
+#      piled up to 38 GB with the disk at 90%.
 #
 # Knobs:
 #   PROD_HOST           ssh target (default: root@al-nuqta.com)
@@ -30,6 +34,8 @@
 #   PROD_DB_PATH        DB path inside the container (default: /app/data/quran.db)
 #   LOCAL_DB_PATH       local DB path (default: data/quran.db)
 #   DRY_RUN=1           build the SQL but don't push it
+#   KEEP_BACKUPS=N      how many of this script's backups to keep on prod
+#                       (default 3, at least 1)
 #
 # Safety:
 #   - Refuses to run if you pass zero table names (would be a no-op).
@@ -38,6 +44,10 @@
 #     that don't exist locally are PRESERVED (sync is one-way:
 #     local → prod, but it's additive, not destructive). Rows that
 #     exist in both will be replaced by the local copy.
+#   - Prunes only after the apply succeeded, so the backup just taken
+#     is always among those kept, and only files named
+#     <PROD_DB_PATH>.before-tablesync-*: backups made by hand or by
+#     other fixes (…before-erb-fix-…, …bak-…) are left alone.
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -46,6 +56,12 @@ PROD_HOST="${PROD_HOST:-root@al-nuqta.com}"
 PROD_CONTAINER="${PROD_CONTAINER:-quran-root-analyzer}"
 PROD_DB_PATH="${PROD_DB_PATH:-/app/data/quran.db}"
 LOCAL_DB_PATH="${LOCAL_DB_PATH:-data/quran.db}"
+KEEP_BACKUPS="${KEEP_BACKUPS:-3}"
+
+if ! [[ "$KEEP_BACKUPS" =~ ^[1-9][0-9]*$ ]]; then
+  echo "[sync] KEEP_BACKUPS must be a whole number of at least 1 (got '$KEEP_BACKUPS')." >&2
+  exit 2
+fi
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <table1> [<table2> ...]" >&2
@@ -62,6 +78,7 @@ TABLES=("$@")
 TS="$(date -u +%Y%m%d_%H%M%S)"
 LOCAL_SQL="/tmp/db_sync_${TS}.sql"
 LOCAL_COUNT_PY="/tmp/db_count_${TS}.py"
+LOCAL_PRUNE_PY="/tmp/db_prune_${TS}.py"
 
 echo "[sync] === Building $LOCAL_SQL from local DB for tables: ${TABLES[*]} ==="
 
@@ -162,8 +179,25 @@ for t in tables:
         print('  ' + t + ': error (' + str(e) + ')')
 PYEOF
 
-echo "[sync] === Copying $LOCAL_SQL + count helper to $PROD_HOST:/tmp/ ==="
-scp "$LOCAL_SQL" "$LOCAL_COUNT_PY" "$PROD_HOST:/tmp/"
+# Second helper, shipped the same way: deletes this script's older backups,
+# keeping the newest N. The timestamp in each name sorts in time order, so
+# the order does not depend on file dates.
+cat > "$LOCAL_PRUNE_PY" <<'PYEOF'
+import glob, os, sys
+
+db_path = sys.argv[1]
+keep = int(sys.argv[2])
+
+backups = sorted(glob.glob(db_path + '.before-tablesync-*'), reverse=True)
+for path in backups[keep:]:
+    os.remove(path)
+    print('  removed ' + os.path.basename(path))
+for path in backups[:keep]:
+    print('  kept    ' + os.path.basename(path))
+PYEOF
+
+echo "[sync] === Copying $LOCAL_SQL + helpers to $PROD_HOST:/tmp/ ==="
+scp "$LOCAL_SQL" "$LOCAL_COUNT_PY" "$LOCAL_PRUNE_PY" "$PROD_HOST:/tmp/"
 echo
 
 echo "[sync] === Taking safety backup of prod DB ==="
@@ -205,6 +239,16 @@ ssh -o ConnectTimeout=10 "$PROD_HOST" "
   set -e
   docker cp $LOCAL_COUNT_PY $PROD_CONTAINER:$LOCAL_COUNT_PY
   docker exec $PROD_CONTAINER python3 $LOCAL_COUNT_PY $PROD_DB_PATH AFTER ${TABLES[*]}
+"
+echo
+
+# Reached only if every step above succeeded (set -e), so the backup just
+# taken is the newest and is always kept.
+echo "[sync] === Pruning older backups (keeping the newest $KEEP_BACKUPS) ==="
+ssh -o ConnectTimeout=10 "$PROD_HOST" "
+  set -e
+  docker cp $LOCAL_PRUNE_PY $PROD_CONTAINER:$LOCAL_PRUNE_PY
+  docker exec $PROD_CONTAINER python3 $LOCAL_PRUNE_PY $PROD_DB_PATH $KEEP_BACKUPS
 "
 
 echo
