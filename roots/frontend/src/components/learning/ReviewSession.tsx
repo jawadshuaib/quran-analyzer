@@ -4,6 +4,7 @@ import { fetchReviewVerses } from '../../api/learning';
 import { loadProgress, saveProgress, updateReviewResult, getRootProgress } from '../../utils/learning-storage';
 import { updateSM2, isDue, reviewRatingToQuality } from '../../utils/spaced-repetition';
 import { loadDismissed } from '../../utils/mnemonic-dismissed';
+import { TranslationWithChips } from '../TermChip';
 
 interface Props {
   onBack: () => void;
@@ -189,7 +190,7 @@ export default function ReviewSession({ onBack }: Props) {
               {verse.surah_name} {verse.chapter}:{verse.verse}
             </p>
             <p className="text-stone-700 text-base leading-relaxed mb-5">
-              {verse.translation}
+              <TranslationWithChips text={verse.translation} verse={{ surah: verse.chapter, ayah: verse.verse }} />
             </p>
             {verse.target_words.map((tw) => (
               <div key={tw.pos} className="mb-3 flex items-baseline gap-2 flex-wrap">

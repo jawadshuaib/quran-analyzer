@@ -272,6 +272,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
           <p className="text-sm text-stone-500 italic">
             <TranslationWithChips
               text={data.translation}
+              verse={{ surah: data.surah, ayah: data.ayah }}
               surveyedRootsInVerse={data.verse_root_buckwalters}
             />
           </p>
@@ -486,6 +487,7 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
                   <p className="text-sm text-stone-500 italic">
                     <TranslationWithChips
                       text={occ.translation}
+                      verse={{ surah: occ.surah, ayah: occ.ayah }}
                       surveyedRootsInVerse={occ.verse_root_buckwalters}
                     />
                   </p>

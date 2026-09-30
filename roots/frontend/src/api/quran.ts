@@ -308,6 +308,9 @@ export interface QuranVocabularyTerm {
   /** English words that, when found in a translation of a verse
    * containing this root, should be rendered as a glossary chip. */
   chip_word_family: string[];
+  /** Every verse the root occurs in ("2:43"), so a translation shown
+   * anywhere can be given the verse page's chips from its reference alone. */
+  verses?: string[];
 }
 
 export interface QuranVocabularyResponse {

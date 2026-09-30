@@ -1,5 +1,5 @@
 import type { SemanticSearchResponse } from '../api/quran';
-import { wrapArabicRuns } from '../utils/arabic-runs';
+import { TranslationWithChips } from './TermChip';
 
 interface Props {
   data: SemanticSearchResponse;
@@ -68,7 +68,7 @@ export default function SemanticSearchResults({ data, onNavigate, onClose }: Pro
                   </p>
                   {r.translation && (
                     <p className="mt-1 text-sm text-stone-600 leading-relaxed line-clamp-2">
-                      {wrapArabicRuns(r.translation)}
+                      <TranslationWithChips text={r.translation} verse={{ surah: r.surah, ayah: r.ayah }} />
                     </p>
                   )}
                 </div>

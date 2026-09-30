@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { fetchQuranVocabulary, vocabTermSlug } from '../api/quran';
+import { fetchQuranVocabulary, fetchWordMeanings } from '../api/quran';
 import type { QuranVocabularyTerm } from '../api/quran';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { viewportSize } from '../utils/viewport';
@@ -69,6 +69,63 @@ function normalize(s: string): string {
     .toLowerCase();
 }
 
+// Verse key ("2:43") -> the surveyed roots it contains, from the vocabulary's
+// per-term verse lists. Lets a translation shown anywhere (search results, a
+// verse-reference preview) get the verse page's chips from its reference alone.
+let rootsByVerse: Map<string, string[]> | null = null;
+
+function surveyedRootsFor(surah: number, ayah: number): string[] {
+  if (!vocabCache) return [];
+  if (!rootsByVerse) {
+    rootsByVerse = new Map();
+    for (const t of vocabCache) {
+      for (const v of t.verses ?? []) {
+        const list = rootsByVerse.get(v) ?? [];
+        list.push(t.root_buckwalter);
+        rootsByVerse.set(v, list);
+      }
+    }
+  }
+  return rootsByVerse.get(`${surah}:${ayah}`) ?? [];
+}
+
+// The verse page hands each chip its word's meaning in that verse. Elsewhere a
+// chip loads it on its first hover: one small request per verse, shared by all
+// of that verse's chips. Built the way VerseDisplay builds contextByRoot, so
+// the Nth chip for a root gets the Nth word carrying it.
+const verseContextCache = new Map<string, Promise<Map<string, WordContext[]>>>();
+
+function loadVerseContext(surah: number, ayah: number): Promise<Map<string, WordContext[]>> {
+  const key = `${surah}:${ayah}`;
+  let p = verseContextCache.get(key);
+  if (!p) {
+    p = fetchWordMeanings(surah, ayah)
+      .then((res) => {
+        const map = new Map<string, WordContext[]>();
+        if (!res?.roots) return map;
+        const positions = Object.keys(res.roots).map(Number).sort((a, b) => a - b);
+        for (const pos of positions) {
+          const root = res.roots[String(pos)];
+          const wm = res.meanings[String(pos)];
+          const list = map.get(root) ?? [];
+          list.push({
+            surah,
+            ayah,
+            word_pos: pos,
+            meaning_short: wm?.preferred_translation || wm?.meaning_short,
+            meaning_excerpt: wm?.meaning_excerpt,
+            has_detail: wm?.has_detail,
+          });
+          map.set(root, list);
+        }
+        return map;
+      })
+      .catch(() => new Map<string, WordContext[]>());
+    verseContextCache.set(key, p);
+  }
+  return p;
+}
+
 // ---------- Hook ----------
 
 export function useTermLookup() {
@@ -106,16 +163,23 @@ function TermChip({
   transliteration,
   term,
   wordContext,
+  lazy,
 }: {
   transliteration: string;
   term: QuranVocabularyTerm;
   wordContext?: WordContext | null;
+  /** Where the chip's word sits when no wordContext is passed: its verse and
+   *  which occurrence of the root it is. Its meaning is fetched on first hover. */
+  lazy?: { surah: number; ayah: number; index: number };
 }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ left: number; top: number; above: boolean } | null>(null);
+  // undefined until the lazily fetched meaning arrives; null when there is none
+  const [lazyContext, setLazyContext] = useState<WordContext | null | undefined>(undefined);
   const chipRef = useRef<HTMLSpanElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
   const closeTimer = useRef<number | null>(null);
+  const requested = useRef(false);
   const TIP_WIDTH = 320;
   const GAP = 8;
 
@@ -149,39 +213,54 @@ function TermChip({
       closeTimer.current = null;
     }
     setOpen(true);
+    if (!wordContext && lazy && !requested.current) {
+      requested.current = true;
+      loadVerseContext(lazy.surah, lazy.ayah).then((map) =>
+        setLazyContext(map.get(term.root_buckwalter)?.[lazy.index] ?? null),
+      );
+    }
   }
   function hide() {
     closeTimer.current = window.setTimeout(() => setOpen(false), 120);
   }
 
-  const slug = vocabTermSlug(term.root_buckwalter);
-
-  const hasContext = !!(wordContext && wordContext.meaning_short);
-  const wordHref = wordContext
-    ? `/word/${wordContext.surah}:${wordContext.ayah}/${wordContext.word_pos}`
+  const context = wordContext ?? lazyContext ?? null;
+  const loading = !wordContext && !!lazy && lazyContext === undefined;
+  const hasContext = !!(context && context.meaning_short);
+  const wordHref = context
+    ? `/word/${context.surah}:${context.ayah}/${context.word_pos}`
     : null;
 
+  // The tooltip is portaled, but React still bubbles its events up the tree:
+  // stop them here so a click on its links never also reaches a card or link
+  // the chip sits inside (a search result, a verse preview).
   const tooltip = open && pos ? (
     <div
       ref={tipRef}
       onMouseEnter={show}
       onMouseLeave={hide}
+      onClick={(e) => e.stopPropagation()}
       style={{ left: pos.left, top: pos.top, width: TIP_WIDTH }}
-      className="fixed z-[1000] rounded-xl border border-stone-200 bg-white shadow-xl p-4 text-left pointer-events-auto"
+      className="fixed z-[1000] rounded-xl border border-stone-200 bg-white shadow-xl p-4 text-left not-italic font-normal pointer-events-auto"
     >
       {/* Primary content: verse-specific context-derived meaning when
           available; otherwise the generic root translation_note. */}
-      {hasContext ? (
+      {loading ? (
+        <div className="space-y-2" aria-label="Loading">
+          <div className="h-4 w-2/3 animate-pulse rounded bg-stone-100" />
+          <div className="h-3 w-full animate-pulse rounded bg-stone-100" />
+        </div>
+      ) : hasContext ? (
         <>
           <div className="text-[11px] tracking-wide uppercase text-amber-700 mb-1">
             In this verse
           </div>
           <div className="font-serif text-base text-stone-800 leading-snug">
-            {wrapArabicRuns(wordContext!.meaning_short || '')}
+            {wrapArabicRuns(context!.meaning_short || '')}
           </div>
-          {wordContext!.meaning_excerpt && (
+          {context!.meaning_excerpt && (
             <div className="mt-2 text-xs text-stone-600 leading-relaxed line-clamp-5">
-              {wrapArabicRuns(wordContext!.meaning_excerpt)}
+              {wrapArabicRuns(context!.meaning_excerpt)}
             </div>
           )}
         </>
@@ -207,7 +286,7 @@ function TermChip({
 
       {/* Drill-in links */}
       <div className="mt-2 flex items-center gap-3 text-[11px] font-medium">
-        {wordHref && wordContext?.has_detail && (
+        {wordHref && context?.has_detail && (
           <a href={wordHref} className="text-amber-700 hover:text-amber-800 inline-flex items-center gap-0.5">
             Word details
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -215,8 +294,8 @@ function TermChip({
             </svg>
           </a>
         )}
-        <a href={`/quran-vocabulary#${slug}`} className="text-amber-700 hover:text-amber-800 inline-flex items-center gap-0.5">
-          {hasContext ? 'About this root' : 'View in vocabulary'}
+        <a href={`/root/${encodeURIComponent(term.root_buckwalter)}`} className="text-amber-700 hover:text-amber-800 inline-flex items-center gap-0.5">
+          About this root
           <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
           </svg>
@@ -233,6 +312,13 @@ function TermChip({
         onMouseLeave={hide}
         onFocus={show}
         onBlur={hide}
+        onClick={(e) => {
+          // A tap shows the tooltip; it must not also follow a link or card
+          // the translation sits in.
+          e.preventDefault();
+          e.stopPropagation();
+          show();
+        }}
         tabIndex={0}
         className="cursor-help underline decoration-amber-500 decoration-wavy underline-offset-[3px] decoration-1 outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-sm font-medium"
       >
@@ -350,9 +436,15 @@ function findItalicMatches(
 
 interface TranslationProps {
   text: string;
+  /** The verse this is a translation of. Enough on its own for the same chips
+   * the verse page shows: the surveyed roots in the verse come from the
+   * vocabulary, and each chip fetches its word's meaning on first hover.
+   * Pass it wherever a translation appears. */
+  verse?: { surah: number; ayah: number };
   /** Optional list of root_buckwalters present in the verse. When
    * provided, only word-family matches for these roots are chipped.
-   * Without it, no word-family chipping happens (italic-only mode). */
+   * Without it (and without `verse`), no word-family chipping happens
+   * (italic-only mode). */
   surveyedRootsInVerse?: string[];
   /** Optional map from root_buckwalter to an ordered list of word-level
    * context info (one entry per occurrence of the root in this verse).
@@ -360,31 +452,50 @@ interface TranslationProps {
    * which lets the tooltip show the AI-derived meaning for THIS specific
    * word rather than the generic root note. */
   contextByRoot?: Map<string, WordContext[]>;
+  /** How plain text between chips is drawn (e.g. search-term highlighting).
+   * Defaults to wrapArabicRuns. */
+  renderText?: (s: string) => React.ReactNode;
+}
+
+/** *term* markers as plain italics: what the text shows until the vocabulary
+ *  has loaded, so the asterisks themselves never appear. */
+function italicsOnly(text: string, render: (s: string) => React.ReactNode): React.ReactNode[] {
+  return text.split(/\*([^\s*][^*]*?[^\s*]|[^\s*])\*/g).map((part, i) =>
+    i % 2 === 1 ? <em key={i}>{wrapArabicRuns(part)}</em> : <span key={i}>{render(part)}</span>,
+  );
 }
 
 export function TranslationWithChips({
   text,
+  verse,
   surveyedRootsInVerse,
   contextByRoot,
+  renderText,
 }: TranslationProps) {
   const lookup = useTermLookup();
+  const surah = verse?.surah;
+  const ayah = verse?.ayah;
 
   const nodes = useMemo(() => {
+    const render = renderText ?? wrapArabicRuns;
     if (!text) return [] as React.ReactNode[];
-    if (!lookup) return [text];
+    if (!lookup) return italicsOnly(text, render);
+
+    const roots = surveyedRootsInVerse
+      ?? (surah !== undefined && ayah !== undefined ? surveyedRootsFor(surah, ayah) : undefined);
 
     // 1. Find italic markers (transliterations).
     const italicMatches = findItalicMatches(text, lookup);
 
     // 2. Find whole-word matches in the chip_word_family of each
-    //    surveyed root in the verse. Only when surveyedRootsInVerse is
-    //    given — without it, we conservatively skip word matching.
+    //    surveyed root in the verse. Only when the verse's roots are
+    //    known — without them, we conservatively skip word matching.
     const vocab: QuranVocabularyTerm[] = [];
-    if (vocabCache && surveyedRootsInVerse) {
+    if (vocabCache && roots) {
       vocab.push(...vocabCache);
     }
-    const wordMatches = surveyedRootsInVerse
-      ? findWordFamilyMatches(text, vocab, surveyedRootsInVerse)
+    const wordMatches = roots
+      ? findWordFamilyMatches(text, vocab, roots)
       : [];
 
     // 3. Combine matches, sorted by start index, dropping word matches
@@ -410,7 +521,7 @@ export function TranslationWithChips({
 
     for (const m of filtered) {
       if (m.start > last) {
-        out.push(<span key={key++}>{wrapArabicRuns(text.slice(last, m.start))}</span>);
+        out.push(<span key={key++}>{render(text.slice(last, m.start))}</span>);
       }
       if (m.kind === 'italic' && !m.term) {
         out.push(<em key={key++}>{wrapArabicRuns(m.matchedText)}</em>);
@@ -425,16 +536,21 @@ export function TranslationWithChips({
             transliteration={m.matchedText}
             term={m.term}
             wordContext={context}
+            lazy={
+              !contextByRoot && surah !== undefined && ayah !== undefined
+                ? { surah, ayah, index: idx }
+                : undefined
+            }
           />,
         );
       }
       last = m.end;
     }
     if (last < text.length) {
-      out.push(<span key={key++}>{wrapArabicRuns(text.slice(last))}</span>);
+      out.push(<span key={key++}>{render(text.slice(last))}</span>);
     }
     return out;
-  }, [text, lookup, surveyedRootsInVerse, contextByRoot]);
+  }, [text, lookup, surah, ayah, surveyedRootsInVerse, contextByRoot, renderText]);
 
   return <>{nodes}</>;
 }

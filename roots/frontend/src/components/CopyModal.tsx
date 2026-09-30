@@ -13,6 +13,8 @@ import {
 } from '../utils/copy-context';
 import { buildCopyPayload, copyToClipboard, splitWords, buildReference } from '../utils/verse-copy';
 import { getHighlights, HIGHLIGHT_BG, type HighlightColor } from '../utils/verse-highlights';
+import { TranslationWithChips } from './TermChip';
+import { parseVerseKey } from '../utils/urls';
 
 const FORMAT_LABEL: Record<CopyFormat, string> = {
   selected: 'Selected',
@@ -270,7 +272,9 @@ function FormatPreview({
         <p dir="rtl" lang="ar" className="font-arabic text-base leading-[1.9] text-stone-800 line-clamp-2">
           {ctx.arabic}
         </p>
-        <p dir="ltr" className="mt-1 text-xs italic text-stone-500 line-clamp-2">{ctx.translation}</p>
+        <p dir="ltr" className="mt-1 text-xs italic text-stone-500 line-clamp-2">
+          <TranslationWithChips text={ctx.translation} verse={parseVerseKey(ctx.verseKey)} />
+        </p>
       </>
     );
   }

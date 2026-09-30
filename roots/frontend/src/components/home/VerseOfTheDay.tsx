@@ -77,6 +77,7 @@ export default function VerseOfTheDay({ onNavigate }: Props) {
       <p className="font-serif text-base leading-relaxed text-ink-secondary italic">
         <TranslationWithChips
           text={data.translation}
+          verse={{ surah, ayah }}
         />
       </p>
     </div>

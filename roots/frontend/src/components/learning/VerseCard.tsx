@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { LearningVerseData } from '../../types/learning';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
+import { TranslationWithChips } from '../TermChip';
 
 interface Props {
   verse: LearningVerseData;
@@ -133,7 +134,7 @@ export default function VerseCard({ verse, teachingNote, showExploreLink = true,
               Translation
             </p>
             <p className="text-stone-700 text-base leading-relaxed">
-              {wrapArabicRuns(verse.translation)}
+              <TranslationWithChips text={verse.translation} verse={{ surah: verse.chapter, ayah: verse.verse }} />
             </p>
           </div>
 

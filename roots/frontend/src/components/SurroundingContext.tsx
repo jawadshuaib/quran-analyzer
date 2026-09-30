@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ContextVerse } from '../types';
 import { fetchContext } from '../api/quran';
-import { wrapArabicRuns } from '../utils/arabic-runs';
+import { TranslationWithChips } from './TermChip';
 
 interface Props {
   surah: number;
@@ -97,7 +97,7 @@ export default function SurroundingContext({ surah, ayah, onNavigate }: Props) {
                       {v.text_uthmani}
                     </p>
                     <p className="text-sm text-stone-500 italic">
-                      {wrapArabicRuns(v.translation)}
+                      <TranslationWithChips text={v.translation} verse={{ surah: v.surah, ayah: v.ayah }} />
                     </p>
                   </button>
                 );

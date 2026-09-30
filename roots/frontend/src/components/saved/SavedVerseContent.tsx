@@ -2,6 +2,8 @@ import { Fragment, useEffect, useState } from 'react';
 import { updateSavedItemContent, type SavedItem } from '../../utils/saved-items';
 import { useVerseHighlights } from '../../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG } from '../../utils/verse-highlights';
+import { TranslationWithChips } from '../TermChip';
+import { parseVerseKey } from '../../utils/urls';
 
 /**
  * Renders a saved verse: the Arabic (word tokens, with any highlights drawn
@@ -59,7 +61,7 @@ export default function SavedVerseContent({ item }: { item: SavedItem }) {
       )}
       {translation && (
         <span className="block text-xs text-stone-500 italic mt-1 line-clamp-2 leading-relaxed">
-          {translation}
+          <TranslationWithChips text={translation} verse={parseVerseKey(verseKey)} />
         </span>
       )}
     </span>

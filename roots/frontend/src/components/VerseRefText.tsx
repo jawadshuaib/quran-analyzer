@@ -7,6 +7,7 @@ import { verseUrl, ejtaalUrl } from '../utils/urls';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { viewportSize } from '../utils/viewport';
 import { setVerseRefHover, clearVerseRefHover } from '../utils/verse-ref-hover';
+import { TranslationWithChips } from './TermChip';
 
 /** Shared viewport-clamped placement for these hover tooltips — fixed
  *  positioning (escapes any overflow-hidden ancestor) below the trigger,
@@ -366,7 +367,7 @@ function VerseRefLink({
                         : v.text_uthmani}
                     </div>
                     <div className="text-xs text-stone-500 italic leading-relaxed mt-0.5">
-                      {v.translation}
+                      <TranslationWithChips text={v.translation} verse={{ surah: v.surah, ayah: v.ayah }} />
                     </div>
                     {/* Divider between verses in a range (not after last) */}
                     {isRange && v.ayah !== endAyah && (

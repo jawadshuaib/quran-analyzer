@@ -4441,6 +4441,16 @@ def get_quran_vocabulary():
             "FROM term_surveys "
             "ORDER BY occurrence_count DESC"
         ).fetchall()
+        # Every verse each term's root occurs in ("2:43"), so a translation
+        # shown anywhere (a search result, a verse-reference preview) can get
+        # the same glossary chips the verse page gives it, knowing only which
+        # verse it is. About 1,300 refs for the whole set.
+        verses_by_root: dict[str, list[str]] = {}
+        for v in conn.execute(
+                "SELECT DISTINCT m.root_buckwalter, m.chapter, m.verse FROM morphology m "
+                "JOIN term_surveys t ON t.root_buckwalter = m.root_buckwalter "
+                "ORDER BY m.chapter, m.verse").fetchall():
+            verses_by_root.setdefault(v["root_buckwalter"], []).append(f"{v['chapter']}:{v['verse']}")
         terms = []
         for r in rows:
             hard_cases = []
@@ -4459,6 +4469,7 @@ def get_quran_vocabulary():
                 "leave_untranslated": bool(r["leave_untranslated"]),
                 "hard_cases": hard_cases,
                 "chip_word_family": _CHIP_WORD_FAMILIES.get(r["root_buckwalter"], []),
+                "verses": verses_by_root.get(r["root_buckwalter"], []),
             })
         return jsonify({"terms": terms})
     finally:
@@ -4909,10 +4920,21 @@ def get_word_meanings(surah: int, ayah: int):
                 entry["preferred_source"] = row["preferred_source"]
             meanings[str(row["word_pos"])] = entry
 
+        # Each word's root (the first segment that has one, as the verse page
+        # reads it), so a glossary chip in a translation shown elsewhere can
+        # find which word it stands for and show that word's meaning.
+        roots: dict[str, str] = {}
+        for r in conn.execute(
+                "SELECT word_pos, root_buckwalter FROM morphology WHERE chapter = ? AND verse = ? "
+                "AND root_buckwalter IS NOT NULL AND root_buckwalter <> '' ORDER BY word_pos, segment",
+                (surah, ayah)).fetchall():
+            roots.setdefault(str(r["word_pos"]), r["root_buckwalter"])
+
         return jsonify({
             "surah": surah,
             "ayah": ayah,
             "meanings": meanings,
+            "roots": roots,
         })
     finally:
         conn.close()

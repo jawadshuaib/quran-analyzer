@@ -475,6 +475,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
               same behavior as the research view at /verse/<ref>. */}
           <TranslationWithChips
             text={verse.translation}
+            verse={{ surah, ayah: verse.verse }}
             surveyedRootsInVerse={verse.surveyed_roots}
           />
         </div>

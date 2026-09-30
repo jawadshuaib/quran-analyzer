@@ -6,7 +6,6 @@ import { verseUrl, ejtaalUrl } from '../utils/urls';
 import WordTooltip from './WordTooltip';
 import AskAssistant from './AskAssistant';
 import { buildRootContext } from '../utils/context-builders';
-import { wrapArabicRuns } from '../utils/arabic-runs';
 import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
 import RootPoetrySection from './RootPoetrySection';
@@ -15,6 +14,7 @@ import FormattedText, { FormattedInline } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 import type { NoteDescriptor } from '../utils/saved-item-actions';
+import { TranslationWithChips } from './TermChip';
 
 interface Props {
   rootBw: string;
@@ -416,7 +416,9 @@ export default function RootPage({ rootBw }: Props) {
                       );
                     })}
                   </div>
-                  <p className="text-sm text-stone-500 italic">{wrapArabicRuns(v.translation)}</p>
+                  <p className="text-sm text-stone-500 italic">
+                    <TranslationWithChips text={v.translation} verse={{ surah: v.surah, ayah: v.ayah }} />
+                  </p>
                 </div>
               );
             })}

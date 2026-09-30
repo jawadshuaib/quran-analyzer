@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
 import UnifiedSearch from '../UnifiedSearch';
 import SaveButton from '../SaveButton';
 import { searchV2, type SearchV2Result } from '../../api/quran';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
+import { TranslationWithChips } from '../TermChip';
 import { useSEO } from '../../hooks/useSEO';
 import { addRecentSearch, SUGGESTED_QUERIES } from '../../utils/recent-searches';
 
@@ -34,7 +35,19 @@ function highlight(text: string, query: string): { text: string; bold: boolean }
 function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
   const verseKey = `${r.surah}:${r.ayah}`;
   const [copied, setCopied] = useState(false);
-  const parts = useMemo(() => highlight(r.translation, query), [r.translation, query]);
+  // Search terms stay bold in the translation's plain text; the glossary
+  // chips around them come from TranslationWithChips, as on the verse page.
+  const renderText = useCallback(
+    (s: string) =>
+      highlight(s, query).map((seg, i) =>
+        seg.bold ? (
+          <span key={i} className="font-semibold text-violet-800">{seg.text}</span>
+        ) : (
+          <Fragment key={i}>{wrapArabicRuns(seg.text)}</Fragment>
+        ),
+      ),
+    [query],
+  );
   // Chips say WHY a verse matched — its Arabic vector, or its roots — which is
   // something a reader can act on. The engine's own score is not: it is a cosine
   // against an embedding, and printing it as a percentage invites it to be read
@@ -67,13 +80,11 @@ function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
           </p>
           {r.translation && (
             <p className="mt-1 text-sm leading-relaxed text-stone-600">
-              {parts.map((seg, i) =>
-                seg.bold ? (
-                  <span key={i} className="font-semibold text-violet-800">{seg.text}</span>
-                ) : (
-                  <span key={i}>{wrapArabicRuns(seg.text)}</span>
-                ),
-              )}
+              <TranslationWithChips
+                text={r.translation}
+                verse={{ surah: r.surah, ayah: r.ayah }}
+                renderText={renderText}
+              />
             </p>
           )}
         </a>

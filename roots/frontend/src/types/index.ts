@@ -682,6 +682,9 @@ export interface WordMeaningsResponse {
   surah: number;
   ayah: number;
   meanings: Record<string, WordMeaningBrief>;
+  /** Word position -> its root (first segment with one), for every word
+   * that has a root. */
+  roots?: Record<string, string>;
 }
 
 export interface WordOccurrence {
