@@ -6,6 +6,8 @@ Imported by app.py. Design constraints:
         Voyage ok + v2 index      -> dense(ar+en) ⊕ lexical  (RRF)
         Voyage down / no v2 index -> v1 MiniLM(en) ⊕ lexical  (RRF, degraded)
         MiniLM also unavailable   -> lexical only             (degraded)
+    A query that spells a root ("S-W-M", "ص و م") skips both arms: its answer
+    is that root's verses (engine "roots").
   * Memory-lean: one float32 matrix of the v2 vectors (~26 MB at 512-dim) plus
     small python indices. No torch — the dense arm is a hosted API call.
 
@@ -23,6 +25,8 @@ from collections import OrderedDict
 
 import numpy as np
 import requests
+
+import root_query
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(HERE, "data", "quran.db")
@@ -352,6 +356,12 @@ def _term_to_roots(tok, conn, app):
             rl = root_bw.lower()
             if rl == low or rl.startswith(low):
                 roots.add(root_bw)
+        # A word of the Qur'an in Latin letters ("sabr", "taqwa") -> its root.
+        # English words are refused inside word_roots.
+        try:
+            roots.update(r for r, _n in root_query.word_roots(tok, conn))
+        except Exception:
+            pass
         # English gloss / meaning signals (best-effort; tables may not exist).
         for sql, params in (
             ("SELECT DISTINCT root_buckwalter FROM ai_root_meanings "
@@ -373,6 +383,42 @@ _STOPWORDS = {
     "prophet", "god", "allah", "his", "her", "their", "who", "that", "this",
     "في", "من", "عن", "على", "الله", "آيات", "آية", "سورة", "قصة", "و",
 }
+
+
+def spelled_root_query(q):
+    """The roots `q` spells letter by letter ("S-W-M", "ṣ w m", "ص و م",
+    "ktb"), or None when it isn't such a query. Letters have no meaning to
+    embed (the dense model pairs "S-W-M" with "Alif. Lam. Meem."), so these are
+    answered from the roots alone. A short run of letters that is also an
+    English word ("why") is left to the normal path."""
+    import app
+    shape, roots = root_query.spelled_roots(q, getattr(app, "_root_arabic_map", {}))
+    if shape == "separated":
+        return roots
+    if shape == "compact" and roots and not _ARABIC_RE.search(q):
+        conn = app.get_db()
+        try:
+            if root_query.is_english_word(q, conn):
+                return None
+        finally:
+            conn.close()
+        return roots
+    return None
+
+
+def root_verses(roots, limit):
+    """[(ch, v, score)] for every verse holding one of `roots`: the rarer root's
+    verses first (its IDF), then in mushaf order."""
+    import app
+    root_idf = getattr(app, "_root_idf", {})
+    root_inv = getattr(app, "_root_inv", {})
+    scores = {}
+    for root_bw in roots:
+        idf = root_idf.get(root_bw, 0.0)
+        for key in root_inv.get(root_bw, ()):
+            scores[key] = scores.get(key, 0.0) + idf
+    ranked = sorted(scores.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
+    return [(c, v, s) for (c, v), s in ranked]
 
 
 def lexical_search(q, limit):
@@ -429,6 +475,18 @@ def hybrid_search(q, limit=15):
     q = (q or "").strip()
     if not q:
         return {"results": [], "degraded": False, "engine": "none"}
+
+    spelled = spelled_root_query(q)
+    if spelled is not None:
+        return {
+            "results": [
+                {"surah": ch, "ayah": v, "score": round(sc, 6),
+                 "matched_because": {"lexical": {"score": round(sc, 4)}}}
+                for ch, v, sc in root_verses(spelled, limit)
+            ],
+            "degraded": False,
+            "engine": "roots",
+        }
 
     pool = max(limit * 3, 30)
     lexical = lexical_search(q, pool)

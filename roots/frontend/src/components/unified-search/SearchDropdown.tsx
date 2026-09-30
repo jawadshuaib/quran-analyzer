@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { UnifiedSearchState } from '../../hooks/useUnifiedSearch';
+import { effectiveLead, type UnifiedSearchState } from '../../hooks/useUnifiedSearch';
 import type { RootSearchResult, SemanticSearchResult } from '../../api/quran';
 import type { ParsedVerseRef } from '../../utils/search-classifier';
 import type { SurahMatch } from '../../utils/surah-search';
@@ -44,9 +44,9 @@ export default function SearchDropdown({
   if (!hasAnything) return null;
 
   // Flat indices in the SAME order resolveIndex() walks: verse-ref → surahs →
-  // then root/semantic in plan.lead order. Keeping these in sync is what makes
-  // keyboard navigation land on the visible row.
-  const semanticFirst = plan.lead === 'semantic';
+  // then root/semantic in effectiveLead() order. Keeping these in sync is what
+  // makes keyboard navigation land on the visible row.
+  const semanticFirst = effectiveLead(state) === 'semantic';
   let nextIdx = 0;
   const verseIdx = showVerseRef ? nextIdx++ : -1;
   const surahIndices = surahMatches.map(() => nextIdx++);
@@ -90,7 +90,7 @@ export default function SearchDropdown({
     <>
       <li className="px-4 pt-3 pb-1 border-t border-stone-100" role="presentation">
         <span className="border-l-2 border-violet-300 pl-2 text-[10px] font-semibold text-stone-400 uppercase tracking-wider">
-          Verse matches &middot; by meaning
+          Verse matches &middot; {state.semanticEngine === 'roots' ? 'by root' : 'by meaning'}
         </span>
       </li>
       {semanticResults.map((result, i) => (
@@ -172,7 +172,7 @@ export default function SearchDropdown({
         </>
       )}
 
-      {/* Root + semantic in plan.lead order */}
+      {/* Root + semantic in effectiveLead() order */}
       {semanticFirst ? <>{semanticBlock}{rootBlock}</> : <>{rootBlock}{semanticBlock}</>}
 
       {/* Full search footer */}

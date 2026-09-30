@@ -17,6 +17,9 @@ export interface UnifiedSearchState {
   rootLoading: boolean;
   semanticResults: SemanticSearchResult[];
   semanticLoading: boolean;
+  /** The engine that answered the verse search: 'roots' when the query spelled
+   *  a root and the verses are that root's, not matches by meaning. */
+  semanticEngine: string;
   /** Surah-name matches — runs alongside root + semantic, not gated by
    *  intent because surah names overlap with prophet names / common
    *  words and we want them surfaced regardless. Limited to 6 results. */
@@ -36,9 +39,21 @@ export function totalItems(state: UnifiedSearchState): number {
 }
 
 /**
+ * Which of roots vs verse matches leads the dropdown. The classifier decides
+ * from the query's shape; the root search can then overrule it, because only
+ * the server knows that "sawm" is a word of ṣ-w-m (or that "Elm" spells ʿ-l-m):
+ * when its top result names the root outright, roots lead.
+ */
+export function effectiveLead(state: UnifiedSearchState): 'root' | 'semantic' {
+  if (state.plan.lead === 'root') return 'root';
+  const top = state.rootResults[0]?.match;
+  return top === 'root' || top === 'word' ? 'root' : 'semantic';
+}
+
+/**
  * Map a flat activeIndex to { category, localIndex }.
- * Order: verse ref → surah matches → then root/semantic in `plan.lead` order
- * (concept queries lead with "verse matches", root queries lead with roots).
+ * Order: verse ref → surah matches → then root/semantic in effectiveLead()
+ * order (concept queries lead with "verse matches", root queries with roots).
  * Verse-ref + surah come first because typing a reference or a surah name is
  * unambiguous navigation. Returns null if index is out of bounds. The dropdown
  * renders sections in this exact order so keyboard/flat indices stay in sync.
@@ -59,7 +74,7 @@ export function resolveIndex(state: UnifiedSearchState, idx: number): { category
   }
   offset += state.surahMatches.length;
 
-  const semanticFirst = state.plan.lead === 'semantic';
+  const semanticFirst = effectiveLead(state) === 'semantic';
   const first = semanticFirst
     ? { cat: 'semantic' as const, arr: state.semanticResults }
     : { cat: 'root' as const, arr: state.rootResults };
@@ -97,6 +112,7 @@ export function useUnifiedSearch() {
     rootLoading: false,
     semanticResults: [],
     semanticLoading: false,
+    semanticEngine: '',
     surahMatches: [],
     isOpen: false,
     activeIndex: -1,
@@ -130,7 +146,10 @@ export function useUnifiedSearch() {
     // query → no matches. We use the cached list if available; otherwise
     // we fire the (one-time) fetch and the matches will arrive a moment
     // later via the .then below.
-    const initialSurahMatches = trimmed.length >= 2
+    // Root letters ("ص و م") are no surah's name, however near a fuzzy match
+    // finds one (الروم).
+    const matchesSurahs = trimmed.length >= 2 && !plan.spelledRoot;
+    const initialSurahMatches = matchesSurahs
       ? matchSurahs(trimmed, surahListRef.current)
       : [];
 
@@ -151,7 +170,7 @@ export function useUnifiedSearch() {
 
     // Lazy-load the surah list on first non-trivial query and re-run
     // the match once it lands.
-    if (trimmed.length >= 2 && !surahListRef.current) {
+    if (matchesSurahs && !surahListRef.current) {
       getSurahsForSearch()
         .then((list) => {
           surahListRef.current = list;
@@ -258,6 +277,7 @@ export function useUnifiedSearch() {
                 ...p,
                 semanticResults: data.results,
                 semanticLoading: false,
+                semanticEngine: data.engine ?? '',
                 isOpen: true,
               }));
             }

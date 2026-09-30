@@ -1474,6 +1474,10 @@ def _load_embedding_matrix():
 
 _load_embedding_matrix()
 
+# Reads a query that names a root ("S-W-M", "ṣ w m", "sawm"); used by the root
+# search and by search_v2's lexical arm.
+import root_query
+
 # Phase B: Voyage multilingual hybrid retrieval. Loads the v2 vector index from
 # the local DB (tolerant of a missing table — degrades to v1+lexical). No
 # network at import; the dense arm only calls Voyage at query time.
@@ -6362,7 +6366,8 @@ def search_roots():
 
     Returns list of matching roots with Arabic form, meaning, frequency, and sample verse.
     """
-    q = request.args.get("q", "").strip().lower()
+    q_raw = request.args.get("q", "").strip()
+    q = q_raw.lower()
     if not q:
         return jsonify([])
 
@@ -6371,12 +6376,39 @@ def search_roots():
     conn = get_db()
     try:
         matched_roots = {}  # root_bw -> match_score
+        # How surely the query names each root: "root" when it spells the
+        # root's letters, "word" when it is one of the root's words in Latin
+        # letters (root_query.py). The search bar leads with roots when the
+        # top result carries one; everything else is "related".
+        match_kind = {}
+        # Tie-breaks within a score, in order: Buckwalter's own case ("Swm" is
+        # ص, "swm" is س), how often the typed word is this root's, then for a
+        # spelled root the strength of its alias; frequency last. All three
+        # are empty for an ordinary query, which keeps its old order.
+        case_exact, word_count, alias_exact = set(), {}, {}
+
+        english = root_query.is_english_word(q_raw, conn)
+        mixed_case = root_query.is_mixed_case(q_raw)
+        shape, spelled = root_query.spelled_roots(q_raw, _root_arabic_map)
+        # Letters written apart are a root however they're written; a short
+        # run of letters that is also an English word ("why") stays English.
+        if spelled and (shape == "separated" or not english):
+            for rbw in spelled:
+                matched_roots[rbw] = 100
+                match_kind[rbw] = "root"
+                if mixed_case:
+                    case_exact.add(rbw)
 
         # 1. Direct Buckwalter match (exact or prefix)
         for root_bw in _root_arabic_map:
-            if root_bw.lower() == q:
+            rl = root_bw.lower()
+            if rl == q:
                 matched_roots[root_bw] = 100  # exact match
-            elif root_bw.lower().startswith(q):
+                if not english:
+                    match_kind[root_bw] = "root"
+                if mixed_case and root_bw == q_raw:
+                    case_exact.add(root_bw)
+            elif rl.startswith(q) and matched_roots.get(root_bw, 0) < 80:
                 matched_roots[root_bw] = 80   # prefix match
 
         # 2. Arabic text -> resolve to root via morphology
@@ -6413,6 +6445,34 @@ def search_roots():
                     matched_roots[rbw] = score
         except sqlite3.OperationalError:
             pass  # table may not exist yet
+
+        # A spelled root whose letters are ambiguous ("s" is س or ص) is ordered
+        # by its aliases under the usual spellings ("s-w-m", "swm"), so "s w m",
+        # "S.W.M" and "swm" agree on which comes first.
+        if spelled and not re.search(r"[\u0600-\u06FF]", q):
+            forms = sorted(root_query.spelled_forms(q_raw))
+            try:
+                for r in conn.execute(
+                    "SELECT root_buckwalter, source FROM root_search_aliases "
+                    f"WHERE alias IN ({','.join('?' * len(forms))})",
+                    forms,
+                ):
+                    rbw = r["root_buckwalter"]
+                    if rbw in spelled:
+                        score = 75 if r["source"] == "ai" else 60
+                        alias_exact[rbw] = max(alias_exact.get(rbw, 0), score)
+            except sqlite3.OperationalError:
+                pass
+
+        # 3b. One of the root's words in Latin letters ("sawm" -> ṣ-w-m, from
+        # ṣawman in 19:26). Ranked just under a spelled root, and among
+        # themselves by how often the word belongs to each root.
+        if shape is None:
+            for rbw, n in root_query.word_roots(q_raw, conn):
+                if matched_roots.get(rbw, 0) < 98:
+                    matched_roots[rbw] = 98
+                match_kind.setdefault(rbw, "word")
+                word_count[rbw] = n
 
         # 4. AI root meanings search
         if len(q) >= 2 and not any('\u0600' <= c <= '\u06FF' for c in q):
@@ -6470,7 +6530,13 @@ def search_roots():
         for root_bw, score in matched_roots.items():
             freq = len(_root_inv.get(root_bw, set()))
             scored.append((root_bw, score, freq))
-        scored.sort(key=lambda x: (-x[1], -x[2]))
+        scored.sort(key=lambda x: (
+            -x[1],
+            x[0] not in case_exact,
+            -word_count.get(x[0], 0),
+            -alias_exact.get(x[0], 0),
+            -x[2],
+        ))
         scored = scored[:limit]
 
         # Build rich results
@@ -6579,6 +6645,7 @@ def search_roots():
                 "frequency": freq,
                 "in_curriculum": in_curriculum,
                 "sample_verse": sample,
+                "match": match_kind.get(root_bw, "related"),
             })
 
         return jsonify(results)

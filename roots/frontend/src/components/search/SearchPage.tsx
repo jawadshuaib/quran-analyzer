@@ -1,7 +1,7 @@
-import { Fragment, useState, useEffect, useMemo, useCallback } from 'react';
+import { Fragment, useState, useEffect, useMemo, useCallback, useRef, type RefObject } from 'react';
 import UnifiedSearch from '../UnifiedSearch';
 import SaveButton from '../SaveButton';
-import { searchV2, type SearchV2Result } from '../../api/quran';
+import { searchRoots, searchV2, type RootSearchResult, type SearchV2Result } from '../../api/quran';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
 import { TranslationWithChips } from '../TermChip';
 import { useSEO } from '../../hooks/useSEO';
@@ -140,9 +140,51 @@ function ResultCard({ r, query }: { r: SearchV2Result; query: string }) {
   );
 }
 
-export default function SearchPage() {
+/** A root the query names outright, above the verses: "S-W-M" is ṣ-w-m, so the
+ *  root page is the first place to offer, not something to scroll for. */
+function RootCard({ root }: { root: RootSearchResult }) {
+  return (
+    <a
+      href={`/root/${encodeURIComponent(root.root_buckwalter)}`}
+      className="group flex items-center gap-3 rounded-lg border border-emerald-200 bg-white p-3 transition-colors hover:border-emerald-300 hover:bg-emerald-50/40"
+    >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-emerald-100">
+        <span dir="rtl" lang="ar" className="font-arabic text-sm font-bold text-emerald-800">
+          {root.root_arabic}
+        </span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-sm font-semibold text-emerald-700">{root.root_buckwalter}</span>
+          <span className="text-xs tabular-nums text-stone-400">
+            {root.frequency.toLocaleString()} verse{root.frequency === 1 ? '' : 's'}
+          </span>
+        </span>
+        {root.meaning && <span className="mt-0.5 block truncate text-sm text-stone-600">{root.meaning}</span>}
+      </span>
+      <span className="hidden shrink-0 text-xs font-medium text-emerald-600 group-hover:text-emerald-700 sm:inline">
+        Open root &rarr;
+      </span>
+      <svg className="h-4 w-4 shrink-0 text-emerald-400 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+  );
+}
+
+interface Props {
+  /** Wrapper of this page's search bar, so the nav shows its own compact
+   *  search only once this one has scrolled away (as on the verse page). */
+  searchAnchorRef?: RefObject<HTMLDivElement | null>;
+}
+
+export default function SearchPage({ searchAnchorRef }: Props) {
   const [query, setQuery] = useState(readQueryFromUrl);
   const [results, setResults] = useState<SearchV2Result[]>([]);
+  // Roots the query names outright ('root'/'word' matches), shown first.
+  const [roots, setRoots] = useState<RootSearchResult[]>([]);
+  // 'roots' when the verses are a spelled root's own, not matches by meaning.
+  const [engine, setEngine] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [ran, setRan] = useState(false);
@@ -159,12 +201,19 @@ export default function SearchPage() {
     noindex: true,
   });
 
+  // Only the latest search may write results: an earlier one that answers
+  // late (back/forward, a quick resubmit) is dropped.
+  const searchSeq = useRef(0);
+
   const runSearch = useCallback(async (q: string) => {
     const trimmed = q.trim();
+    const seq = ++searchSeq.current;
     setSurahFilter(null);
     setVisible(PAGE_SIZE);
     if (!trimmed) {
       setResults([]);
+      setRoots([]);
+      setEngine('');
       setRan(false);
       setError('');
       return;
@@ -172,11 +221,17 @@ export default function SearchPage() {
     setLoading(true);
     setError('');
     addRecentSearch(trimmed);
+    // Root lookup never fails the page: it only adds the root card on top.
+    const rootsReq = searchRoots(trimmed, 5).catch(() => [] as RootSearchResult[]);
     try {
-      const data = await searchV2(trimmed, 50);
+      const [data, rootHits] = await Promise.all([searchV2(trimmed, 50), rootsReq]);
+      if (seq !== searchSeq.current) return;
       setResults(data.results);
+      setEngine(data.engine ?? '');
+      setRoots(rootHits.filter((r) => r.match === 'root' || r.match === 'word').slice(0, 3));
       setRan(true);
     } catch (err) {
+      if (seq !== searchSeq.current) return;
       const msg = err instanceof Error ? err.message : 'Search failed';
       setError(
         msg.includes('404') || msg.includes('Failed to fetch')
@@ -184,9 +239,11 @@ export default function SearchPage() {
           : msg,
       );
       setResults([]);
+      setRoots([]);
+      setEngine('');
       setRan(true);
     } finally {
-      setLoading(false);
+      if (seq === searchSeq.current) setLoading(false);
     }
   }, []);
 
@@ -249,7 +306,7 @@ export default function SearchPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
-      <div className="mb-6">
+      <div className="mb-6" ref={searchAnchorRef}>
         <UnifiedSearch
           onNavigateVerse={navigateVerse}
           onFullSemanticSearch={submit}
@@ -273,6 +330,19 @@ export default function SearchPage() {
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-red-700">{error}</div>
       )}
 
+      {!loading && !error && roots.length > 0 && (
+        <section className="mb-6" aria-label={roots.length > 1 ? 'Roots' : 'Root'}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+            {roots.length > 1 ? 'Roots' : 'Root'}
+          </p>
+          <div className="space-y-2">
+            {roots.map((r) => (
+              <RootCard key={r.root_buckwalter} root={r} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {!loading && !error && showControls && (
         <>
           {/* Header + sort */}
@@ -282,7 +352,7 @@ export default function SearchPage() {
               {' '}verse{filtered.length !== 1 ? 's' : ''} matching{' '}
               <span className="text-stone-700">&ldquo;{query}&rdquo;</span>
               {' '}&middot;{' '}
-              <span className="text-violet-500">by meaning</span>
+              <span className="text-violet-500">{engine === 'roots' ? 'by root' : 'by meaning'}</span>
             </p>
             <div className="flex items-center gap-1 text-xs">
               {(['relevance', 'mushaf'] as SortMode[]).map((m) => (

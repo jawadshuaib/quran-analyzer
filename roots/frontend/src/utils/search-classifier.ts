@@ -37,6 +37,8 @@ export interface SearchPlan {
   semanticDebounce: number;
   /** Reads like a natural-language question (drives an Ask-the-Qur'an handoff). */
   looksLikeQuestion: boolean;
+  /** Spells a root letter by letter ("S-W-M", "ص و م"): no surah name to match. */
+  spelledRoot: boolean;
 }
 
 const VERSE_REF_RE = /^\d{1,3}(?::(\d{0,3}))?$/;
@@ -50,6 +52,24 @@ const BUCKWALTER_SPECIAL_RE = /[$<>{}'~&*]/;
 const VOWEL_RE = /[aeiouAEIOU]/;
 // Arabic combining marks + tatweel — stripped for length checks.
 const AR_MARKS_RE = /[ً-ْٰـ]/g;
+
+// A root spelled out letter by letter: "S-W-M", "s w m", "ṣ.w.m", "sh-k-r",
+// "3-l-m", "ص و م". Each part is one letter (Latin, a dotted transliteration
+// letter, a hamza/ʿayn mark, an Arabizi digit) or a two-letter spelling of
+// one (sh, th, dh, kh, gh), and there are three or four parts, as a root has
+// three or four letters (two, "T H", is left to name Ṭā-Hā). Mirrors
+// root_query.spelled_roots on the server, which answers these with the root's
+// own verses.
+const ROOT_SEP_RE = /[\s\-‐‑‒–—―.·•_/,+،]+/;
+const ROOT_LETTER_RE = /^(?:[a-zA-Zṣḍṭẓḥḫḵẖṯḏšġǧǰāʾʿ'’ʼˀ‘`ʕˁ$*2-79]|sh|th|dh|kh|gh)$/i;
+const AR_LETTER_RE = /^[ء-ي]$/;
+
+function spellsRootLetters(trimmed: string): boolean {
+  const parts = trimmed.replace(AR_MARKS_RE, '').split(ROOT_SEP_RE).filter(Boolean);
+  if (parts.length < 3 || parts.length > 4) return false;
+  if (parts.every((p) => /^\d+$/.test(p))) return false;
+  return parts.every((p) => AR_LETTER_RE.test(p)) || parts.every((p) => ROOT_LETTER_RE.test(p));
+}
 
 const EN_QUESTION_RE =
   /^(why|how|whats?|when|whos?|whom|where|which|did|does|do|is|are|was|were|can|could|should|would|will)\b/i;
@@ -65,6 +85,7 @@ const EMPTY_PLAN: SearchPlan = {
   script: 'empty',
   semanticDebounce: SEMANTIC_DEBOUNCE,
   looksLikeQuestion: false,
+  spelledRoot: false,
 };
 
 /**
@@ -130,11 +151,24 @@ export function classifyInput(input: string): SearchPlan {
     return { ...EMPTY_PLAN, verseRef, script: 'digits', looksLikeQuestion: question };
   }
 
+  // 2. A root spelled letter by letter reads as nothing else: roots lead, and
+  // the verse list is that root's verses (the server skips meaning search).
+  if (spellsRootLetters(trimmed)) {
+    return {
+      ...EMPTY_PLAN,
+      script: ARABIC_RE.test(trimmed) ? 'arabic' : 'latin',
+      fire: { root: true, semantic: true },
+      lead: 'root',
+      looksLikeQuestion: false,
+      spelledRoot: true,
+    };
+  }
+
   const hasArabic = ARABIC_RE.test(trimmed);
   const hasLatin = LATIN_RE.test(trimmed);
   const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
 
-  // 2. Arabic (or Arabic+Latin). Phase B: the multilingual v2 engine (Voyage
+  // 3. Arabic (or Arabic+Latin). Phase B: the multilingual v2 engine (Voyage
   // dense + lexical roots) makes Arabic → semantic work, so both arms fire. A
   // single short word reads like a root lookup (root leads); a longer word or
   // a phrase reads like a concept query (meaning leads).
@@ -151,7 +185,7 @@ export function classifyInput(input: string): SearchPlan {
     };
   }
 
-  // 3. Latin-only.
+  // 4. Latin-only.
   const len = trimmed.length;
 
   // Single very short token (≤2) → root only (autocomplete-ish).

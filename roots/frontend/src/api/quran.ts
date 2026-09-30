@@ -381,6 +381,10 @@ export interface RootSearchResult {
     ends_truncated?: boolean;
     translation: string;
   } | null;
+  /** How surely the query names this root: 'root' when it spells the root's
+   *  letters ("S-W-M", "ṣ w m", "ص و م"), 'word' when it is one of the root's
+   *  words in Latin letters ("sawm"), else 'related'. Absent from older servers. */
+  match?: 'root' | 'word' | 'related';
 }
 
 // --- Verse preview (lightweight) ---
