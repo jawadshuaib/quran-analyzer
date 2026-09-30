@@ -44,9 +44,6 @@ export default function HeroSection({ onNavigateVerse, onFullSemanticSearch, loa
 
   return (
     <div className="pt-8 sm:pt-14 pb-10 sm:pb-12 text-center max-w-[720px] mx-auto">
-      <p className="text-xs text-ink-muted mb-3 sm:mb-3.5 tracking-[0.08em] uppercase">
-        al-nuqta
-      </p>
       <h1 className="font-serif text-2xl sm:text-[34px] font-medium tracking-tight leading-tight text-ink mb-2">
         A Root Based Translation of the Quran
       </h1>
