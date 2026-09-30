@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { DictionaryHighlight } from '../types';
 import { viewportSize } from '../utils/viewport';
+import VerseRefText from './VerseRefText';
 
 /**
  * Reader highlights on a dictionary entry's readable version (made by the
@@ -30,67 +31,119 @@ const MARK_CLASS: Record<DictionaryHighlight['kind'], string> = {
   later: 'bg-transparent underline decoration-dotted decoration-2 decoration-hl-later underline-offset-[3px]',
 };
 
-const TIP_W = 260;
+const TIP_W = 300;
+const HIDE_DELAY = 220;
+
+const LABEL_CLASS: Record<DictionaryHighlight['kind'], string> = {
+  core: 'bg-hl-core',
+  quran: 'bg-hl-quran',
+  early: 'bg-hl-early',
+  later: 'border-b-2 border-dotted border-hl-later',
+};
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-/** One highlighted phrase. Its note (why it is marked) shows on hover, on
- *  keyboard focus, and on tap — a fixed, viewport-clamped bubble, portaled to
- *  body so a phrase at a screen edge on a phone never pushes it off-screen. */
+/** One highlighted phrase. Its note shows on hover, keyboard focus and tap, in
+ *  a fixed, viewport-clamped card portaled to body (a phrase at a screen edge
+ *  on a phone can't push it off-screen). The card stays open while the pointer
+ *  is on it, so the verse references in a note (rendered by VerseRefText) can
+ *  be previewed and followed. */
 export function HighlightMark({
   kind,
   note,
+  detail,
   children,
 }: {
   kind: DictionaryHighlight['kind'];
   note?: string;
+  /** The fuller note, written from the site's own data (_highlight_notes.py). */
+  detail?: string;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLElement>(null);
+  const cardRef = useRef<HTMLSpanElement>(null);
+  const hideTimer = useRef<number | null>(null);
+  const usingCard = useRef(false);
   const [tip, setTip] = useState<{ left: number; top: number; above: boolean } | null>(null);
   const label = HIGHLIGHT_LABEL[kind];
-  const text = note ? `${label}: ${note}` : label;
+  const body = detail || note || '';
+
+  const cancelHide = () => {
+    if (hideTimer.current) {
+      window.clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  };
+  const hide = () => {
+    cancelHide();
+    setTip(null);
+  };
+  const hideSoon = () => {
+    cancelHide();
+    hideTimer.current = window.setTimeout(() => setTip(null), HIDE_DELAY);
+  };
 
   function show() {
+    cancelHide();
     const r = ref.current?.getBoundingClientRect();
     if (!r) return;
     const { width, height } = viewportSize();
     const left = clamp(r.left, 8, Math.max(8, width - TIP_W - 8));
-    const above = r.bottom + 64 > height;
+    const above = r.bottom + 140 > height;
     setTip({ left, top: above ? r.top - 6 : r.bottom + 6, above });
   }
-  const hide = () => setTip(null);
 
-  // The bubble does not follow the phrase; dismiss rather than drift.
+  // The card does not follow the phrase; dismiss rather than drift. A press
+  // anywhere outside the phrase and the card closes it.
   useEffect(() => {
     if (!tip) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && hide();
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!ref.current?.contains(t) && !cardRef.current?.contains(t)) hide();
+    };
     window.addEventListener('scroll', hide, true);
     window.addEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onDown, true);
     return () => {
       window.removeEventListener('scroll', hide, true);
       window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onDown, true);
     };
   }, [tip]);
+
+  useEffect(() => cancelHide, []);
 
   return (
     <mark
       ref={ref}
       tabIndex={0}
-      aria-label={text}
+      aria-label={body ? `${label}: ${body}` : label}
       onMouseEnter={show}
-      onMouseLeave={hide}
+      onMouseLeave={hideSoon}
       onFocus={show}
-      onBlur={hide}
+      onBlur={(e) => {
+        // Focus moving into the card (a verse link) keeps it open.
+        if (usingCard.current || cardRef.current?.contains(e.relatedTarget as Node)) return;
+        hideSoon();
+      }}
       className={`rounded-[3px] px-px text-inherit [box-decoration-break:clone] cursor-help focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-emerald-400 ${MARK_CLASS[kind]}`}
     >
       {children}
       {tip &&
         createPortal(
           <span
+            ref={cardRef}
             role="tooltip"
+            onMouseEnter={cancelHide}
+            onMouseLeave={hideSoon}
+            onPointerDown={() => {
+              cancelHide();
+              usingCard.current = true;
+              window.setTimeout(() => (usingCard.current = false), 600);
+            }}
             style={{
               position: 'fixed',
               left: tip.left,
@@ -99,9 +152,17 @@ export function HighlightMark({
               maxWidth: TIP_W,
               transform: tip.above ? 'translateY(-100%)' : undefined,
             }}
-            className="pointer-events-none z-50 rounded-md bg-stone-800 px-2.5 py-1.5 text-xs leading-snug text-stone-50 shadow-lg"
+            className="z-50 block rounded-lg border border-stone-200 bg-white px-3 py-2 text-left text-[13px] font-normal not-italic leading-snug text-stone-700 shadow-lg"
           >
-            {text}
+            <span className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              <span aria-hidden className={`inline-block h-2 w-3.5 rounded-sm ${LABEL_CLASS[kind]}`} />
+              {label}
+            </span>
+            {body && (
+              <span className="block">
+                <VerseRefText text={body} />
+              </span>
+            )}
           </span>,
           document.body,
         )}

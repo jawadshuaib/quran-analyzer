@@ -757,6 +757,9 @@ export interface DictionaryHighlight {
   kind: 'core' | 'quran' | 'early' | 'later';
   text: string;
   note?: string;
+  /** A fuller note written only from the site's own data (verses, dated
+   *  authorities, the poet's era); shown instead of `note` when present. */
+  detail?: string;
 }
 
 export interface RootDictionaries {
