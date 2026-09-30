@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import type { RootSearchResult } from '../../api/quran';
+import { RootBadge } from './Badges';
 
 interface Props {
   root: RootSearchResult;
@@ -21,12 +22,7 @@ export default memo(function RootResultItem({ root, active, onSelect, onHover, i
       onClick={onSelect}
       onMouseEnter={onHover}
     >
-      {/* Arabic root circle */}
-      <div className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200/60 flex items-center justify-center">
-        <span className="font-arabic text-sm text-emerald-800 font-bold" dir="rtl">
-          {root.root_arabic}
-        </span>
-      </div>
+      <RootBadge rootArabic={root.root_arabic} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import type { SemanticSearchResult } from '../../api/quran';
+import { VerseRefBadge } from './Badges';
 
 interface Props {
   result: SemanticSearchResult;
@@ -65,11 +66,7 @@ export default memo(function SemanticResultItem({ result, query, active, onSelec
       onClick={onSelect}
       onMouseEnter={onHover}
     >
-      <div className="shrink-0 w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center">
-        <span className="text-xs font-semibold text-violet-700 tabular-nums">
-          {result.surah}:{result.ayah}
-        </span>
-      </div>
+      <VerseRefBadge surah={result.surah} ayah={result.ayah} className="bg-violet-100 text-violet-700" />
 
       <div className="flex-1 min-w-0">
         <p className="text-xs text-stone-600 line-clamp-2 leading-relaxed">

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import type { ParsedVerseRef } from '../../utils/search-classifier';
 import type { VersePreview } from '../../api/quran';
+import { VerseRefBadge } from './Badges';
 
 interface Props {
   verseRef: ParsedVerseRef;
@@ -30,15 +31,12 @@ export default memo(function VerseRefSuggestion({
       onMouseEnter={onHover}
     >
       <div className="flex items-start gap-3">
-        {/* Verse ref circle */}
-        <div className="shrink-0 w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200/60 flex items-center justify-center">
-          <span className={`font-semibold text-emerald-700 tabular-nums ${
-            verseRef.endAyah ? 'text-[10px] leading-tight text-center' : 'text-xs'
-          }`}>
-            {verseRef.surah}:{verseRef.ayah}
-            {verseRef.endAyah ? `-${verseRef.endAyah}` : ''}
-          </span>
-        </div>
+        <VerseRefBadge
+          surah={verseRef.surah}
+          ayah={verseRef.ayah}
+          endAyah={verseRef.endAyah}
+          className="bg-emerald-100 border border-emerald-200/60 text-emerald-700"
+        />
 
         <div className="flex-1 min-w-0">
           {/* Surah name + ref */}

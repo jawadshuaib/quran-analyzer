@@ -4,6 +4,7 @@ import SaveButton from '../SaveButton';
 import { searchRoots, searchV2, type RootSearchResult, type SearchV2Result } from '../../api/quran';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
 import { TranslationWithChips } from '../TermChip';
+import { RootBadge } from '../unified-search/Badges';
 import { useSEO } from '../../hooks/useSEO';
 import { addRecentSearch, SUGGESTED_QUERIES } from '../../utils/recent-searches';
 
@@ -148,11 +149,7 @@ function RootCard({ root }: { root: RootSearchResult }) {
       href={`/root/${encodeURIComponent(root.root_buckwalter)}`}
       className="group flex items-center gap-3 rounded-lg border border-emerald-200 bg-white p-3 transition-colors hover:border-emerald-300 hover:bg-emerald-50/40"
     >
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-200/60 bg-gradient-to-br from-emerald-50 to-emerald-100">
-        <span dir="rtl" lang="ar" className="font-arabic text-sm font-bold text-emerald-800">
-          {root.root_arabic}
-        </span>
-      </span>
+      <RootBadge rootArabic={root.root_arabic} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
           <span className="font-mono text-sm font-semibold text-emerald-700">{root.root_buckwalter}</span>
