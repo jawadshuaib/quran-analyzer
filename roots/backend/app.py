@@ -8108,6 +8108,43 @@ def get_dictionary_roots():
     conn = get_db()
     try:
         _ensure_dict_tables(conn)
+        resp = jsonify(_dictionary_roots_index(conn))
+        # ~165 KB of JSON (gzipped by _gzip_response). The index changes only
+        # when entries are approved or edited, so a browser may keep it for an
+        # hour and use the old copy while it fetches a new one.
+        resp.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
+        return resp
+    finally:
+        conn.close()
+
+
+# The /dictionary root index, built once and shared by the API above, the
+# crawler HTML and the copy embedded in the page (_dictionary_roots_script).
+# It was queried twice per visit; it changes only when entries are approved,
+# hidden or edited, so a cheap signature of the table is checked at most once
+# a minute and the index rebuilt only when that changes (or after an hour, for
+# the glosses, which live in another table).
+_dict_roots_cache = {"sig": None, "checked": 0.0, "built": 0.0, "index": None}
+_dict_roots_lock = threading.Lock()
+
+
+def _dictionary_roots_index(conn):
+    """{"root_count", "entry_count", "roots": [{buckwalter, arabic, entries,
+    gloss}]}: every root with an approved, visible, harmonized entry, ordered
+    by its Arabic letters."""
+    cache = _dict_roots_cache
+    now = time.time()
+    if cache["index"] is not None and now - cache["checked"] < 60:
+        return cache["index"]
+    sig = tuple(conn.execute(
+        "SELECT COUNT(*), MAX(id), MAX(edited_at), SUM(review_status = 'approved'), "
+        "SUM(COALESCE(hidden, 0)) FROM dictionary_entries"
+    ).fetchone())
+    with _dict_roots_lock:
+        if (cache["index"] is not None and cache["sig"] == sig
+                and now - cache["built"] < 3600):
+            cache["checked"] = now
+            return cache["index"]
         rows = conn.execute(
             "SELECT e.root_buckwalter, e.root_arabic, COUNT(*) AS entries, "
             "(SELECT m.primary_meaning FROM ai_root_meanings m "
@@ -8126,16 +8163,31 @@ def get_dictionary_roots():
             "entries": r["entries"],
             "gloss": _clean_root_gloss(r["gloss"]),
         } for r in rows]
-        resp = jsonify({
+        index = {
             "root_count": len(roots),
             "entry_count": sum(r["entries"] for r in roots),
             "roots": roots,
-        })
-        # ~165 KB of JSON (gzipped by _gzip_response); let it be reused briefly
-        resp.headers["Cache-Control"] = "public, max-age=300"
-        return resp
+        }
+        cache.update(sig=sig, checked=now, built=now, index=index)
+        return index
+
+
+def _dictionary_roots_script():
+    """The root index as a JSON <script> for the /dictionary page itself, so
+    it renders without asking /api/dictionary-roots for data the server has
+    already loaded (on a phone that request waited for the whole app to load
+    first). "</" is escaped so the data can't close the tag."""
+    conn = get_db()
+    try:
+        _ensure_dict_tables(conn)
+        data = json.dumps(_dictionary_roots_index(conn), ensure_ascii=False,
+                          separators=(",", ":"))
+    except Exception:
+        return ""  # the page falls back to the API
     finally:
         conn.close()
+    return ('<script id="dictionary-roots" type="application/json">'
+            + data.replace("</", "<\\/") + "</script>")
 
 
 # --- Admin review surface for the Lexicon Library -------------------------
@@ -23040,17 +23092,8 @@ def _build_noscript_content(path: str) -> str:
     if re.match(r'^/dictionary/?$', path):
         conn = get_db()
         try:
-            rows = conn.execute(
-                "SELECT e.root_buckwalter, e.root_arabic, COUNT(*) AS entries, "
-                "(SELECT m.primary_meaning FROM ai_root_meanings m "
-                " WHERE m.root_buckwalter = e.root_buckwalter "
-                "   AND m.primary_meaning IS NOT NULL AND m.primary_meaning <> '' "
-                " ORDER BY m.id LIMIT 1) AS gloss "
-                "FROM dictionary_entries e "
-                "WHERE e.review_status = 'approved' AND COALESCE(e.hidden,0) = 0 "
-                "AND e.harmonized_en IS NOT NULL AND e.harmonized_en <> '' "
-                "GROUP BY e.root_buckwalter, e.root_arabic ORDER BY e.root_arabic"
-            ).fetchall()
+            _ensure_dict_tables(conn)
+            rows = _dictionary_roots_index(conn)["roots"]
         finally:
             conn.close()
         parts.append('<h1>Qur’anic Dictionary</h1>')
@@ -23060,17 +23103,17 @@ def _build_noscript_content(path: str) -> str:
                      'classical works.</p>')
         cur_letter = None
         for r in rows:
-            ar = r["root_arabic"] or ""
-            letter = (ar or r["root_buckwalter"] or "?")[0]
+            ar = r["arabic"] or ""
+            letter = (ar or r["buckwalter"] or "?")[0]
             if letter != cur_letter:
                 if cur_letter is not None:
                     parts.append('</ul>')
                 parts.append(f'<h2 lang="ar">{html.escape(letter)}</h2>')
                 parts.append('<ul>')
                 cur_letter = letter
-            href = "/root/" + quote(r["root_buckwalter"])
-            label = html.escape(ar or r["root_buckwalter"])
-            gloss = _clean_root_gloss(r["gloss"]) or ""
+            href = "/root/" + quote(r["buckwalter"])
+            label = html.escape(ar or r["buckwalter"])
+            gloss = r["gloss"] or ""
             suffix = f' &mdash; {html.escape(gloss)}' if gloss else ''
             parts.append(
                 f'<li><a href="{href}"><span lang="ar">{label}</span></a>{suffix}</li>'
@@ -23194,6 +23237,9 @@ def _render_spa_html(template: str, req_path: str) -> tuple[str, int]:
         # Just before </body>: #root holds the boot splash, so it no longer
         # has an exact string to anchor on.
         html_doc = html_doc.replace("</body>", f"{noscript_html}\n</body>", 1)
+    if not is_unknown and re.match(r'^/dictionary/?$', req_path):
+        # Outside the <noscript>, which a browser running scripts never parses.
+        html_doc = html_doc.replace("</body>", f"{_dictionary_roots_script()}\n</body>", 1)
 
     return html_doc, (404 if is_unknown else 200)
 

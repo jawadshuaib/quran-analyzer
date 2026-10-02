@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useSEO } from '../hooks/useSEO';
-import { fetchDictionaryRoots, searchDictionary } from '../api/quran';
+import { embeddedDictionaryRoots, fetchDictionaryRoots, searchDictionary } from '../api/quran';
 import type {
   DictionaryRootItem,
   DictionarySearchReason,
@@ -160,7 +160,12 @@ export default function DictionaryIndexPage() {
     roots: DictionaryRootItem[];
     rootCount: number;
     entryCount: number;
-  } | null>(null);
+  } | null>(() => {
+    const embedded = embeddedDictionaryRoots();
+    return embedded
+      ? { roots: embedded.roots, rootCount: embedded.root_count, entryCount: embedded.entry_count }
+      : null;
+  });
   const [error, setError] = useState('');
   // ?q= pre-fills the box, so a search can be shared
   const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get('q') ?? '');
@@ -179,8 +184,9 @@ export default function DictionaryIndexPage() {
     path: '/dictionary',
   });
 
-  // Load the root index
+  // Load the root index, unless the page arrived with it (the usual case)
   useEffect(() => {
+    if (data) return;
     let cancelled = false;
     fetchDictionaryRoots()
       .then((resp) => {
@@ -194,6 +200,8 @@ export default function DictionaryIndexPage() {
     return () => {
       cancelled = true;
     };
+    // Runs once: `data` only says whether the page arrived with the index.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Search as the reader types (debounced; the previous request is cancelled)

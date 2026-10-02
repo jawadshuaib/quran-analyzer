@@ -37,6 +37,20 @@ export async function searchDictionary(q: string, signal?: AbortSignal): Promise
   return res.json();
 }
 
+/** The root index the server embeds in the /dictionary page itself (see
+ *  _dictionary_roots_script in app.py), so the list renders without a request
+ *  that would otherwise wait for the whole app to load. Null when absent. */
+export function embeddedDictionaryRoots(): DictionaryRootsResponse | null {
+  const el = document.getElementById('dictionary-roots');
+  if (!el?.textContent) return null;
+  try {
+    const data = JSON.parse(el.textContent) as DictionaryRootsResponse;
+    return Array.isArray(data.roots) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchDictionaryRoots(): Promise<DictionaryRootsResponse> {
   const res = await fetch(`${BASE}/dictionary-roots`);
   if (!res.ok) throw new Error('Failed to load dictionary');
