@@ -1,0 +1,83 @@
+[
+ {
+  "id": "ctl-badcand-49:13",
+  "kind": "planted_bad_candidate",
+  "ref": [
+   49,
+   13
+  ],
+  "text": "O mankind, We created you from a male and a female, and made you nations and tribes so that you would keep yourselves apart from one another. The most noble of you before God is the one of the noblest lineage. God is Knowing, Aware."
+ },
+ {
+  "id": "ctl-badcand-19:23",
+  "kind": "planted_bad_candidate",
+  "ref": [
+   19,
+   23
+  ],
+  "text": "And the pains of childbirth drove her to the trunk of a palm tree. She said, \"Oh, I wish I had died after this and was in oblivion, forgotten.\""
+ },
+ {
+  "id": "ctl-tafsir-2:43",
+  "kind": "planted_bad_candidate",
+  "ref": [
+   2,
+   43
+  ],
+  "text": "And perform the five obligatory daily prayers (Ṣalāt, as taught by the Prophet ﷺ), and give the obligatory charity of two and a half percent (Zakāt), and bow down in congregation with the Muslims (in the mosque)."
+ },
+ {
+  "id": "ctl-ours-49:13",
+  "kind": "broken_ours",
+  "ref": [
+   49,
+   13
+  ],
+  "text": "O people, We have indeed created you from a male and a female, and We have made you into communities and clans. Indeed, the most honored of you, in the presence of Allah, is the one most guarded (in wary mindfulness). Indeed, Allah is All-Knowing, All-Aware."
+ },
+ {
+  "id": "ctl-ours-19:23",
+  "kind": "broken_ours",
+  "ref": [
+   19,
+   23
+  ],
+  "text": "So the labor pains came upon her. She said, “If only I had died before this and had been a thing forgotten, left out of mind.”"
+ },
+ {
+  "id": "ctl-ours-2:43",
+  "kind": "broken_ours",
+  "ref": [
+   2,
+   43
+  ],
+  "text": "And uphold the connection (ṣalāh), and give the purifying due (zakāh), and bow down."
+ },
+ {
+  "id": "ctl-ours-52:40",
+  "kind": "broken_ours",
+  "ref": [
+   52,
+   40
+  ],
+  "text": "Or do they ask you for a wage, so that you are weighed down by a liability?"
+ },
+ {
+  "id": "ctl-ours-43:65",
+  "kind": "broken_ours",
+  "ref": [
+   43,
+   65
+  ],
+  "text": "Then the factions differed among themselves; so ruin is for those who were wronged, from the punishment of a painful Day."
+ },
+ {
+  "id": "ctl-ours-3:15",
+  "kind": "broken_ours",
+  "ref": [
+   3,
+   15
+  ],
+  "text": "Say, “Shall I inform you of better than that for you? For those who are mindful (and protective) [of themselves] there are, with their Lord, gardens beneath which rivers flow, remaining in them, and spouses made pure. And Allah is all-seeing of the servants.”"
+ }
+]

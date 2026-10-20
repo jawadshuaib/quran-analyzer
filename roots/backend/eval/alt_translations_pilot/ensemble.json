@@ -1,0 +1,1589 @@
+[
+ {
+  "job": "103:2",
+  "tier": 0,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "",
+  "ta": 0,
+  "tb": 0,
+  "diffs": []
+ },
+ {
+  "job": "112:1",
+  "tier": 0,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "BEST shows the emphasis on Allah's uniqueness through the definite article 'the One', while OUR translation uses 'One' without the article.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "أَحَدٌ",
+    "ours": "One",
+    "best": "the One",
+    "type": "nuance",
+    "why": "BEST uses the definite article 'the' which emphasizes the uniqueness of Allah, while OUR translation uses 'One' without the article."
+   }
+  ]
+ },
+ {
+  "job": "14:9",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows a more concise and root-faithful rendering of 'turned back their hands' and 'deny', while our translation is more explanatory in places.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "نَبَؤُا۟",
+    "ours": "report",
+    "best": "tiding",
+    "type": "nuance",
+    "why": "BEST's 'tiding' conveys the weighty, news-bearing sense of نَبَأ more vividly than 'report', though both are faithful."
+   },
+   {
+    "arabic": "فَرَدُّوٓا۟ أَيْدِيَهُمْ فِىٓ أَفْوَٰهِهِمْ",
+    "ours": "they put their hands into their mouths",
+    "best": "they turned back their hands to their mouths",
+    "type": "nuance",
+    "why": "BEST's 'turned back their hands to their mouths' preserves the root ر د د sense of 'returning' or 'turning back', which our 'put' loses."
+   },
+   {
+    "arabic": "كَفَرْنَا",
+    "ours": "covered over / rejected",
+    "best": "deny",
+    "type": "nuance",
+    "why": "BEST's 'deny' is a single clear rendering, while our double rendering 'covered over / rejected' is more explanatory but less direct."
+   },
+   {
+    "arabic": "مُرِيبٍ",
+    "ours": "a doubt that stirs suspicion",
+    "best": "suspicious",
+    "type": "nuance",
+    "why": "BEST's 'suspicious' is more concise, though our phrase captures the active participle nuance more fully."
+   }
+  ]
+ },
+ {
+  "job": "17:1",
+  "tier": 1,
+  "review": false,
+  "best": "M.A.S. Abdel Haleem",
+  "summary": "G shows that the emphatic pronoun هُوَ can be read as 'He alone', making God's exclusive hearing and seeing explicit.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلْمَسْجِدِ ٱلْحَرَامِ / ٱلْمَسْجِدِ ٱلْأَقْصَا",
+    "ours": "inviolable place of prostration / farthest place of prostration",
+    "best": "sacred place of worship / furthest place of worship",
+    "type": "conventional_sense",
+    "why": "G keeps the conventional 'sacred/place of worship' where our notes deliberately chose 'inviolable/place of prostration' from the roots."
+   },
+   {
+    "arabic": "هُوَ",
+    "ours": "Indeed, He—He is the Hearing, the Seeing",
+    "best": "He alone is the All Hearing, the All Seeing",
+    "type": "nuance",
+    "why": "G's 'alone' makes the exclusivity force of the emphatic pronoun explicit, where our repetition conveys emphasis less directly."
+   }
+  ]
+ },
+ {
+  "job": "18:86",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows a slightly more idiomatic rendering of حُسْنًا as 'treat them kindly' and keeps the name 'Zul-Qarnayn' untranslated, while OUR translation is more literal in both cases.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "يَٰذَا ٱلْقَرْنَيْنِ",
+    "ours": "O Possessor of the Two Horns",
+    "best": "O Zul-Qarnayn",
+    "type": "nuance",
+    "why": "BEST keeps the name as a proper noun, while OUR translation renders its literal meaning, which is a defensible choice but loses the name-like quality."
+   },
+   {
+    "arabic": "تَتَّخِذَ فِيهِمْ حُسْنًا",
+    "ours": "you adopt among them what is good",
+    "best": "treat them kindly",
+    "type": "nuance",
+    "why": "BEST renders حُسْنًا as 'kindly' (adverbial treatment), while OUR translation keeps the noun 'what is good' as the object of 'adopt', preserving the Arabic structure more literally."
+   }
+  ]
+ },
+ {
+  "job": "19:23",
+  "tier": 1,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "D shows the intensive force of the doubled 'forgotten' (نسيا منسيًّا) more vividly than our 'left out of mind'.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "نَسْيًا مَّنسِيًّا",
+    "ours": "a thing forgotten, left out of mind",
+    "best": "a thing forgotten, completely forgotten!",
+    "type": "nuance",
+    "why": "D's 'completely' brings out the intensifying force of the cognate passive participle منسيًّا more sharply than our paraphrase."
+   }
+  ]
+ },
+ {
+  "job": "1:7",
+  "tier": 1,
+  "review": false,
+  "best": "Mufti Taqi Usmani",
+  "summary": "G shows that the wrath is 'Your' wrath incurred by their conduct, where ours keeps a neutral passive.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "أَنْعَمْتَ عَلَيْهِمْ",
+    "ours": "made well-off in ease",
+    "best": "bestowed Your Grace",
+    "type": "conventional_sense",
+    "why": "Our notes deliberately replace the conventional 'bestow favor/grace' with the ease/plenty sense of the root."
+   },
+   {
+    "arabic": "ٱلْمَغْضُوبِ عَلَيْهِمْ",
+    "ours": "subjected to wrath",
+    "best": "incurred Your wrath",
+    "type": "nuance",
+    "why": "'Incurred' conveys that the wrath is a response to their own conduct, a shade our passive 'subjected to' leaves dim."
+   },
+   {
+    "arabic": "ٱلضَّآلِّينَ",
+    "ours": "lost",
+    "best": "gone astray",
+    "type": "conventional_sense",
+    "why": "Our notes deliberately chose 'lost' over the conventional 'astray' from Qur'anic cross-references."
+   }
+  ]
+ },
+ {
+  "job": "22:58",
+  "tier": 1,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "H confirms our rendering and makes the emphatic pronoun لَهُوَ ('certainly') slightly more explicit.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "لَهُوَ",
+    "ours": "indeed Allah – He is",
+    "best": "it is Allah who is certainly the Best",
+    "type": "nuance",
+    "why": "H's 'certainly' makes the emphatic force of لَهُوَ slightly more explicit for the reader."
+   }
+  ]
+ },
+ {
+  "job": "24:31",
+  "tier": 1,
+  "review": false,
+  "best": "Mufti Taqi Usmani",
+  "summary": "F shows the shame-connotation of عورات and the conventional 'repent' and 'shawl' senses, though its 'wrap their bosoms with their shawls' is less faithful to the Arabic syntax than ours.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "خُمُرِهِنَّ",
+    "ours": "coverings",
+    "best": "shawls",
+    "type": "conventional_sense",
+    "why": "F keeps the conventional head-cover/shawl sense where our notes chose the broader root sense 'coverings'."
+   },
+   {
+    "arabic": "وَلْيَضْرِبْنَ بِخُمُرِهِنَّ عَلَىٰ جُيُوبِهِنَّ",
+    "ours": "cast their coverings over their openings",
+    "best": "wrap their bosoms with their shawls",
+    "type": "alt_worse",
+    "why": "F reverses the syntax (bosoms as object wrapped with the shawl) where the Arabic has the coverings drawn down over the garment openings."
+   },
+   {
+    "arabic": "عَوْرَٰتِ",
+    "ours": "private areas",
+    "best": "shames",
+    "type": "nuance",
+    "why": "F brings out the root sense of shame/defect in عورات that our 'private areas' leaves dim."
+   },
+   {
+    "arabic": "وَتُوبُوٓا۟ إِلَى ٱللَّهِ",
+    "ours": "turn back to Allah",
+    "best": "repent to Allah",
+    "type": "conventional_sense",
+    "why": "F keeps the conventional 'repent' for تاب where ours renders the literal motion sense."
+   }
+  ]
+ },
+ {
+  "job": "26:64",
+  "tier": 0,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "BEST makes explicit that 'there' is a destination ('to that place'), a nuance our translation leaves implicit.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ثَمَّ",
+    "ours": "there",
+    "best": "to that place",
+    "type": "nuance",
+    "why": "BEST makes explicit the directional sense of 'there' as a destination, which our bare 'there' leaves implicit."
+   }
+  ]
+ },
+ {
+  "job": "27:76",
+  "tier": 0,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "",
+  "ta": 0,
+  "tb": 0,
+  "diffs": []
+ },
+ {
+  "job": "2:1",
+  "tier": 0,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "",
+  "ta": 0,
+  "tb": 0,
+  "diffs": []
+ },
+ {
+  "job": "2:106",
+  "tier": 1,
+  "review": false,
+  "best": "Abul Ala Maududi",
+  "summary": "D confirms the conditional structure of our rendering while showing the traditional 'abrogate a verse' sense and the potential nuance of the jussive that our plainer wording leaves dim.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "نَنسَخْ",
+    "ours": "replace",
+    "best": "abrogate",
+    "type": "conventional_sense",
+    "why": "D keeps the traditional technical term 'abrogate' where our notes deliberately chose 'replace' from the root's basic sense of substitution."
+   },
+   {
+    "arabic": "ءَايَةٍ",
+    "ours": "sign",
+    "best": "verse",
+    "type": "conventional_sense",
+    "why": "D narrows آية to the textual 'verse' where our notes chose the broader Qur'anic 'sign'."
+   },
+   {
+    "arabic": "نَنسَخْ (jussive)",
+    "ours": "We replace",
+    "best": "We might abrogate",
+    "type": "nuance",
+    "why": "D's 'might' conveys the potential/conditional force of the jussive after مَا that our flat 'We replace' leaves dim."
+   },
+   {
+    "arabic": "قَدِيرٌ",
+    "ours": "powerful",
+    "best": "All-Powerful",
+    "type": "nuance",
+    "why": "D brings out the intensive sense of قَدِير as an amplified attribute."
+   }
+  ]
+ },
+ {
+  "job": "2:187",
+  "tier": 1,
+  "review": false,
+  "best": "M.A.S. Abdel Haleem",
+  "summary": "A mainly shows the mercy in Allah's turning and the traditional senses of 'lie with' and 'guard against wrong', while ours is more complete on the thread-of-dawn imagery and the retreat clause.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "فَتَابَ عَلَيْكُمْ",
+    "ours": "turned back towards you",
+    "best": "turned to you in mercy",
+    "type": "nuance",
+    "why": "A brings out the merciful quality inherent in تاب that our wording leaves dim."
+   },
+   {
+    "arabic": "بَٰشِرُوهُنَّ / تُبَٰشِرُوهُنَّ",
+    "ours": "be in direct contact with them",
+    "best": "lie with them",
+    "type": "conventional_sense",
+    "why": "A uses the conventional explicit sense where our notes deliberately chose the bodily-contact rendering."
+   },
+   {
+    "arabic": "يَتَّقُونَ",
+    "ours": "may be ever-cautious",
+    "best": "may guard themselves against doing wrong",
+    "type": "conventional_sense",
+    "why": "A keeps the traditional ethical sense of taqwa where ours chose cautiousness."
+   },
+   {
+    "arabic": "مِنَ ٱلْخَيْطِ ٱلْأَسْوَدِ مِنَ ٱلْفَجْرِ",
+    "ours": "from the black thread, [that is] from the dawn",
+    "best": "from the black",
+    "type": "alt_worse",
+    "why": "A drops the second 'thread' and the verse's own dawn gloss that ours preserves."
+   },
+   {
+    "arabic": "وَأَنتُمْ عَٰكِفُونَ فِى ٱلْمَسَٰجِدِ",
+    "ours": "while you are devotedly staying in the masjids",
+    "best": "during the nights of your devotional retreat in the mosques",
+    "type": "alt_worse",
+    "why": "A inserts 'nights' which the Arabic does not have."
+   }
+  ]
+ },
+ {
+  "job": "2:222",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "G shows the contextual narrowing of 'women' to 'wives' and the conventional 'repentant' reading, but otherwise matches our translation closely.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلنِّسَاء",
+    "ours": "the women",
+    "best": "wives",
+    "type": "nuance",
+    "why": "G narrows 'women' to 'wives', a contextual reading of the verse's addressee that ours leaves general."
+   },
+   {
+    "arabic": "ٱلتَّوَّٰبِينَ",
+    "ours": "those who repeatedly turn back",
+    "best": "those who are constantly repentant",
+    "type": "conventional_sense",
+    "why": "G keeps the conventional 'repentant' where our notes deliberately chose the root sense of turning back."
+   },
+   {
+    "arabic": "يَطْهُرْنَ",
+    "ours": "until they become clean",
+    "best": "until they are pure",
+    "type": "nuance",
+    "why": "G's 'pure' leans toward the ritual-purity sense while ours keeps the plain state-change 'become clean'."
+   }
+  ]
+ },
+ {
+  "job": "2:255",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "E shows the idiomatic temporal sense of 'between their hands / behind them' and translates qayyūm and the kursī clause conventionally, where ours transliterates qayyūm and renders the kursī clause with 'encompassed'.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلْقَيُّومُ",
+    "ours": "the qayyūm (transliterated)",
+    "best": "the Self-Sustaining",
+    "type": "conventional_sense",
+    "why": "E keeps the conventional sense of the root q-w-m where ours transliterates rather than translate."
+   },
+   {
+    "arabic": "يَشْفَعُ",
+    "ours": "mediate (as a supporter)",
+    "best": "intercede",
+    "type": "conventional_sense",
+    "why": "E keeps the traditional 'intercede' where our notes deliberately chose 'mediate' from Qur'anic usage of the root."
+   },
+   {
+    "arabic": "مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ",
+    "ours": "what is between their hands and what is behind them",
+    "best": "what is [presently] before them and what will be after them",
+    "type": "nuance",
+    "why": "E brings out the idiomatic temporal sense of the phrase, which our deliberately literal rendering leaves dim for a reader."
+   },
+   {
+    "arabic": "وَسِعَ كُرْسِيُّهُ",
+    "ours": "His kursī has encompassed the heavens and the earth",
+    "best": "His Kursī extends over the heavens and the earth",
+    "type": "conventional_sense",
+    "why": "E keeps the conventional 'extends over' where our notes argued for 'encompass' from parallel Qur'anic usage of the root."
+   }
+  ]
+ },
+ {
+  "job": "2:3",
+  "tier": 0,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "",
+  "ta": 0,
+  "tb": 0,
+  "diffs": []
+ },
+ {
+  "job": "2:43",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows the conventional senses of ṣalāh as 'prayer' and zakāh as 'charity' where OUR translation deliberately chose 'connection' and 'purifying due' from Qur'anic usage.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلصَّلَوٰةَ",
+    "ours": "the connection (ṣalāh)",
+    "best": "the prayer",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense 'prayer' where OUR translation deliberately chose 'connection' based on Qur'anic usage."
+   },
+   {
+    "arabic": "ٱلزَّكَوٰةَ",
+    "ours": "the purifying due (zakāh)",
+    "best": "the purifying charity",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense 'charity' where OUR translation deliberately chose 'due' to emphasize the obligatory nature."
+   },
+   {
+    "arabic": "وَٱرْكَعُوا۟ مَعَ ٱلرَّٰكِعِينَ",
+    "ours": "and bow down along with those who bow down",
+    "best": "and bow down with the ones bowing down",
+    "type": "nuance",
+    "why": "BEST's 'the ones bowing down' renders the active participle more concretely as a present ongoing action, while OUR 'those who bow down' is slightly more generic."
+   }
+  ]
+ },
+ {
+  "job": "2:62",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows the verbal nuance of هَادُوا as 'have Judaized' that OUR transliteration 'have become Hādū' leaves dim, while OUR translation deliberately chooses 'trusted' and 'sound' over the conventional 'faith' and 'righteous'.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "هَادُوا",
+    "ours": "have become Hādū",
+    "best": "have Judaized",
+    "type": "nuance",
+    "why": "BEST's 'have Judaized' preserves the verbal form of هَادُوا as an action of adopting a Jewish identity, while OUR transliteration 'Hādū' obscures the verbal nuance for English readers."
+   },
+   {
+    "arabic": "ءَامَنُوا",
+    "ours": "have trusted",
+    "best": "have attained faith",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense of آمَنَ as 'attained faith', while OUR notes deliberately chose 'trusted' to emphasize the active, relational sense of the root أ م ن."
+   },
+   {
+    "arabic": "صَٰلِحًا",
+    "ours": "does what is sound",
+    "best": "has acted righteously",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense of صَٰلِحًا as 'righteously', while OUR notes deliberately chose 'what is sound' to emphasize the root's sense of soundness and rectitude."
+   },
+   {
+    "arabic": "أَجْرُهُمْ",
+    "ours": "their recompense",
+    "best": "their reward",
+    "type": "nuance",
+    "why": "BEST's 'reward' is a more direct rendering of أَجْر, while OUR 'recompense' emphasizes the transactional nuance of due return."
+   }
+  ]
+ },
+ {
+  "job": "33:33",
+  "tier": 1,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "B shows the concrete sense of zakāt as 'poor-due' where ours transliterates; otherwise ours is at least as faithful, notably preserving the 'settled' nuance of wa-qarna.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلزَّكَوٰةَ",
+    "ours": "give the zakah",
+    "best": "pay the poor-due",
+    "type": "nuance",
+    "why": "B gives the reader the concrete conventional sense of zakāt where ours leaves a bare transliteration."
+   },
+   {
+    "arabic": "وَقَرْنَ",
+    "ours": "settle in your houses",
+    "best": "stay in your houses",
+    "type": "alt_worse",
+    "why": "Ours keeps the root sense of settled stillness (q-r-r) that B's plain 'stay' does not convey."
+   }
+  ]
+ },
+ {
+  "job": "33:59",
+  "tier": 0,
+  "review": false,
+  "best": "Abul Ala Maududi",
+  "summary": "BEST makes the partitive sense of مِن explicit with 'a part of' and uses 'likelier' for أَدْنَىٰ, which reads more naturally in English while staying close to the Arabic.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "يُدْنِينَ عَلَيْهِنَّ مِن جَلَٰبِيبِهِنَّ",
+    "ours": "draw close over themselves from their outer coverings",
+    "best": "draw a part of their outer coverings around them",
+    "type": "nuance",
+    "why": "BEST's 'a part of' makes the partitive force of مِن explicit, while OUR translation leaves it implicit in 'from'."
+   },
+   {
+    "arabic": "أَدْنَىٰٓ",
+    "ours": "nearer",
+    "best": "likelier",
+    "type": "nuance",
+    "why": "BEST's 'likelier' conveys the practical consequence of the action, while OUR 'nearer' preserves the root sense but is less idiomatic in English."
+   }
+  ]
+ },
+ {
+  "job": "3:103",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "G shows the plain conventional senses 'rope' and 'favor' without our cognate-derived 'bond' and 'pleasant', and states brotherhood directly rather than as a comparison.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "حَبْلِ ٱللَّهِ",
+    "ours": "the bond of Allah",
+    "best": "the rope of Allah",
+    "type": "conventional_sense",
+    "why": "G keeps the concrete conventional 'rope' where our notes deliberately chose 'bond' from cognate binding/connection evidence."
+   },
+   {
+    "arabic": "نِعْمَتَ ٱللَّهِ",
+    "ours": "Allah's pleasant favor",
+    "best": "the favor of Allah",
+    "type": "conventional_sense",
+    "why": "G uses the plain conventional 'favor' where ours adds 'pleasant' from the root's semantic field."
+   },
+   {
+    "arabic": "إِخْوَٰنًا",
+    "ours": "as brothers",
+    "best": "brothers",
+    "type": "nuance",
+    "why": "G's direct 'became... brothers' states the resulting state plainly, while our 'as brothers' frames it as a qualitative comparison."
+   }
+  ]
+ },
+ {
+  "job": "3:15",
+  "tier": 1,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "A shows the conventional 'good pleasure' for رضوان and takes اتقوا as mindfulness of God rather than self-protection.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "رِضْوَٰنٌ مِّنَ ٱللَّهِ",
+    "ours": "approval from Allah",
+    "best": "good pleasure from Allah",
+    "type": "conventional_sense",
+    "why": "A keeps the traditional 'good pleasure' where our notes deliberately chose 'approval' for the relational sense of the root."
+   },
+   {
+    "arabic": "ٱتَّقَوْا۟",
+    "ours": "mindful (and protective) [of themselves]",
+    "best": "mindful (of God)",
+    "type": "nuance",
+    "why": "A supplies God as the object of mindfulness while ours stresses self-protection, a shade a reader can compare."
+   }
+  ]
+ },
+ {
+  "job": "3:183",
+  "tier": 1,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "D shows the conventional 'covenant' and 'believe' renderings and the concrete 'devoured' sense of the fire 'eating' the offering, against our 'imposed', 'trust' and 'consumes'.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "عَهِدَ إِلَيْنَا",
+    "ours": "has imposed upon us",
+    "best": "has made a covenant with us",
+    "type": "conventional_sense",
+    "why": "D keeps the conventional 'covenant' where our notes deliberately chose 'imposed' from the cognate field of ʿ-h-d."
+   },
+   {
+    "arabic": "نُؤْمِنَ",
+    "ours": "trust in",
+    "best": "believe in",
+    "type": "conventional_sense",
+    "why": "D keeps the conventional 'believe' where our notes chose 'trust' from the amn root's security/trust field."
+   },
+   {
+    "arabic": "تَأْكُلُهُ ٱلنَّارُ",
+    "ours": "which the fire consumes",
+    "best": "to be devoured by the fire",
+    "type": "nuance",
+    "why": "D's 'devoured' keeps the concrete eating sense of the akl root more vividly than our 'consumes'."
+   }
+  ]
+ },
+ {
+  "job": "3:19",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "F shows the reader the plain conventional reading — religion, Islām, jealous animosity, disbelieves — against which our deliberate root-based choices (judgment‑way, self‑surrender, seeking dominance, covers up) stand out.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلدِّينَ",
+    "ours": "the judgment‑way",
+    "best": "the religion",
+    "type": "conventional_sense",
+    "why": "F keeps the conventional 'religion' where our notes deliberately chose 'judgment‑way' from Qur'anic usage of d-y-n."
+   },
+   {
+    "arabic": "ٱلْإِسْلَٰمُ",
+    "ours": "the self‑surrender",
+    "best": "Islām",
+    "type": "conventional_sense",
+    "why": "F leaves the word as the proper name 'Islām' where ours renders the root sense of surrender."
+   },
+   {
+    "arabic": "بَغْيًۢا بَيْنَهُمْ",
+    "ours": "seeking dominance among themselves",
+    "best": "out of jealous animosity between themselves",
+    "type": "conventional_sense",
+    "why": "F keeps the traditional 'envy/jealousy' sense of baghyan where ours chose 'seeking dominance' from Qur'anic usage."
+   },
+   {
+    "arabic": "يَكْفُرْ بِـَايَٰتِ ٱللَّهِ",
+    "ours": "covers up the signs of Allah",
+    "best": "disbelieves in the verses of Allāh",
+    "type": "conventional_sense",
+    "why": "F keeps the conventional 'disbelieves' where ours renders the root sense of covering/concealing."
+   },
+   {
+    "arabic": "سَرِيعُ ٱلْحِسَابِ",
+    "ours": "swift in the reckoning",
+    "best": "swift in [taking] account",
+    "type": "nuance",
+    "why": "F's 'taking account' brings out the verbal-noun sense of ḥisāb as an act God performs, while our 'the reckoning' leans toward a single event."
+   }
+  ]
+ },
+ {
+  "job": "3:85",
+  "tier": 0,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "BEST shows the conventional rendering 'religion' for دين and 'Surrender' for الإسلام, whereas OUR translation deliberately renders them as 'way of judgment' and 'self-surrender' from Qur'anic usage.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "دِينًا",
+    "ours": "a way of judgment",
+    "best": "religion",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense 'religion' where OUR notes deliberately chose 'way of judgment' from the root's judging/accountability dimension."
+   },
+   {
+    "arabic": "ٱلْإِسْلَٰمِ",
+    "ours": "the self-surrender",
+    "best": "the Surrender (to Allah)",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense 'Surrender' where OUR notes chose 'self-surrender'; the parenthetical '(to Allah)' is an addition not in the Arabic."
+   },
+   {
+    "arabic": "مِنَ ٱلْخَٰسِرِينَ",
+    "ours": "among the losers",
+    "best": "a loser",
+    "type": "nuance",
+    "why": "OUR translation preserves the partitive sense of مِن ('among the losers'), while BEST's 'a loser' loses the membership-in-a-group nuance."
+   }
+  ]
+ },
+ {
+  "job": "40:24",
+  "tier": 0,
+  "review": false,
+  "best": "Abul Ala Maududi",
+  "summary": "BEST shows the adversative force of fa- ('but they said') and the conventional 'sorcerer', where ours has 'then' and the deliberate 'magician'.",
+  "ta": 1,
+  "tb": 0,
+  "diffs": [
+   {
+    "arabic": "سَٰحِرٌ",
+    "ours": "magician",
+    "best": "sorcerer",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'sorcerer' where our notes deliberately chose 'magician' from Qur'anic cross-references."
+   },
+   {
+    "arabic": "فَقَالُوا۟",
+    "ours": "then they said",
+    "best": "but they said",
+    "type": "nuance",
+    "why": "BEST reads fa- as adversative ('but'), marking their response as contrary to expectation after the messengers were sent."
+   }
+  ]
+ },
+ {
+  "job": "43:65",
+  "tier": 0,
+  "review": false,
+  "best": "Abul Ala Maududi",
+  "summary": "BEST's 'fell apart' captures the divisive force of ikhtalafa more vividly than our 'differed'.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "فَٱخْتَلَفَ",
+    "ours": "Then the factions differed",
+    "best": "Then the factions fell apart",
+    "type": "nuance",
+    "why": "BEST's 'fell apart' conveys the root kh-l-f's sense of division and rupture more vividly than 'differed'."
+   },
+   {
+    "arabic": "ظَلَمُوا۟",
+    "ours": "did wrong",
+    "best": "the wrong-doers",
+    "type": "nuance",
+    "why": "BEST's noun 'wrong-doers' emphasizes the identity of the group, while ours uses a relative clause."
+   }
+  ]
+ },
+ {
+  "job": "49:13",
+  "tier": 0,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "BEST shows the conventional renderings of شُعُوبًا, قَبَائِلَ, أَكْرَمَكُمْ, and أَتْقَاكُمْ as 'peoples', 'tribes', 'most noble', and 'most righteous', where OUR translation deliberately chose 'communities', 'clans', 'most honored', and 'most guarded (in wary mindfulness)' to emphasize Qur'anic root senses.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "شُعُوبًا",
+    "ours": "communities",
+    "best": "peoples",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'peoples' for شُعُوب, while OUR translation deliberately chose 'communities' to emphasize the root sense of gathering and social structure."
+   },
+   {
+    "arabic": "قَبَائِلَ",
+    "ours": "clans",
+    "best": "tribes",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'tribes' for قَبَائِل, while OUR translation deliberately chose 'clans' to emphasize the face-to-face, kin-based social unit."
+   },
+   {
+    "arabic": "لِتَعَارَفُوا",
+    "ours": "so that you may come to recognize one another",
+    "best": "that you may know one another",
+    "type": "nuance",
+    "why": "OUR translation brings out the mutuality and process of the تَفَاعَلَ form ('come to recognize'), while BEST uses the simpler conventional 'know one another'."
+   },
+   {
+    "arabic": "أَكْرَمَكُمْ",
+    "ours": "the most honored of you",
+    "best": "the most noble of you",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'most noble', while OUR translation deliberately chose 'most honored' to preserve the passive sense of honor being bestowed."
+   },
+   {
+    "arabic": "عِندَ",
+    "ours": "in the presence of",
+    "best": "in the sight of",
+    "type": "nuance",
+    "why": "OUR translation renders عِندَ as 'in the presence of', emphasizing spatial proximity before Allah, while BEST uses the more conventional 'in the sight of'."
+   },
+   {
+    "arabic": "أَتْقَاكُمْ",
+    "ours": "the one most guarded (in wary mindfulness)",
+    "best": "the most righteous of you",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'most righteous', while OUR translation deliberately chose 'most guarded (in wary mindfulness)' to capture the protective, cautious dimension of و ق ي."
+   },
+   {
+    "arabic": "خَبِيرٌ",
+    "ours": "All-Aware",
+    "best": "Aware",
+    "type": "nuance",
+    "why": "OUR translation renders خَبِير as 'All-Aware' with the intensive 'All-' prefix, while BEST uses the simpler 'Aware'."
+   }
+  ]
+ },
+ {
+  "job": "4:101",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows a more concise rendering of the deniers' active rejection and the trial/harm they pose, while OUR translation preserves the root meanings of 'strike out', 'burden', and 'put to trial' that BEST renders conventionally.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ضَرَبْتُمْ",
+    "ours": "strike out",
+    "best": "travel",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense of 'travel' for ضرب في الأرض, while OUR notes deliberately chose 'strike out' to preserve the root's core meaning."
+   },
+   {
+    "arabic": "جُنَاحٌ",
+    "ours": "burden",
+    "best": "sin",
+    "type": "conventional_sense",
+    "why": "BEST uses the conventional 'sin' for جناح, while OUR notes deliberately chose 'burden' to preserve the root's sense of weight or liability."
+   },
+   {
+    "arabic": "يَفْتِنَكُمُ",
+    "ours": "put you to trial",
+    "best": "harm you",
+    "type": "conventional_sense",
+    "why": "BEST uses the conventional 'harm' for يفتنكم, while OUR notes deliberately chose 'put you to trial' to preserve the root's testing/trial sense."
+   },
+   {
+    "arabic": "كَفَرُوا / الْكَافِرِينَ",
+    "ours": "those who have denied (the truth)",
+    "best": "deniers",
+    "type": "nuance",
+    "why": "BEST's 'deniers' is more concise but conveys the same active sense of rejection; OUR translation is more explicit about what is denied."
+   }
+  ]
+ },
+ {
+  "job": "4:157",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST (E) is essentially equivalent to our translation in meaning, with only minor stylistic differences in emphasis and clause structure; it shows no substantive improvements over ours.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "وَقَوْلِهِمْ",
+    "ours": "and for their saying",
+    "best": "and their saying",
+    "type": "nuance",
+    "why": "BEST drops the causal 'for' (the waw as 'for/because of'), which our translation preserves; this is a minor nuance of clause connection."
+   },
+   {
+    "arabic": "إِنَّا قَتَلْنَا",
+    "ours": "Indeed, we killed",
+    "best": "We have surely killed",
+    "type": "nuance",
+    "why": "BEST renders the perfect verb with 'have surely killed', bringing out the emphasis of إِنَّ more strongly than our 'Indeed, we killed'."
+   },
+   {
+    "arabic": "وَلَٰكِن شُبِّهَ لَهُمْ",
+    "ours": "but it was made to appear so to them",
+    "best": "but it appeared to them as if they had",
+    "type": "nuance",
+    "why": "BEST's 'it appeared to them as if they had' conveys the passive verb شُبِّهَ more naturally in English, while ours uses a more literal passive construction."
+   },
+   {
+    "arabic": "وَإِنَّ ٱلَّذِينَ ٱخْتَلَفُوا۟ فِيهِ",
+    "ours": "And indeed, those who differed concerning him",
+    "best": "And indeed, those who differed over him",
+    "type": "nuance",
+    "why": "BEST uses 'over him' for فِيهِ, which is slightly more concrete than our 'concerning him'; both are defensible."
+   },
+   {
+    "arabic": "وَمَا قَتَلُوهُ يَقِينًۢا",
+    "ours": "And they certainly did not kill him",
+    "best": "And certainly, they did not kill him",
+    "type": "nuance",
+    "why": "BEST places 'certainly' at the start of the clause, emphasizing the certainty adverb يَقِينًا more prominently than our placement."
+   }
+  ]
+ },
+ {
+  "job": "4:3",
+  "tier": 0,
+  "review": false,
+  "best": "Abul Ala Maududi",
+  "summary": "BEST shows the conventional sense of تَعُولُوا as 'avoid injustice' where ours deliberately chose 'not becoming burdened', and it clarifies the elliptical 'marry' before 'what your right hands possess'.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "مَا طَابَ لَكُم",
+    "ours": "those that are good for you",
+    "best": "the women that seem good to you",
+    "type": "nuance",
+    "why": "BEST's 'seem good' captures the subjective suitability of طَابَ لَكُم more directly than our 'are good for you', which sounds more objective."
+   },
+   {
+    "arabic": "أَلَّا تَعُولُوا",
+    "ours": "your not becoming burdened",
+    "best": "you will avoid injustice",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense of تَعُولُوا as 'do injustice/oppress', whereas our notes deliberately chose 'becoming burdened' from the root's developed sense."
+   },
+   {
+    "arabic": "مِنَ ٱلنِّسَاءِ",
+    "ours": "of the women",
+    "best": "the women",
+    "type": "nuance",
+    "why": "BEST drops the partitive 'of' from مِنَ ٱلنِّسَاءِ, slightly flattening the Arabic's 'from among the women'."
+   },
+   {
+    "arabic": "أَوْ مَا مَلَكَتْ أَيْمَٰنُكُمْ",
+    "ours": "or what your right hands possess",
+    "best": "or marry from among those whom your right hands possess",
+    "type": "nuance",
+    "why": "BEST adds 'from among' and 'marry' to clarify the elliptical Arabic, which our literal rendering leaves implicit."
+   }
+  ]
+ },
+ {
+  "job": "4:34",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows the conventional senses of 'favored', 'disloyalty', and 'strike' where our translation deliberately chose 'given', 'uprising', and 'separate from them' based on Qur'anic usage of the roots.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "قَوَّٰمُونَ",
+    "ours": "maintainers, standing over",
+    "best": "constant caretakers",
+    "type": "nuance",
+    "why": "BEST's 'constant caretakers' captures the intensive, continuous aspect of the form II participle قَوَّٰمُونَ more concisely than our 'maintainers, standing over'."
+   },
+   {
+    "arabic": "فَضَّلَ",
+    "ours": "has given",
+    "best": "has favored",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense of 'favored' where our notes deliberately chose 'given' to stay consistent with 4:32 and avoid implying absolute superiority."
+   },
+   {
+    "arabic": "قَٰنِتَٰتٌ",
+    "ours": "devoutly committed",
+    "best": "devout",
+    "type": "nuance",
+    "why": "BEST's 'devout' loses the 'committed' aspect of قَٰنِتَٰتٌ that our rendering preserves, but it is a defensible reading."
+   },
+   {
+    "arabic": "بِمَا حَفِظَ ٱللَّهُ",
+    "ours": "by what Allah has guarded",
+    "best": "as Allah (commanded matters to be) preserved",
+    "type": "alt_imports",
+    "why": "BEST inserts '(commanded matters to be)' which imports a command interpretation not in the Arabic; our rendering keeps the literal 'by what Allah has guarded'."
+   },
+   {
+    "arabic": "نُشُوزَهُنَّ",
+    "ours": "uprising",
+    "best": "disloyalty",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional moral label 'disloyalty' where our notes deliberately chose the core metaphor 'uprising' to avoid importing a specific behavioral content."
+   },
+   {
+    "arabic": "وَٱضْرِبُوهُنَّ",
+    "ours": "and separate from them",
+    "best": "and strike them",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense 'strike' where our notes deliberately chose 'separate from them' based on the wide semantic range of ض ر ب in the Quran."
+   },
+   {
+    "arabic": "فَإِنْ أَطَعْنَكُمْ",
+    "ours": "Then if they comply with you",
+    "best": "But if they obey you",
+    "type": "nuance",
+    "why": "BEST's 'obey' is the conventional rendering of أَطَعْنَ; our 'comply' is a deliberate choice to avoid the servile connotation, but 'obey' is more literal."
+   }
+  ]
+ },
+ {
+  "job": "52:40",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "D confirms our rendering word for word, differing only in keeping the conventional 'debt' for مَغْرَم where we chose 'liability'.",
+  "ta": 0,
+  "tb": 0,
+  "diffs": [
+   {
+    "arabic": "مَّغْرَمٍ",
+    "ours": "liability",
+    "best": "debt",
+    "type": "conventional_sense",
+    "why": "D keeps the conventional 'debt' where our notes deliberately chose 'liability' from root and context."
+   }
+  ]
+ },
+ {
+  "job": "53:9",
+  "tier": 0,
+  "review": false,
+  "best": "Hilali & Khan",
+  "summary": "BEST shows the conventional rendering 'distance' for قَاب where OUR translation uses 'span'.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "قَابَ",
+    "ours": "a span",
+    "best": "a distance",
+    "type": "nuance",
+    "why": "BEST uses the more conventional 'distance' for قَاب, while OUR translation uses 'span' to emphasize the measured stretch of a bow."
+   }
+  ]
+ },
+ {
+  "job": "5:103",
+  "tier": 0,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "B shows the conventional 'disbelieve' for kafarū where ours says 'denied [the truth]', but otherwise ours is at least as faithful and avoids B's small bracketed gloss.",
+  "ta": 0,
+  "tb": 0,
+  "diffs": [
+   {
+    "arabic": "ٱلَّذِينَ كَفَرُوا۟",
+    "ours": "those who have denied [the truth]",
+    "best": "those who disbelieve",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'disbelieve' where our notes deliberately chose 'denied [the truth]' for k-f-r."
+   },
+   {
+    "arabic": "جَعَلَ ... مِنۢ بَحِيرَةٍ",
+    "ours": "has not instituted any bahīrah",
+    "best": "has not appointed [such innovations as] baḥīrah",
+    "type": "alt_worse",
+    "why": "BEST's bracketed 'such innovations as' adds a characterisation of the terms that the Arabic does not give."
+   }
+  ]
+ },
+ {
+  "job": "5:38",
+  "tier": 0,
+  "review": false,
+  "best": "Abul Ala Maududi",
+  "summary": "C shows that the dual 'of both' is explicit in the Arabic, and keeps the traditional senses 'exemplary punishment' and 'what they have done' where ours reads 'deterrent' and 'earned'.",
+  "ta": 1,
+  "tb": 0,
+  "diffs": [
+   {
+    "arabic": "أَيْدِيَهُمَا",
+    "ours": "their hands",
+    "best": "the hands of both",
+    "type": "nuance",
+    "why": "C makes the dual pronoun 'of both' explicit where ours leaves the number ambiguous."
+   },
+   {
+    "arabic": "نَكَٰلًا",
+    "ours": "a deterrent",
+    "best": "an exemplary punishment",
+    "type": "conventional_sense",
+    "why": "C keeps the traditional 'exemplary punishment' where ours chose 'deterrent'."
+   },
+   {
+    "arabic": "كَسَبَا",
+    "ours": "what they have earned",
+    "best": "what they have done",
+    "type": "conventional_sense",
+    "why": "C uses the conventional general sense of kasaba rather than the literal 'earned'."
+   }
+  ]
+ },
+ {
+  "job": "5:6",
+  "tier": 2,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "C shows the conventional accusative-based reading 'wash your feet' (coordinated with the hands rather than wiped with the heads), a construal of the Arabic grammar that our translation resolves the other way.",
+  "ta": 2,
+  "tb": 0,
+  "diffs": [
+   {
+    "arabic": "ءَامَنُوا۟",
+    "ours": "have attained faith",
+    "best": "have believed",
+    "type": "conventional_sense",
+    "why": "C keeps the conventional 'believe' where our notes deliberately chose 'attained faith' from Qur'anic usage of the root."
+   },
+   {
+    "arabic": "وَأَرْجُلَكُمْ",
+    "ours": "wipe ... your feet",
+    "best": "wash your feet",
+    "type": "alt_reading",
+    "why": "C reads the accusative أَرْجُلَكُمْ as coordinated with 'wash your hands' (the conventional grammatical construal), while ours keeps it under 'wipe' with the heads; a reader should weigh both parsings."
+   },
+   {
+    "arabic": "فَتَيَمَّمُوا۟ صَعِيدًا طَيِّبًا",
+    "ours": "intend a wholesome ground-surface",
+    "best": "seek clean earth",
+    "type": "conventional_sense",
+    "why": "C keeps the conventional 'clean earth/dust' sense of ṣaʿīdan ṭayyiban where our notes chose 'wholesome ground-surface' from the root's ascending-surface sense."
+   },
+   {
+    "arabic": "جُنُبًا",
+    "ours": "in a state of junub",
+    "best": "in a state of janābah",
+    "type": "nuance",
+    "why": "Both transliterate, but C's 'janābah' is the standard noun form and slightly more recognisable; no real gain."
+   }
+  ]
+ },
+ {
+  "job": "69:10",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "BEST shows the root sense of رابية as 'exceeding' more literally than our 'overwhelming', while our 'defied' better captures the active resistance of عصى.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "فَعَصَوْا۟",
+    "ours": "defied",
+    "best": "disobeyed",
+    "type": "conventional_sense",
+    "why": "Our notes deliberately chose 'defied' for the active resistance shown by the root's Qur'anic usage, where BEST keeps the conventional 'disobeyed'."
+   },
+   {
+    "arabic": "أَخْذَةً رَّابِيَةً",
+    "ours": "an overwhelming taking",
+    "best": "a seizure exceeding [in severity]",
+    "type": "nuance",
+    "why": "BEST's 'exceeding' keeps the root ر ب و's sense of increase/excess more transparently than our 'overwhelming'."
+   }
+  ]
+ },
+ {
+  "job": "6:151",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "C shows the conventional renderings (prohibited, soul, apparent/concealed, legal right) side by side with our root-based choices, letting readers see where our translation deliberately departs from tradition.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "حَرَّمَ",
+    "ours": "has made inviolable upon you",
+    "best": "has prohibited to you",
+    "type": "conventional_sense",
+    "why": "C keeps the conventional 'prohibited' where our notes deliberately chose the sacred-ban sense of ح ر م."
+   },
+   {
+    "arabic": "إِمْلَاقٍ",
+    "ours": "out of destitution",
+    "best": "out of poverty",
+    "type": "conventional_sense",
+    "why": "C uses the ordinary word where our notes chose 'destitution' for severity."
+   },
+   {
+    "arabic": "ٱلْفَوَٰحِشَ",
+    "ours": "the indecencies",
+    "best": "immoralities",
+    "type": "conventional_sense",
+    "why": "C keeps the conventional rendering our notes deliberately replaced."
+   },
+   {
+    "arabic": "مَا ظَهَرَ مِنْهَا وَمَا بَطَنَ",
+    "ours": "what is outward of them and what is inward",
+    "best": "what is apparent of them and what is concealed",
+    "type": "conventional_sense",
+    "why": "C keeps the standard apparent/concealed pair where ours chose outward/inward per the roots."
+   },
+   {
+    "arabic": "ٱلنَّفْسَ",
+    "ours": "the life",
+    "best": "the soul",
+    "type": "conventional_sense",
+    "why": "C keeps the conventional 'soul' where our notes chose 'life' from ن ف س."
+   },
+   {
+    "arabic": "بِٱلْحَقِّ",
+    "ours": "except with due right",
+    "best": "except by [legal] right",
+    "type": "conventional_sense",
+    "why": "C's 'legal' narrows الحق to the technical sense our notes avoided."
+   },
+   {
+    "arabic": "تَعْقِلُونَ",
+    "ours": "so that you may reason",
+    "best": "that you may use reason",
+    "type": "nuance",
+    "why": "Marginal; both render ع ق ل, C's phrasing slightly more verbal."
+   }
+  ]
+ },
+ {
+  "job": "76:1",
+  "tier": 0,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "BEST shows a slightly more archaic and vivid rendering of the passive participle, but our translation is essentially equivalent in meaning.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "هَلْ",
+    "ours": "Has",
+    "best": "Hath",
+    "type": "nuance",
+    "why": "BEST preserves the archaic interrogative 'Hath' which matches the Arabic perfect verb form more closely than our modern 'Has'."
+   },
+   {
+    "arabic": "شَيْـًٔا مَّذْكُورًا",
+    "ours": "a thing mentioned",
+    "best": "a thing unremembered",
+    "type": "nuance",
+    "why": "BEST's 'unremembered' brings out the passive sense of the participle more vividly than our 'mentioned', though both are defensible."
+   }
+  ]
+ },
+ {
+  "job": "96:1",
+  "tier": 0,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "BEST shows the conventional 'Read' and 'in the name' where OUR translation deliberately chose 'Proclaim' and 'by the name.'",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱقْرَأْ",
+    "ours": "Proclaim",
+    "best": "Read",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'Read' for the imperative, while OUR notes deliberately chose 'Proclaim' based on the broader Semitic sense of the root."
+   },
+   {
+    "arabic": "بِٱسْمِ",
+    "ours": "by the name",
+    "best": "In the name",
+    "type": "nuance",
+    "why": "BEST uses the locative 'in the name,' while OUR translation uses the instrumental 'by the name,' a shade of meaning a reader would notice."
+   }
+  ]
+ },
+ {
+  "job": "9:1",
+  "tier": 1,
+  "review": false,
+  "best": "Marmaduke Pickthall",
+  "summary": "A shows the declarative force of the opening noun ('is proclaimed') and keeps the conventional 'idolaters' where our translation deliberately says 'associators'.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلْمُشْرِكِينَ",
+    "ours": "associators",
+    "best": "idolaters",
+    "type": "conventional_sense",
+    "why": "A keeps the conventional 'idolaters' where our notes deliberately chose 'associators' from the Qur'anic pattern of the root."
+   },
+   {
+    "arabic": "بَرَآءَةٌ",
+    "ours": "A clearance",
+    "best": "Freedom from obligation (is proclaimed)",
+    "type": "nuance",
+    "why": "A's '(is proclaimed)' brings out the declarative, announcement-like force of the indefinite opening noun that our bare 'clearance' leaves implicit."
+   }
+  ]
+ },
+ {
+  "job": "9:5",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "B shows the verse in its plain conventional dress (polytheists, repent, zakāh, Forgiving) without additions or omissions, while our rendering preserves root imagery (peeled away, associators, purifying due) that B leaves dim.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلْمُشْرِكِينَ",
+    "ours": "the associators",
+    "best": "the polytheists",
+    "type": "conventional_sense",
+    "why": "B keeps the standard label where our notes deliberately chose 'associators' to preserve the verbal sense of joining partners to God."
+   },
+   {
+    "arabic": "وَجَدتُّمُوهُمْ",
+    "ours": "wherever you encounter them",
+    "best": "wherever you find them",
+    "type": "conventional_sense",
+    "why": "B uses the plain 'find' where our notes argued 'encounter' fits the combative context."
+   },
+   {
+    "arabic": "وَٱحْصُرُوهُمْ",
+    "ours": "hem them in",
+    "best": "besiege them",
+    "type": "conventional_sense",
+    "why": "B keeps the conventional military sense; ours chose 'hem them in' to cover both besieging and restricting movement."
+   },
+   {
+    "arabic": "تَابُوا۟",
+    "ours": "turn back",
+    "best": "repent",
+    "type": "conventional_sense",
+    "why": "B keeps the standard 'repent' where ours kept the directional root sense of returning."
+   },
+   {
+    "arabic": "ٱلزَّكَوٰةَ",
+    "ours": "the purifying due",
+    "best": "zakāh",
+    "type": "conventional_sense",
+    "why": "B transliterates the technical term where ours rendered the root's purity/growth sense."
+   },
+   {
+    "arabic": "غَفُورٌ",
+    "ours": "Ever-Covering [of faults]",
+    "best": "Forgiving",
+    "type": "conventional_sense",
+    "why": "B keeps the conventional 'Forgiving' where ours foregrounded the root sense of covering."
+   },
+   {
+    "arabic": "ٱنسَلَخَ",
+    "ours": "have peeled away",
+    "best": "have passed",
+    "type": "nuance",
+    "why": "B loses the Qur'anic stripping/flaying imagery of form VII that our rendering preserves."
+   },
+   {
+    "arabic": "فَخَلُُّوا۟ سَبِيلَهُمْ",
+    "ours": "clear a path for them",
+    "best": "let them [go] on their way",
+    "type": "nuance",
+    "why": "Ours brings out the removal of obstruction; B is the plainer idiomatic equivalent."
+   }
+  ]
+ },
+ {
+  "job": "ctl-badcand-19:23",
+  "tier": 1,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "D matches ours almost exactly but its 'completely forgotten' more vividly conveys the emphatic doubled root in نسيا منسيا.",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "نَسْيًا مَّنسِيًّا",
+    "ours": "a thing forgotten, left out of mind",
+    "best": "a thing forgotten, completely forgotten!",
+    "type": "nuance",
+    "why": "D's 'completely forgotten' brings out the emphatic doubling of the ن-س-ي root (noun + passive participle) more sharply than our paraphrase."
+   }
+  ]
+ },
+ {
+  "job": "ctl-badcand-49:13",
+  "tier": 1,
+  "review": false,
+  "best": "Saheeh International",
+  "summary": "BEST shows the plain conventional senses (peoples/tribes, righteous) where our translation deliberately departs toward root-based renderings (communities/clans, guarded in wary mindfulness).",
+  "ta": 1,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "شُعُوبًا وَقَبَائِلَ",
+    "ours": "communities and clans",
+    "best": "peoples and tribes",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'peoples and tribes' where our notes deliberately chose 'communities and clans' from Qur'anic root usage."
+   },
+   {
+    "arabic": "أَتْقَاكُمْ",
+    "ours": "the one most guarded (in wary mindfulness)",
+    "best": "the most righteous of you",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'righteous' where our notes chose the guarding/wariness sense of و ق ي."
+   },
+   {
+    "arabic": "أَكْرَمَكُمْ",
+    "ours": "the most honored of you",
+    "best": "the most noble of you",
+    "type": "nuance",
+    "why": "BEST's 'noble' keeps the inherent-status sense while ours brings out the bestowed-honor nuance of ك ر م."
+   }
+  ]
+ },
+ {
+  "job": "ctl-ours-19:23",
+  "tier": 3,
+  "review": true,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows that the labor pains drove her to the trunk of the palm tree, a detail our translation omits.",
+  "ta": 3,
+  "tb": 3,
+  "diffs": [
+   {
+    "arabic": "إِلَىٰ جِذْعِ ٱلنَّخْلَةِ",
+    "ours": "(omitted)",
+    "best": "to the trunk of the palm tree",
+    "type": "ours_omits",
+    "why": "The Arabic states the pains drove her to the palm trunk; our translation leaves this out."
+   },
+   {
+    "arabic": "مَّنسِيًّا",
+    "ours": "left out of mind",
+    "best": "completely forgotten",
+    "type": "nuance",
+    "why": "BEST keeps the emphatic doubled root نسيا منسيا more plainly as 'forgotten, completely forgotten'."
+   }
+  ]
+ },
+ {
+  "job": "ctl-ours-2:43",
+  "tier": 3,
+  "review": true,
+  "best": "Mufti Taqi Usmani",
+  "summary": "BEST shows that the verse commands bowing down together with those who bow, a phrase our translation omits entirely.",
+  "ta": 3,
+  "tb": 3,
+  "diffs": [
+   {
+    "arabic": "مَعَ ٱلرَّٰكِعِينَ",
+    "ours": "and bow down.",
+    "best": "and bow down with those who bow down",
+    "type": "ours_omits",
+    "why": "The Arabic explicitly commands bowing together with the participle الراكعين, which our translation drops."
+   }
+  ]
+ },
+ {
+  "job": "ctl-ours-3:15",
+  "tier": 3,
+  "review": true,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "A shows that the verse promises 'good pleasure from Allah' as a final blessing — a clause our translation omits.",
+  "ta": 3,
+  "tb": 3,
+  "diffs": [
+   {
+    "arabic": "وَرِضْوَٰنٌ مِّنَ ٱللَّهِ",
+    "ours": "(omitted)",
+    "best": "and good pleasure from Allah",
+    "type": "ours_omits",
+    "why": "The Arabic has 'and approval from Allah' as a fourth blessing; our translation drops the whole clause."
+   },
+   {
+    "arabic": "ٱتَّقَوْا۟",
+    "ours": "mindful (and protective) [of themselves]",
+    "best": "mindful (of God)",
+    "type": "conventional_sense",
+    "why": "A supplies the conventional object 'God' for taqwa where our rendering takes the reflexive sense 'of themselves'."
+   }
+  ]
+ },
+ {
+  "job": "ctl-ours-43:65",
+  "tier": 3,
+  "review": true,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST correctly renders ظلموا as active ('committed injustices'), while OUR translation mistakenly makes it passive ('were wronged').",
+  "ta": 3,
+  "tb": 3,
+  "diffs": [
+   {
+    "arabic": "ظَلَمُوا۟",
+    "ours": "were wronged",
+    "best": "committed injustices",
+    "type": "ours_mistranslates",
+    "why": "The Arabic verb is active voice (3MP perfect), meaning 'they wronged' or 'they did wrong', but OUR translation renders it as passive ('were wronged'), reversing who did the wronging."
+   }
+  ]
+ },
+ {
+  "job": "ctl-ours-49:13",
+  "tier": 2,
+  "review": true,
+  "best": "Saheeh International",
+  "summary": "BEST shows the verse's stated purpose — 'that you may know one another' — which our translation omits, and keeps the conventional 'most righteous' for atqākum.",
+  "ta": 3,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "لِتَعَارَفُوا",
+    "ours": "(omitted)",
+    "best": "that you may know one another",
+    "type": "ours_omits",
+    "why": "The Arabic states the purpose of making peoples and tribes — mutual acquaintance — which our translation leaves out entirely."
+   },
+   {
+    "arabic": "أَتْقَىٰكُمْ",
+    "ours": "the one most guarded (in wary mindfulness)",
+    "best": "the most righteous of you",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional 'righteous/God-fearing' sense of taqwā where ours deliberately chose 'guarded in wary mindfulness'."
+   },
+   {
+    "arabic": "شُعُوبًا وَقَبَائِلَ",
+    "ours": "communities and clans",
+    "best": "peoples and tribes",
+    "type": "nuance",
+    "why": "BEST's 'peoples and tribes' keeps the larger-to-smaller social scale of shuʿūb/qabāʾil more concretely than 'communities and clans'."
+   }
+  ]
+ },
+ {
+  "job": "ctl-ours-52:40",
+  "tier": 3,
+  "review": true,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows that the verse says 'you ask them' and 'they are burdened by debt' — our translation has the pronouns backwards.",
+  "ta": 3,
+  "tb": 3,
+  "diffs": [
+   {
+    "arabic": "تَسْـَلُهُمْ ... مُّثْقَلُونَ",
+    "ours": "do they ask you ... so that you are weighed down",
+    "best": "do you ask them ... so that they are weighed down",
+    "type": "ours_mistranslates",
+    "why": "Ours reverses the subject and object of the verb and misassigns the person of the participle; the Arabic has the Prophet asking them, and they being burdened."
+   }
+  ]
+ },
+ {
+  "job": "ctl-tafsir-2:43",
+  "tier": 0,
+  "review": false,
+  "best": "Fadel Soliman (Bridges)",
+  "summary": "BEST shows the conventional sense of ṣalāh as 'prayer' where OUR translation deliberately chose 'connection', and slightly emphasizes the definite group of those bowing down.",
+  "ta": 0,
+  "tb": 1,
+  "diffs": [
+   {
+    "arabic": "ٱلصَّلَوٰةَ",
+    "ours": "the connection",
+    "best": "the prayer",
+    "type": "conventional_sense",
+    "why": "BEST keeps the conventional sense of ṣalāh as prayer, while OUR translation deliberately chose 'connection' based on Qur'anic usage."
+   },
+   {
+    "arabic": "ٱلزَّكَوٰةَ",
+    "ours": "the purifying due",
+    "best": "the purifying charity",
+    "type": "nuance",
+    "why": "BEST's 'charity' brings out the concrete giving aspect of zakāh, while OUR 'due' emphasizes the obligatory nature; both are defensible but the nuance differs."
+   },
+   {
+    "arabic": "وَٱرْكَعُوا۟ مَعَ ٱلرَّٰكِعِينَ",
+    "ours": "and bow down along with those who bow down",
+    "best": "and bow down with the ones bowing down",
+    "type": "nuance",
+    "why": "BEST's 'the ones bowing down' renders the definite article on ٱلرَّٰكِعِينَ more explicitly than OUR 'those who bow down', slightly emphasizing the specific group."
+   }
+  ]
+ }
+]

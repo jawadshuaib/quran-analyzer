@@ -34,6 +34,7 @@ import { wrapArabicRuns } from '../../utils/arabic-runs';
 import type { Word, Segment } from '../../types';
 import type { DefaultReciter } from '../../api/quran';
 import { reciterAudioUrl } from '../../api/quran';
+import AltTranslation from '../AltTranslation';
 import {
   getVerseAudioStatus,
   toggleVerseAudio,
@@ -479,6 +480,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             surveyedRootsInVerse={verse.surveyed_roots}
           />
         </div>
+        <AltTranslation alt={verse.alt_translation} verseKey={verseKey} />
 
         {/* Inline expansions (only one open at a time) */}
         {activePanel === 'note' && (

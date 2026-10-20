@@ -21,6 +21,7 @@ import { useVerseHighlights } from '../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../utils/verse-highlights';
 import { getWordHover, subscribeWordHover, isWordHovered } from '../utils/word-hover';
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../utils/copy-context';
+import AltTranslation from './AltTranslation';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -588,6 +589,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           contextByRoot={contextByRoot}
         />
       </p>
+      <AltTranslation alt={data.alt_translation} verseKey={verseKey} />
 
       {/* Exegesis leads (it's the synthesis); Translation Notes follows as the
           supporting detail. When exegesis prose refers to "the translation

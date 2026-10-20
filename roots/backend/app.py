@@ -1477,6 +1477,7 @@ _load_embedding_matrix()
 # Reads a query that names a root ("S-W-M", "ṣ w m", "sawm"); used by the root
 # search and by search_v2's lexical arm.
 import root_query
+from alt_translations_ai import ensure_alt_table
 
 # Phase B: Voyage multilingual hybrid retrieval. Loads the v2 vector index from
 # the local DB (tolerant of a missing table — degrades to v1+lexical). No
@@ -3247,6 +3248,43 @@ def get_verse_preview(surah: int, ayah: int):
         conn.close()
 
 
+def _alt_translations(conn, surah, ayah=None):
+    """verse -> the public alternative translation shown under ours.
+
+    Tier 0 rows and rows an admin hid are never served. Tier 3 renders
+    expanded, 1-2 as a link (see AltTranslation.tsx)."""
+    ensure_alt_table(conn)
+    sql = ("SELECT verse, translator, text, tier, reader_note FROM verse_alt_translations "
+           "WHERE chapter = ? AND tier >= 1 AND review_status != 'hidden'")
+    params = [surah]
+    if ayah is not None:
+        sql += " AND verse = ?"
+        params.append(ayah)
+    alts = {
+        r["verse"]: {"translator": r["translator"], "text": r["text"],
+                     "tier": r["tier"], "note": r["reader_note"] or "",
+                     "anchors": []}
+        for r in conn.execute(sql, params)
+    }
+    # Transliterations in the note, resolved to verse words by
+    # align_note_anchors.py ('alt_notes'), so hovering one highlights the
+    # Arabic, as in the translation notes.
+    if alts:
+        try:
+            for a in conn.execute(
+                    "SELECT verse, span_text, script, word_start, word_end "
+                    "FROM note_word_anchors WHERE source = 'alt_notes' AND chapter = ?"
+                    + (" AND verse = ?" if ayah is not None else ""),
+                    params[:2] if ayah is not None else params[:1]):
+                if a["verse"] in alts:
+                    alts[a["verse"]]["anchors"].append(
+                        {"span": a["span_text"], "script": a["script"],
+                         "start": a["word_start"], "end": a["word_end"]})
+        except sqlite3.OperationalError:
+            pass  # anchors table not synced yet: the note renders as prose
+    return alts
+
+
 @app.route("/api/verse/<int:surah>:<int:ayah>")
 def get_verse(surah: int, ayah: int):
     conn = get_db()
@@ -3390,6 +3428,7 @@ def get_verse(surah: int, ayah: int):
             "surah_name": _surah_name(surah),
             "text_uthmani": _strip_bismillah(verse["text_uthmani"], surah, ayah),
             "translation": _best_translation(conn, surah, ayah),
+            "alt_translation": _alt_translations(conn, surah, ayah).get(ayah),
             "words": words_list,
             "roots_summary": roots_list,
             # lemma -> short core-meaning passage, for the word tooltip. Sent
@@ -3533,6 +3572,7 @@ def get_surah(surah: int):
             (surah,),
         ).fetchall()
         has_poetry = {r["verse"] for r in poetry_rows}
+        alt_by_verse = _alt_translations(conn, surah)
 
         # Optional: per-word data (full segments + translation). Grouped
         # by word_pos so prefixes/suffixes/content all live under one
@@ -3701,6 +3741,7 @@ def get_surah(surah: int):
                 "has_grammar_note": v in has_grammar,
                 "has_exegesis": v in has_exegesis,
                 "has_poetry_note": v in has_poetry,
+                "alt_translation": alt_by_verse.get(v),
             }
             if include_words:
                 entry["words"] = words_by_verse.get(v, [])
@@ -9032,6 +9073,108 @@ def admin_update_exegesis(exeg_id):
             f"SELECT {_EXEG_COLUMNS} FROM verse_exegesis WHERE id = ?", (exeg_id,)
         ).fetchone()
         return jsonify({"ok": True, "item": _exeg_row_to_dict(row)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/alt-translations", methods=["GET"])
+@admin_required
+def admin_list_alt_translations():
+    """Alternative translations for review. status: pending (a judge says
+    OUR translation omits or mistranslates something), shown (tier >= 1,
+    not hidden), hidden, or all. Includes both judges' reasoning."""
+    status = (request.args.get("status") or "pending").strip()
+    tier = request.args.get("tier")
+    try:
+        limit = min(max(int(request.args.get("limit", 25)), 1), 100)
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (ValueError, TypeError):
+        limit, offset = 25, 0
+    where, params = [], []
+    if status == "pending":
+        where.append("review_status = 'pending'")
+    elif status == "shown":
+        where.append("tier >= 1 AND review_status != 'hidden'")
+    elif status == "hidden":
+        where.append("review_status = 'hidden'")
+    if tier not in (None, ""):
+        where.append("tier = ?")
+        params.append(int(tier))
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    conn = get_db()
+    try:
+        ensure_alt_table(conn)
+        total = conn.execute(
+            f"SELECT COUNT(*) AS c FROM verse_alt_translations {where_sql}", params
+        ).fetchone()["c"]
+        rows = conn.execute(
+            f"SELECT * FROM verse_alt_translations {where_sql} "
+            "ORDER BY tier DESC, chapter, verse LIMIT ? OFFSET ?",
+            params + [limit, offset],
+        ).fetchall()
+        items = [{
+            "ref": f"{r['chapter']}:{r['verse']}",
+            "chapter": r["chapter"], "verse": r["verse"],
+            "ours": _best_translation(conn, r["chapter"], r["verse"]),
+            "translator": r["translator"], "text": r["text"], "tier": r["tier"],
+            "note": r["reader_note"] or "", "needs_review": bool(r["needs_review"]),
+            "review_status": r["review_status"], "reviewed_at": r["reviewed_at"],
+            "judges": json.loads(r["judges_json"] or "[]"),
+        } for r in rows]
+        counts = {
+            "tiers": {str(t): c for t, c in conn.execute(
+                "SELECT tier, COUNT(*) FROM verse_alt_translations "
+                "WHERE review_status != 'hidden' GROUP BY tier")},
+            "pending": conn.execute(
+                "SELECT COUNT(*) FROM verse_alt_translations WHERE review_status='pending'"
+            ).fetchone()[0],
+            "hidden": conn.execute(
+                "SELECT COUNT(*) FROM verse_alt_translations WHERE review_status='hidden'"
+            ).fetchone()[0],
+        }
+        return jsonify({"items": items, "total": total, "limit": limit,
+                        "offset": offset, "counts": counts})
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/alt-translations/<int:surah>:<int:ayah>", methods=["PATCH"])
+@admin_required
+def admin_update_alt_translation(surah, ayah):
+    """Approve, hide or re-pend a verse's alternative; change its tier or
+    reader note. Reviewed rows survive later pipeline reloads."""
+    data = request.get_json(force=True) or {}
+    sets, params = [], []
+    if "review_status" in data:
+        if data["review_status"] not in ("approved", "hidden", "pending"):
+            return jsonify({"error": "review_status must be approved/hidden/pending"}), 400
+        sets.append("review_status = ?")
+        params.append(data["review_status"])
+    if "tier" in data:
+        if data["tier"] not in (0, 1, 2, 3):
+            return jsonify({"error": "tier must be 0-3"}), 400
+        sets.append("tier = ?")
+        params.append(data["tier"])
+        if "review_status" not in data:
+            sets.append("review_status = 'approved'")
+    if "note" in data:
+        if not isinstance(data["note"], str):
+            return jsonify({"error": "note must be a string"}), 400
+        sets.append("reader_note = ?")
+        params.append(data["note"].strip()[:500])
+    if not sets:
+        return jsonify({"error": "No updatable fields provided"}), 400
+    sets.append("reviewed_at = datetime('now')")
+    conn = get_db()
+    try:
+        ensure_alt_table(conn)
+        cur = conn.execute(
+            f"UPDATE verse_alt_translations SET {', '.join(sets)} "
+            "WHERE chapter = ? AND verse = ?", params + [surah, ayah])
+        conn.commit()
+        if cur.rowcount == 0:
+            return jsonify({"error": "No alternative translation for this verse"}), 404
+        return jsonify({"ok": True})
     finally:
         conn.close()
 

@@ -3133,3 +3133,69 @@ export async function patchStudioLesson(
   });
   if (!res.ok) throw new Error((await res.json()).error || 'Update failed');
 }
+
+// ── Alternative translations ─────────────────────────────────────────
+
+export interface AdminAltJudge {
+  model: string;
+  tier: number;
+  best: string;
+  summary: string;
+  differences: {
+    arabic?: string; ours?: string; best?: string; type?: string; why?: string;
+    /** Set on claimed errors in OUR translation after the reasoning re-check. */
+    verifier?: 'confirmed' | 'defensible' | 'rejected' | 'unverified';
+    verifier_reason?: string;
+  }[];
+  ours_check: { arabic?: string; problem?: string; why?: string }[];
+}
+
+export interface AdminAltItem {
+  ref: string;
+  chapter: number;
+  verse: number;
+  ours: string;
+  translator: string;
+  text: string;
+  tier: number;
+  note: string;
+  needs_review: boolean;
+  review_status: 'auto' | 'pending' | 'approved' | 'hidden';
+  reviewed_at: string | null;
+  judges: AdminAltJudge[];
+}
+
+export interface AdminAltListResponse {
+  items: AdminAltItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  counts: { tiers: Record<string, number>; pending: number; hidden: number };
+}
+
+export type AdminAltStatus = 'pending' | 'shown' | 'hidden' | 'all';
+
+export async function getAdminAltTranslations(
+  query: { status: AdminAltStatus; tier?: number | ''; limit?: number; offset?: number },
+): Promise<AdminAltListResponse> {
+  const params = new URLSearchParams({ status: query.status });
+  if (query.tier !== undefined && query.tier !== '') params.set('tier', String(query.tier));
+  params.set('limit', String(query.limit ?? 25));
+  params.set('offset', String(query.offset ?? 0));
+  const res = await authFetch(`${BASE}/alt-translations?${params}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to load alternative translations');
+  return data as AdminAltListResponse;
+}
+
+export async function updateAdminAltTranslation(
+  ref: string,
+  patch: { review_status?: 'approved' | 'hidden' | 'pending'; tier?: number; note?: string },
+): Promise<void> {
+  const res = await authFetch(`${BASE}/alt-translations/${ref}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Update failed');
+}

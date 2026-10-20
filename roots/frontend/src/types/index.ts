@@ -59,6 +59,17 @@ export interface VerseNavRef {
   ayah: number;
 }
 
+/** A public-domain translation judged to add something to ours (see
+ *  AltTranslation.tsx for what each tier means). Absent when tier 0. */
+export interface AltTranslationData {
+  translator: string;
+  text: string;
+  tier: number;
+  note: string;
+  /** Transliterations in `note` that quote this verse (hover-to-highlight). */
+  anchors?: WordAnchor[];
+}
+
 export interface VerseData {
   surah: number;
   ayah: number;
@@ -74,6 +85,7 @@ export interface VerseData {
   /** lemma_arabic -> which root-page evidence sections exist for that passage,
    *  so the tooltip only links a mention it can back up. */
   core_evidence?: Record<string, CoreEvidence>;
+  alt_translation?: AltTranslationData | null;
   previous?: VerseNavRef | null;
   next?: VerseNavRef | null;
 }
@@ -110,6 +122,7 @@ export interface SurahVerse {
   has_exegesis?: boolean;
   /** True when an approved, non-hidden pre-Islamic poetry note exists. */
   has_poetry_note?: boolean;
+  alt_translation?: AltTranslationData | null;
   /** Present when /api/surah/<n>?include=words was requested. */
   words?: SurahVerseWord[];
   /** Present when ?include=surveyed_roots was requested. Subset of roots

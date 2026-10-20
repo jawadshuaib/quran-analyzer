@@ -36,6 +36,7 @@ import StatsPage from './StatsPage';
 import JudgeLessonsPage from './JudgeLessonsPage';
 import AdminAssistantQA from './AdminAssistantQA';
 import AdminExegesis from './AdminExegesis';
+import AdminAltTranslations from './AdminAltTranslations';
 import AdminRootMeanings from './AdminRootMeanings';
 import AdminPoetry from './AdminPoetry';
 import AdminDictionaries from './AdminDictionaries';
@@ -58,6 +59,7 @@ type AdminRoute =
   | 'assistant-qa'
   | 'root-meanings'
   | 'exegesis'
+  | 'alt-translations'
   | 'poetry'
   | 'dictionaries'
   | 'qa-videos';
@@ -97,6 +99,7 @@ function getAdminRoute(): AdminRoute {
   if (/^\/admin\/qa\/?$/.test(path)) return 'assistant-qa';
   if (/^\/admin\/root-meanings\/?$/.test(path)) return 'root-meanings';
   if (/^\/admin\/exegesis\/?$/.test(path)) return 'exegesis';
+  if (/^\/admin\/alt-translations\/?$/.test(path)) return 'alt-translations';
   if (/^\/admin\/poetry\/?$/.test(path)) return 'poetry';
   if (/^\/admin\/dictionaries\/?$/.test(path)) return 'dictionaries';
   if (/^\/admin\/qa-videos\/?$/.test(path)) return 'qa-videos';
@@ -174,6 +177,12 @@ const ADMIN_SECTIONS: AdminSection[] = [
     label: 'Exegesis',
     description: 'Teacher-voice commentary distilled from the verse Q&A, shown beneath the translation notes.',
     matches: (r) => r === 'exegesis',
+  },
+  {
+    href: '/admin/alt-translations',
+    label: 'Alternative Translations',
+    description: 'Public-domain translations shown under ours when two judges find they add something. Review verses where a judge says ours errs.',
+    matches: (r) => r === 'alt-translations',
   },
   {
     href: '/admin/poetry',
@@ -381,6 +390,7 @@ export default function AdminPage() {
         {route === 'assistant-qa' && <AdminAssistantQA />}
         {route === 'root-meanings' && <AdminRootMeanings />}
         {route === 'exegesis' && <AdminExegesis />}
+        {route === 'alt-translations' && <AdminAltTranslations />}
         {route === 'poetry' && <AdminPoetry />}
         {route === 'dictionaries' && <AdminDictionaries />}
         {route === 'qa-videos' && <AdminQaVideos />}
@@ -868,6 +878,19 @@ const SECTION_STYLES: SectionStyle[] = [
         <path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
         <path d="M14 3v5h5" />
         <path d="M8 13h8M8 17h5" />
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/alt-translations',
+    label: 'Alternative Translations',
+    description: 'Pickthall / Yusuf Ali shown under our translation when two judges find they add something. Review verses where a judge says ours errs.',
+    accent: 'bg-stone-100 text-stone-700 ring-stone-200',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+        <path d="M4 7h11M4 12h8" />
+        <path d="M4 17c2-1.5 3-1.5 4.5 0s2.5 1.5 4.5 0 3-1.5 4.5 0" />
+        <path d="M17 4l3 3-3 3" />
       </svg>
     ),
   },

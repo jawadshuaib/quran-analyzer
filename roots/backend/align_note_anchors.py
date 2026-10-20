@@ -57,6 +57,11 @@ SOURCES = (
     # is why strip_foreign_arabic below exists.
     ('poetry',
      "SELECT chapter, verse, note_markdown FROM verse_poetry_notes"),
+    # The note under "See translation by X" (alt_translations_ai.py marks its
+    # transliterations in *italics* when it loads them).
+    ('alt_notes',
+     "SELECT chapter, verse, reader_note FROM verse_alt_translations "
+     "WHERE tier >= 1 AND review_status != 'hidden'"),
 )
 
 # A poetry note carries the poets' lines inline as [[q:<id>|<arabic>]]. Those are
@@ -115,6 +120,11 @@ def _tok_eq(word_key: str, cited_key: str) -> bool:
     if word_key == cited_key:
         return True
     if _strip_conj(word_key) == _strip_conj(cited_key):
+        return True
+    # word_translit spells a silent final alif (فِى as "fiā", قالوا as
+    # "qālūā"), while notes write "fī", "qālū". Long words already match by
+    # prefix below; this catches the short ones.
+    if word_key == cited_key + 'a':
         return True
     return len(cited_key) >= 3 and (word_key.startswith(cited_key)
                                     or cited_key.startswith(word_key))

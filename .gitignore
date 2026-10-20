@@ -97,3 +97,4 @@ roots/backend/data/dict_translate_dump.json
 # Claude
 CLAUDE.md
 .claude/
+roots/backend/data/alt_translations_cache/
