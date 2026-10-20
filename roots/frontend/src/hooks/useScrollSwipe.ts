@@ -2,15 +2,15 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
 /**
- * Swipe between verses on touch screens, drawn as a paper scroll: two rollers
- * appear at the screen edges, the verse card follows the finger, and on
- * release it furls into one roller while the next verse unfurls from the
+ * Swipe between verses on touch screens, drawn as a paper scroll: the verse
+ * card follows the finger with its leading edge shaded as if curving away,
+ * and on release it furls off one side while the next verse unfurls from the
  * other. Left = next verse, right = previous (the ← / → keys' touch twin).
  *
  * The card unmounts while the next verse loads (App sets data to null), so
- * the rollers live on <body> and the "unfurl" direction is handed to the next
- * mount through `pendingEnter`. Everything moves with transform / opacity
- * only: iOS freezes width animations mid-navigation.
+ * the "unfurl" direction is handed to the next mount through `pendingEnter`.
+ * Everything moves with transform / opacity only: iOS freezes width
+ * animations mid-navigation.
  */
 
 const FLICK_DISTANCE = 60; // px: a quick swipe this long turns the page
@@ -25,8 +25,8 @@ const UNFURL_MS = 340;
 
 type Dir = 'next' | 'previous';
 
-let rollers: HTMLDivElement | null = null;
-let rollersTimer: ReturnType<typeof setTimeout> | null = null;
+let releaseTimer: ReturnType<typeof setTimeout> | null = null;
+let clipped = false;
 /** Set when a swipe navigates; the next card to mount unfurls from it. */
 let pendingEnter: { dir: Dir; at: number } | null = null;
 
@@ -34,26 +34,18 @@ function reducedMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 }
 
-function showRollers(opacity: number, ms = 0) {
-  if (rollersTimer) { clearTimeout(rollersTimer); rollersTimer = null; }
-  if (!rollers) {
-    rollers = document.createElement('div');
-    rollers.setAttribute('aria-hidden', 'true');
-    rollers.className = 'scroll-rollers';
-    rollers.innerHTML = '<div class="scroll-roller scroll-roller-left"></div>'
-      + '<div class="scroll-roller scroll-roller-right"></div>';
-    document.body.appendChild(rollers);
-  }
-  rollers.style.transition = ms ? `opacity ${ms}ms ease` : 'none';
-  rollers.style.opacity = String(opacity);
+/** While the card is off to one side, keep it from widening the page. */
+function clipPage() {
+  if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null; }
+  clipped = true;
+  document.documentElement.style.overflowX = 'hidden';
 }
 
-function hideRollers(ms = 200) {
-  if (!rollers) return;
-  showRollers(0, ms);
-  rollersTimer = setTimeout(() => {
-    rollers?.remove();
-    rollers = null;
+function releasePage(ms = 0) {
+  if (releaseTimer) clearTimeout(releaseTimer);
+  releaseTimer = setTimeout(() => {
+    releaseTimer = null;
+    clipped = false;
     document.documentElement.style.overflowX = '';
   }, ms + 20);
 }
@@ -73,7 +65,7 @@ function startsInBlockedArea(target: EventTarget | null): boolean {
   return false;
 }
 
-/** Shade the card edge heading into a roller, as paper curving round it. */
+/** Shade the card's leading edge, as paper curving away as it rolls. */
 function setCurl(curl: HTMLElement | null, side: 'left' | 'right', amount: number, ms = 0) {
   if (!curl) return;
   curl.dataset.side = side;
@@ -105,17 +97,21 @@ export function useScrollSwipe({
   const handlers = useRef({ onPrevious, onNext });
   handlers.current = { onPrevious, onNext };
 
-  // Unfurl: the verse a swipe navigated to rolls out of the opposite roller.
+  // Unfurl: the verse a swipe navigated to rolls in from the opposite side.
   useLayoutEffect(() => {
     const card = cardRef.current;
     const p = pendingEnter;
     pendingEnter = null;
     if (!card || !p || Date.now() - p.at > 6000 || reducedMotion()) {
-      if (rollers) hideRollers();
+      // Whatever else happened (a load error, or StrictMode re-running this
+      // effect after its cleanup cancelled the timer below), never leave the
+      // page clipped.
+      if (clipped) releasePage(UNFURL_MS);
       return;
     }
     const rect = card.getBoundingClientRect();
     const from = p.dir === 'next' ? window.innerWidth - rect.left : -rect.right;
+    clipPage();
     moveCard(card, from);
     setCurl(curlRef.current, p.dir === 'next' ? 'right' : 'left', 1);
     void card.offsetWidth; // commit the start position before animating
@@ -123,7 +119,7 @@ export function useScrollSwipe({
     setCurl(curlRef.current, p.dir === 'next' ? 'right' : 'left', 0, UNFURL_MS);
     const t = setTimeout(() => {
       card.style.transition = '';
-      hideRollers(220);
+      releasePage();
     }, UNFURL_MS);
     return () => clearTimeout(t);
   }, [verseKey, cardRef, curlRef]);
@@ -160,8 +156,7 @@ export function useScrollSwipe({
       if (reducedMotion()) { g.dx = dx; return; }
       const has = dx < 0 ? !!handlers.current.onNext : !!handlers.current.onPrevious;
       g.dx = has ? dx : dx * RUBBER;
-      document.documentElement.style.overflowX = 'hidden';
-      showRollers(Math.min(1, Math.abs(g.dx) / 40));
+      clipPage();
       moveCard(card, g.dx);
       setCurl(curlRef.current, g.dx < 0 ? 'left' : 'right', Math.abs(g.dx) / (window.innerWidth * 0.5));
     };
@@ -169,7 +164,7 @@ export function useScrollSwipe({
     const springBack = () => {
       moveCard(card, 0, 200);
       setCurl(curlRef.current, curlRef.current?.dataset.side === 'right' ? 'right' : 'left', 0, 200);
-      hideRollers(200);
+      releasePage(200);
       setTimeout(() => { card.style.transition = ''; }, 220);
     };
 
@@ -188,18 +183,17 @@ export function useScrollSwipe({
       if (!go || selecting || !(quick || far)) { springBack(); return; }
       if (reducedMotion()) { go(); return; }
 
-      // Furl: roll the card the rest of the way into the roller, then go.
+      // Furl: roll the card the rest of the way off the screen, then go.
       const rect = card.getBoundingClientRect();
       const offX = s.dx + (dir === 'next' ? -rect.right : window.innerWidth - rect.left);
-      showRollers(1, 120);
       moveCard(card, offX, FURL_MS, 'cubic-bezier(0.4, 0, 1, 1)');
       setCurl(curlRef.current, dir === 'next' ? 'left' : 'right', 1, FURL_MS);
       setTimeout(() => {
         pendingEnter = { dir, at: Date.now() };
         go();
-        // If no card mounts (load error), don't leave the rollers up.
-        rollersTimer = setTimeout(() => {
-          if (pendingEnter) { pendingEnter = null; moveCard(card, 0); hideRollers(); }
+        // If no card mounts (load error), don't leave the page clipped.
+        setTimeout(() => {
+          if (pendingEnter) { pendingEnter = null; releasePage(); }
         }, 6000);
       }, FURL_MS);
     };

@@ -118,44 +118,8 @@ summary {
   line-height: 1;
 }
 
-/* Swipe between verses (useScrollSwipe): two rollers at the screen edges and
-   a shade on the card edge curving into them, so the swipe reads as a paper
-   scroll being furled and unfurled. Opacity/transform only. */
-.scroll-rollers {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  pointer-events: none;
-  opacity: 0;
-}
-.scroll-roller {
-  position: absolute;
-  top: 9vh;
-  bottom: 9vh;
-  width: 14px;
-  border-radius: 7px;
-  background: linear-gradient(90deg,
-    var(--color-gold-dark) 0%, var(--color-gold) 30%, var(--color-gold-light) 50%,
-    var(--color-gold) 70%, var(--color-gold-dark) 100%);
-  box-shadow: 0 2px 10px rgba(44, 44, 42, 0.25);
-}
-.scroll-roller::before,
-.scroll-roller::after {
-  /* the knobs at either end of the rod */
-  content: '';
-  position: absolute;
-  left: 50%;
-  width: 20px;
-  height: 12px;
-  margin-left: -10px;
-  border-radius: 6px;
-  background: radial-gradient(circle at 50% 35%, var(--color-gold-light), var(--color-gold-dark) 75%);
-}
-.scroll-roller::before { top: -10px; }
-.scroll-roller::after { bottom: -10px; }
-.scroll-roller-left { left: 4px; }
-.scroll-roller-right { right: 4px; }
-
+/* Swipe between verses (useScrollSwipe): a shade on the verse card's leading
+   edge, as paper curving away while it furls and unfurls. Opacity only. */
 .scroll-curl {
   position: absolute;
   top: 0;
