@@ -4417,31 +4417,27 @@ _CHIP_WORD_FAMILIES: dict[str, list[str]] = {
     "Slw":  ["connect", "connects", "connected", "connecting",
              "connection", "connections",
              "prayer", "prayers", "praying", "prayed", "prays"],
-    # zkw → grow (canonical) ∪ alms / zakah / purifying-due (conventional)
-    "zkw":  ["grow", "grows", "grew", "grown", "growing", "growth",
-             "alms", "almsgiving", "zakah", "zakāh", "zakat"],
+    # zkw → zakāh (kept in Arabic) ∪ alms (conventional). Not "grow": 30:39
+    # has ribā's "grow" (r-b-w) beside zakāh.
+    "zkw":  ["alms", "almsgiving", "zakah", "zakāh", "zakat"],
     # Swm → abstain (canonical) ∪ fasting (conventional)
     "Swm":  ["abstain", "abstains", "abstained", "abstaining",
              "abstention", "abstinence",
              "fasting", "fasted", "fasts"],
-    # Hjj → argue (canonical) ∪ pilgrimage (conventional)
-    "Hjj":  ["argue", "argues", "argued", "arguing", "argument", "arguments",
-             "pilgrimage", "pilgrim", "pilgrims"],
-    # sjd → submit (canonical) ∪ prostrate/prostration (conventional)
-    "sjd":  ["submit", "submits", "submitted", "submitting", "submission",
-             "submissions", "submissive",
-             "prostrate", "prostrates", "prostrated", "prostrating",
+    # Hjj → ḥajj (kept in Arabic) ∪ pilgrimage (conventional). Not "argue":
+    # 2:197 has jidāl's "arguing" (j-d-l) beside ḥajj.
+    "Hjj":  ["pilgrimage", "pilgrim", "pilgrims"],
+    # sjd → prostrate (canonical, also conventional)
+    "sjd":  ["prostrate", "prostrates", "prostrated", "prostrating",
              "prostration", "prostrations"],
-    # rkE → humble (canonical) ∪ bowing (conventional, narrow)
-    "rkE":  ["humble", "humbles", "humbled", "humbling", "humbly",
-             "humility",
-             "bowing", "bowed"],
+    # rkE → bow (canonical, also conventional; bare "bow" stays excluded)
+    "rkE":  ["bowing", "bowed", "bowers"],
     # snn → pattern (canonical) ∪ sunnah (conventional)
     "snn":  ["pattern", "patterns", "patterned",
              "sunnah", "sunna"],
-    # nsk → devotion (canonical)
-    "nsk":  ["devote", "devotes", "devoted", "devoting", "devotion",
-             "devotions", "devotional"],
+    # nsk → kept in Arabic; the italics carry the chip. Not "devoted": 2:128
+    # has s-l-m's "wholly devoted" beside manāsik.
+    "nsk":  [],
     # qwm → stand (canonical, broad) — only chip the conventional ritual word
     # "establish" since bare "stand" is too ambiguous
     "qwm":  ["establish", "establishes", "established", "establishing"],
