@@ -268,6 +268,26 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectionKey, data.surah, data.ayah]);
 
+  // ← / → step to the previous / next verse, like the chevrons beside the
+  // reference. Left alone while typing, with a modifier held (Shift+Arrow
+  // selects text, Alt/Cmd+Arrow is browser history) or with a dialog open.
+  useEffect(() => {
+    if (!onNavigate) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      const to = e.key === 'ArrowLeft' ? data.previous : data.next;
+      if (!to) return;
+      e.preventDefault();
+      onNavigate(to.surah, to.ayah);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [data.previous, data.next, onNavigate]);
+
   // Find the root summary for the expanded root
   const expandedRootData: RootSummary | undefined = expandedRoot
     ? data.roots_summary.find((r) => r.root_buckwalter === expandedRoot)
