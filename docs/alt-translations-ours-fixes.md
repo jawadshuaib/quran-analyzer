@@ -1,7 +1,7 @@
 # Our translation: fixes from the alt-translation review
 
 **Status: APPLIED to the local dev DB on 2026-10-20 (owner-approved, all fixes
-including 5:6). NOT synced to prod.** Exact before/after texts are in
+including 5:6, rendered with dashes rather than brackets). NOT synced to prod.** Exact before/after texts are in
 [alt-translations-ours-fixes.json](alt-translations-ours-fixes.json).
 
 What was done:
@@ -189,9 +189,9 @@ reading exists (compare 56:63–64, "is it you who make it grow, or We?").
 - **Morphology:** بِرُءُوسِ `GEN` (after bi-), أَرْجُلَ **`ACC`**. The same case as وُجُوهَ and أَيْدِيَ, the objects of ٱغْسِلُوا.
 - **Ours:** "and wipe your heads and your feet up to the ankles". This follows the other case reading.
 - **Assessment:** On the text we display, the case grammar groups the feet with the washed parts. The verse's own structure points the same way: the washed parts have limits (إِلَى ٱلْمَرَافِقِ, إِلَى ٱلْكَعْبَيْنِ), while the head has none. "Wipe" is still grammatically possible: the accusative can be joined to the *position* of بِرُءُوسِكُمْ, the object of the nearer verb. And the genitive reading وَأَرْجُلِكُمْ (Ibn Kathīr, Abū ʿAmr, Ḥamza and Shuʿba, among others) gives "wipe" outright. So this is a real textual question, not a slip. Ours currently takes a side that the displayed text does not show.
-- **Recommended:** … and wipe your heads, and **[wash]** your feet up to the ankles. The brackets show the verb is implied by the case, not written.
+- **Applied (revised 2026-10-20 after the owner questioned brackets):** … then wash your faces and your hands up to the elbows **— and wipe your heads —** and your feet up to the ankles. The Arabic marks the grouping by case alone, with no second verb. So the dashes set the head-wiping off as an inserted clause, and "and your feet" resumes the washing list without any added word. (The first version used "[wash]" in brackets.)
 - **Departure note to add:**
-  > - "[wash] your feet": وَأَرْجُلَكُمْ is accusative in the text shown, matching وُجُوهَكُمْ وَأَيْدِيَكُمْ (objects of ٱغْسِلُوا), and like them it has a limit (إِلَى ٱلْكَعْبَيْنِ) where the head (بِرُءُوسِكُمْ, genitive after bi-) has none. "Wash" is therefore supplied in brackets. The genitive reading وَأَرْجُلِكُمْ attaches the feet to ٱمْسَحُوا ("wipe").
+  > - "— and wipe your heads — and your feet": وَأَرْجُلَكُمْ is accusative in the text shown, matching وُجُوهَكُمْ وَأَيْدِيَكُمْ (objects of ٱغْسِلُوا), and like them it has a limit (إِلَى ٱلْكَعْبَيْنِ) where the head (بِرُءُوسِكُمْ, genitive after bi-) has none. The Arabic marks this by case alone, so the dashes set "and wipe your heads" off as an inserted clause. The genitive reading وَأَرْجُلِكُمْ attaches the feet to ٱمْسَحُوا ("wipe").
 - **Alternative:** keep "wipe" and add only the note. I don't recommend this, because the English would then contradict the displayed Arabic.
 
 ---
