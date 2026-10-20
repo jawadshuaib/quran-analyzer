@@ -22,7 +22,7 @@ import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../utils/verse-h
 import { getWordHover, subscribeWordHover, isWordHovered } from '../utils/word-hover';
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../utils/copy-context';
 import AltTranslation from './AltTranslation';
-import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
+import { useScrollSwipe } from '../hooks/useScrollSwipe';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -290,8 +290,12 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   }, [data.previous, data.next, onNavigate]);
 
   // The same on touch screens: swipe left for the next verse, right for the
-  // previous one.
-  useSwipeNavigation({
+  // previous one, drawn as a paper scroll furling and unfurling.
+  const curlRef = useRef<HTMLDivElement>(null);
+  useScrollSwipe({
+    cardRef: containerRef,
+    curlRef,
+    verseKey,
     enabled: !!onNavigate,
     onPrevious: data.previous ? () => onNavigate?.(data.previous!.surah, data.previous!.ayah) : undefined,
     onNext: data.next ? () => onNavigate?.(data.next!.surah, data.next!.ayah) : undefined,
@@ -360,6 +364,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
       }`}
       onClick={clearAll}
     >
+      <div ref={curlRef} aria-hidden="true" className="scroll-curl" data-side="left" />
       {/* Save + note buttons — top-left, floating on card border */}
       <div className="absolute -top-2.5 -left-2.5 z-10 flex items-center gap-1 rounded-full bg-white shadow-sm pr-1">
         <SaveButton
