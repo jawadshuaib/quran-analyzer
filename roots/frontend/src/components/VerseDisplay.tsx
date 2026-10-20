@@ -22,6 +22,7 @@ import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../utils/verse-h
 import { getWordHover, subscribeWordHover, isWordHovered } from '../utils/word-hover';
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../utils/copy-context';
 import AltTranslation from './AltTranslation';
+import { useSwipeNavigation } from '../hooks/useSwipeNavigation';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
 
@@ -287,6 +288,14 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [data.previous, data.next, onNavigate]);
+
+  // The same on touch screens: swipe left for the next verse, right for the
+  // previous one.
+  useSwipeNavigation({
+    enabled: !!onNavigate,
+    onPrevious: data.previous ? () => onNavigate?.(data.previous!.surah, data.previous!.ayah) : undefined,
+    onNext: data.next ? () => onNavigate?.(data.next!.surah, data.next!.ayah) : undefined,
+  });
 
   // Find the root summary for the expanded root
   const expandedRootData: RootSummary | undefined = expandedRoot
