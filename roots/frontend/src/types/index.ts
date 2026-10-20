@@ -709,6 +709,9 @@ export interface WordOccurrence {
   conventional_gloss: string;
   ai_meaning: string | null;
   verse_root_buckwalters?: string[];
+  /** Cosine similarity of this verse to the word's own verse (null when
+   *  embeddings are unavailable and the list is in Qur'an order). */
+  similarity?: number | null;
 }
 
 export interface WordAIMeaning {
@@ -740,6 +743,8 @@ export interface WordAnalysisData {
   lemma_buckwalter: string | null;
   cognate: CognateData | null;
   other_occurrences: WordOccurrence[];
+  /** 'meaning': closest in meaning to this verse first; 'mushaf': Qur'an order. */
+  occurrences_order?: 'meaning' | 'mushaf';
   total_lemma_occurrences: number;
   ai_meaning: WordAIMeaning | null;
   verse_root_buckwalters?: string[];

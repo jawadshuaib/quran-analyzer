@@ -5012,6 +5012,43 @@ def get_word_meanings(surah: int, ayah: int):
         conn.close()
 
 
+def _semantic_similarity_to(src, candidates):
+    """(chapter, verse) -> cosine similarity to `src`, for each candidate verse.
+
+    Uses the Voyage verse embeddings behind hybrid search (search_v2), averaging
+    Arabic-to-Arabic and English-to-English similarity so neither the original
+    nor our translation alone decides. Falls back to the older MiniLM matrix,
+    and returns {} when neither is loaded (callers keep Qur'an order).
+    Returns (scores, source_name)."""
+    if search_v2 is not None and search_v2._v2_ready and search_v2._v2_matrix is not None:
+        m, rows, dts = search_v2._v2_matrix, search_v2._v2_verse_rows, search_v2._v2_doc_type
+        src_rows = rows.get(src)
+        if src_rows is not None and len(src_rows):
+            sums, counts = {}, {}
+            for si in src_rows:
+                dt = dts[si]
+                idx, keys = [], []
+                for c in candidates:
+                    for i in rows.get(c, ()):
+                        if dts[i] == dt:
+                            idx.append(i)
+                            keys.append(c)
+                if not idx:
+                    continue
+                for k, sim in zip(keys, (m[idx] @ m[si]).tolist()):
+                    sums[k] = sums.get(k, 0.0) + sim
+                    counts[k] = counts.get(k, 0) + 1
+            return {k: sums[k] / counts[k] for k in sums}, "voyage"
+    if _embedding_matrix is not None and _embedding_keys:
+        pos = {k: i for i, k in enumerate(_embedding_keys)}
+        if src in pos:
+            keys = [c for c in candidates if c in pos]
+            if keys:
+                sims = _embedding_matrix[[pos[c] for c in keys]] @ _embedding_matrix[pos[src]]
+                return dict(zip(keys, np.ravel(sims).tolist())), "minilm"
+    return {}, None
+
+
 @app.route("/api/word/<int:surah>:<int:ayah>/<int:pos>")
 def get_word_detail(surah: int, ayah: int, pos: int):
     """Return full word analysis data for the dedicated word page."""
@@ -5103,14 +5140,19 @@ def get_word_detail(surah: int, ayah: int, pos: int):
         # Get cognate data
         cognate = _get_cognate(conn, main_root_bw) if main_root_bw else None
 
-        # Find other occurrences of the same lemma (up to 10)
+        # Other occurrences of the same lemma: the 10 closest in meaning to
+        # this verse, so the list shows where the word is used in the same
+        # sense rather than wherever it happens to come first in the Qur'an.
         other_occurrences = []
+        occurrences_order = "mushaf"
         if main_lemma_bw:
-            lemma_verses = sorted(_lemma_inv.get(main_lemma_bw, set()))
+            lemma_verses = sorted(_lemma_inv.get(main_lemma_bw, set()) - {(surah, ayah)})
+            similarity, sim_source = _semantic_similarity_to((surah, ayah), lemma_verses)
+            if similarity:
+                occurrences_order = "meaning"
+                lemma_verses.sort(key=lambda k: -similarity.get(k, -1.0))  # stable: ties keep Qur'an order
             count = 0
             for ch, v in lemma_verses:
-                if ch == surah and v == ayah:
-                    continue
                 if count >= 10:
                     break
 
@@ -5157,6 +5199,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
                     "conventional_gloss": occ_gloss,
                     "ai_meaning": occ_ai["meaning_short"] if occ_ai else None,
                     "verse_root_buckwalters": occ_verse_roots,
+                    "similarity": round(similarity[(ch, v)], 3) if (ch, v) in similarity else None,
                 })
                 count += 1
 
@@ -5174,6 +5217,7 @@ def get_word_detail(surah: int, ayah: int, pos: int):
             "lemma_buckwalter": main_lemma_bw,
             "cognate": cognate,
             "other_occurrences": other_occurrences,
+            "occurrences_order": occurrences_order,
             "total_lemma_occurrences": len(_lemma_inv.get(main_lemma_bw, set())) if main_lemma_bw else 0,
             "verse_root_buckwalters": verse_root_buckwalters,
         }

@@ -430,6 +430,11 @@ export default function WordAnalysisPage({ surah, ayah, pos }: Props) {
               ({data.other_occurrences.length} of {data.total_lemma_occurrences - 1})
             </span>
           </h2>
+          {data.occurrences_order === 'meaning' && (
+            <p className="-mt-2 mb-3 text-xs text-stone-400">
+              Closest in meaning to {data.surah}:{data.ayah} first.
+            </p>
+          )}
           <div className="space-y-3">
             {data.other_occurrences.map((occ) => {
               const words = occ.text_uthmani.split(/\s+/).filter(Boolean);
