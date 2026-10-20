@@ -1,10 +1,27 @@
-# Our translation: fixes from the alt-translation review (awaiting approval)
+# Our translation: fixes from the alt-translation review
 
-**Status:** proposal only. Nothing has been written to the DB and nothing is
-synced. Exact before/after texts are in
-[alt-translations-ours-fixes.json](alt-translations-ours-fixes.json). Each
-change there was produced by a one-hit string replacement on today's
-`COALESCE(revised_text, translation_text)` (config 10).
+**Status: APPLIED to the local dev DB on 2026-10-20 (owner-approved, all fixes
+including 5:6). NOT synced to prod.** Exact before/after texts are in
+[alt-translations-ours-fixes.json](alt-translations-ours-fixes.json).
+
+What was done:
+- `ai_translations.revised_text` (config 10) was set for all 21 verses in the
+  JSON. Departure notes were edited for 23:74, 27:36, 50:7 and 5:6.
+- The 21 verses were re-judged (glm-5.3 think=low + deepseek-v4-pro
+  think=false), verified, given new notes and reloaded. Run files are in
+  `roots/backend/data/alt_translations_cache/runs/fix_2026-10-20/`. A row
+  backup from before the change is `runs/backup_before_ours_fixes_2026-10-20.json`.
+  Tiers fell on most fixed verses (e.g. 5:58, 27:36: 3→0), and no reader note
+  quotes the old faulty text.
+- The re-run raised one new confirmed claim. On 56:83, "Why then" is said to
+  drop the "not" of فَلَوْلَا. **Rejected:** the لَوْلَا of 83/86 governs
+  تَرْجِعُونَهَا in 56:87, which now reads "do you (all) not restore it". The
+  verifier sees one verse at a time and cannot see that.
+- In two reader notes, the closing sentence asserted an error that this review
+  rejected, and it was cut: 9:17 ("…it should be 'It is not'") and 56:83
+  ("…leaves out the call to intervene").
+- All 24 queue rows were set to `review_status='approved'`. `note_word_anchors`
+  was rebuilt.
 
 **Source:** `verse_alt_translations` rows with `review_status='pending'` (24) in
 the local dev DB. Only `ours_omits` / `ours_mistranslates` differences with
