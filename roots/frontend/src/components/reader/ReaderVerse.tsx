@@ -500,6 +500,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
         )}
         {notesVisible && hasVerseNotes && (
           <VerseNotesPanel
+            key={verseKey}
             surah={surah}
             verse={verse.verse}
             hasTranslation={verse.has_translation_note}
@@ -575,6 +576,44 @@ function joinSegmentArabic(segments: Array<{ form_arabic: string }>): string {
 
 // ----- Combined translation + grammar notes panel --------------------------
 
+// "Show notes for all verses" mounts a panel under every verse — 286 on
+// al-Baqarah, each wanting up to 4 requests. Firing them all at once makes
+// Chrome fail hundreds with ERR_INSUFFICIENT_RESOURCES, so panels only load
+// once they come near the viewport, and at most a few load at a time.
+// A panel has to stay in range briefly before it queues, and queued panels
+// that scroll away again drop out, so a fast flick (or the smooth scroll to
+// a deep-linked verse) doesn't load everything it passes — which would also
+// push the deep-link target down mid-scroll. The margin reaches further
+// below than above so fewer panels grow above the reading position.
+const MAX_CONCURRENT_NOTE_LOADS = 4;
+const NOTES_PRELOAD_MARGIN = '300px 0px 800px 0px';
+const NOTES_DWELL_MS = 200;
+let activeNoteLoads = 0;
+const pendingNoteLoads: Array<() => Promise<unknown>> = [];
+
+function pumpNoteLoads() {
+  while (activeNoteLoads < MAX_CONCURRENT_NOTE_LOADS && pendingNoteLoads.length) {
+    const task = pendingNoteLoads.shift()!;
+    activeNoteLoads++;
+    task().finally(() => {
+      activeNoteLoads--;
+      pumpNoteLoads();
+    });
+  }
+}
+
+/** Run `task` once a load slot is free. Returns a cancel function that
+ *  removes it from the queue if it hasn't started yet (a started task
+ *  always runs to completion and frees its slot). */
+function scheduleNoteLoad(task: () => Promise<unknown>): () => void {
+  pendingNoteLoads.push(task);
+  pumpNoteLoads();
+  return () => {
+    const i = pendingNoteLoads.indexOf(task);
+    if (i >= 0) pendingNoteLoads.splice(i, 1);
+  };
+}
+
 function VerseNotesPanel({
   surah,
   verse,
@@ -596,18 +635,55 @@ function VerseNotesPanel({
   const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Without IntersectionObserver there's no way to tell — just load.
+  const [near, setNear] = useState(() => typeof IntersectionObserver === 'undefined');
+  const placeholderRef = useRef<HTMLDivElement>(null);
+  const startedRef = useRef(false);
+  const aliveRef = useRef(true);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError('');
-    Promise.all([
-      hasTranslation ? fetchAITranslation(surah, verse).catch(() => null) : Promise.resolve(null),
-      hasGrammar ? fetchGrammarNotes(surah, verse).catch(() => null) : Promise.resolve(null),
-      hasExegesis ? fetchVerseExegesis(surah, verse).catch(() => null) : Promise.resolve(null),
-      hasPoetry ? fetchVersePoetry(surah, verse).catch(() => null) : Promise.resolve(null),
-    ]).then(([t, g, ex, p]) => {
-      if (cancelled) return;
+    aliveRef.current = true;
+    return () => { aliveRef.current = false; };
+  }, []);
+
+  // Watch the loading placeholder; once the notes are in, there's nothing
+  // left to wait for.
+  useEffect(() => {
+    if (!loading) return;
+    const el = placeholderRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    let dwell: ReturnType<typeof setTimeout> | undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        clearTimeout(dwell);
+        if (entry.isIntersecting) {
+          dwell = setTimeout(() => setNear(true), NOTES_DWELL_MS);
+        } else {
+          setNear(false);
+        }
+      },
+      { rootMargin: NOTES_PRELOAD_MARGIN },
+    );
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      clearTimeout(dwell);
+    };
+  }, [loading]);
+
+  // The parent keys this panel by verse, so these props never change under
+  // a mounted panel — one load per mount.
+  useEffect(() => {
+    if (!near || startedRef.current) return;
+    return scheduleNoteLoad(async () => {
+      startedRef.current = true;
+      const [t, g, ex, p] = await Promise.all([
+        hasTranslation ? fetchAITranslation(surah, verse).catch(() => null) : Promise.resolve(null),
+        hasGrammar ? fetchGrammarNotes(surah, verse).catch(() => null) : Promise.resolve(null),
+        hasExegesis ? fetchVerseExegesis(surah, verse).catch(() => null) : Promise.resolve(null),
+        hasPoetry ? fetchVersePoetry(surah, verse).catch(() => null) : Promise.resolve(null),
+      ]);
+      if (!aliveRef.current) return;
       setTranslation(t);
       setGrammar(g);
       setExegesis(ex);
@@ -615,8 +691,7 @@ function VerseNotesPanel({
       setLoading(false);
       if (!t && !g && !ex && !p) setError('No notes available for this verse.');
     });
-    return () => { cancelled = true; };
-  }, [surah, verse, hasTranslation, hasGrammar, hasExegesis, hasPoetry]);
+  }, [near, surah, verse, hasTranslation, hasGrammar, hasExegesis, hasPoetry]);
 
   // Exegesis and Translation Notes sometimes reference a grammar-glossary
   // term (e.g. "causative form IV") that's opaque without a definition.
@@ -630,7 +705,7 @@ function VerseNotesPanel({
 
   if (loading) {
     return (
-      <div className="mt-4 rounded-lg border border-card-border bg-cream/50 p-3">
+      <div ref={placeholderRef} className="mt-4 rounded-lg border border-card-border bg-cream/50 p-3">
         <div className="flex items-center gap-2 text-xs text-ink-muted">
           <span className="h-3 w-3 animate-spin rounded-full border-2 border-card-border border-t-gold" />
           Loading notes…

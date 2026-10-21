@@ -99,13 +99,16 @@ export default function ReaderPage({ surah, initialVerse, endVerse }: Props) {
   // Scroll the deep-linked verse into view once the data + DOM are ready.
   // The visibility hook holds the actual element refs internally, so we
   // wait one frame after data lands to give it a chance to register.
+  // Jump rather than smooth-scroll: with notes shown, a smooth scroll down a
+  // long surah sweeps past lazily-loading note panels that grow as it goes
+  // and leave it short of the verse.
   useEffect(() => {
     if (!data || !initialVerse) return;
     const t = setTimeout(() => {
       const el = document.querySelector(
         `[data-verse="${initialVerse}"]`,
       ) as HTMLElement | null;
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (el) el.scrollIntoView({ block: 'start' });
     }, 80);
     return () => clearTimeout(t);
   }, [data, initialVerse]);
