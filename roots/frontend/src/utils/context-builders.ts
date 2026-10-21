@@ -3,7 +3,7 @@
  * Each function gathers relevant data and formats it as a text block for Claude.
  */
 
-import { API_BASE } from '../api/quran';
+import { API_BASE, fetchRelatedPhrase } from '../api/quran';
 
 // `[[q:ID|arabic]]` quote markers → bare Arabic (poetry/lexicon markdown carries them).
 const stripQ = (s: string) => String(s).replace(/\[\[q:\d+\|([^\]]+)\]\]/g, '$1');
@@ -280,6 +280,75 @@ export async function buildVerseContext(surah: number, ayah: number): Promise<st
  * pre-Islamic-poetry comparison, and attested-meaning lexicon — so the
  * assistant on a root page can answer questions about all three.
  */
+/** Words of a verse the reader highlighted, for a question about just them. */
+export interface PhraseRun {
+  start: number;
+  end: number;
+}
+
+const wordSpan = (r: PhraseRun) => (r.start === r.end ? `word ${r.start}` : `words ${r.start}–${r.end}`);
+
+/** The short tag a focused question carries ("[About the highlighted words
+ *  1–4 of 4:34]"); it points at the focus block below, which says what they are. */
+export function phraseQuestionTag(surah: number, ayah: number, runs: PhraseRun[]): string {
+  const spans = runs.map((r) => (r.start === r.end ? `${r.start}` : `${r.start}–${r.end}`)).join(', ');
+  return `[About the highlighted words ${spans} of ${surah}:${ayah}]`;
+}
+
+/**
+ * The block that tells the assistant which words of the verse a question is
+ * about, with the verses related in meaning to those words (the same ranking
+ * as the /related/ page — cached server-side, so asking about a passage twice
+ * costs nothing). It goes at the head of the context so the proxy's length cap
+ * can't cut it off. `verseWords` is the verse's Arabic split into words, used
+ * when the related-verses call fails.
+ */
+export async function buildPhraseFocusContext(
+  surah: number,
+  ayah: number,
+  runs: PhraseRun[],
+  selection: string,
+  verseWords: string[],
+): Promise<string> {
+  const lines: string[] = ['## Reader\'s focus — highlighted words'];
+  lines.push(
+    `The reader has highlighted part of verse ${surah}:${ayah}. Questions tagged ` +
+      `"${phraseQuestionTag(surah, ayah, runs)}" are about these words specifically, not the whole verse:`,
+  );
+  let data = null;
+  try {
+    data = await fetchRelatedPhrase(surah, ayah, selection);
+  } catch {
+    // answer from the verse context alone
+  }
+  if (data) {
+    for (const r of data.runs) {
+      lines.push(`- ${wordSpan(r)}: ${r.arabic}${r.gloss ? ` — word by word: "${r.gloss}"` : ''}`);
+    }
+    if (data.shared_roots.length) {
+      lines.push(`Roots in these words: ${data.shared_roots.map((r) => `${r.root_arabic} (${r.root_buckwalter})`).join(', ')}`);
+    }
+  } else {
+    for (const r of runs) lines.push(`- ${wordSpan(r)}: ${verseWords.slice(r.start - 1, r.end).join(' ')}`);
+  }
+  lines.push(
+    'Centre the answer on these words: what they mean here, how they work within their verse, and how ' +
+      'the Qurʾān uses the same words and ideas elsewhere. Bring in the rest of the verse only as it bears on them.',
+  );
+  if (data?.results.length) {
+    lines.push('\n### Verses related in meaning to the highlighted words');
+    lines.push(
+      'Ranked by closeness in meaning to these words (not to the whole verse). Draw on them where they ' +
+        'genuinely shed light on the words — the Qurʾān explaining the Qurʾān — and say so when a parallel is only loose.',
+    );
+    for (const v of data.results.slice(0, 10)) {
+      const shares = v.shared_roots.length ? ` (shares ${v.shared_roots.map((r) => r.root_arabic).join(', ')})` : '';
+      lines.push(`[${v.surah}:${v.ayah}] ${v.text_uthmani} — ${clip(collapse(v.translation), 400)}${shares}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 export async function buildRootContext(data: {
   root_arabic: string;
   root_buckwalter: string;

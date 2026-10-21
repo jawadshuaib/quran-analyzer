@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { askClaudeDirect, askClaudeProxy, FREE_MODEL_TAG, type PageType } from '../api/claude';
 import { saveQA, fetchHistory, fetchUsage, fetchQuoteAnchors, type QAEntry } from '../api/assistant';
 import type { WordAnchor } from '../types';
@@ -6,6 +6,11 @@ import { getApiKey, getModel, getSessionId } from '../utils/assistant-storage';
 import { FormattedInline, renderBlocks } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
+import { useVerseHighlights } from '../hooks/useVerseHighlights';
+import { HIGHLIGHT_BG, type HighlightColor } from '../utils/verse-highlights';
+import { phraseSelection } from '../utils/urls';
+import { setAskPanelOpen } from '../utils/ask-panel';
+import { buildPhraseFocusContext, phraseQuestionTag, type PhraseRun } from '../utils/context-builders';
 
 interface Props {
   pageType: PageType;
@@ -34,11 +39,36 @@ interface Props {
 
 interface Message {
   role: 'user' | 'assistant';
+  /** What the model sees (a focused question carries its tag). */
   content: string;
+  /** What the panel shows, when it differs from content. */
+  display?: string;
+  /** The highlighted words a question was about. */
+  focusLabel?: string;
+}
+
+/** One thing a verse question can be about: the whole verse (selection '')
+ *  or some of its highlighted words. */
+interface FocusOption {
+  selection: string;
+  runs: PhraseRun[];
+  /** The Arabic words, shortened for a chip. */
+  label: string;
+  color?: HighlightColor;
+}
+
+/** A run's Arabic, its first and last words when long. */
+function shortPhrase(words: string[], r: PhraseRun): string {
+  const slice = words.slice(r.start - 1, r.end);
+  if (!slice.length) return r.start === r.end ? `word ${r.start}` : `words ${r.start}–${r.end}`;
+  return slice.length > 5 ? `${slice.slice(0, 3).join(' ')} … ${slice.slice(-1)[0]}` : slice.join(' ');
 }
 
 /** Max conversation turns (user+assistant pairs) to send to Claude to avoid exceeding context limits */
 const MAX_HISTORY_TURNS = 10;
+
+/** A highlight made this recently is what an opening question is likely about. */
+const RECENT_HIGHLIGHT_MS = 5 * 60 * 1000;
 
 /** Auto-clear conversation after 1 hour of inactivity */
 const THREAD_TIMEOUT_MS = 60 * 60 * 1000;
@@ -110,6 +140,36 @@ export default function AskAssistant({
   const rafRef = useRef<number | null>(null);
   const latestStreamRef = useRef('');
   const lastMessageTimeRef = useRef<number>(0);
+  // Focus blocks gathered in this thread, by selection — sent ahead of the
+  // verse context on every turn so a follow-up still knows those words.
+  const focusBlocksRef = useRef<Map<string, string>>(new Map());
+
+  // On a verse, the reader can ask about some highlighted words instead of
+  // the whole verse: each highlight, or all of them together.
+  const verseRef = pageType === 'verse' ? pageKey.match(/^(\d+):(\d+)$/) : null;
+  const { highlights } = useVerseHighlights(verseRef ? pageKey : '');
+  const [focusSel, setFocusSel] = useState('');
+  const focusOptions = useMemo<FocusOption[]>(() => {
+    if (!verseRef || !highlights.length) return [];
+    const text =
+      document
+        .querySelector(`[data-arabic-region][data-verse-key="${pageKey}"]`)
+        ?.getAttribute('data-verse-text') || '';
+    const words = text.split(/\s+/).filter(Boolean);
+    const opts: FocusOption[] = highlights.map((h) => {
+      const run = { start: h.startPos, end: h.endPos };
+      return { selection: phraseSelection([run]), runs: [run], label: shortPhrase(words, run), color: h.color };
+    });
+    if (opts.length > 1 && opts.length <= 8) {
+      const runs = highlights.map((h) => ({ start: h.startPos, end: h.endPos }));
+      opts.push({ selection: phraseSelection(runs), runs, label: `All ${opts.length} highlights` });
+    }
+    return opts;
+    // verseRef is derived from pageKey
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlights, pageKey, pageType]);
+  // A removed highlight can't stay the focus.
+  const focus = focusOptions.find((o) => o.selection === focusSel) ?? null;
 
   const hasApiKey = !!getApiKey();
   const freeRemaining = freeLimit - freeUsed;
@@ -125,6 +185,7 @@ export default function AskAssistant({
         setStreamText('');
         setError('');
         contextRef.current = '';
+        focusBlocksRef.current = new Map();
         threadIdRef.current = null;
         inflightSaveRef.current = null;
 
@@ -136,6 +197,8 @@ export default function AskAssistant({
   // Reset state when page changes
   useEffect(() => {
     contextRef.current = '';
+    focusBlocksRef.current = new Map();
+    setFocusSel('');
     threadIdRef.current = null;
     inflightSaveRef.current = null;
     setMessages([]);
@@ -176,10 +239,29 @@ export default function AskAssistant({
     };
   }, [streamText]);
 
+  useEffect(() => {
+    if (!open) return;
+    setAskPanelOpen(true);
+    return () => setAskPanelOpen(false);
+  }, [open]);
+
   // Auto-clear stale conversation when panel opens
   useEffect(() => {
     if (open) clearIfStale();
   }, [open, clearIfStale]);
+
+  // Opening the panel just after highlighting words of this verse offers
+  // those words first. (The selection itself is gone by then: the click that
+  // opens the panel deselects it.)
+  useEffect(() => {
+    if (!open || !highlights.length) return;
+    const latest = highlights.reduce((a, b) => (a.createdAt >= b.createdAt ? a : b));
+    if (Date.now() - latest.createdAt < RECENT_HIGHLIGHT_MS) {
+      setFocusSel(phraseSelection([{ start: latest.startPos, end: latest.endPos }]));
+    }
+    // only on opening
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Eagerly check if history exists (even when closed, to show glow indicator)
   useEffect(() => {
@@ -256,13 +338,20 @@ export default function AskAssistant({
 
     const trimmed = sanitizeInput(input);
 
+    // A question about highlighted words carries a short tag (the proxy
+    // keeps 500 characters of a message, tag included).
+    const askFocus = focus;
+    const tag = askFocus && verseRef
+      ? phraseQuestionTag(Number(verseRef[1]), Number(verseRef[2]), askFocus.runs) + ' '
+      : '';
+
     // Silent input validation — only show error when hit
     const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
     if (trimmed.length < 7 || wordCount < 2) {
       setError('Please enter a complete question.');
       return;
     }
-    if (trimmed.length > 500) {
+    if (trimmed.length + tag.length > 500) {
       setError('Your question is too long. Please keep it concise.');
       return;
     }
@@ -275,23 +364,45 @@ export default function AskAssistant({
       return;
     }
 
-    const question = trimmed;
+    const question = tag + trimmed;
+    const focusLabel = askFocus?.label;
     setInput('');
     setError('');
-    setMessages((prev) => [...prev, { role: 'user', content: question }]);
+    setMessages((prev) => [
+      ...prev,
+      tag ? { role: 'user', content: question, display: trimmed, focusLabel } : { role: 'user', content: question },
+    ]);
     setStreaming(true);
     streamingRef.current = true;
     setStreamText('');
     latestStreamRef.current = '';
 
-    // Gather context on first question
-    if (!contextRef.current) {
-      try {
-        contextRef.current = await contextGatherer();
-      } catch {
-        contextRef.current = `[Context for ${pageType} ${pageKey}]`;
-      }
-    }
+    // Gather context on first question, and the focus block the first time
+    // this thread asks about those words.
+    const needFocus = askFocus && verseRef && !focusBlocksRef.current.has(askFocus.selection);
+    await Promise.all([
+      contextRef.current
+        ? null
+        : contextGatherer()
+            .then((c) => { contextRef.current = c; })
+            .catch(() => { contextRef.current = `[Context for ${pageType} ${pageKey}]`; }),
+      needFocus
+        ? buildPhraseFocusContext(
+            Number(verseRef[1]),
+            Number(verseRef[2]),
+            askFocus.runs,
+            askFocus.selection,
+            (document
+              .querySelector(`[data-arabic-region][data-verse-key="${pageKey}"]`)
+              ?.getAttribute('data-verse-text') || '').split(/\s+/).filter(Boolean),
+          ).then((b) => { focusBlocksRef.current.set(askFocus.selection, b); })
+        : null,
+    ]);
+    // The current focus first, then any earlier ones, then the verse.
+    const focusBlocks = [...focusBlocksRef.current.entries()]
+      .sort(([a], [b]) => (a === askFocus?.selection ? -1 : b === askFocus?.selection ? 1 : 0))
+      .map(([, block]) => block);
+    const context = [...focusBlocks, contextRef.current].join('\n\n');
 
     // Sliding window: only send the most recent turns
     const recentMessages = messages.slice(-(MAX_HISTORY_TURNS * 2));
@@ -322,10 +433,17 @@ export default function AskAssistant({
           setFreeUsed((prev) => prev + 1);
         }
 
+        // Saved (and listed under Q&A) as "About «…»: question", which reads
+        // on its own; the bracketed tag only means something to the model.
+        const savedQuestion = (m: Message) =>
+          m.focusLabel ? `About «${m.focusLabel}»: ${m.display ?? m.content}` : m.content;
+        const thisQuestion = savedQuestion(
+          tag ? { role: 'user', content: question, display: trimmed, focusLabel } : { role: 'user', content: question },
+        );
         // Collect all user questions in this thread (previous + current)
         const allQuestions = [
-          ...messages.filter((m) => m.role === 'user').map((m) => m.content),
-          question,
+          ...messages.filter((m) => m.role === 'user').map(savedQuestion),
+          thisQuestion,
         ];
 
         // Serialize saves: wait for any in-flight save to finish first (Fix 2)
@@ -337,7 +455,7 @@ export default function AskAssistant({
           const result = await saveQA({
             pageType,
             pageKey,
-            question,
+            question: thisQuestion,
             answer: text,
             contextSummary,
             modelUsed: modelTag,
@@ -372,14 +490,14 @@ export default function AskAssistant({
 
     if (usingOwnKey) {
       abortRef.current = askClaudeDirect(
-        pageType, contextRef.current, question, conversationHistory, callbacks,
+        pageType, context, question, conversationHistory, callbacks,
       );
     } else {
       abortRef.current = askClaudeProxy(
-        pageType, contextRef.current, question, getSessionId(), conversationHistory, callbacks,
+        pageType, context, question, getSessionId(), conversationHistory, callbacks,
       );
     }
-  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer, clearIfStale]);
+  }, [input, streaming, hasApiKey, canAskFree, messages, pageType, pageKey, contextGatherer, clearIfStale, focus, verseRef]);
 
   const handleCancel = () => {
     abortRef.current?.abort();
@@ -397,6 +515,7 @@ export default function AskAssistant({
     setStreamText('');
     setError('');
     contextRef.current = '';
+    focusBlocksRef.current = new Map();
     threadIdRef.current = null;
     inflightSaveRef.current = null;
   };
@@ -545,7 +664,9 @@ export default function AskAssistant({
           <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[120px]">
             {messages.length === 0 && !streaming && (
               <p className="text-sm text-stone-400 text-center py-6">
-                Ask a question about this {pageType}. The assistant will use root-level analysis to provide an answer.
+                {focusOptions.length
+                  ? 'Ask about the whole verse, or pick a highlighted passage below to ask about just those words.'
+                  : `Ask a question about this ${pageType}. The assistant will use root-level analysis to provide an answer.`}
               </p>
             )}
 
@@ -561,7 +682,15 @@ export default function AskAssistant({
                 {msg.role === 'user' ? (
                   <div className="flex items-start gap-2">
                     <span className="text-stone-400 text-xs mt-0.5 shrink-0">You:</span>
-                    <span>{msg.content}</span>
+                    <span>
+                      {msg.focusLabel && (
+                        <span className="mb-0.5 block text-xs text-violet-600">
+                          About{' '}
+                          <span dir="rtl" lang="ar" className="font-arabic text-sm">{msg.focusLabel}</span>
+                        </span>
+                      )}
+                      {msg.display ?? msg.content}
+                    </span>
                   </div>
                 ) : (
                   <>
@@ -611,6 +740,29 @@ export default function AskAssistant({
             {!canAsk ? (
               freeLimitBanner
             ) : (
+              <>
+              {focusOptions.length > 0 && (
+                <div className="mb-2 flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Ask about">
+                  <span className="text-xs text-stone-500">Ask about</span>
+                  <FocusChip active={!focus} onClick={() => setFocusSel('')}>
+                    Whole verse
+                  </FocusChip>
+                  {focusOptions.map((o) => (
+                    <FocusChip
+                      key={o.selection}
+                      active={focus?.selection === o.selection}
+                      onClick={() => setFocusSel(o.selection)}
+                      color={o.color}
+                    >
+                      {o.color ? (
+                        <span dir="rtl" lang="ar" className="font-arabic text-sm leading-tight">{o.label}</span>
+                      ) : (
+                        o.label
+                      )}
+                    </FocusChip>
+                  ))}
+                </div>
+              )}
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -622,7 +774,7 @@ export default function AskAssistant({
                       handleSubmit();
                     }
                   }}
-                  placeholder={`Ask about this ${pageType}...`}
+                  placeholder={focus ? 'Ask about the highlighted words...' : `Ask about this ${pageType}...`}
                   disabled={streaming}
                   maxLength={500}
                   className="flex-1 rounded-lg border border-stone-300 px-3 py-2 text-sm
@@ -642,6 +794,7 @@ export default function AskAssistant({
                   </button>
                 )}
               </div>
+              </>
             )}
           </div>
         </div>
@@ -684,5 +837,35 @@ export default function AskAssistant({
         </div>
       )}
     </div>
+  );
+}
+
+function FocusChip({
+  active,
+  onClick,
+  color,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  color?: HighlightColor;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={onClick}
+      className={`max-w-full truncate rounded-full px-2.5 py-0.5 text-xs transition-colors ${
+        color ? HIGHLIGHT_BG[color] : 'bg-stone-100'
+      } ${
+        active
+          ? 'font-medium text-stone-900 ring-2 ring-violet-500'
+          : 'text-stone-600 ring-1 ring-black/5 hover:ring-violet-300'
+      }`}
+    >
+      {children}
+    </button>
   );
 }

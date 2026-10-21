@@ -10,6 +10,7 @@ import {
 import { getCopyContext, subscribeCopyContext } from '../../utils/copy-context';
 import { isHighlightingEnabled } from '../../utils/reader-prefs';
 import { relatedPhraseUrl } from '../../utils/urls';
+import { isAskPanelOpen, subscribeAskPanel } from '../../utils/ask-panel';
 
 /** The server's cap on runs in one selection (related_phrases.MAX_RUNS). */
 const MAX_TOGETHER = 8;
@@ -79,6 +80,10 @@ export default function RelatedPhraseBar({ defaultVerseKey, defaultVerseText }: 
     return () => document.removeEventListener('click', onClick);
   }, []);
 
+  // Out of the way while an Ask panel (which covers this corner) is open.
+  const [askOpen, setAskOpen] = useState(isAskPanelOpen);
+  useEffect(() => subscribeAskPanel(() => setAskOpen(isAskPanelOpen())), []);
+
   // Re-render on any highlight change (added, recoloured, removed).
   useEffect(() => subscribeToHighlights(() => setVersion((v) => v + 1)), []);
 
@@ -90,7 +95,7 @@ export default function RelatedPhraseBar({ defaultVerseKey, defaultVerseText }: 
 
   const current: Active | null =
     active ?? (defaultVerseKey && defaultVerseText ? { verseKey: defaultVerseKey, text: defaultVerseText } : null);
-  if (!current || dismissed) return null;
+  if (!current || dismissed || askOpen) return null;
 
   const runs: Run[] = getHighlights(current.verseKey).map((h) => ({
     start: h.startPos,
