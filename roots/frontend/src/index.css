@@ -142,13 +142,22 @@ summary {
 
 /* Reader highlights in the notes under a verse (NoteHighlightable.tsx).
    Painted as ranges by the CSS Custom Highlight API, so the note's own markup
-   is untouched; same yellow as a verse highlight (bg-yellow-200). Selecting in
-   a note is highlighting, so while highlighting is on the selection shows in
-   that yellow too — the passage turns yellow as it is selected. */
-::highlight(note-hl) {
-  background-color: #fef08a;
-}
-[data-note-hl][data-hl-on]::selection,
-[data-note-hl][data-hl-on] ::selection {
-  background-color: #fef08a;
-}
+   is untouched; one highlight per colour, in the verse highlights' colours
+   (HIGHLIGHT_HEX). Selecting in a note is highlighting, so while highlighting
+   is on the selection shows in the colour it is about to become — data-hl-on
+   carries the note's next colour. */
+::highlight(note-hl-yellow) { background-color: #fef08a; }
+::highlight(note-hl-orange) { background-color: #fed7aa; }
+::highlight(note-hl-green) { background-color: #bbf7d0; }
+::highlight(note-hl-sky) { background-color: #bae6fd; }
+::highlight(note-hl-pink) { background-color: #fbcfe8; }
+[data-note-hl][data-hl-on="yellow"]::selection,
+[data-note-hl][data-hl-on="yellow"] ::selection { background-color: #fef08a; }
+[data-note-hl][data-hl-on="orange"]::selection,
+[data-note-hl][data-hl-on="orange"] ::selection { background-color: #fed7aa; }
+[data-note-hl][data-hl-on="green"]::selection,
+[data-note-hl][data-hl-on="green"] ::selection { background-color: #bbf7d0; }
+[data-note-hl][data-hl-on="sky"]::selection,
+[data-note-hl][data-hl-on="sky"] ::selection { background-color: #bae6fd; }
+[data-note-hl][data-hl-on="pink"]::selection,
+[data-note-hl][data-hl-on="pink"] ::selection { background-color: #fbcfe8; }

@@ -17,7 +17,9 @@
  * view and the reader render each note through the same components, so a
  * highlight made in one resolves in the other.
  *
- * One colour only (yellow) — unlike verse highlights there is no picker.
+ * Colours cycle within each note the way they cycle within a verse: the first
+ * highlight is yellow, each further one takes the next unused colour (see
+ * verse-highlights' nextColor). There is no picker.
  *
  * Highlighting a note also auto-saves its verse (source 'highlight'), with the
  * same auto-unsave rule as verse highlights: see verse-highlights.ts.
@@ -26,7 +28,10 @@
 import {
   ensureSavedForHighlight,
   maybeUnsaveAfterClear,
+  nextColor,
+  HIGHLIGHT_COLORS,
   VERSE_HIGHLIGHTS_CHANGED,
+  type HighlightColor,
   type VerseMeta,
 } from './verse-highlights';
 
@@ -39,9 +44,6 @@ export const NOTE_KIND_LABEL: Record<NoteKind, string> = {
   grammar: 'Grammar Notes',
   poetry: 'In Pre-Islamic Poetry',
 };
-
-/** Matches the yellow verse-highlight background (bg-yellow-200). */
-export const NOTE_HIGHLIGHT_HEX = '#fef08a';
 
 /** How much text either side of a passage is kept to tell repeats apart. */
 export const CONTEXT_CHARS = 32;
@@ -56,6 +58,7 @@ export interface NoteHighlight {
   suffix: string;
   /** Character offset of the passage when it was made — a tiebreak only. */
   start: number;
+  color: HighlightColor;
   /** Hash of the note's source text when the highlight was made. If the
    *  passage can't be found AND the note's source has changed since, the note
    *  was edited out from under it and the highlight is pruned. If the source
@@ -82,7 +85,9 @@ function isValid(h: unknown): h is NoteHighlight {
     typeof x.prefix === 'string' &&
     typeof x.suffix === 'string' &&
     typeof x.start === 'number' && Number.isFinite(x.start) &&
-    typeof x.srcHash === 'string'
+    typeof x.srcHash === 'string' &&
+    // Absent on highlights made before colours cycled — those were yellow.
+    (x.color === undefined || (HIGHLIGHT_COLORS as readonly string[]).includes(x.color as string))
   );
 }
 
@@ -99,7 +104,7 @@ function load(): NoteHighlightStore {
     const byVerse: Record<string, NoteHighlight[]> = {};
     for (const [vk, list] of Object.entries(parsed.byVerse)) {
       if (!Array.isArray(list)) continue;
-      const valid = list.filter(isValid);
+      const valid = list.filter(isValid).map((h) => ({ ...h, color: h.color ?? 'yellow' }));
       if (valid.length) byVerse[vk] = valid;
     }
     return { version: 1, byVerse };
@@ -206,8 +211,9 @@ export function resolveNoteHighlight(
 /**
  * Save the passage text[start, end) of one note as a highlight. Highlights it
  * overlaps or touches (`mergeIds`, resolved by the caller against the same
- * text) are folded into it, so extending a selection grows a highlight rather
- * than stacking a second one on top.
+ * text) are folded into it, keeping the earliest one's id and colour, so
+ * extending a selection grows a highlight rather than stacking a second one on
+ * top. A new highlight takes the note's next unused colour.
  */
 export function addNoteHighlight(
   verseKey: string,
@@ -233,6 +239,7 @@ export function addNoteHighlight(
     prefix: text.slice(Math.max(0, start - CONTEXT_CHARS), start),
     suffix: text.slice(end, end + CONTEXT_CHARS),
     start,
+    color: anchor?.color ?? nextColor(rest.filter((h) => h.note === note)),
     srcHash,
     createdAt: anchor?.createdAt ?? Date.now(),
   };

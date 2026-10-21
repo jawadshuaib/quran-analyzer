@@ -88,7 +88,7 @@ export default function SavedVerseContent({ item }: { item: SavedItem }) {
                 </span>
               )}
               <span className="line-clamp-3 whitespace-pre-line">
-                <span className="rounded-sm bg-yellow-200 box-decoration-clone px-0.5">{h.exact}</span>
+                <span className={`rounded-sm box-decoration-clone px-0.5 ${HIGHLIGHT_BG[h.color]}`}>{h.exact}</span>
               </span>
             </span>
           ))}

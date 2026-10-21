@@ -11,20 +11,25 @@ import {
   type NoteKind,
 } from '../utils/note-highlights';
 import { offsetsToRange, readNoteText } from '../utils/note-highlight-dom';
-import { isCoarsePointer } from '../utils/verse-highlights';
+import {
+  isCoarsePointer,
+  nextColor,
+  HIGHLIGHT_BG,
+  HIGHLIGHT_COLORS,
+  type HighlightColor,
+} from '../utils/verse-highlights';
 import { isHighlightingEnabled, subscribeToReaderPrefs } from '../utils/reader-prefs';
 
 // ----- Painting --------------------------------------------------------------
 //
-// Highlights are painted with the CSS Custom Highlight API (`::highlight(note-hl)`
+// Highlights are painted with the CSS Custom Highlight API (`::highlight(note-hl-<colour>)`
 // in index.css) rather than by wrapping the passage in <mark>s. The note is a
 // tree of interactive React spans — verse-ref links, grammar chips, citation
 // anchors, poetry quotes — and a passage can cut across any of them; painting
 // Ranges leaves that tree exactly as React rendered it. Every note on the page
-// contributes its Ranges to one shared Highlight.
+// contributes its Ranges to one shared Highlight per colour.
 
-const HIGHLIGHT_NAME = 'note-hl';
-const registry = new Map<string, Range[]>();
+const registry = new Map<string, { range: Range; color: HighlightColor }[]>();
 
 interface HighlightRegistry {
   set(name: string, h: unknown): void;
@@ -45,13 +50,17 @@ function syncRegistry(): void {
   if (!reg) return;
   const all = [...registry.values()].flat();
   const Ctor = (globalThis as unknown as { Highlight: new (...r: Range[]) => unknown }).Highlight;
-  if (all.length) reg.set(HIGHLIGHT_NAME, new Ctor(...all));
-  else reg.delete(HIGHLIGHT_NAME);
+  for (const color of HIGHLIGHT_COLORS) {
+    const ranges = all.filter((x) => x.color === color).map((x) => x.range);
+    if (ranges.length) reg.set(`note-hl-${color}`, new Ctor(...ranges));
+    else reg.delete(`note-hl-${color}`);
+  }
 }
 
 // ----- Component -------------------------------------------------------------
 
 interface Box {
+  color: HighlightColor;
   left: number;
   top: number;
   width: number;
@@ -73,10 +82,10 @@ function sameLayout(a: Layout, b: Layout): boolean {
 
 /**
  * Wraps one note under a verse so the reader can highlight passages in it.
- * Selecting text inside turns it yellow and saves it (HighlightController does
+ * Selecting text inside highlights and saves it (HighlightController does
  * the capturing, via captureNoteSelection); a highlight is removed with the
  * same "×" verse highlights use — shown on hover, always on touch screens, and
- * reachable by Tab.
+ * reachable by Tab. Colours cycle per note — yellow first, then the next unused.
  *
  * `source` is the note's raw text, used only to tell whether the note has been
  * edited since a highlight was made (see NoteHighlight.srcHash).
@@ -112,6 +121,24 @@ export default function NoteHighlightable({
   const [enabled, setEnabled] = useState(isHighlightingEnabled);
   useEffect(() => subscribeToReaderPrefs(() => setEnabled(isHighlightingEnabled())), []);
 
+  // The colour a selection here shows while it's live. Fixed when the
+  // selection starts: the highlight it makes is saved while the passage is
+  // still selected, and the selection must keep showing that highlight's colour
+  // rather than move on to the one after it.
+  const [selColor, setSelColor] = useState<HighlightColor | null>(null);
+  useEffect(() => {
+    if (!selColor) return;
+    const onChange = () => {
+      const sel = window.getSelection();
+      const content = contentRef.current;
+      if (!sel || sel.isCollapsed || !content || !sel.getRangeAt(0).intersectsNode(content)) {
+        setSelColor(null);
+      }
+    };
+    document.addEventListener('selectionchange', onChange);
+    return () => document.removeEventListener('selectionchange', onChange);
+  }, [selColor]);
+
   const [layout, setLayout] = useState<Layout>(EMPTY_LAYOUT);
   const [hoverId, setHoverId] = useState<string | null>(null);
 
@@ -129,29 +156,29 @@ export default function NoteHighlightable({
       return;
     }
     const model = readNoteText(content);
-    const found: { id: string; range: Range }[] = [];
+    const found: { id: string; range: Range; color: HighlightColor }[] = [];
     const stale: string[] = [];
     for (const h of highlights) {
       const at = resolveNoteHighlight(model.text, h);
       const range = at && offsetsToRange(model, at.start, at.end);
-      if (range) found.push({ id: h.id, range });
+      if (range) found.push({ id: h.id, range, color: h.color });
       // The passage is gone and the note has changed since — it was edited
       // away. (Same source but no match is a render in flux; keep it.)
       else if (h.srcHash !== srcHash) stale.push(h.id);
     }
     rangesRef.current = found;
-    registry.set(instanceId, found.map((f) => f.range));
+    registry.set(instanceId, found.map(({ range, color }) => ({ range, color })));
     syncRegistry();
 
     const base = wrap.getBoundingClientRect();
     const next: Layout = { crosses: [], boxes: [] };
-    for (const { id, range } of found) {
+    for (const { id, range, color } of found) {
       const rects = [...range.getClientRects()].filter((r) => r.width > 0 && r.height > 0);
       if (!rects.length) continue;
       next.crosses.push({ id, left: rects[0].left - base.left, top: rects[0].top - base.top });
       if (!canPaintRanges) {
         for (const r of rects) {
-          next.boxes.push({ left: r.left - base.left, top: r.top - base.top, width: r.width, height: r.height });
+          next.boxes.push({ color, left: r.left - base.left, top: r.top - base.top, width: r.width, height: r.height });
         }
       }
     }
@@ -227,19 +254,21 @@ export default function NoteHighlightable({
         data-note-verse={verseKey}
         data-note-src={srcHash}
         // Selecting in a note is highlighting, so the selection itself shows in
-        // the highlight's yellow (index.css) — the passage turns yellow as it's
-        // selected and stays so after, while it can still be copied.
-        data-hl-on={enabled ? '' : undefined}
+        // the colour the next highlight here will take (index.css) — the passage
+        // takes its colour as it's selected and keeps it after, while it can
+        // still be copied.
+        data-hl-on={enabled ? (selColor ?? nextColor(highlights)) : undefined}
+        onPointerDown={() => setSelColor(nextColor(highlights))}
       >
         {children}
       </div>
-      {layout.boxes.map((b, i) => (
+      {layout.boxes.map(({ color, ...box }, i) => (
         <span
           key={i}
           aria-hidden
           data-nh-ignore
-          className="pointer-events-none absolute rounded-sm bg-yellow-200 mix-blend-multiply"
-          style={b}
+          className={`pointer-events-none absolute rounded-sm mix-blend-multiply ${HIGHLIGHT_BG[color]}`}
+          style={box}
         />
       ))}
       {layout.crosses.map((c) => (

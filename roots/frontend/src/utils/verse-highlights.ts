@@ -185,7 +185,8 @@ export function hasHighlights(verseKey: string): boolean {
 
 // ----- Color assignment ----------------------------------------------------
 
-function nextColor(existing: Highlight[]): HighlightColor {
+/** Shared with note-highlights.ts, which cycles colours the same way. */
+export function nextColor(existing: { color: HighlightColor }[]): HighlightColor {
   const used = new Set(existing.map((h) => h.color));
   const free = HIGHLIGHT_COLORS.find((c) => !used.has(c));
   return free ?? HIGHLIGHT_COLORS[existing.length % HIGHLIGHT_COLORS.length];
