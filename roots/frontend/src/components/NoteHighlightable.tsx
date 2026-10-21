@@ -81,7 +81,8 @@ function sameLayout(a: Layout, b: Layout): boolean {
 }
 
 /**
- * Wraps one note under a verse so the reader can highlight passages in it.
+ * Wraps one note under a verse (or the verse's translation) so the reader can
+ * highlight passages in it.
  * Selecting text inside highlights and saves it (HighlightController does
  * the capturing, via captureNoteSelection); a highlight is removed with the
  * same "×" verse highlights use — shown on hover, always on touch screens, and

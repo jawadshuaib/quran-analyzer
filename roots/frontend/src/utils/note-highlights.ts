@@ -1,7 +1,7 @@
 /**
  * Note highlights — localStorage-backed user highlighting of passages inside
- * the notes under a verse (exegesis, translation notes, grammar notes,
- * pre-Islamic poetry).
+ * the English under a verse: the verse's translation itself, and the notes
+ * (exegesis, translation notes, grammar notes, pre-Islamic poetry).
  *
  * Verse highlights can anchor to Arabic word positions because the verse text
  * never changes. Note prose does — notes get revised — so a note highlight is
@@ -35,10 +35,13 @@ import {
   type VerseMeta,
 } from './verse-highlights';
 
-export const NOTE_KINDS = ['exegesis', 'translation', 'grammar', 'poetry'] as const;
+/** 'translation' is the Translation Notes; the verse's own translation is
+ *  'verse-translation'. Listed in the order they're shown on the Saved page. */
+export const NOTE_KINDS = ['verse-translation', 'exegesis', 'translation', 'grammar', 'poetry'] as const;
 export type NoteKind = (typeof NOTE_KINDS)[number];
 
 export const NOTE_KIND_LABEL: Record<NoteKind, string> = {
+  'verse-translation': 'Translation',
   exegesis: 'Exegesis',
   translation: 'Translation Notes',
   grammar: 'Grammar Notes',

@@ -617,13 +617,22 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
         })}
       </div>
 
-      <p className="text-stone-600 italic">
+      {/* Highlightable like the notes below. Both texts here are the verse's
+          latest translation (the API's best_translation is the same row), so
+          the source — and a highlight's anchor — doesn't change as the AI
+          translation arrives. */}
+      <NoteHighlightable
+        verseKey={verseKey}
+        note="verse-translation"
+        source={aiTranslation ? aiTranslation.translation : data.translation}
+        className="text-stone-600 italic"
+      >
         <TranslationWithChips
           text={aiTranslation ? aiTranslation.translation : data.translation}
           surveyedRootsInVerse={data.roots_summary.map((r) => r.root_buckwalter)}
           contextByRoot={contextByRoot}
         />
-      </p>
+      </NoteHighlightable>
       <AltTranslation alt={data.alt_translation} verseKey={verseKey} />
 
       {/* Exegesis leads (it's the synthesis); Translation Notes follows as the

@@ -471,7 +471,12 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             })}
           </div>
         )}
-        <div className="text-[15px] sm:text-base leading-relaxed text-ink-secondary">
+        <NoteHighlightable
+          verseKey={verseKey}
+          note="verse-translation"
+          source={verse.translation}
+          className="text-[15px] sm:text-base leading-relaxed text-ink-secondary"
+        >
           {/* TranslationWithChips auto-applies the surveyed-roots chip
               tooltip layer (italic markers + word-family matches),
               same behavior as the research view at /verse/<ref>. */}
@@ -480,7 +485,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             verse={{ surah, ayah: verse.verse }}
             surveyedRootsInVerse={verse.surveyed_roots}
           />
-        </div>
+        </NoteHighlightable>
         <AltTranslation alt={verse.alt_translation} verseKey={verseKey} />
 
         {/* Inline expansions (only one open at a time) */}
