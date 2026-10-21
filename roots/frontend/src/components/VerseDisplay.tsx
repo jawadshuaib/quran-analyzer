@@ -15,6 +15,7 @@ import SaveButton from './SaveButton';
 import NoteButton from './NoteButton';
 import VersePlayButton from './VersePlayButton';
 import HighlightCross from './HighlightCross';
+import NoteHighlightable from './NoteHighlightable';
 import { splitDepartureNotes } from '../utils/departure-notes';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { useVerseHighlights } from '../hooks/useVerseHighlights';
@@ -636,21 +637,23 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                 <span className="text-xs font-medium text-violet-600">Exegesis</span>
                 <MethodologyTooltip />
               </div>
-              <FormattedText
-                text={linkifyGrammarTermRefs(linkifyTranslationNotesRefs(exegesis.exegesis_markdown))}
-                anchors={
-                  exegesis.word_anchors?.length
-                    ? { verseKey, list: exegesis.word_anchors }
-                    : undefined
-                }
-                translationNotesId={
-                  aiTranslation?.departure_notes
-                    ? `translation-notes-${data.surah}-${data.ayah}`
-                    : undefined
-                }
-                grammarTerms={grammarTerms ?? undefined}
-                className="text-sm text-violet-900/90 leading-relaxed"
-              />
+              <NoteHighlightable verseKey={verseKey} note="exegesis" source={exegesis.exegesis_markdown}>
+                <FormattedText
+                  text={linkifyGrammarTermRefs(linkifyTranslationNotesRefs(exegesis.exegesis_markdown))}
+                  anchors={
+                    exegesis.word_anchors?.length
+                      ? { verseKey, list: exegesis.word_anchors }
+                      : undefined
+                  }
+                  translationNotesId={
+                    aiTranslation?.departure_notes
+                      ? `translation-notes-${data.surah}-${data.ayah}`
+                      : undefined
+                  }
+                  grammarTerms={grammarTerms ?? undefined}
+                  className="text-sm text-violet-900/90 leading-relaxed"
+                />
+              </NoteHighlightable>
             </div>
           )}
 
@@ -663,7 +666,12 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                 <span className="text-xs font-medium text-violet-600">Translation Notes</span>
                 <MethodologyTooltip />
               </div>
-              <div className="text-sm text-violet-800 leading-relaxed">
+              <NoteHighlightable
+                verseKey={verseKey}
+                note="translation"
+                source={aiTranslation.departure_notes}
+                className="text-sm text-violet-800 leading-relaxed"
+              >
                 {splitDepartureNotes(aiTranslation.departure_notes).map((line, i) => (
                   <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
                     <FormattedInline
@@ -677,7 +685,7 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
                     />
                   </p>
                 ))}
-              </div>
+              </NoteHighlightable>
             </div>
           )}
         </div>
@@ -693,18 +701,20 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
               hover-highlight the words they quote, grammar terms get their
               glossary tooltip, and a verse-ref tooltip lights up the word
               carrying the note's own focus root. */}
-          <FormattedText
-            text={linkifyGrammarTermRefs(poetry.note_markdown)}
-            quotes={poetry.quoted_lines}
-            anchors={
-              poetry.word_anchors?.length
-                ? { verseKey, list: poetry.word_anchors }
-                : undefined
-            }
-            grammarTerms={grammarTerms ?? undefined}
-            highlightRootBw={poetry.focus_root_buckwalter ?? undefined}
-            className="text-sm text-amber-900/90 leading-relaxed"
-          />
+          <NoteHighlightable verseKey={verseKey} note="poetry" source={poetry.note_markdown}>
+            <FormattedText
+              text={linkifyGrammarTermRefs(poetry.note_markdown)}
+              quotes={poetry.quoted_lines}
+              anchors={
+                poetry.word_anchors?.length
+                  ? { verseKey, list: poetry.word_anchors }
+                  : undefined
+              }
+              grammarTerms={grammarTerms ?? undefined}
+              highlightRootBw={poetry.focus_root_buckwalter ?? undefined}
+              className="text-sm text-amber-900/90 leading-relaxed"
+            />
+          </NoteHighlightable>
         </div>
       )}
 

@@ -26,6 +26,7 @@ import {
 } from '../../utils/reader-prefs';
 import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from '../FormattedText';
 import { NotesBody } from '../GrammarNotes';
+import NoteHighlightable from '../NoteHighlightable';
 import { splitDepartureNotes } from '../../utils/departure-notes';
 import { TranslationWithChips } from '../TermChip';
 import NoteEditor from '../NoteEditor';
@@ -654,7 +655,12 @@ function VerseNotesPanel({
           </h4>
           {/* FormattedText linkifies verse refs and transliterated roots
               (e.g. f-l-q) with the same hover tooltips as the research view. */}
-          <div className="text-sm leading-relaxed text-ink-secondary">
+          <NoteHighlightable
+            verseKey={`${surah}:${verse}`}
+            note="exegesis"
+            source={exegesis.exegesis_markdown}
+            className="text-sm leading-relaxed text-ink-secondary"
+          >
             <FormattedText
               text={linkifyGrammarTermRefs(linkifyTranslationNotesRefs(exegesis.exegesis_markdown))}
               anchors={
@@ -665,7 +671,7 @@ function VerseNotesPanel({
               translationNotesId={translation?.departure_notes ? `translation-notes-${surah}-${verse}` : undefined}
               grammarTerms={glossaryTerms ?? undefined}
             />
-          </div>
+          </NoteHighlightable>
         </div>
       )}
       {translation?.departure_notes && (
@@ -680,7 +686,12 @@ function VerseNotesPanel({
               verse refs (2:155) + transliterated/Arabic roots — same inline
               rendering as the research view, so notes feel consistent across
               both surfaces. */}
-          <div className="text-sm leading-relaxed text-ink-secondary">
+          <NoteHighlightable
+            verseKey={`${surah}:${verse}`}
+            note="translation"
+            source={translation.departure_notes}
+            className="text-sm leading-relaxed text-ink-secondary"
+          >
             {splitDepartureNotes(translation.departure_notes).map((line, i) => (
               <p key={i} className={i > 0 ? 'mt-1.5' : ''}>
                 <FormattedInline
@@ -694,7 +705,7 @@ function VerseNotesPanel({
                 />
               </p>
             ))}
-          </div>
+          </NoteHighlightable>
         </div>
       )}
       {poetry?.note_markdown && (
@@ -704,7 +715,12 @@ function VerseNotesPanel({
           </h4>
           {/* FormattedText resolves the [[q:…]] markers against quoted_lines
               into the same hover-tooltip quote links the research view uses. */}
-          <div className="text-sm leading-relaxed text-ink-secondary">
+          <NoteHighlightable
+            verseKey={`${surah}:${verse}`}
+            note="poetry"
+            source={poetry.note_markdown}
+            className="text-sm leading-relaxed text-ink-secondary"
+          >
             <FormattedText
               text={linkifyGrammarTermRefs(poetry.note_markdown)}
               quotes={poetry.quoted_lines}
@@ -716,7 +732,7 @@ function VerseNotesPanel({
               grammarTerms={glossaryTerms ?? undefined}
               highlightRootBw={poetry.focus_root_buckwalter ?? undefined}
             />
-          </div>
+          </NoteHighlightable>
         </div>
       )}
       {grammar?.notes_markdown && (
@@ -726,9 +742,14 @@ function VerseNotesPanel({
           </h4>
           {/* NotesBody renders [[term]] markers as the same wavy-underline
               chips with hover-popover definition cards used on /verse/<ref>. */}
-          <div className="text-sm leading-relaxed text-ink-secondary">
+          <NoteHighlightable
+            verseKey={`${surah}:${verse}`}
+            note="grammar"
+            source={grammar.notes_markdown}
+            className="text-sm leading-relaxed text-ink-secondary"
+          >
             <NotesBody markdown={grammar.notes_markdown} terms={grammar.terms} />
-          </div>
+          </NoteHighlightable>
         </div>
       )}
       <div className="pt-2 text-[11px] text-ink-muted text-right">

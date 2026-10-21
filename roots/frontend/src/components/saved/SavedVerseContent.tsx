@@ -2,12 +2,19 @@ import { Fragment, useEffect, useState } from 'react';
 import { updateSavedItemContent, type SavedItem } from '../../utils/saved-items';
 import { useVerseHighlights } from '../../hooks/useVerseHighlights';
 import { HIGHLIGHT_BG } from '../../utils/verse-highlights';
+import {
+  getNoteHighlights,
+  subscribeToNoteHighlights,
+  NOTE_KIND_LABEL,
+  type NoteHighlight,
+} from '../../utils/note-highlights';
 import { TranslationWithChips } from '../TermChip';
 import { parseVerseKey } from '../../utils/urls';
 
 /**
  * Renders a saved verse: the Arabic (word tokens, with any highlights drawn
- * in their colors) and the translation. If the saved item predates the
+ * in their colors), the translation, and any passages highlighted in the
+ * verse's notes. If the saved item predates the
  * stored text fields, it lazily fetches the verse once and backfills the
  * store so the next render is instant.
  *
@@ -17,6 +24,12 @@ import { parseVerseKey } from '../../utils/urls';
 export default function SavedVerseContent({ item }: { item: SavedItem }) {
   const verseKey = item.key;
   const { posMap } = useVerseHighlights(verseKey);
+  const [noteHls, setNoteHls] = useState<NoteHighlight[]>(() => getNoteHighlights(verseKey));
+  useEffect(() => {
+    const update = () => setNoteHls(getNoteHighlights(verseKey));
+    update();
+    return subscribeToNoteHighlights(update);
+  }, [verseKey]);
   // Stored fields win; otherwise fall back to what we fetched. (Deriving from
   // props avoids a props→state mirror effect.)
   const [fetched, setFetched] = useState<{ arabic?: string; translation?: string } | null>(null);
@@ -62,6 +75,23 @@ export default function SavedVerseContent({ item }: { item: SavedItem }) {
       {translation && (
         <span className="block text-xs text-stone-500 italic mt-1 line-clamp-2 leading-relaxed">
           <TranslationWithChips text={translation} verse={parseVerseKey(verseKey)} />
+        </span>
+      )}
+      {noteHls.length > 0 && (
+        <span className="block mt-1.5 space-y-1">
+          {noteHls.map((h, i) => (
+            <span key={h.id} className="block text-xs leading-relaxed text-stone-600">
+              {/* Sorted by note, so label only the first passage of each. */}
+              {noteHls[i - 1]?.note !== h.note && (
+                <span className="block text-[10px] uppercase tracking-wide text-stone-400">
+                  {NOTE_KIND_LABEL[h.note]}
+                </span>
+              )}
+              <span className="line-clamp-3 whitespace-pre-line">
+                <span className="rounded-sm bg-yellow-200 box-decoration-clone px-0.5">{h.exact}</span>
+              </span>
+            </span>
+          ))}
         </span>
       )}
     </span>

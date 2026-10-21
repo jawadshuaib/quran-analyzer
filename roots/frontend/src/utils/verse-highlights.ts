@@ -26,6 +26,7 @@ import {
 } from './saved-items';
 import { getSurahName } from './surah-names';
 import { getNote } from './user-notes';
+import { hasNoteHighlights } from './note-highlights';
 
 // ----- Colors --------------------------------------------------------------
 
@@ -199,7 +200,8 @@ export interface VerseMeta {
   translation?: string;
 }
 
-function ensureSavedForHighlight(verseKey: string, meta?: VerseMeta): void {
+/** Shared with note-highlights.ts, which auto-saves the same way. */
+export function ensureSavedForHighlight(verseKey: string, meta?: VerseMeta): void {
   if (isSaved('verse', verseKey)) return;
   const [s] = verseKey.split(':');
   const surah = parseInt(s, 10);
@@ -214,8 +216,10 @@ function ensureSavedForHighlight(verseKey: string, meta?: VerseMeta): void {
   });
 }
 
-function maybeUnsaveAfterClear(verseKey: string): void {
-  if (hasHighlights(verseKey)) return;
+/** Shared with note-highlights.ts: a verse stays saved while it has either
+ *  kind of highlight. */
+export function maybeUnsaveAfterClear(verseKey: string): void {
+  if (hasHighlights(verseKey) || hasNoteHighlights(verseKey)) return;
   if (getSavedItemSource('verse', verseKey) !== 'highlight') return;
   // Filed into a folder = curated; keep the save even though the last
   // highlight is gone.

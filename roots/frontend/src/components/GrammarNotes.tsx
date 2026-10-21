@@ -4,6 +4,7 @@ import type { GrammarNotesData, GrammarTerm } from '../types';
 import { fetchGrammarNotes, grammarTermSlug } from '../api/quran';
 import { wrapArabicRuns } from '../utils/arabic-runs';
 import { viewportSize } from '../utils/viewport';
+import NoteHighlightable from './NoteHighlightable';
 
 interface Props {
   surah: number;
@@ -102,9 +103,14 @@ export default function GrammarNotes({ surah, ayah }: Props) {
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-amber-200 border-t-amber-600" />
             </div>
           ) : data ? (
-            <div className="prose prose-sm prose-stone max-w-none text-sm text-stone-700 leading-relaxed">
+            <NoteHighlightable
+              verseKey={`${surah}:${ayah}`}
+              note="grammar"
+              source={data.notes_markdown}
+              className="prose prose-sm prose-stone max-w-none text-sm text-stone-700 leading-relaxed"
+            >
               <NotesBody markdown={data.notes_markdown} terms={data.terms} />
-            </div>
+            </NoteHighlightable>
           ) : (
             <p className="text-sm text-stone-400 text-center py-2">
               No grammar notes available for this verse yet.

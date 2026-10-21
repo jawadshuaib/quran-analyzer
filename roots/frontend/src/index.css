@@ -139,3 +139,16 @@ summary {
   border-radius: 0 0.75rem 0.75rem 0;
   background: linear-gradient(270deg, rgba(99, 56, 6, 0.22), rgba(99, 56, 6, 0.06) 45%, transparent);
 }
+
+/* Reader highlights in the notes under a verse (NoteHighlightable.tsx).
+   Painted as ranges by the CSS Custom Highlight API, so the note's own markup
+   is untouched; same yellow as a verse highlight (bg-yellow-200). Selecting in
+   a note is highlighting, so while highlighting is on the selection shows in
+   that yellow too — the passage turns yellow as it is selected. */
+::highlight(note-hl) {
+  background-color: #fef08a;
+}
+[data-note-hl][data-hl-on]::selection,
+[data-note-hl][data-hl-on] ::selection {
+  background-color: #fef08a;
+}

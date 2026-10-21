@@ -7,9 +7,11 @@ import {
   HIGHLIGHT_COLORS,
   HIGHLIGHT_SWATCH,
   HIGHLIGHT_LABEL,
+  isCoarsePointer,
   type HighlightColor,
 } from '../utils/verse-highlights';
 import { isHighlightingEnabled } from '../utils/reader-prefs';
+import { captureNoteSelection } from '../utils/note-highlight-dom';
 import { viewportSize } from '../utils/viewport';
 import { getSurahName } from '../utils/surah-names';
 import {
@@ -56,6 +58,10 @@ export default function HighlightController() {
     window.setTimeout(() => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+
+      // Passages selected in the notes under a verse are highlighted (yellow,
+      // no popover) and the selection is left in place so they can be copied.
+      if (isHighlightingEnabled()) captureNoteSelection(sel);
 
       const spans = document.querySelectorAll<HTMLElement>(
         '[data-arabic-region] [data-word-pos]',
@@ -153,6 +159,27 @@ export default function HighlightController() {
       document.removeEventListener('touchend', capture);
     };
   }, [capture]);
+
+  // Touch screens: a selection widened by dragging its handles doesn't
+  // reliably end in a touchend, so note passages are also captured once the
+  // selection has settled. Re-capturing is harmless — an overlapping note
+  // highlight merges into the existing one.
+  useEffect(() => {
+    if (!isCoarsePointer()) return;
+    let t = 0;
+    const onChange = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        const sel = window.getSelection();
+        if (sel && isHighlightingEnabled()) captureNoteSelection(sel);
+      }, 700);
+    };
+    document.addEventListener('selectionchange', onChange);
+    return () => {
+      window.clearTimeout(t);
+      document.removeEventListener('selectionchange', onChange);
+    };
+  }, []);
 
   // Deselect handling for the copy affordance: while a verse is the active copy
   // context and the modal isn't open, clicking outside the copy icon / modal /
