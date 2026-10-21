@@ -35,6 +35,9 @@ interface Props {
    *  root/word page's own prose cites a verse. */
   highlightRootBw?: string;
   highlightLemmaBw?: string;
+  /** Words of the verse the page itself is about (the /related/ page):
+   *  offered first and preselected, alongside the reader's own highlights. */
+  phraseFocus?: { selection: string; runs: PhraseRun[]; label: string };
 }
 
 interface Message {
@@ -106,6 +109,7 @@ export default function AskAssistant({
   onOpenChange,
   highlightRootBw,
   highlightLemmaBw,
+  phraseFocus,
 }: Props) {
   // Open state is dual-mode. When the parent passes `isOpen`, that
   // wins; otherwise we fall back to internal state seeded from
@@ -148,9 +152,11 @@ export default function AskAssistant({
   // the whole verse: each highlight, or all of them together.
   const verseRef = pageType === 'verse' ? pageKey.match(/^(\d+):(\d+)$/) : null;
   const { highlights } = useVerseHighlights(verseRef ? pageKey : '');
-  const [focusSel, setFocusSel] = useState('');
+  const [focusSel, setFocusSel] = useState(phraseFocus?.selection ?? '');
   const focusOptions = useMemo<FocusOption[]>(() => {
-    if (!verseRef || !highlights.length) return [];
+    if (!verseRef) return [];
+    const page: FocusOption[] = phraseFocus ? [{ ...phraseFocus, color: 'yellow' }] : [];
+    if (!highlights.length) return page;
     const text =
       document
         .querySelector(`[data-arabic-region][data-verse-key="${pageKey}"]`)
@@ -164,10 +170,10 @@ export default function AskAssistant({
       const runs = highlights.map((h) => ({ start: h.startPos, end: h.endPos }));
       opts.push({ selection: phraseSelection(runs), runs, label: `All ${opts.length} highlights` });
     }
-    return opts;
+    return [...page, ...opts.filter((o) => o.selection !== phraseFocus?.selection)];
     // verseRef is derived from pageKey
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [highlights, pageKey, pageType]);
+  }, [highlights, pageKey, pageType, phraseFocus?.selection, phraseFocus?.label]);
   // A removed highlight can't stay the focus.
   const focus = focusOptions.find((o) => o.selection === focusSel) ?? null;
 
@@ -198,7 +204,7 @@ export default function AskAssistant({
   useEffect(() => {
     contextRef.current = '';
     focusBlocksRef.current = new Map();
-    setFocusSel('');
+    setFocusSel(phraseFocus?.selection ?? '');
     threadIdRef.current = null;
     inflightSaveRef.current = null;
     setMessages([]);
@@ -254,7 +260,7 @@ export default function AskAssistant({
   // those words first. (The selection itself is gone by then: the click that
   // opens the panel deselects it.)
   useEffect(() => {
-    if (!open || !highlights.length) return;
+    if (!open || !highlights.length || phraseFocus) return;
     const latest = highlights.reduce((a, b) => (a.createdAt >= b.createdAt ? a : b));
     if (Date.now() - latest.createdAt < RECENT_HIGHLIGHT_MS) {
       setFocusSel(phraseSelection([{ start: latest.startPos, end: latest.endPos }]));

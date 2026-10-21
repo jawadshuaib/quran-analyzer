@@ -23,6 +23,7 @@ const VerseDisplay = lazy(() => import('./components/VerseDisplay'));
 const SurroundingContext = lazy(() => import('./components/SurroundingContext'));
 const RelatedVerses = lazy(() => import('./components/RelatedVerses'));
 const GrammarNotes = lazy(() => import('./components/GrammarNotes'));
+const RootLexiconPanel = lazy(() => import('./components/RootLexiconPanel'));
 const WordSearchResults = lazy(() => import('./components/WordSearchResults'));
 const SearchPage = lazy(() => import('./components/search/SearchPage'));
 const RootPage = lazy(() => import('./components/RootPage'));
@@ -999,6 +1000,9 @@ export default function App() {
             )}
 
             <GrammarNotes surah={data.surah} ayah={data.ayah} />
+            {/* What each of the verse's roots is attested to mean in
+                pre-Islamic poetry. Auto-hides when none. */}
+            <RootLexiconPanel surah={data.surah} ayah={data.ayah} />
             <SurroundingContext
               surah={data.surah}
               ayah={data.ayah}

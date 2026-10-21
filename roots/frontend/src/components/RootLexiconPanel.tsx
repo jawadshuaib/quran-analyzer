@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { GrammarTerm, VerseRootLexicon, VerseRootLexiconWord } from '../types';
 import FormattedText from './FormattedText';
+import { fetchVerseRootLexicon } from '../api/quran';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
 
@@ -69,7 +70,22 @@ function WordRow({ w, grammarTerms }: { w: VerseRootLexiconWord; grammarTerms: R
   );
 }
 
-export default function RootLexiconPanel({ data }: { data: VerseRootLexicon }) {
+/** The verse page's own section, below Notes on Grammar. Fetches the
+ *  verse's lexicon and hides itself when there is none. */
+export default function RootLexiconPanel({ surah, ayah }: { surah: number; ayah: number }) {
+  const [data, setData] = useState<VerseRootLexicon | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setData(null);
+    fetchVerseRootLexicon(surah, ayah)
+      .then((result) => { if (!cancelled) setData(result); })
+      .catch(() => { if (!cancelled) setData(null); });
+    return () => { cancelled = true; };
+  }, [surah, ayah]);
+  return data ? <LexiconCard data={data} /> : null;
+}
+
+function LexiconCard({ data }: { data: VerseRootLexicon }) {
   const seenRoots = new Set<string>();
   const words = data.words.filter((w) => {
     if (!w.lexicon || seenRoots.has(w.root_buckwalter)) return false;
@@ -80,8 +96,8 @@ export default function RootLexiconPanel({ data }: { data: VerseRootLexicon }) {
   const grammarTerms = useGrammarTermsIfMentioned(words.map((w) => w.lexicon?.lexicon_markdown));
   if (words.length === 0) return null;
   return (
-    <div className="mt-4 rounded-lg bg-amber-50/60 border border-amber-200 p-3">
-      <div className="text-xs font-medium text-amber-700 mb-0.5">
+    <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-6 py-4 shadow-sm">
+      <div className="text-sm font-semibold text-amber-800 mb-0.5">
         Roots in 6th-century usage
       </div>
       <p className="text-[11px] italic text-stone-500 mb-2">

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import type { CoreEvidence, VerseData, Word, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote, VerseRootLexicon } from '../types';
-import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry, fetchVerseRootLexicon } from '../api/quran';
-import RootLexiconPanel from './RootLexiconPanel';
+import type { CoreEvidence, VerseData, Word, RootSummary, SearchTerm, WordMeaningBrief, AITranslationData, VerseExegesisData, VersePoetryNote } from '../types';
+import { searchWordsCount, fetchWordMeanings, fetchAITranslation, fetchVerseExegesis, fetchVersePoetry } from '../api/quran';
 import FormattedText, { FormattedInline, linkifyTranslationNotesRefs } from './FormattedText';
 import { linkifyGrammarTermRefs } from '../utils/grammar-term-refs';
 import { useGrammarTermsIfMentioned } from '../hooks/useGrammarTerms';
@@ -59,7 +58,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
   const [aiTranslation, setAiTranslation] = useState<AITranslationData | null>(null);
   const [exegesis, setExegesis] = useState<VerseExegesisData | null>(null);
   const [poetry, setPoetry] = useState<VersePoetryNote | null>(null);
-  const [lexicon, setLexicon] = useState<VerseRootLexicon | null>(null);
   const [wordToWordEnabled, setWordToWordEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.localStorage.getItem(WORD_TO_WORD_KEY) === '1';
@@ -187,16 +185,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
     fetchVersePoetry(data.surah, data.ayah).then((result) => {
       if (!cancelled) setPoetry(result);
     }).catch(() => { if (!cancelled) setPoetry(null); });
-    return () => { cancelled = true; };
-  }, [data.surah, data.ayah]);
-
-  // Fetch the per-word contemporaneous-attestation lexicon (Qurʾān-only)
-  useEffect(() => {
-    let cancelled = false;
-    setLexicon(null);
-    fetchVerseRootLexicon(data.surah, data.ayah).then((result) => {
-      if (!cancelled) setLexicon(result);
-    }).catch(() => { if (!cancelled) setLexicon(null); });
     return () => { cancelled = true; };
   }, [data.surah, data.ayah]);
 
@@ -726,10 +714,6 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           </NoteHighlightable>
         </div>
       )}
-
-      {/* Per-word contemporaneous-attestation lexicon — what each root is
-          attested to mean in 6th-c. poetry (Qurʾān-only). Auto-hides when none. */}
-      {lexicon && <RootLexiconPanel data={lexicon} />}
 
       {expandedRootData?.cognate && (
         <CognatePanel

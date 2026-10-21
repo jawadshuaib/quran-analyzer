@@ -3,6 +3,8 @@ import type { RelatedPhraseResponse } from '../../types';
 import { fetchRelatedPhrase } from '../../api/quran';
 import { verseUrl } from '../../utils/urls';
 import { wrapArabicRuns } from '../../utils/arabic-runs';
+import { buildVerseContext } from '../../utils/context-builders';
+import AskAssistant from '../AskAssistant';
 
 interface Props {
   surah: number;
@@ -75,6 +77,9 @@ export default function RelatedPhrasePage({ surah, ayah, selection }: Props) {
     for (let p = r.start; p <= r.end; p++) selected.add(p);
   });
   const gloss = data.runs.map((r) => r.gloss).filter(Boolean).join(' … ');
+  const phraseWords = data.runs.map((r) => r.arabic).join(' … ').split(/\s+/);
+  const phraseLabel =
+    phraseWords.length > 6 ? `${phraseWords.slice(0, 4).join(' ')} … ${phraseWords[phraseWords.length - 1]}` : phraseWords.join(' ');
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -104,7 +109,11 @@ export default function RelatedPhrasePage({ surah, ayah, selection }: Props) {
           In its verse
         </h2>
         <div className="rounded-xl border border-stone-200 bg-white p-5">
-          <ArabicWords text={data.source.text_uthmani} marked={selected} markClass="bg-yellow-200" />
+          {/* data-* lets the Ask panel read the verse's words, as it does on
+              the verse page. */}
+          <div data-arabic-region data-verse-key={`${surah}:${ayah}`} data-verse-text={data.source.text_uthmani}>
+            <ArabicWords text={data.source.text_uthmani} marked={selected} markClass="bg-yellow-200" />
+          </div>
           <p className="text-sm italic text-stone-500">{wrapArabicRuns(data.source.translation)}</p>
           {data.shared_roots.length > 0 && (
             <p className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-stone-500">
@@ -174,6 +183,19 @@ export default function RelatedPhrasePage({ surah, ayah, selection }: Props) {
           : 'Ranked by how close each verse is in meaning to the selected words, not to the whole verse. '}
         Words that share a root with the selection are marked.
       </p>
+
+      {/* Asks about these words by default (the whole verse is a click
+          away); answers draw on the verses listed above. */}
+      <AskAssistant
+        pageType="verse"
+        pageKey={`${surah}:${ayah}`}
+        contextGatherer={() => buildVerseContext(surah, ayah)}
+        phraseFocus={{
+          selection: data.selection,
+          runs: data.runs.map((r) => ({ start: r.start, end: r.end })),
+          label: phraseLabel,
+        }}
+      />
     </div>
   );
 }
