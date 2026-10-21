@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootLexiconEntry, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse, DictionarySearchResponse } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootLexiconEntry, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse, DictionarySearchResponse, RelatedPhraseResponse } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -106,6 +106,21 @@ export async function fetchRelatedVerses(
 ): Promise<RelatedVersesResponse> {
   const res = await fetch(`${BASE}/related/${surah}:${ayah}?limit=${limit}`);
   if (!res.ok) throw new Error('Failed to load related verses');
+  return res.json();
+}
+
+/** Verses related in meaning to the selected words of one verse
+ *  (selection like "1-4,15-21"). Ranked once server-side, then cached. */
+export async function fetchRelatedPhrase(
+  surah: number,
+  ayah: number,
+  selection: string,
+): Promise<RelatedPhraseResponse> {
+  const res = await fetch(`${BASE}/related/${surah}:${ayah}/${selection}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? 'Failed to load related verses');
+  }
   return res.json();
 }
 

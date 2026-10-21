@@ -183,6 +183,50 @@ export interface RelatedVersesResponse {
   meta: { query_root_count: number };
 }
 
+/** One run of selected Arabic words in a verse (word positions, inclusive). */
+export interface RelatedPhraseRun {
+  start: number;
+  end: number;
+  arabic: string;
+  /** The word-by-word labels of the run, joined. */
+  gloss: string;
+}
+
+export interface RelatedPhraseRoot {
+  root_buckwalter: string;
+  root_arabic: string;
+}
+
+export interface RelatedPhraseResult {
+  surah: number;
+  ayah: number;
+  surah_name: string;
+  text_uthmani: string;
+  translation: string;
+  score: number;
+  /** Word positions that share a root with the selected words. */
+  matched_positions: number[];
+  shared_roots: RelatedPhraseRoot[];
+}
+
+/** GET /api/related/<s>:<a>/<selection> — verses related to selected words. */
+export interface RelatedPhraseResponse {
+  surah: number;
+  ayah: number;
+  surah_name: string;
+  /** Canonical selection, e.g. "1-4,15-21". */
+  selection: string;
+  /** Canonical page path, e.g. "/related/4:34/1-4,15-21". */
+  path: string;
+  source: { text_uthmani: string; translation: string };
+  runs: RelatedPhraseRun[];
+  shared_roots: RelatedPhraseRoot[];
+  results: RelatedPhraseResult[];
+  engine: string;
+  degraded: boolean;
+  cached: boolean;
+}
+
 export interface ContextVerse {
   surah: number;
   ayah: number;

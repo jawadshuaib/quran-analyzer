@@ -15,6 +15,7 @@ const DictionaryGuidePage = lazy(() => import('./components/DictionaryGuidePage'
 import SavedItemsPanel from './components/SavedItemsPanel';
 import HighlightController from './components/HighlightController';
 import CopyModal from './components/CopyModal';
+import RelatedPhraseBar from './components/related/RelatedPhraseBar';
 // Every page except the homepage is split into its own chunk, so the first
 // load (and a home-screen launch) only downloads the code it renders.
 // <Suspense> in main.tsx shows the boot splash while a chunk arrives.
@@ -45,6 +46,7 @@ const ReaderPage = lazy(() => import('./components/reader/ReaderPage'));
 const SettingsPage = lazy(() => import('./components/SettingsPage'));
 const AskAssistant = lazy(() => import('./components/AskAssistant'));
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
+const RelatedPhrasePage = lazy(() => import('./components/related/RelatedPhrasePage'));
 import { buildVerseContext } from './utils/context-builders';
 import { getSurahMaxAyah } from './utils/surah-names';
 import { parseVerseRef } from './utils/search-classifier';
@@ -73,6 +75,17 @@ function getPoemFromPath(): number | null {
 function getMeterFromPath(): string | null {
   const m = window.location.pathname.match(/^\/meter\/([a-z]+)\/?$/);
   return m ? m[1] : null;
+}
+
+/** /related/<n>:<a>/<words> — verses related to some selected words of a verse. */
+function getRelatedFromPath(): { surah: number; ayah: number; selection: string } | null {
+  const m = window.location.pathname.match(/^\/related\/(\d+):(\d+)\/(\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*)\/?$/);
+  if (!m) return null;
+  const surah = parseInt(m[1], 10);
+  const ayah = parseInt(m[2], 10);
+  const max = getSurahMaxAyah(surah);
+  if (!max || ayah < 1 || ayah > max) return null;
+  return { surah, ayah, selection: m[3] };
 }
 
 function getWordFromPath(): { surah: number; ayah: number; pos: number } | null {
@@ -222,6 +235,7 @@ function isKnownRoute(): boolean {
   if (/^\/verse\/\d+:\d+$/.test(path)) return true;
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
+  if (getRelatedFromPath()) return true;
   if (/^\/meter\/[a-z]+\/?$/.test(path)) return true;
   if (/^\/meters\/?$/.test(path)) return true;
   if (/^\/search\/?$/.test(path)) return true;
@@ -431,6 +445,31 @@ export default function App() {
         <SavedItemsPanel />
         <HighlightController />
         <CopyModal />
+        <RelatedPhraseBar />
+      </div>
+    );
+  }
+
+  const relatedParams = getRelatedFromPath();
+  if (relatedParams) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1">
+          <Suspense
+            fallback={
+              <div className="flex justify-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+              </div>
+            }
+          >
+            <RelatedPhrasePage {...relatedParams} />
+          </Suspense>
+        </div>
+        <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }
@@ -505,6 +544,7 @@ export default function App() {
         <SavedItemsPanel />
         <HighlightController />
         <CopyModal />
+        <RelatedPhraseBar />
       </div>
     );
   }
@@ -986,6 +1026,10 @@ export default function App() {
       <SavedItemsPanel />
       <HighlightController />
       <CopyModal />
+      <RelatedPhraseBar
+        defaultVerseKey={data ? `${data.surah}:${data.ayah}` : undefined}
+        defaultVerseText={data?.text_uthmani}
+      />
     </div>
   );
 }

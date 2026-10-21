@@ -1489,6 +1489,18 @@ except Exception as _sv2_exc:  # never let search v2 break app startup
     print(f"[search_v2] init skipped: {_sv2_exc}")
     search_v2 = None
 
+# Verses related to a selected phrase (/related/<s>:<a>/<words>). Rankings are
+# computed once (Voyage) and kept in related_phrase_cache.
+import related_phrases
+try:
+    _rp_conn = get_db()
+    try:
+        related_phrases.ensure_table(_rp_conn)
+    finally:
+        _rp_conn.close()
+except Exception as _rp_exc:
+    print(f"[related] cache table setup failed: {_rp_exc}")
+
 # The Qur'anic Dictionary search keeps its own small index (dictionary_search.py);
 # build it in the background shortly after the worker starts. Skipped for
 # scripts that import app.py (AL_NUQTA_NO_SCHEDULER), like the scheduler is.
@@ -4815,6 +4827,67 @@ def semantic_search_api():
         conn.close()
 
 
+# --- Verses related to a selected phrase ------------------------------------
+@app.route("/api/related/<int:surah>:<int:ayah>/<sel>")
+def related_phrase_api(surah: int, ayah: int, sel: str):
+    """Verses related in meaning to the selected words of one verse.
+
+    GET /api/related/4:34/1-4,15-21 — word positions are 1-indexed over the
+    verse's Arabic words (the highlight store's positions). The selection comes
+    back canonical (sorted, merged) as "selection"/"path". Computed once and
+    cached; see related_phrases.py for the ranking.
+    """
+    resolved = related_phrases.resolve(surah, ayah, sel)
+    if resolved is None:
+        return jsonify({"error": "No such verse or word selection"}), 404
+    runs, selection = resolved
+    conn = get_db()
+    try:
+        info = related_phrases.phrase_info(conn, surah, ayah, runs)
+        if related_phrases.cached_ranking(conn, surah, ayah, selection) is None \
+                and _search_v2_rate_limited(_get_client_ip()):
+            return jsonify({"error": "Too many requests, slow down a moment."}), 429
+        ranking, engine, cached = related_phrases.get_ranking(
+            conn, surah, ayah, runs, selection, info, _get_client_ip())
+        results = related_phrases.shape_results(conn, ranking, info["roots"])
+        return jsonify({
+            "surah": surah,
+            "ayah": ayah,
+            "surah_name": _surah_name(surah),
+            "selection": selection,
+            "path": related_phrases.path_for(surah, ayah, selection),
+            "source": {
+                "text_uthmani": " ".join(related_phrases.verse_tokens(surah, ayah, conn) or []),
+                "translation": _best_translation(conn, surah, ayah),
+            },
+            "runs": info["runs"],
+            "shared_roots": [
+                {"root_buckwalter": r, "root_arabic": _root_arabic_map.get(r, "")}
+                for r in sorted(info["roots"])
+            ],
+            "results": results,
+            "engine": engine,
+            "degraded": engine != related_phrases.ENGINE,
+            "cached": cached,
+        })
+    finally:
+        conn.close()
+
+
+def _related_from_path(path: str):
+    """(surah, ayah, runs, canonical selection) for a /related/ page path, else None."""
+    m = re.match(r"^/related/(\d+):(\d+)/([0-9,-]+)/?$", path)
+    if not m:
+        return None
+    surah, ayah = int(m.group(1)), int(m.group(2))
+    if not (1 <= surah <= 114 and 1 <= ayah <= _surah_max_ayah(surah)):
+        return None
+    resolved = related_phrases.resolve(surah, ayah, m.group(3))
+    if resolved is None:
+        return None
+    return surah, ayah, resolved[0], resolved[1]
+
+
 # --- Phase B: multilingual hybrid search -----------------------------------
 _search_v2_hits: dict = {}          # ip -> [timestamps]
 _SEARCH_V2_MAX = 30                 # per IP
@@ -5748,6 +5821,8 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if re.match(r"^/word/\d+:\d+/\d+$", path):
         return True
+    if path.startswith("/related/") and _related_from_path(path) is not None:
+        return True
     if re.match(r"^/(poems|meters)/?$", path):
         return True
     if re.match(r"^/poem/\d+/?$", path):
@@ -5961,6 +6036,43 @@ def _get_seo_meta(path: str) -> dict:
             "description": f"Morphology, etymology, and AI analysis of {word_label}(word {pos}) in Surah {name} {surah}:{ayah}{gloss_part}.",
             "og_type": "article",
             "canonical": f"{SITE_URL}/word/{surah}:{ayah}/{pos}",
+            "robots": "index, follow",
+        }
+
+    # Verses related to a selected phrase: /related/4:34/1-4,15-21
+    rel = _related_from_path(path) if path.startswith("/related/") else None
+    if rel:
+        surah, ayah, runs, selection = rel
+        name = _surah_name(surah)
+        phrase, gloss, refs = "", "", []
+        try:
+            conn = get_db()
+            try:
+                info = related_phrases.phrase_info(conn, surah, ayah, runs)
+                phrase = " … ".join(r["arabic"] for r in info["runs"])
+                gloss = " … ".join(r["gloss"] for r in info["runs"] if r["gloss"])
+                ranking = related_phrases.cached_ranking(conn, surah, ayah, selection) or []
+                refs = [f"{c}:{v}" for c, v, _s in ranking[:3]]
+            finally:
+                conn.close()
+        except Exception:
+            pass
+        def _clip(text, n):
+            return text if len(text) <= n else text[:n].rsplit(" ", 1)[0] + " …"
+
+        first = phrase.split(" … ")[0]
+        short = _clip(first or phrase, 50) + (" …" if len(runs) > 1 and len(first) <= 50 else "")
+        desc = f"Qur'an verses related in meaning to {_clip(phrase, 90)}"
+        if gloss:
+            desc += f" (\u201c{_clip(gloss, 90)}\u201d)"
+        desc += f", from Surah {name} {surah}:{ayah}"
+        desc += f": {', '.join(refs)} and more." if refs else "."
+        desc += " Ranked by meaning, with shared roots marked."
+        return {
+            "title": f"Verses related to \u201c{short}\u201d ({surah}:{ayah}) | al-nuqta",
+            "description": desc,
+            "og_type": "article",
+            "canonical": SITE_URL + related_phrases.path_for(surah, ayah, selection),
             "robots": "index, follow",
         }
 
@@ -6397,12 +6509,15 @@ def robots_txt():
     return Response(body, mimetype="text/plain")
 
 
-_sitemap_cache: dict = {"xml": None}
+_sitemap_cache: dict = {"xml": None, "ts": 0.0}
+# Rebuilt now and then so related-phrase pages readers open get listed
+# without waiting for a deploy.
+_SITEMAP_TTL = 6 * 3600
 
 
 @app.route("/sitemap.xml")
 def sitemap_xml():
-    if _sitemap_cache["xml"]:
+    if _sitemap_cache["xml"] and time.time() - _sitemap_cache["ts"] < _SITEMAP_TTL:
         resp = Response(_sitemap_cache["xml"], mimetype="application/xml")
         resp.headers["Cache-Control"] = "public, max-age=86400"
         return resp
@@ -6452,6 +6567,11 @@ def sitemap_xml():
         ).fetchall()
         for cr in cur_roots:
             _add(f"{SITE_URL}/learning/root/{quote(cr['root_buckwalter'])}", "0.7")
+
+        # Related-to-a-phrase pages: only the selections readers have opened
+        # (each was ranked once and cached), most visited first.
+        for rel_path in related_phrases.sitemap_paths(conn):
+            _add(SITE_URL + rel_path, "0.5")
     finally:
         conn.close()
 
@@ -6461,6 +6581,7 @@ def sitemap_xml():
     xml += "\n</urlset>\n"
 
     _sitemap_cache["xml"] = xml
+    _sitemap_cache["ts"] = time.time()
     resp = Response(xml, mimetype="application/xml")
     resp.headers["Cache-Control"] = "public, max-age=86400"
     return resp
@@ -23053,6 +23174,39 @@ def _build_noscript_content(path: str) -> str:
         finally:
             conn.close()
 
+    # Related-to-a-phrase page: the source verse, the phrase, and the ranked
+    # verses when they've been computed (never computed here — no API call on
+    # an HTML render).
+    rel = _related_from_path(path) if path.startswith("/related/") else None
+    if rel:
+        surah, ayah, runs, selection = rel
+        conn = get_db()
+        try:
+            info = related_phrases.phrase_info(conn, surah, ayah, runs)
+            name = _surah_name(surah)
+            phrase = " … ".join(r["arabic"] for r in info["runs"])
+            gloss = " … ".join(r["gloss"] for r in info["runs"] if r["gloss"])
+            parts.append(f'<h1>Verses related to <span lang="ar">{html.escape(phrase)}</span></h1>')
+            if gloss:
+                parts.append(f'<p>{html.escape(gloss)}</p>')
+            parts.append(f'<p>From <a href="/verse/{surah}:{ayah}">Surah {html.escape(name)} {surah}:{ayah}</a></p>')
+            src = " ".join(related_phrases.verse_tokens(surah, ayah, conn) or [])
+            parts.append(f'<p dir="rtl" lang="ar">{html.escape(src)}</p>')
+            parts.append(f'<p>{html.escape(_best_translation(conn, surah, ayah))}</p>')
+            ranking = related_phrases.cached_ranking(conn, surah, ayah, selection) or []
+            if ranking:
+                parts.append('<h2>Related verses</h2><ol>')
+                for c, v, _s in ranking:
+                    text = " ".join(related_phrases.verse_tokens(c, v, conn) or [])
+                    parts.append(
+                        f'<li><a href="/verse/{c}:{v}">Surah {html.escape(_surah_name(c))} {c}:{v}</a>'
+                        f'<p dir="rtl" lang="ar">{html.escape(text)}</p>'
+                        f'<p>{html.escape(_best_translation(conn, c, v))}</p></li>'
+                    )
+                parts.append('</ol>')
+        finally:
+            conn.close()
+
     # Reader page: /read/<n> or /read/<n>:<v>
     # The reader's main draw is "the entire surah on one page" — so
     # we render every verse here as static HTML so Googlebot, GPTBot,
@@ -23528,6 +23682,16 @@ if SERVE_STATIC:
         m_word = re.match(r"^word/(\d+):(\d+)/?$", path)
         if m_word:
             return redirect(f"/verse/{m_word.group(1)}:{m_word.group(2)}", code=301)
+
+        # /related/<n>:<a>/<words> written out of order, overlapping or with a
+        # trailing slash → its one canonical spelling, so a selection has a
+        # single URL (and a single cached ranking).
+        if path.startswith("related/"):
+            rel = _related_from_path("/" + path)
+            if rel:
+                target = related_phrases.path_for(rel[0], rel[1], rel[3])
+                if target != "/" + path:
+                    return redirect(target, code=301)
 
         # Read and cache index.html template
         if _index_html_cache is None:
