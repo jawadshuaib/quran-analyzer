@@ -755,7 +755,9 @@ export default function AskAssistant({
                       color={o.color}
                     >
                       {o.color ? (
-                        <span dir="rtl" lang="ar" className="font-arabic text-sm leading-tight">{o.label}</span>
+                        // Tall line box: the chip clips its overflow, and Arabic
+                        // marks sit well above and below the letters.
+                        <span dir="rtl" lang="ar" className="block truncate font-arabic text-sm leading-[2.1]">{o.label}</span>
                       ) : (
                         o.label
                       )}
@@ -857,8 +859,8 @@ function FocusChip({
       role="radio"
       aria-checked={active}
       onClick={onClick}
-      className={`max-w-full truncate rounded-full px-2.5 py-0.5 text-xs transition-colors ${
-        color ? HIGHLIGHT_BG[color] : 'bg-stone-100'
+      className={`max-w-full truncate rounded-full py-0.5 text-xs transition-colors ${
+        color ? `${HIGHLIGHT_BG[color]} px-3.5` : 'bg-stone-100 px-2.5'
       } ${
         active
           ? 'font-medium text-stone-900 ring-2 ring-violet-500'
