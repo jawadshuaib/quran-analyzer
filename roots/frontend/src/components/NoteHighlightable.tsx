@@ -200,7 +200,7 @@ export default function NoteHighlightable({
     if (coarse) return;
     if ((e.target as HTMLElement).closest('[data-nh-ignore]')) return; // on the × itself
     const { clientX: x, clientY: y } = e;
-    const PAD = 6;
+    const PAD = 10;
     let hit: string | null = null;
     for (const { id, range } of rangesRef.current) {
       for (const r of range.getClientRects()) {
@@ -247,6 +247,14 @@ export default function NoteHighlightable({
           <HighlightCross
             visible={coarse || hoverId === c.id}
             onRemove={() => {
+              // The selection that made the highlight is usually still live
+              // (it's kept so it can be copied); drop it, or the next mouseup
+              // or touch-selection settle would highlight it all over again.
+              const sel = window.getSelection();
+              const content = contentRef.current;
+              if (sel && content && sel.rangeCount && sel.getRangeAt(0).intersectsNode(content)) {
+                sel.removeAllRanges();
+              }
               removeNoteHighlight(verseKey, c.id);
               setHoverId(null);
             }}

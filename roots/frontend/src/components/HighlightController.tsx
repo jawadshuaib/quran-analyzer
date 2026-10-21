@@ -53,7 +53,11 @@ interface PopoverState {
 export default function HighlightController() {
   const [popover, setPopover] = useState<PopoverState | null>(null);
 
-  const capture = useCallback(() => {
+  const capture = useCallback((e: Event) => {
+    // A click on a highlight's remove-× is never a new highlight. A note's
+    // selection is left in place after highlighting, so without this the very
+    // click that removes a highlight would capture it again.
+    if ((e.target as Element | null)?.closest?.('[aria-label="Remove highlight"]')) return;
     // Defer so the browser has finalized the selection after mouseup/touchend.
     window.setTimeout(() => {
       const sel = window.getSelection();
