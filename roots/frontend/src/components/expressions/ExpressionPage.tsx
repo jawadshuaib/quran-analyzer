@@ -156,10 +156,6 @@ export default function ExpressionPage({ slug }: { slug: string }) {
         </section>
       )}
 
-      <p className="text-sm text-stone-500">
-        Explained from the Qur'an's own verses; every claim was checked against the verses cited.{' '}
-        <a href="/expressions" className="text-gold-hover hover:underline">All expressions</a>
-      </p>
     </article>
   );
 }

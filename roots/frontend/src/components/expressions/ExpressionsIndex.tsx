@@ -61,8 +61,7 @@ export default function ExpressionsIndex() {
         <h1 className="text-3xl font-semibold text-stone-800">Expressions</h1>
         <p className="mt-3 text-stone-600 leading-relaxed">
           Phrases the Qur'an returns to, mirrors, or sets side by side: read together, their verses show what no
-          single verse shows alone. Each entry is explained from the Qur'an's own words, and every claim was checked
-          against the verses it cites.
+          single verse shows alone.
         </p>
         {!loading && !error && (
           <p className="mt-2 text-sm text-stone-400">{items.length} expressions in {kinds.length} kinds</p>
