@@ -5,6 +5,7 @@ Qur'an alone, checked claim by claim against their verses, revised) and
 loaded here with `python expressions_ai.py publish --final final_all.jsonl`.
 Stdlib only, so app.py can import it cheaply.
 """
+import difflib
 import json
 import re
 import unicodedata
@@ -105,6 +106,135 @@ def neighbours(conn, slug, limit=4):
             out.append((len(shared), {"slug": s, "title": title, "expression_ar": ar, "kind": kind}))
     out.sort(key=lambda x: -x[0])
     return [o for _, o in out[:limit]]
+
+
+# Widest stretch of a verse marked on hover, in words.
+MAX_SPAN = 12
+
+# Order on a verse page: the entries most particular to the verse first.
+_KIND_ORDER = {"mirror": 0, "closing": 1, "contrast": 2, "twin": 3, "family": 4, "frame": 5}
+
+_ALIFS = str.maketrans({"ٱ": "ا", "أ": "ا", "إ": "ا", "آ": "ا", "ى": "ي", "ة": "ه"})
+
+
+def _skeleton(text):
+    """Bare letters of an Arabic word, so a quotation matches the verse's own
+    spelling whatever its marks: alif variants folded, then alifs dropped
+    (Uthmani writes many long ā's as a dagger alif)."""
+    s = "".join(ch for ch in (text or "").translate(_ALIFS) if "\u0621" <= ch <= "\u064a")
+    return s.replace("ا", "")
+
+
+def _keys(source_id, kind):
+    """What marks the expression in a verse: roots for a mirror or a contrast,
+    lemmas for a family, frame or closing pair (Buckwalter, as in morphology).
+    A twin is matched by its text instead."""
+    body = (source_id or "").split(":", 1)[-1]
+    if kind == "mirror":
+        return "root", {body.rsplit(":", 1)[-1]}
+    if kind == "contrast":
+        return "root", set(body.split("|"))
+    if kind in ("family", "frame", "closing"):
+        return "lemma", set(body.split("|"))
+    return None, set()
+
+
+def _span(words, kind_key, keys, expression_ar):
+    """1-indexed inclusive (start, end) of the expression's words in a verse,
+    or None. `words` is [(pos, lemmas, roots, skeleton)] in verse order.
+
+    First the quoted Arabic itself (exact where the verse is the one quoted),
+    then the tightest window holding the most of the entry's roots/lemmas."""
+    quoted = [_skeleton(t) for t in (expression_ar or "").split()]
+    quoted = [q for q in quoted if q]
+    if quoted:
+        sm = difflib.SequenceMatcher(None, quoted, [w[3] for w in words], autojunk=False)
+        hit = [b.b + k for b in sm.get_matching_blocks() for k in range(b.size)]
+        # All of a one- or two-word quotation; at least half of a longer one.
+        if hit and len(hit) >= (len(quoted) if len(quoted) <= 2 else (len(quoted) + 1) // 2):
+            return words[hit[0]][0], words[hit[-1]][0]
+    if not kind_key:
+        return None
+    marked = [(k, w[0]) for k, w in enumerate(words)
+              if (w[1] if kind_key == "lemma" else w[2]) & keys]
+    if not marked:
+        return None
+    best = None  # (distinct keys covered, -width, start, end)
+    for a in range(len(marked)):
+        seen = set()
+        for b in range(a, len(marked)):
+            w = words[marked[b][0]]
+            seen |= (w[1] if kind_key == "lemma" else w[2]) & keys
+            cand = (len(seen), -(marked[b][1] - marked[a][1]), marked[a][1], marked[b][1])
+            if best is None or cand[:2] > best[:2]:
+                best = cand
+    start, end = best[2], best[3]
+    # A family's words recur inside the phrase (faḍḍalnā baʿḍahum ʿalā baʿḍ):
+    # take in marked words that sit right next to the window.
+    for _, pos in marked:
+        if end < pos <= end + 2:
+            end = pos
+    for _, pos in reversed(marked):
+        if start - 2 <= pos < start:
+            start = pos
+    return start, end
+
+
+def for_verses(conn, surah, ayah=None, brief=False):
+    """verse -> the visible expressions that draw on it, for the verse page
+    and the reader. Each item carries the span of its words in that verse
+    (start/end, word positions) when one can be found, for hover marking.
+    `brief` drops the per-verse role line (the reader shows titles only)."""
+    ensure_table(conn)
+    prefix = f"{surah}:"
+    wanted = {}  # verse -> [(row, ref)]
+    for r in conn.execute(
+            "SELECT slug, kind, title, expression_ar, gloss, refs_json, occurrences_json, source_id "
+            "FROM expressions WHERE hidden = 0 AND refs_json LIKE ?", (f'%"{prefix}%',)):
+        for ref in json.loads(r[5] or "[]"):
+            if not ref.startswith(prefix):
+                continue
+            v = int(ref.split(":")[1])
+            if ayah is None or v == ayah:
+                wanted.setdefault(v, []).append(r)
+    if not wanted:
+        return {}
+
+    verses = sorted(wanted)
+    words = {}  # verse -> {pos: [lemmas, roots, skeleton]}
+    for v, pos, form, lemma, root in conn.execute(
+            f"SELECT verse, word_pos, form_arabic, lemma_buckwalter, root_buckwalter FROM morphology "
+            f"WHERE chapter = ? AND verse IN ({','.join('?' * len(verses))}) ORDER BY verse, word_pos, segment",
+            [surah, *verses]):
+        w = words.setdefault(v, {}).setdefault(pos, [set(), set(), ""])
+        if lemma:
+            w[0].add(lemma)
+        if root:
+            w[1].add(root)
+        w[2] += form or ""
+
+    out = {}
+    for v, rows in wanted.items():
+        vw = [(p, w[0], w[1], _skeleton(w[2])) for p, w in sorted(words.get(v, {}).items())]
+        items = []
+        for slug, kind, title, ar, gloss, refs_json, occ_json, source_id in rows:
+            kind_key, keys = _keys(source_id, kind)
+            span = _span(vw, kind_key, keys, ar) if vw else None
+            if span and span[1] - span[0] >= MAX_SPAN:
+                span = None  # words far apart: marking the whole stretch would mislead
+            item = {"slug": slug, "kind": kind, "kind_label": KIND_LABEL.get(kind, kind),
+                    "title": title, "expression_ar": ar,
+                    "verse_count": len(json.loads(refs_json or "[]")),
+                    "start": span[0] if span else None, "end": span[1] if span else None}
+            if not brief:
+                ref = f"{surah}:{v}"
+                item["gloss"] = gloss
+                item["role"] = next((o.get("role") for o in json.loads(occ_json or "[]")
+                                     if o.get("ref") == ref), None)
+            items.append(item)
+        items.sort(key=lambda i: (_KIND_ORDER.get(i["kind"], 9), i["verse_count"], i["slug"]))
+        out[v] = items
+    return out
 
 
 def publish(conn, records):

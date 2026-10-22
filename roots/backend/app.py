@@ -3442,6 +3442,8 @@ def get_verse(surah: int, ayah: int):
             "text_uthmani": _strip_bismillah(verse["text_uthmani"], surah, ayah),
             "translation": _best_translation(conn, surah, ayah),
             "alt_translation": _alt_translations(conn, surah, ayah).get(ayah),
+            # Qur'anic expressions (/expressions) that draw on this verse.
+            "expressions": expressions.for_verses(conn, surah, ayah).get(ayah, []),
             "words": words_list,
             "roots_summary": roots_list,
             # lemma -> short core-meaning passage, for the word tooltip. Sent
@@ -3586,6 +3588,7 @@ def get_surah(surah: int):
         ).fetchall()
         has_poetry = {r["verse"] for r in poetry_rows}
         alt_by_verse = _alt_translations(conn, surah)
+        expr_by_verse = expressions.for_verses(conn, surah, brief=True)
 
         # Optional: per-word data (full segments + translation). Grouped
         # by word_pos so prefixes/suffixes/content all live under one
@@ -3756,6 +3759,8 @@ def get_surah(surah: int):
                 "has_poetry_note": v in has_poetry,
                 "alt_translation": alt_by_verse.get(v),
             }
+            if v in expr_by_verse:
+                entry["expressions"] = expr_by_verse[v]
             if include_words:
                 entry["words"] = words_by_verse.get(v, [])
             if include_surveyed:

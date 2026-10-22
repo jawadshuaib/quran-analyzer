@@ -70,6 +70,23 @@ export interface AltTranslationData {
   anchors?: WordAnchor[];
 }
 
+/** A Qur'anic expression (/expressions/<slug>) that draws on a verse. */
+export interface VerseExpression {
+  slug: string;
+  kind: string;
+  kind_label: string;
+  title: string;
+  expression_ar: string;
+  verse_count: number;
+  /** Word positions (1-indexed, inclusive) of the expression in this verse,
+   *  for hover marking; null when its words couldn't be placed simply. */
+  start: number | null;
+  end: number | null;
+  /** Verse page only: what this verse contributes to the expression. */
+  gloss?: string | null;
+  role?: string | null;
+}
+
 export interface VerseData {
   surah: number;
   ayah: number;
@@ -86,6 +103,7 @@ export interface VerseData {
    *  so the tooltip only links a mention it can back up. */
   core_evidence?: Record<string, CoreEvidence>;
   alt_translation?: AltTranslationData | null;
+  expressions?: VerseExpression[];
   previous?: VerseNavRef | null;
   next?: VerseNavRef | null;
 }
@@ -123,6 +141,8 @@ export interface SurahVerse {
   /** True when an approved, non-hidden pre-Islamic poetry note exists. */
   has_poetry_note?: boolean;
   alt_translation?: AltTranslationData | null;
+  /** Expressions drawing on this verse; absent when there are none. */
+  expressions?: VerseExpression[];
   /** Present when /api/surah/<n>?include=words was requested. */
   words?: SurahVerseWord[];
   /** Present when ?include=surveyed_roots was requested. Subset of roots

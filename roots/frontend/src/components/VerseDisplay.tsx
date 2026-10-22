@@ -22,6 +22,7 @@ import { HIGHLIGHT_BG, removeHighlight, isCoarsePointer } from '../utils/verse-h
 import { getWordHover, subscribeWordHover, isWordHovered } from '../utils/word-hover';
 import { getCopyContext, openCopyModal, subscribeCopyContext } from '../utils/copy-context';
 import AltTranslation from './AltTranslation';
+import VerseExpressions from './VerseExpressions';
 import { useScrollSwipe } from '../hooks/useScrollSwipe';
 
 const WORD_TO_WORD_KEY = 'quranExplorer.wordToWordEnabled';
@@ -714,6 +715,10 @@ export default function VerseDisplay({ data, onWordSearch, wordSearchLoading, on
           </NoteHighlightable>
         </div>
       )}
+
+      {/* Qur'anic expressions this verse belongs to — after the notes, since
+          they lead away from the verse; nothing renders for most verses. */}
+      <VerseExpressions items={data.expressions} verseKey={verseKey} />
 
       {expandedRootData?.cognate && (
         <CognatePanel

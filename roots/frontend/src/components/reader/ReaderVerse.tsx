@@ -1,5 +1,5 @@
 import { forwardRef, Fragment, useEffect, useRef, useState } from 'react';
-import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote } from '../../types';
+import type { SurahVerse, AITranslationData, GrammarNotesData, VerseExegesisData, VersePoetryNote, VerseExpression } from '../../types';
 import {
   toggleManualSave,
   isSaved,
@@ -36,6 +36,7 @@ import type { Word, Segment } from '../../types';
 import type { DefaultReciter } from '../../api/quran';
 import { reciterAudioUrl } from '../../api/quran';
 import AltTranslation from '../AltTranslation';
+import VerseExpressions from '../VerseExpressions';
 import {
   getVerseAudioStatus,
   toggleVerseAudio,
@@ -198,7 +199,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
   }
 
   const hasNote = !!note.trim();
-  const hasVerseNotes = verse.has_translation_note || verse.has_grammar_note || !!verse.has_exegesis || !!verse.has_poetry_note;
+  const hasVerseNotes = verse.has_translation_note || verse.has_grammar_note || !!verse.has_exegesis || !!verse.has_poetry_note || !!verse.expressions?.length;
 
   return (
     <article
@@ -507,6 +508,7 @@ const ReaderVerse = forwardRef<HTMLElement, Props>(function ReaderVerse(
             hasGrammar={verse.has_grammar_note}
             hasExegesis={!!verse.has_exegesis}
             hasPoetry={!!verse.has_poetry_note}
+            expressions={verse.expressions}
           />
         )}
       </div>
@@ -621,6 +623,7 @@ function VerseNotesPanel({
   hasGrammar,
   hasExegesis,
   hasPoetry,
+  expressions,
 }: {
   surah: number;
   verse: number;
@@ -628,6 +631,8 @@ function VerseNotesPanel({
   hasGrammar: boolean;
   hasExegesis: boolean;
   hasPoetry: boolean;
+  /** Arrive with the surah, so they need no load of their own. */
+  expressions?: VerseExpression[];
 }) {
   const [translation, setTranslation] = useState<AITranslationData | null>(null);
   const [grammar, setGrammar] = useState<GrammarNotesData | null>(null);
@@ -689,9 +694,9 @@ function VerseNotesPanel({
       setExegesis(ex);
       setPoetry(p);
       setLoading(false);
-      if (!t && !g && !ex && !p) setError('No notes available for this verse.');
+      if (!t && !g && !ex && !p && !expressions?.length) setError('No notes available for this verse.');
     });
-  }, [near, surah, verse, hasTranslation, hasGrammar, hasExegesis, hasPoetry]);
+  }, [near, surah, verse, hasTranslation, hasGrammar, hasExegesis, hasPoetry, expressions]);
 
   // Exegesis and Translation Notes sometimes reference a grammar-glossary
   // term (e.g. "causative form IV") that's opaque without a definition.
@@ -830,6 +835,11 @@ function VerseNotesPanel({
           >
             <NotesBody markdown={grammar.notes_markdown} terms={grammar.terms} />
           </NoteHighlightable>
+        </div>
+      )}
+      {!!expressions?.length && (
+        <div className={(translation?.departure_notes || exegesis?.exegesis_markdown || poetry?.note_markdown || grammar?.notes_markdown) ? 'pt-3 border-t border-card-border/70' : ''}>
+          <VerseExpressions items={expressions} verseKey={`${surah}:${verse}`} variant="reader" />
         </div>
       )}
       <div className="pt-2 text-[11px] text-ink-muted text-right">
