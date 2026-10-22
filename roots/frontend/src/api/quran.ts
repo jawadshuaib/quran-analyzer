@@ -1,4 +1,4 @@
-import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootLexiconEntry, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse, DictionarySearchResponse, RelatedPhraseResponse } from '../types';
+import type { VerseData, SurahInfo, SurahData, RelatedVersesResponse, ContextResponse, SearchTerm, WordSearchResponse, RootDetailData, AITranslationData, WordMeaningsResponse, WordAnalysisData, ThematicContextResponse, SurahContextResponse, GrammarInsightsResponse, GrammarNotesData, VerseExegesisData, RootPoetryComparison, VersePoetryNote, PoemData, PoemSummary, MeterSummary, MeterData, VerseRootLexicon, RootLexiconEntry, RootDictionaries, DictionaryEntryDetail, DictionaryRootsResponse, DictionarySearchResponse, RelatedPhraseResponse, ExpressionKindInfo, ExpressionListItem, ExpressionDetail } from '../types';
 
 export const API_BASE = '';
 const BASE = '/api';
@@ -561,5 +561,20 @@ export interface BuildInfo {
 export async function getBuildInfo(): Promise<BuildInfo> {
   const res = await fetch(`${BASE}/build-info`);
   if (!res.ok) throw new Error('Failed to fetch build info');
+  return res.json();
+}
+
+export async function fetchExpressions(): Promise<{ kinds: ExpressionKindInfo[]; items: ExpressionListItem[] }> {
+  const res = await fetch(`${BASE}/expressions`);
+  if (!res.ok) throw new Error('Failed to load expressions');
+  return res.json();
+}
+
+export async function fetchExpression(slug: string): Promise<ExpressionDetail> {
+  const res = await fetch(`${BASE}/expressions/${encodeURIComponent(slug)}`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? 'Failed to load this expression');
+  }
   return res.json();
 }

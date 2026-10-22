@@ -498,6 +498,16 @@ def revise(a):
     run_jobs(jobs, a.out, fn, a.workers)
 
 
+def publish(a):
+    """Load finished entries into the site's `expressions` table (replaces it)."""
+    import expressions
+    records = [json.loads(l) for l in open(a.final)]
+    records = [r for r in records if r.get("entry") and not r["entry"].get("reject")]
+    conn = sqlite3.connect(a.db, timeout=60)
+    n = expressions.publish(conn, records)
+    print(f"published {n} expressions to {a.db}")
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -522,12 +532,14 @@ def main():
     r.add_argument("--written", required=True)
     r.add_argument("--verified", required=True)
     r.add_argument("--out", required=True)
-    for p in (t, w, v, r, an):
+    pb = sub.add_parser("publish", help="load final entries into the expressions table")
+    pb.add_argument("--final", required=True)
+    for p in (t, w, v, r, an, pb):
         p.add_argument("--db", default=DB_PATH)
         p.add_argument("--workers", type=int, default=6)
     a = ap.parse_args()
     {"triage": triage, "write": write, "verify": verify, "revise": revise,
-     "antonyms": antonyms}[a.cmd](a)
+     "antonyms": antonyms, "publish": publish}[a.cmd](a)
 
 
 if __name__ == "__main__":

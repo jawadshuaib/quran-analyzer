@@ -887,3 +887,41 @@ export interface DictionaryRootsResponse {
   entry_count: number;
   roots: DictionaryRootItem[];
 }
+
+// --- Qur'anic expressions (/expressions) ---
+export type ExpressionKind = 'mirror' | 'family' | 'twin' | 'closing' | 'contrast' | 'frame';
+
+export interface ExpressionKindInfo {
+  key: ExpressionKind;
+  label: string;
+  description: string;
+}
+
+export interface ExpressionListItem {
+  slug: string;
+  kind: ExpressionKind;
+  title: string;
+  expression_ar: string;
+  transliteration: string | null;
+  gloss: string | null;
+  summary: string | null;
+  verse_count: number;
+}
+
+export interface ExpressionDetail {
+  slug: string;
+  kind: ExpressionKind;
+  kind_label: string;
+  title: string;
+  expression_ar: string;
+  transliteration: string | null;
+  gloss: string | null;
+  summary: string | null;
+  explanation: string | null;
+  occurrences: { ref: string; role: string }[];
+  variation: string | null;
+  for_researchers: string[];
+  refs: string[];
+  verses: { ref: string; surah_name: string; arabic: string; translation: string }[];
+  see_also: { slug: string; title: string; expression_ar: string; kind: ExpressionKind }[];
+}

@@ -1478,6 +1478,7 @@ _load_embedding_matrix()
 # search and by search_v2's lexical arm.
 import root_query
 from alt_translations_ai import ensure_alt_table
+import expressions
 
 # Phase B: Voyage multilingual hybrid retrieval. Loads the v2 vector index from
 # the local DB (tolerant of a missing table — degrades to v1+lexical). No
@@ -4874,6 +4875,58 @@ def related_phrase_api(surah: int, ayah: int, sel: str):
         conn.close()
 
 
+# --------------- Qur'anic expressions ---------------
+
+def _expression_slug_from_path(path: str):
+    """The slug of a published /expressions/<slug> page, else None."""
+    m = re.match(r"^/expressions/([a-z0-9-]+)/?$", path)
+    if not m:
+        return None
+    conn = get_db()
+    try:
+        expressions.ensure_table(conn)
+        row = conn.execute("SELECT 1 FROM expressions WHERE slug = ? AND hidden = 0", (m.group(1),)).fetchone()
+        return m.group(1) if row else None
+    finally:
+        conn.close()
+
+
+@app.route("/api/expressions")
+def expressions_index_api():
+    """Every published expression, in Qur'an order, plus the six kinds."""
+    conn = get_db()
+    try:
+        return jsonify({
+            "kinds": [{"key": k, "label": l, "description": d} for k, l, d in expressions.KINDS],
+            "items": expressions.list_expressions(conn),
+        })
+    finally:
+        conn.close()
+
+
+@app.route("/api/expressions/<slug>")
+def expression_api(slug: str):
+    """One expression with the Arabic and our translation of each verse it draws on."""
+    conn = get_db()
+    try:
+        item = expressions.get_expression(conn, slug)
+        if not item:
+            return jsonify({"error": "No such expression"}), 404
+        verses = []
+        for ref in item["refs"]:
+            ch, v = map(int, ref.split(":"))
+            row = conn.execute("SELECT text_uthmani FROM verses WHERE chapter = ? AND verse = ?", (ch, v)).fetchone()
+            if row:
+                verses.append({"ref": ref, "surah_name": _surah_name(ch),
+                               "arabic": _strip_bismillah(row["text_uthmani"], ch, v),
+                               "translation": _best_translation(conn, ch, v)})
+        item["verses"] = verses
+        item["see_also"] = expressions.neighbours(conn, slug)
+        return jsonify(item)
+    finally:
+        conn.close()
+
+
 def _related_from_path(path: str):
     """(surah, ayah, runs, canonical selection) for a /related/ page path, else None."""
     m = re.match(r"^/related/(\d+):(\d+)/([0-9,-]+)/?$", path)
@@ -5823,6 +5876,10 @@ def _is_known_spa_path(path: str) -> bool:
         return True
     if path.startswith("/related/") and _related_from_path(path) is not None:
         return True
+    if re.match(r"^/expressions/?$", path):
+        return True
+    if path.startswith("/expressions/") and _expression_slug_from_path(path) is not None:
+        return True
     if re.match(r"^/(poems|meters)/?$", path):
         return True
     if re.match(r"^/poem/\d+/?$", path):
@@ -6038,6 +6095,38 @@ def _get_seo_meta(path: str) -> dict:
             "canonical": f"{SITE_URL}/word/{surah}:{ayah}/{pos}",
             "robots": "index, follow",
         }
+
+    # Qur'anic expressions: the index, and one page per expression
+    if re.match(r"^/expressions/?$", path):
+        return {
+            "title": "Qur'anic Expressions | al-nuqta",
+            "description": ("Recurring and striking expressions of the Qur'an (mirrored verbs, phrase "
+                            "families, near-twin verses, closing pairs, contrasts and formulas), each "
+                            "explained from the Qur'an's own verses."),
+            "og_type": "website",
+            "canonical": f"{SITE_URL}/expressions",
+            "robots": "index, follow",
+        }
+    exp_slug = _expression_slug_from_path(path) if path.startswith("/expressions/") else None
+    if exp_slug:
+        try:
+            conn = get_db()
+            try:
+                item = expressions.get_expression(conn, exp_slug)
+            finally:
+                conn.close()
+        except Exception:
+            item = None
+        if item:
+            summary = item.get("summary") or ""
+            desc = summary if len(summary) <= 158 else summary[:158].rsplit(" ", 1)[0] + " …"
+            return {
+                "title": f"{item['title']} — {item['expression_ar']} | Qur'anic Expressions | al-nuqta",
+                "description": desc,
+                "og_type": "article",
+                "canonical": f"{SITE_URL}/expressions/{exp_slug}",
+                "robots": "index, follow",
+            }
 
     # Verses related to a selected phrase: /related/4:34/1-4,15-21
     rel = _related_from_path(path) if path.startswith("/related/") else None
@@ -6572,6 +6661,11 @@ def sitemap_xml():
         # (each was ranked once and cached), most visited first.
         for rel_path in related_phrases.sitemap_paths(conn):
             _add(SITE_URL + rel_path, "0.5")
+
+        # Qur'anic expressions: the index and every published entry
+        _add(SITE_URL + "/expressions", "0.8")
+        for slug in expressions.slugs(conn):
+            _add(f"{SITE_URL}/expressions/{slug}", "0.7")
     finally:
         conn.close()
 
@@ -23171,6 +23265,45 @@ def _build_noscript_content(path: str) -> str:
                         ra = _root_arabic_map.get(rbw, "")
                         root_links.append(f'<a href="/root/{quote(rbw)}">{html.escape(ra)} ({html.escape(rbw)})</a>')
                     parts.append(f'<p>Roots in this verse: {", ".join(root_links)}</p>')
+        finally:
+            conn.close()
+
+    # Expressions: the index lists every entry; an entry page carries its full
+    # text and verses, so crawlers index the content, not an empty shell.
+    if re.match(r"^/expressions/?$", path):
+        conn = get_db()
+        try:
+            items = expressions.list_expressions(conn)
+        finally:
+            conn.close()
+        parts.append("<h1>Qur'anic Expressions</h1>")
+        for key, label, desc in expressions.KINDS:
+            mine = [i for i in items if i["kind"] == key]
+            if not mine:
+                continue
+            parts.append(f"<h2>{html.escape(label)}</h2><p>{html.escape(desc)}</p><ul>")
+            for i in mine:
+                parts.append(f'<li><a href="/expressions/{i["slug"]}">{html.escape(i["title"])}</a> '
+                             f'<span lang="ar">{html.escape(i["expression_ar"])}</span></li>')
+            parts.append("</ul>")
+    exp_slug = _expression_slug_from_path(path) if path.startswith("/expressions/") else None
+    if exp_slug:
+        conn = get_db()
+        try:
+            item = expressions.get_expression(conn, exp_slug)
+            if item:
+                parts.append(f"<h1>{html.escape(item['title'])}</h1>")
+                parts.append(f'<p dir="rtl" lang="ar">{html.escape(item["expression_ar"])}</p>')
+                parts.append(f"<p>{html.escape(item.get('transliteration') or '')} — {html.escape(item.get('gloss') or '')}</p>")
+                parts.append(f"<p>{html.escape(item.get('summary') or '')}</p>")
+                for para in (item.get("explanation") or "").split("\n"):
+                    if para.strip():
+                        parts.append(f"<p>{html.escape(para)}</p>")
+                parts.append("<h2>Where it occurs</h2><ul>")
+                for o in item["occurrences"]:
+                    parts.append(f'<li><a href="/verse/{html.escape(o.get("ref", ""))}">{html.escape(o.get("ref", ""))}</a> '
+                                 f'{html.escape(o.get("role", ""))}</li>')
+                parts.append('</ul><p><a href="/expressions">All Qur\'anic expressions</a></p>')
         finally:
             conn.close()
 

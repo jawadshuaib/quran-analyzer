@@ -48,6 +48,8 @@ const SettingsPage = lazy(() => import('./components/SettingsPage'));
 const AskAssistant = lazy(() => import('./components/AskAssistant'));
 const AdminPage = lazy(() => import('./components/admin/AdminPage'));
 const RelatedPhrasePage = lazy(() => import('./components/related/RelatedPhrasePage'));
+const ExpressionsIndex = lazy(() => import('./components/expressions/ExpressionsIndex'));
+const ExpressionPage = lazy(() => import('./components/expressions/ExpressionPage'));
 import { buildVerseContext } from './utils/context-builders';
 import { getSurahMaxAyah } from './utils/surah-names';
 import { parseVerseRef } from './utils/search-classifier';
@@ -76,6 +78,14 @@ function getPoemFromPath(): number | null {
 function getMeterFromPath(): string | null {
   const m = window.location.pathname.match(/^\/meter\/([a-z]+)\/?$/);
   return m ? m[1] : null;
+}
+
+/** /expressions (index) or /expressions/<slug> (one expression). */
+function getExpressionsFromPath(): { slug: string | null } | null {
+  const path = window.location.pathname;
+  if (/^\/expressions\/?$/.test(path)) return { slug: null };
+  const m = path.match(/^\/expressions\/([a-z0-9-]+)\/?$/);
+  return m ? { slug: m[1] } : null;
 }
 
 /** /related/<n>:<a>/<words> — verses related to some selected words of a verse. */
@@ -237,6 +247,7 @@ function isKnownRoute(): boolean {
   if (/^\/root\/.+$/.test(path)) return true;
   if (/^\/word\/\d+:\d+\/\d+$/.test(path)) return true;
   if (getRelatedFromPath()) return true;
+  if (getExpressionsFromPath()) return true;
   if (/^\/meter\/[a-z]+\/?$/.test(path)) return true;
   if (/^\/meters\/?$/.test(path)) return true;
   if (/^\/search\/?$/.test(path)) return true;
@@ -326,6 +337,7 @@ function TopExtensionBar({ storeUrl }: { storeUrl: string }) {
 }
 
 const FOOTER_LINKS: Array<{ href: string; label: string }> = [
+  { href: '/expressions', label: 'Expressions' },
   { href: '/grammar-glossary', label: 'Grammar' },
   { href: '/meters', label: 'Metres' },
   { href: '/methodology', label: 'Methodology' },
@@ -447,6 +459,30 @@ export default function App() {
         <HighlightController />
         <CopyModal />
         <RelatedPhraseBar />
+      </div>
+    );
+  }
+
+  const expressionsParams = getExpressionsFromPath();
+  if (expressionsParams) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <PageBackground />
+        {showTopBar && <TopExtensionBar storeUrl={extensionConfig.storeUrl} />}
+        <NavBar currentPath={currentPath} />
+        <div className="flex-1">
+          <Suspense
+            fallback={
+              <div className="flex justify-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-200 border-t-emerald-600" />
+              </div>
+            }
+          >
+            {expressionsParams.slug ? <ExpressionPage slug={expressionsParams.slug} /> : <ExpressionsIndex />}
+          </Suspense>
+        </div>
+        <SiteFooter />
+        <SavedItemsPanel />
       </div>
     );
   }

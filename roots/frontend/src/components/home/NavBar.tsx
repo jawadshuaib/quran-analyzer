@@ -19,6 +19,7 @@ import { getSavedCount, subscribeToSavedItems } from '../../utils/saved-items';
  *
  * Right-side links:
  *   - Saved (always; badge shows the count)
+ *   - Expressions (sm and up; phones reach it from the footer)
  *   - Dictionary
  *   (Methodology, Settings, Metres, Grammar + API live in the footer; Notes
  *   live inside the Saved page under their verses, so there's no top-nav
@@ -31,7 +32,10 @@ interface Props {
   onFullSemanticSearch?: (query: string) => void;
 }
 
-const STATIC_LINKS = [
+// Expressions is hidden below `sm`: on a phone the search button, Saved and
+// the Dictionary already fill the bar (the footer links it there).
+const STATIC_LINKS: Array<{ label: string; href: string; wideOnly?: boolean }> = [
+  { label: 'Expressions', href: '/expressions', wideOnly: true },
   { label: 'Dictionary', href: '/dictionary' },
 ];
 
@@ -219,9 +223,9 @@ export default function NavBar({
                 <a
                   key={link.label}
                   href={link.href}
-                  className={`min-h-[44px] sm:min-h-0 px-2.5 sm:px-0 rounded-md active:bg-ink/5 sm:active:bg-transparent inline-flex items-center hover:text-ink transition-colors ${
-                    isActive ? 'text-ink font-medium' : ''
-                  }`}
+                  className={`min-h-[44px] sm:min-h-0 px-2.5 sm:px-0 rounded-md active:bg-ink/5 sm:active:bg-transparent ${
+                    link.wideOnly ? 'hidden sm:inline-flex' : 'inline-flex'
+                  } items-center hover:text-ink transition-colors ${isActive ? 'text-ink font-medium' : ''}`}
                 >
                   {link.label}
                 </a>
