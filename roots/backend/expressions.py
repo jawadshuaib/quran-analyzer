@@ -110,6 +110,8 @@ def neighbours(conn, slug, limit=4):
 def publish(conn, records):
     """Replace the table's contents with these finished pipeline records."""
     ensure_table(conn)
+    # Entries hidden by hand (overlaps, owner's call) stay hidden on a reload.
+    hidden = {r[0] for r in conn.execute("SELECT source_id FROM expressions WHERE hidden = 1")}
     conn.execute("DELETE FROM expressions")
     used = set()
     for r in records:
@@ -126,12 +128,12 @@ def publish(conn, records):
         refs = [x for x in refs if x in set(r.get("given_refs") or refs)]
         conn.execute(
             "INSERT INTO expressions (slug, source_id, kind, title, expression_ar, transliteration, gloss, "
-            "summary, explanation, occurrences_json, variation, for_researchers_json, refs_json, first_ref_key) "
-            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "summary, explanation, occurrences_json, variation, for_researchers_json, refs_json, first_ref_key, hidden) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (slug, r["id"], r["kind"], e["title"], e["expression_ar"], e.get("transliteration"),
              e.get("gloss"), e.get("summary"), e.get("explanation"),
              json.dumps(e.get("occurrences") or [], ensure_ascii=False), e.get("variation"),
              json.dumps(e.get("for_researchers") or [], ensure_ascii=False),
-             json.dumps(refs), _ref_key(refs[0]) if refs else 999999))
+             json.dumps(refs), _ref_key(refs[0]) if refs else 999999, int(r["id"] in hidden)))
     conn.commit()
     return len(used)
