@@ -98,3 +98,4 @@ roots/backend/data/dict_translate_dump.json
 CLAUDE.md
 .claude/
 roots/backend/data/alt_translations_cache/
+roots/backend/data/expressions_cache/
